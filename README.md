@@ -6,8 +6,10 @@
 > Built entirely on **[`@qvac/sdk`](https://www.npmjs.com/package/@qvac/sdk)** for
 > **QVAC Hackathon I — "Unleash Edge AI"** (Tether).
 
-**Status:** Day 1–3 SDK spike (the gate). Downstream layers are scaffolded stubs;
-nothing is built past the gate until `SPIKE_RESULTS.md` is GO. License: **Apache-2.0**.
+**Status:** ✅ **Day 1–3 SDK spike — GATE PASSED (all four primitives GO).** Results +
+evidence live in [`../submission/SPIKE_RESULTS.md`](../submission/SPIKE_RESULTS.md).
+The five product layers are built **for real, incrementally, in Week 1+** — there
+are no stub layers in this repo; only working code ships. License: **Apache-2.0**.
 
 ## The idea
 
@@ -19,30 +21,35 @@ SENSES ──► MIND ──► MEMORY ──► (sharper SENSES) ──┐
    └──────────────────────────────────────────────┘
 ```
 
-5 layers (see `docs/superpowers/specs/2026-05-31-mycelium-design.md`):
+5 layers to be built (see `../docs/superpowers/specs/2026-05-31-mycelium-design.md`):
 
-| Layer | Package | Role |
+| Layer | Role | Status |
 |---|---|---|
-| 1 — Mesh | `packages/mesh` | QVAC P2P registry + router/scheduler |
-| 2 — Senses | `packages/senses` | encrypted context graph + on-device RAG |
-| 3 — Mind | `packages/mind` | distributed council + delegated compute |
-| 4 — Memory | `packages/memory` | nightly on-device LoRA (QVAC Fabric) |
-| 5 — Clients | `apps/mac`, `apps/mobile` | dashboard + iPhone/iPad app |
-| — | `packages/shared` | shared types + logging |
+| 1 — Mesh | QVAC P2P registry + router/scheduler | Week 2 |
+| 2 — Senses | encrypted context graph + on-device RAG | Week 1 |
+| 3 — Mind | distributed council + delegated compute | Week 1 |
+| 4 — Memory | nightly on-device LoRA (QVAC Fabric) | Week 3 |
+| 5 — Clients | Mac dashboard + iPhone/iPad (Expo) app | Week 1–2 |
+| — | `packages/shared` | foundation: shared types + logging (real) |
 
-## Repo layout
+Each layer becomes a real `packages/<layer>` (or `apps/<client>`) workspace **when it
+is actually implemented** — not before.
+
+## Repo layout (current)
 
 ```
 mycelium/
-  packages/{shared,mesh,senses,mind,memory}/   # libraries (stubs until past the gate)
-  apps/{mac,mobile}/                            # Mac dashboard + Expo mobile app
-  spike/                                         # the Day 1–3 gate — runnable now
-    01-inference.ts  02-rag.ts
+  packages/shared/      # foundation lib: DeviceCapability, AuditRecord, logger (real, used)
+  spike/                # the Day 1–3 gate — runnable, proven GO
+    00-warm-cache.ts  01-inference.ts  02-rag.ts
     03-p2p-provider.ts  03-p2p-consumer.ts  04-lora.ts
-    lib/audit-log.ts  fixtures/  logs/
-  SPIKE_RESULTS.md                               # GO/NO-GO per primitive
-  qvac.config.json                               # swarmRelays (blind relays)
+    lib/audit-log.ts  fixtures/  logs/  results/  checkpoints/
+  qvac.config.json      # swarmRelays (blind relays)
 ```
+
+Reporting/social/evidence artifacts live in `../submission/` (not in the code repo):
+`SPIKE_RESULTS.md`, `build-in-public.md`. Cached SDK reference docs are in
+`../resources/qvac-sdk-docs/`.
 
 ## Hardware setup
 
@@ -50,7 +57,7 @@ mycelium/
 - **iPhone / iPad** — clients + sensors; delegated-compute consumers (via Expo).
 - **Raspberry Pi** — always-on ambient edge node *(planned Week 2; no device yet)*.
 
-Recommended model sizes by device class (confirm in `SPIKE_RESULTS.md`):
+Recommended model sizes by device class (confirmed in `../submission/SPIKE_RESULTS.md`):
 phone/Pi → `QWEN3_600M_INST_Q4` or `LLAMA_3_2_1B_INST_Q4_0` (≤1B Q4);
 Mac → up to `QWEN3_4B_INST_Q4_K_M` (note: `QWEN3_4B_Q4_K_M` without `INST` is a
 diffusion model, not an LLM).
@@ -87,7 +94,8 @@ npm run spike:lora        # (d) on-device LoRA via QVAC Fabric; base vs adapter
 
 Each script prints to stdout **and** appends JSONL audit records under
 `spike/logs/` (model load/unload, prompt, tokens, TTFT, tok/s). See
-`SPIKE_RESULTS.md` for the recorded GO/NO-GO and committed log excerpts.
+[`../submission/SPIKE_RESULTS.md`](../submission/SPIKE_RESULTS.md) for the recorded
+GO/NO-GO and committed log excerpts.
 
 ## Offline acceptance test
 
