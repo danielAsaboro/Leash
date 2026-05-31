@@ -1,0 +1,28 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# QVAC model weight cache (multi-GB GGUF; warmed on first online run)
+.qvac/
+.cache/
+**/model-cache/
+*.gguf
+*.safetensors
+
+# fine-tune artifacts
+checkpoints/
+results/
+spike/checkpoints/
+spike/results/
+
+# spike run logs (real excerpts are committed into SPIKE_RESULTS.md instead)
+spike/logs/*.jsonl
+spike/logs/*.log
+logs/*.log
+
+# os / editor
+.DS_Store
+*.pcap
