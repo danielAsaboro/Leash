@@ -1,0 +1,29 @@
+
+> mycelium@0.0.0 spike:p2p:provider
+> tsx spike/03-p2p-provider.ts 00000000000000000000000000000000000000000000000000000000c0ffee01
+
+🚀 Starting QVAC delegated-inference provider…
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-85955-mpu4xpm5-fa95.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-85955-mpu4xpm5-fa95.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+📝 · delegation
+
+✅ Provider running. Give this public key to the consumer:
+
+   410d269ee6e3e3d052c5ceca35ff09e3bea0e2aa2fb7a75f5f393f96208343d0
+
+Consumer command (another terminal):
+   npm run spike:p2p:consumer -- 410d269ee6e3e3d052c5ceca35ff09e3bea0e2aa2fb7a75f5f393f96208343d0
+
+📡 Press Ctrl+C to stop. (No auto-reconnect yet — restart the consumer if you restart this.)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added <|end_of_text|> logit bias = -inf
+common_init_result: added <|eom_id|> logit bias = -inf
+common_init_result: added <|eot_id|> logit bias = -inf

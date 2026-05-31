@@ -1,0 +1,52 @@
+
+> mycelium@0.0.0 spike:rag
+> tsx spike/02-rag.ts
+
+=== (b) On-device RAG ===
+
+[sdk:client] Model type "embeddings" is an alias and will be deprecated. Use "llamacpp-embedding" instead.
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-67651-mpu3jooi-4066.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-67651-mpu3jooi-4066.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+build: 0 (unknown) with AppleClang 17.0.0.17000013 for Darwin arm64
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added [PAD] logit bias = -inf
+common_init_result: added [SEP] logit bias = -inf
+common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+📝 · model_load  model=GTE_LARGE_FP16
+📝 · rag_ingest  model=GTE_LARGE_FP16  tokens=7  dur=359ms
+Ingested 3 docs → 7 chunks.
+
+🔎 Query: "Which model does Dani run on the Raspberry Pi node, and why?"
+
+📝 · rag_search  model=GTE_LARGE_FP16  dur=23ms
+Retrieved 3 chunks in 23ms:
+  [1] score=0.768  -compute consumer and the primary sensor (camera + microphone). Dani's rule of thumb: the …
+  [2] score=0.759  # Dani's Mycelium mesh — setup notes Dani runs a four-device personal mesh codenamed "Holl…
+  [3] score=0.688  # Dani's preferences - Dani prefers answers that lead with the bottom line first, then the…
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added <|end_of_text|> logit bias = -inf
+common_init_result: added <|eom_id|> logit bias = -inf
+common_init_result: added <|eot_id|> logit bias = -inf
+📝 · model_load  model=LLAMA_3_2_1B_INST_Q4_0
+
+--- NO-CONTEXT answer (base model, no retrieval) ---
+I don't have any specific information about a person named Dani running on a Raspberry Pi node. There are many individuals who run on the Raspberry Pi, but I couldn't find any specific information about Dani.
+📝 · completion  model=LLAMA_3_2_1B_INST_Q4_0
+
+--- GROUNDED answer (RAG context injected, cite sources) ---
+According to the text, Dani runs the Raspberry Pi 5 on the always-on edge node, Rhizo.
+📝 · completion  model=LLAMA_3_2_1B_INST_Q4_0
+
+Grounded answer cites a source: no · names the correct model: no
+Differs from no-context answer: yes
+
+✅ GO if the grounded answer retrieved the right chunk, cited it, and beat the no-context answer. Log: /Volumes/Development/qvac/mycelium/spike/logs/02-rag.jsonl

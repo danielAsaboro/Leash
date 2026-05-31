@@ -52,7 +52,8 @@ mycelium/
 
 Recommended model sizes by device class (confirm in `SPIKE_RESULTS.md`):
 phone/Pi → `QWEN3_600M_INST_Q4` or `LLAMA_3_2_1B_INST_Q4_0` (≤1B Q4);
-Mac → up to `QWEN3_4B_Q4_K_M`.
+Mac → up to `QWEN3_4B_INST_Q4_K_M` (note: `QWEN3_4B_Q4_K_M` without `INST` is a
+diffusion model, not an LLM).
 
 ## Prerequisites
 

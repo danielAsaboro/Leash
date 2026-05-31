@@ -1,0 +1,26 @@
+
+> mycelium@0.0.0 spike:p2p:consumer
+> tsx spike/03-p2p-consumer.ts 410d269ee6e3e3d052c5ceca35ff09e3bea0e2aa2fb7a75f5f393f96208343d0
+
+🚀 Delegating inference to provider 410d269ee6e3e3d0…
+[sdk:client] Model type "llm" is an alias and will be deprecated. Use "llamacpp-completion" instead.
+[sdk:server] Another worker (PID 85967) is still running — lock file exists at /Users/cartel/.qvac/.worker.lock
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-87324-mpu50sf8-b9a0.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-87324-mpu50sf8-b9a0.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+📝 · delegation  model=LLAMA_3_2_1B_INST_Q4_0  dur=4572ms
+✅ Delegated model registered in 4572ms (cold-start incl. DHT bootstrap).
+
+📨 Tokens (generated on the provider):
+
+A weak device benefits from borrowing a stronger peer's brain by tapping into the collective knowledge, experience, and processing power of another's device, allowing it to augment its own capabilities and reach new levels of performance.
+📝 · completion  model=LLAMA_3_2_1B_INST_Q4_0  ttft=257ms  tok/s=45.4  tokens=42  dur=1270ms
+
+✅ Round-trip 1270ms · device=gpu · tok/s=45.4
+Transport is Noise-encrypted (Holepunch/Hyperswarm) by design — no plaintext on the wire.
+GO if you saw tokens above. Log: /Volumes/Development/qvac/mycelium/spike/logs/03-p2p-consumer.jsonl

@@ -1,0 +1,157 @@
+
+> mycelium@0.0.0 spike:lora
+> tsx spike/04-lora.ts
+
+=== (d) On-device LoRA (QVAC Fabric) ===
+
+BASE model answer (before fine-tune):
+[sdk:client] Model type "llm" is an alias and will be deprecated. Use "llamacpp-completion" instead.
+[sdk:server] Another worker (PID 71412) is still running — lock file exists at /Users/cartel/.qvac/.worker.lock
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-84301-mpu4tflj-a645.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-84301-mpu4tflj-a645.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+📝 · model_load  model=QWEN3_600M_INST_Q4
+   base: Mesh
+📝 · completion  model=QWEN3_600M_INST_Q4
+
+🔧 Fine-tuning a LoRA adapter (2 epochs)…
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+Using model's built-in chat template
+Loaded 16 conversations
+Using model's built-in chat template
+Loaded 3 conversations
+   epoch=1 step=1 train loss=2.7340
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=2 train loss=2.9568
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=3 train loss=3.1022
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=4 train loss=3.0852
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=5 train loss=2.7180
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=6 train loss=2.4978
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=7 train loss=2.3302
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=8 train loss=2.2563
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=9 train loss=2.1541
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=10 train loss=2.1002
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=11 train loss=2.0123
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=12 train loss=1.8914
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=13 train loss=1.8249
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=14 train loss=1.7651
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=15 train loss=1.7658
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=16 train loss=1.7076
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=16 val loss=0.4669
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=16 val loss=0.9127
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=1 step=16 val loss=1.1060
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=17 train loss=0.4669
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=18 train loss=0.9114
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=19 train loss=0.8707
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=20 train loss=0.8778
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=21 train loss=0.8306
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=22 train loss=0.7694
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=23 train loss=0.7342
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=24 train loss=0.8181
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=25 train loss=0.8160
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=26 train loss=0.8292
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=27 train loss=0.8128
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=28 train loss=0.7724
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=29 train loss=0.7582
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=30 train loss=0.7532
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=31 train loss=0.7895
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=32 train loss=0.7797
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=32 val loss=0.3706
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=32 val loss=0.8232
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+   epoch=2 step=32 val loss=0.9810
+📝 · finetune_progress  model=QWEN3_600M_INST_Q4
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+📝 · finetune_result  model=QWEN3_600M_INST_Q4  dur=152702ms
+✅ Fine-tune COMPLETED in 152.7s
+📝 · model_unload  model=QWEN3_600M_INST_Q4
+
+📦 Adapter produced: /Volumes/Development/qvac/mycelium/spike/results/trained-lora-adapter.gguf
+📝 · note
+
+ADAPTER model answer (after fine-tune, loaded via modelConfig.lora):
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-84301-mpu4x1ap-ee02.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-84301-mpu4x1ap-ee02.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+📝 · model_load  model=QWEN3_600M_INST_Q4
+   adapter: Nexon
+📝 · completion  model=QWEN3_600M_INST_Q4
+
+Behavior changed vs base: yes · learned target fact ("Hollowood"): no
+✅ GO if an adapter .gguf was produced and the answer changed. Log: /Volumes/Development/qvac/mycelium/spike/logs/04-lora.jsonl

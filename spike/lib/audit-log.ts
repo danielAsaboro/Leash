@@ -52,9 +52,15 @@ export class AuditLog {
   record(rec: Omit<AuditRecord, "ts" | "source">): AuditRecord {
     const full: AuditRecord = { ts: new Date().toISOString(), source: this.source, ...rec };
     appendFileSync(this.file, JSON.stringify(full) + "\n");
+    // Model constants are descriptor objects; show their .name in the console echo
+    // (the full descriptor is preserved in the JSONL for the evidence bundle).
+    const modelName =
+      full.modelSrc && typeof full.modelSrc === "object"
+        ? (full.modelSrc as { name?: string }).name ?? "model"
+        : full.modelSrc;
     const bits = [
       `· ${full.event}`,
-      full.modelSrc ? `model=${full.modelSrc}` : "",
+      modelName ? `model=${modelName}` : "",
       full.ttftMs != null ? `ttft=${full.ttftMs}ms` : "",
       full.tokensPerSecond != null ? `tok/s=${full.tokensPerSecond.toFixed(1)}` : "",
       full.tokens != null ? `tokens=${full.tokens}` : "",

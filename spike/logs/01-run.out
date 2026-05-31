@@ -1,0 +1,119 @@
+
+> mycelium@0.0.0 spike:inference
+> tsx spike/01-inference.ts
+
+=== (a) On-device text generation ===
+
+Streaming from LLAMA_3_2_1B_INST_Q4_0:
+
+[sdk:client] Model type "llm" is an alias and will be deprecated. Use "llamacpp-completion" instead.
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-68058-mpu3kmiu-d9aa.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-68058-mpu3kmiu-d9aa.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added <|end_of_text|> logit bias = -inf
+common_init_result: added <|eom_id|> logit bias = -inf
+common_init_result: added <|eot_id|> logit bias = -inf
+📝 · model_load  model=LLAMA_3_2_1B_INST_Q4_0
+An exocortex is a part of the brain that houses the cerebral cortex and is responsible for processing information, controlling movement, and facilitating higher-order cognitive functions.
+📝 · completion  model=LLAMA_3_2_1B_INST_Q4_0  ttft=56ms  tok/s=70.6  tokens=32
+
+TTFT 56ms · 70.6 tok/s · device=gpu
+📝 · model_unload  model=LLAMA_3_2_1B_INST_Q4_0
+
+=== (a) On-device embeddings ===
+
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-68058-mpu3kozi-1e92.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-68058-mpu3kozi-1e92.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+build: 0 (unknown) with AppleClang 17.0.0.17000013 for Darwin arm64
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added [PAD] logit bias = -inf
+common_init_result: added [SEP] logit bias = -inf
+common_init_from_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+📝 · model_load  model=GTE_LARGE_FP16
+Embedding dimension: 1024
+First 5 dims: [-0.0133, -0.0343, -0.0259, 0.0107, 0.0109, ...]
+📝 · embedding  model=GTE_LARGE_FP16  tokens=1
+📝 · model_unload  model=GTE_LARGE_FP16
+
+=== Device-fit pass (model sizes by device class) ===
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-68058-mpu3kqg2-33e4.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-68058-mpu3kqg2-33e4.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+📝 · model_load  model=QWEN3_600M_INST_Q4  dur=1917ms
+📝 · completion  model=QWEN3_600M_INST_Q4  ttft=31ms  tok/s=113.7  tokens=285
+   → phone/Pi-class · QWEN3_600M_INST_Q4: TTFT 31ms · 113.7 tok/s · device=gpu · ~RAM Δ 0MB
+📝 · model_unload  model=QWEN3_600M_INST_Q4
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-68058-mpu3ku03-cad8.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-68058-mpu3ku03-cad8.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added <|end_of_text|> logit bias = -inf
+common_init_result: added <|eom_id|> logit bias = -inf
+common_init_result: added <|eot_id|> logit bias = -inf
+📝 · model_load  model=LLAMA_3_2_1B_INST_Q4_0  dur=2465ms
+📝 · completion  model=LLAMA_3_2_1B_INST_Q4_0  ttft=52ms  tok/s=74.7  tokens=113
+   → 1B · LLAMA_3_2_1B_INST_Q4_0: TTFT 52ms · 74.7 tok/s · device=gpu · ~RAM Δ 0MB
+📝 · model_unload  model=LLAMA_3_2_1B_INST_Q4_0
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /tmp/claude-501/qvac-worker-68058-mpu3kx70-e77d.sock
+[sdk:server] Connecting to IPC socket at /tmp/claude-501/qvac-worker-68058-mpu3kx70-e77d.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:server] Connected to IPC server
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+[QVACRegistryClient] [INFO] Downloading blob directly {
+  coreKey: '4035e6638834...',
+  blockOffset: 28460,
+  blockLength: 38106,
+  byteLength: 2497280256
+}
+[QVACRegistryClient] [INFO] Cleared blob blocks from corestore { start: 28460, end: 66566, blocks: 0 }
+[QVACRegistryClient] [INFO] Blob download complete (direct)
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf
+📝 · model_load  model=QWEN3_4B_INST_Q4_K_M  dur=172955ms
+📝 · completion  model=QWEN3_4B_INST_Q4_K_M  ttft=329ms  tok/s=24.1  tokens=334
+   → Mac-class · QWEN3_4B_INST_Q4_K_M: TTFT 329ms · 24.1 tok/s · device=gpu · ~RAM Δ 16MB
+📝 · model_unload  model=QWEN3_4B_INST_Q4_K_M
+
+✅ GO if you saw streamed tokens, an embedding dim, and tok/s above. Log: /Volumes/Development/qvac/mycelium/spike/logs/01-inference.jsonl

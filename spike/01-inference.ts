@@ -15,7 +15,7 @@ import {
   embed,
   LLAMA_3_2_1B_INST_Q4_0,
   QWEN3_600M_INST_Q4,
-  QWEN3_4B_Q4_K_M,
+  QWEN3_4B_INST_Q4_K_M,
   GTE_LARGE_FP16,
 } from "@qvac/sdk";
 import { AuditLog, now } from "./lib/audit-log.ts";
@@ -104,9 +104,20 @@ try {
 
   console.log("\n=== Device-fit pass (model sizes by device class) ===");
   const fitPrompt = "List three benefits of running AI locally. Be brief.";
-  await deviceFit("phone/Pi-class · QWEN3_600M_INST_Q4", QWEN3_600M_INST_Q4, fitPrompt);
-  await deviceFit("1B · LLAMA_3_2_1B_INST_Q4_0", LLAMA_3_2_1B_INST_Q4_0, fitPrompt);
-  await deviceFit("Mac-class · QWEN3_4B_Q4_K_M", QWEN3_4B_Q4_K_M, fitPrompt);
+  const fits: Array<[string, string]> = [
+    ["phone/Pi-class · QWEN3_600M_INST_Q4", QWEN3_600M_INST_Q4],
+    ["1B · LLAMA_3_2_1B_INST_Q4_0", LLAMA_3_2_1B_INST_Q4_0],
+    ["Mac-class · QWEN3_4B_INST_Q4_K_M", QWEN3_4B_INST_Q4_K_M],
+  ];
+  for (const [label, src] of fits) {
+    // A size that won't load on this device is itself a device-fit datum — not fatal.
+    try {
+      await deviceFit(label, src, fitPrompt);
+    } catch (e) {
+      console.log(`   → ${label}: DID NOT LOAD/RUN — ${String(e)}`);
+      audit.record({ event: "note", modelSrc: src, extra: { label, deviceFit: "failed", error: String(e) } });
+    }
+  }
 
   console.log(`\n✅ GO if you saw streamed tokens, an embedding dim, and tok/s above. Log: ${audit.path}`);
 } catch (error) {

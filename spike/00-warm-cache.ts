@@ -12,7 +12,7 @@ import {
   close,
   LLAMA_3_2_1B_INST_Q4_0,
   QWEN3_600M_INST_Q4,
-  QWEN3_4B_Q4_K_M,
+  QWEN3_4B_INST_Q4_K_M,
   GTE_LARGE_FP16,
 } from "@qvac/sdk";
 import { AuditLog, now } from "./lib/audit-log.ts";
@@ -23,7 +23,7 @@ const ASSETS: Array<[string, string]> = [
   ["GTE_LARGE_FP16 (embeddings, ~335M)", GTE_LARGE_FP16],
   ["QWEN3_600M_INST_Q4 (phone/Pi-class LLM)", QWEN3_600M_INST_Q4],
   ["LLAMA_3_2_1B_INST_Q4_0 (1B LLM)", LLAMA_3_2_1B_INST_Q4_0],
-  ["QWEN3_4B_Q4_K_M (Mac-class LLM)", QWEN3_4B_Q4_K_M],
+  ["QWEN3_4B_INST_Q4_K_M (Mac-class LLM)", QWEN3_4B_INST_Q4_K_M],
 ];
 
 try {

@@ -31,7 +31,15 @@ const CKPT_DIR = join(here, "checkpoints");
 const PROBE = "What is the codename of Dani's device mesh? Answer in one word.";
 
 async function ask(modelId: string, label: string): Promise<string> {
-  const r = completion({ modelId, history: [{ role: "user", content: PROBE }], stream: true });
+  // generationParams.reasoning_budget: 0 disables QWEN3's chain-of-thought, and
+  // predict caps output — so base-vs-adapter answers are short, comparable, and
+  // never overflow the context.
+  const r = completion({
+    modelId,
+    history: [{ role: "user", content: PROBE }],
+    stream: true,
+    generationParams: { predict: 200, reasoning_budget: 0 },
+  });
   let out = "";
   for await (const t of r.tokenStream) out += t;
   out = out.trim();
@@ -63,7 +71,7 @@ try {
   console.log("=== (d) On-device LoRA (QVAC Fabric) ===\n");
 
   console.log("BASE model answer (before fine-tune):");
-  baseId = await loadModel({ modelSrc: QWEN3_600M_INST_Q4, modelType: "llm", modelConfig: { device: "gpu", ctx_size: 512 }, onProgress: () => {} });
+  baseId = await loadModel({ modelSrc: QWEN3_600M_INST_Q4, modelType: "llm", modelConfig: { device: "gpu", ctx_size: 2048 }, onProgress: () => {} });
   audit.record({ event: "model_load", modelSrc: QWEN3_600M_INST_Q4, modelId: baseId, extra: { phase: "base" } });
   const baseAnswer = await ask(baseId, "base");
   audit.record({ event: "completion", modelSrc: QWEN3_600M_INST_Q4, modelId: baseId, prompt: PROBE, extra: { phase: "base", mentionsTarget: /hollowood/i.test(baseAnswer) } });
@@ -107,7 +115,7 @@ try {
   audit.record({ event: "note", extra: { adapterPath: adapter } });
 
   console.log("\nADAPTER model answer (after fine-tune, loaded via modelConfig.lora):");
-  const tunedId = await loadModel({ modelSrc: QWEN3_600M_INST_Q4, modelType: "llm", modelConfig: { device: "gpu", ctx_size: 512, lora: adapter }, onProgress: () => {} });
+  const tunedId = await loadModel({ modelSrc: QWEN3_600M_INST_Q4, modelType: "llm", modelConfig: { device: "gpu", ctx_size: 2048, lora: adapter }, onProgress: () => {} });
   audit.record({ event: "model_load", modelSrc: QWEN3_600M_INST_Q4, modelId: tunedId, extra: { phase: "adapter", lora: adapter } });
   const tunedAnswer = await ask(tunedId, "adapter");
   const changed = tunedAnswer !== baseAnswer;
