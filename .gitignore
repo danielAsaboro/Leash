@@ -18,10 +18,15 @@ results/
 spike/checkpoints/
 spike/results/
 
-# spike run logs (real excerpts are committed into SPIKE_RESULTS.md instead)
+# run logs / audit JSONL (real excerpts are committed into submission/ instead)
 spike/logs/*.jsonl
 spike/logs/*.log
 logs/*.log
+**/logs/*.jsonl
+**/logs/*.log
+
+# generated graph node stores (rebuilt from data/notes on each run)
+**/data/graph.jsonl
 
 # os / editor
 .DS_Store

@@ -6,27 +6,35 @@
   "license": "Apache-2.0",
   "description": "Mycelium — a private, offline, end-to-end-encrypted exocortex across a personal device mesh. Built on @qvac/sdk for QVAC Hackathon I.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b packages/shared",
-    "typecheck": "tsc -b packages/shared",
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "senses:smoke": "tsx packages/senses/scripts/smoke-graph-rag.ts",
+    "mind:smoke": "tsx packages/mind/scripts/smoke-tool-call.ts",
+    "mind:council": "tsx packages/mind/scripts/smoke-council.ts",
     "spike:warm": "tsx spike/00-warm-cache.ts",
     "spike:inference": "tsx spike/01-inference.ts",
     "spike:rag": "tsx spike/02-rag.ts",
     "spike:p2p:provider": "tsx spike/03-p2p-provider.ts",
     "spike:p2p:consumer": "tsx spike/03-p2p-consumer.ts",
-    "spike:lora": "tsx spike/04-lora.ts"
+    "spike:lora": "tsx spike/04-lora.ts",
+    "hub": "tsx apps/hub/src/main.ts",
+    "hub:ingest": "tsx apps/hub/src/ingest-graph.ts",
+    "ask": "tsx apps/edge-node/src/ask.ts",
+    "senses:voice": "tsx packages/senses/scripts/smoke-voice.ts"
   },
   "dependencies": {
     "@qvac/sdk": "^0.11.0"
   },
   "devDependencies": {
+    "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2",
-    "@types/node": "^22.10.2"
+    "typescript": "^5.7.2"
   }
 }

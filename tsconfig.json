@@ -1,0 +1,12 @@
+{
+  "//": "Solution-style root config: `tsc -b` builds every package via project references. New packages are added here as their real implementation lands.",
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/senses" },
+    { "path": "packages/mind" },
+    { "path": "packages/mesh" },
+    { "path": "apps/hub" },
+    { "path": "apps/edge-node" }
+  ]
+}
