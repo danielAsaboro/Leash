@@ -18,6 +18,12 @@
   "dependencies": {
     "@mycelium/shared": "*",
     "@mycelium/senses": "*",
-    "@qvac/sdk": "^0.11.0"
+    "@qvac/sdk": "^0.11.0",
+    "autobase": "^7.28",
+    "blind-pairing": "^2.3",
+    "b4a": "1.8.1",
+    "corestore": "7.10.0",
+    "hyperbee": "2.27.3",
+    "hyperswarm": "4.17.0"
   }
 }

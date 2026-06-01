@@ -29,6 +29,8 @@ export interface AuditRecord {
     | "finetune_progress"
     | "finetune_result"
     | "delegation"
+    | "graph_sync"
+    | "pairing"
     | "note";
   modelId?: string;
   modelSrc?: string;

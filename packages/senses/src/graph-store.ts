@@ -10,25 +10,12 @@
 import { appendFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
+import type { GraphNode, GraphNodeInput } from "@mycelium/shared";
 
-/** A single perception in the context graph. */
-export interface GraphNode {
-  /** Stable id (uuid). */
-  id: string;
-  /** What kind of signal produced this node. */
-  kind: "file" | "voice" | "note";
-  /** Provenance — file path, audio path, or a free-form origin label. */
-  source: string;
-  /** The text content that gets embedded + retrieved. */
-  text: string;
-  /** ISO timestamp the node entered the graph. */
-  ts: string;
-  /** Free-form structured extras (tags, device, lat/long, …). */
-  meta?: Record<string, unknown>;
-}
-
-/** Fields a caller supplies; `id` and `ts` are filled in if omitted. */
-export type GraphNodeInput = Omit<GraphNode, "id" | "ts"> & { id?: string; ts?: string };
+// The node type moved to @mycelium/shared in Week-2 (so mesh can replicate it
+// without a senses↔mesh cycle); re-exported here for back-compat with every
+// `import { GraphNode } from "@mycelium/senses"` call site.
+export type { GraphNode, GraphNodeInput } from "@mycelium/shared";
 
 export class GraphStore {
   constructor(private readonly file: string) {

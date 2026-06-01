@@ -12,3 +12,5 @@ export type { StartProviderParams } from "./provider.ts";
 export { loadDelegated } from "./consumer.ts";
 export type { LoadDelegatedParams } from "./consumer.ts";
 export { CapabilityRegistry } from "./registry.ts";
+export { MeshGraph } from "./mesh-graph.ts";
+export type { MeshGraphOptions, PairOptions } from "./mesh-graph.ts";

@@ -28,6 +28,11 @@ logs/*.log
 # generated graph node stores (rebuilt from data/notes on each run)
 **/data/graph.jsonl
 
+# Week-2 mesh runtime state (per-device; not source)
+**/data/mesh-store/
+**/data/invite.txt
+**/data/embedded-ids.json
+
 # os / editor
 .DS_Store
 *.pcap

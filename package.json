@@ -24,8 +24,9 @@
     "spike:p2p:provider": "tsx spike/03-p2p-provider.ts",
     "spike:p2p:consumer": "tsx spike/03-p2p-consumer.ts",
     "spike:lora": "tsx spike/04-lora.ts",
+    "spike:autobase": "tsx spike/05-autobase-pairing.ts",
+    "mesh:smoke": "tsx packages/mesh/scripts/smoke-mesh-graph.ts",
     "hub": "tsx apps/hub/src/main.ts",
-    "hub:ingest": "tsx apps/hub/src/ingest-graph.ts",
     "ask": "tsx apps/edge-node/src/ask.ts",
     "senses:voice": "tsx packages/senses/scripts/smoke-voice.ts"
   },
@@ -34,6 +35,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
+    "autobase": "^7.28.1",
+    "blind-pairing": "^2.3.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }

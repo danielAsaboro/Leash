@@ -6,12 +6,14 @@
  * voice.ts as the final slice step; Hypercore/Autobase P2P sync is Week-2.
  */
 export { GraphStore } from "./graph-store.ts";
-export type { GraphNode, GraphNodeInput } from "./graph-store.ts";
+export type { GraphNode, GraphNodeInput } from "@mycelium/shared";
 export { loadEmbeddings, unloadEmbeddings } from "./embeddings.ts";
 export { ingestNodes, searchGraph } from "./rag-index.ts";
 export type { Hit, IngestNodesParams, SearchGraphParams } from "./rag-index.ts";
-export { ingestNotesDir } from "./connectors.ts";
-export type { IngestNotesDirParams } from "./connectors.ts";
+export { ingestNotesDir, seedFromDataDir } from "./connectors.ts";
+export type { IngestNotesDirParams, SeedFromDataDirParams, AppendableGraph } from "./connectors.ts";
+export { embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "./incremental.ts";
+export type { EmbedDeltaParams } from "./incremental.ts";
 export { loadWhisper, unloadWhisper, transcribeFile } from "./voice.ts";
 export type { TranscribeFileParams } from "./voice.ts";
 export { WHISPER_BASE_Q8_0 } from "./models.ts";

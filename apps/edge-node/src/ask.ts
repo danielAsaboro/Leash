@@ -1,38 +1,32 @@
 /**
  * Mycelium edge node — the weak consumer (the "phone").
  *
- *   npm run ask -- "<question>" [<hub-public-key>]
+ *   npm run ask -- "<question>" [<hub-public-key>] [<mesh-invite>]
  *
  * The router decides:
- *   - TRIVIAL → answered locally by the small QWEN3_600M model. No hub needed.
- *   - HARD    → the edge keeps a LOCAL graph replica (Week-1 stand-in for Week-2
- *               CRDT sync; the SDK can't delegate RAG, so search must be local),
- *               does its own light retrieval, and delegates the heavy council
- *               reasoning (QWEN3_4B proposer + verifier) to the hub over encrypted
- *               P2P. Tokens are generated on the hub's GPU and streamed back.
+ *   - TRIVIAL → answered locally by the small QWEN3_600M model. No hub, no graph.
+ *   - HARD    → the edge keeps a REPLICATED context graph (Week-2 CRDT Autobase,
+ *               synced P2P from the hub — no shared files), does its own light
+ *               retrieval, and delegates the heavy council reasoning (QWEN3_4B
+ *               proposer + verifier) to the hub over encrypted P2P.
  *
- * Audit trail for a hard query: delegation → rag_search → completion(proposer) →
- * completion(verifier) → note.
+ * Audit trail for a hard query: pairing? → graph_sync → delegation → rag_search →
+ * completion(proposer) → completion(verifier) → note.
  */
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { close, ragCloseWorkspace } from "@qvac/sdk";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { basename, join } from "node:path";
+import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
-import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, ingestNotesDir, searchGraph, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
+import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, transcribeFile, searchGraph, embedDelta, loadEmbeddedIds, saveEmbeddedIds, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
 import { classify, answerTrivial, runCouncil } from "@mycelium/mind";
-import { loadDelegated } from "@mycelium/mesh";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const NOTES_DIR = join(here, "..", "..", "..", "data", "notes");
-const VOICE_DIR = join(here, "..", "..", "..", "data", "voice");
-const GRAPH_FILE = join(here, "..", "data", "graph.jsonl");
-const EDGE_WORKSPACE = "mycelium-edge";
-const LOG_DIR = join(here, "..", "logs");
+import { loadDelegated, MeshGraph } from "@mycelium/mesh";
+import { VOICE_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, EDGE_WORKSPACE, LOG_DIR } from "./config.ts";
 
 const question = process.argv[2];
 const hubPublicKey = process.argv[3];
+const inviteArg = process.argv[4];
 if (!question) {
-  console.error('usage: npm run ask -- "<question>" [<hub-public-key>]');
+  console.error('usage: npm run ask -- "<question>" [<hub-public-key>] [<mesh-invite>]');
   process.exit(1);
 }
 const audit = new AuditLog("edge-node", LOG_DIR);
@@ -45,22 +39,59 @@ async function runTrivial(question: string): Promise<void> {
   process.stdout.write("\n");
 }
 
+function resolveInvite(): string | undefined {
+  if (inviteArg) return inviteArg;
+  if (existsSync(INVITE_FILE)) return readFileSync(INVITE_FILE, "utf-8").trim();
+  return undefined;
+}
+
+/** Open the replicated graph: reopen if this device already paired (permanent writer), else pair. */
+async function openGraph(): Promise<MeshGraph> {
+  if (existsSync(MESH_STORE_DIR)) {
+    const graph = await MeshGraph.open({ storeDir: MESH_STORE_DIR, audit });
+    await graph.joinSwarm();
+    return graph;
+  }
+  const invite = resolveInvite();
+  if (!invite) throw new Error("first run needs a mesh invite: pass it as the 3rd arg, or start the hub (which writes data/invite.txt)");
+  return MeshGraph.pair({ storeDir: MESH_STORE_DIR, invite, audit }); // pair() joins the swarm
+}
+
 async function runHard(question: string): Promise<void> {
   if (!hubPublicKey) {
-    console.error("❌ HARD query needs a hub public key: npm run ask -- \"<q>\" <hub-pubkey>");
+    console.error('❌ HARD query needs a hub public key: npm run ask -- "<q>" <hub-pubkey> [<invite>]');
     process.exit(1);
   }
   console.log(`🔴 router → HARD (delegated council on hub ${hubPublicKey.slice(0, 16)}…)\n`);
 
-  // Local graph replica + light retrieval stay on the edge (RAG can't be delegated).
-  // The edge is also the primary sensor, so it transcribes its own voice memos.
-  const embId = await loadEmbeddings(audit);
-  const sttId = await loadWhisper(audit);
-  const { nodes, chunks, voiceNodes } = await ingestNotesDir({ notesDir: NOTES_DIR, graphFile: GRAPH_FILE, embModelId: embId, workspace: EDGE_WORKSPACE, voiceDir: VOICE_DIR, sttModelId: sttId, audit });
-  await unloadWhisper(sttId, audit);
-  console.log(`🧩 local graph replica: ${nodes} nodes (${voiceNodes} voice) → ${chunks} chunks`);
+  // Open the replicated graph FIRST (mirrors the hub's store-before-models order).
+  const graph = await openGraph();
+  // Bounded best-effort replication wait — returns fast offline (R6).
+  await graph.sync();
 
-  // Heavy council reasoning is delegated to the hub.
+  const embId = await loadEmbeddings(audit);
+
+  // The edge is also a sensor: append its own voice memos (edge→hub path). Additive.
+  const sttId = await loadWhisper(audit);
+  const known = new Set((await graph.all()).map((n) => n.source));
+  if (existsSync(VOICE_DIR)) {
+    for (const f of readdirSync(VOICE_DIR).filter((n) => n.endsWith(".wav"))) {
+      const source = join("data/voice", basename(f));
+      if (known.has(source)) continue;
+      const text = await transcribeFile({ sttModelId: sttId, audioPath: join(VOICE_DIR, f), audit });
+      if (text) await graph.append({ kind: "voice", source, text, meta: { transcribed: true, sensedBy: "edge" } });
+    }
+  }
+  await unloadWhisper(sttId, audit);
+
+  // Embed only the delta into the local workspace (persisted across runs).
+  const embedded = loadEmbeddedIds(EMBEDDED_IDS_FILE);
+  const nodes = await graph.all();
+  const delta = await embedDelta({ embModelId: embId, workspace: EDGE_WORKSPACE, nodes, embedded, audit });
+  saveEmbeddedIds(EMBEDDED_IDS_FILE, embedded);
+  console.log(`🧩 replicated graph: ${nodes.length} nodes (embedded ${delta.added} new, ${delta.skipped} cached)`);
+
+  // Heavy council reasoning is delegated to the hub (UNCHANGED from Week-1).
   const councilId = await loadDelegated({ modelSrc: QWEN3_4B_INST_Q4_K_M, providerPublicKey: hubPublicKey, audit });
   console.log(`🛰️  delegated council model registered (id=${councilId})\n`);
 
@@ -73,11 +104,8 @@ async function runHard(question: string): Promise<void> {
   console.log(`🧭 trace: ${result.trace.map((s) => (s.step === "search" ? `search(${s.hits}@${s.topScore.toFixed(3)})` : s.step === "verify" ? `verify:${s.verdict}` : `propose#${s.iter}[${s.toolCalls.join(",") || "answer"}]`)).join(" → ")}`);
   audit.record({ event: "note", extra: { role: "edge", question, cited: result.cited, verdict: result.verifierVerdict.verdict, sources: result.sources.length } });
 
-  try {
-    await ragCloseWorkspace({ workspace: EDGE_WORKSPACE, deleteOnClose: true });
-  } catch {
-    /* best effort */
-  }
+  // Keep the workspace + embedded-ids in lockstep across runs — do NOT delete it.
+  await graph.close();
   await unloadEmbeddings(embId, audit);
 }
 
