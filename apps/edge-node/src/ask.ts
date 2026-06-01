@@ -18,12 +18,13 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { close, ragCloseWorkspace } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
-import { loadEmbeddings, unloadEmbeddings, ingestNotesDir, searchGraph, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
+import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, ingestNotesDir, searchGraph, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
 import { classify, answerTrivial, runCouncil } from "@mycelium/mind";
 import { loadDelegated } from "@mycelium/mesh";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const NOTES_DIR = join(here, "..", "..", "..", "data", "notes");
+const VOICE_DIR = join(here, "..", "..", "..", "data", "voice");
 const GRAPH_FILE = join(here, "..", "data", "graph.jsonl");
 const EDGE_WORKSPACE = "mycelium-edge";
 const LOG_DIR = join(here, "..", "logs");
@@ -52,9 +53,12 @@ async function runHard(question: string): Promise<void> {
   console.log(`🔴 router → HARD (delegated council on hub ${hubPublicKey.slice(0, 16)}…)\n`);
 
   // Local graph replica + light retrieval stay on the edge (RAG can't be delegated).
+  // The edge is also the primary sensor, so it transcribes its own voice memos.
   const embId = await loadEmbeddings(audit);
-  const { nodes, chunks } = await ingestNotesDir({ notesDir: NOTES_DIR, graphFile: GRAPH_FILE, embModelId: embId, workspace: EDGE_WORKSPACE, audit });
-  console.log(`🧩 local graph replica: ${nodes} notes → ${chunks} chunks`);
+  const sttId = await loadWhisper(audit);
+  const { nodes, chunks, voiceNodes } = await ingestNotesDir({ notesDir: NOTES_DIR, graphFile: GRAPH_FILE, embModelId: embId, workspace: EDGE_WORKSPACE, voiceDir: VOICE_DIR, sttModelId: sttId, audit });
+  await unloadWhisper(sttId, audit);
+  console.log(`🧩 local graph replica: ${nodes} nodes (${voiceNodes} voice) → ${chunks} chunks`);
 
   // Heavy council reasoning is delegated to the hub.
   const councilId = await loadDelegated({ modelSrc: QWEN3_4B_INST_Q4_K_M, providerPublicKey: hubPublicKey, audit });

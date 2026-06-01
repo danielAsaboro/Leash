@@ -12,6 +12,9 @@ export { ingestNodes, searchGraph } from "./rag-index.ts";
 export type { Hit, IngestNodesParams, SearchGraphParams } from "./rag-index.ts";
 export { ingestNotesDir } from "./connectors.ts";
 export type { IngestNotesDirParams } from "./connectors.ts";
+export { loadWhisper, unloadWhisper, transcribeFile } from "./voice.ts";
+export type { TranscribeFileParams } from "./voice.ts";
+export { WHISPER_BASE_Q8_0 } from "./models.ts";
 // Typed model constants (works around the SDK's root-.d.ts gap; see models.ts).
 export { GTE_LARGE_FP16, QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M } from "./models.ts";
 export type { ModelSrc } from "./models.ts";

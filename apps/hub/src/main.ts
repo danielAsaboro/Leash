@@ -10,9 +10,9 @@
  */
 import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
-import { loadEmbeddings, unloadEmbeddings, ingestNotesDir } from "@mycelium/senses";
+import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, ingestNotesDir } from "@mycelium/senses";
 import { startProvider } from "@mycelium/mesh";
-import { NOTES_DIR, GRAPH_FILE, HUB_WORKSPACE, LOG_DIR } from "./config.ts";
+import { NOTES_DIR, VOICE_DIR, GRAPH_FILE, HUB_WORKSPACE, LOG_DIR } from "./config.ts";
 
 const audit = new AuditLog("hub", LOG_DIR);
 const seed = process.env["QVAC_HYPERSWARM_SEED"];
@@ -27,9 +27,12 @@ try {
   if (!seed) console.log("   (set QVAC_HYPERSWARM_SEED=<64hex> for a stable key across restarts)\n");
 
   // The context graph lives on the always-on hub (Week-2 will CRDT-sync it to every device).
+  // Files + transcribed voice memos both become graph nodes.
   const embId = await loadEmbeddings(audit);
-  const { nodes, chunks } = await ingestNotesDir({ notesDir: NOTES_DIR, graphFile: GRAPH_FILE, embModelId: embId, workspace: HUB_WORKSPACE, audit });
-  console.log(`🧠 Context graph ready on the hub: ${nodes} notes → ${chunks} chunks.`);
+  const sttId = await loadWhisper(audit);
+  const { nodes, chunks, voiceNodes } = await ingestNotesDir({ notesDir: NOTES_DIR, graphFile: GRAPH_FILE, embModelId: embId, workspace: HUB_WORKSPACE, voiceDir: VOICE_DIR, sttModelId: sttId, audit });
+  console.log(`🧠 Context graph ready on the hub: ${nodes} nodes (${voiceNodes} voice) → ${chunks} chunks.`);
+  await unloadWhisper(sttId, audit);
   await unloadEmbeddings(embId, audit);
 
   console.log("\n✅ Hub ready — serving delegated council inference. Press Ctrl-C to stop.");

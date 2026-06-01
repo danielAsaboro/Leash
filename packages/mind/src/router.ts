@@ -15,22 +15,24 @@ export interface Classification {
   reason: string;
 }
 
-/** Signals that a query needs the user's private context (→ council). */
-const PERSONAL = [
-  /\bmy\b/, /\bmine\b/, /\bme\b/, /\bi\b/, /\bour\b/, /\bwe\b/,
-  /\bprefer/, /\bremember\b/, /\bnote(s)?\b/,
-  /\bdani\b/, /\bmesh\b/, /\brhizo\b/, /\bsporangium\b/, /\bhypha\b/, /\bconidia\b/, /\bhollowood\b/,
-  /\bnode\b/, /\bdevice/, /\bvault\b/, /\bproject\b/, /\badapter\b/, /\blora\b/,
-];
+/**
+ * Classify a query. An exocortex should *default to consulting the private context
+ * graph* — a keyword list can never know in advance which question is answered by a
+ * personal note or voice memo (e.g. "how long does the Pi battery last?" looks
+ * generic but is answered by a voice memo). So we route to the council by default
+ * and only shortcut to the small local model for obviously-generic queries
+ * (arithmetic, greetings) that no private context could improve.
+ */
+const ARITHMETIC = /^[\s\d+\-*/×÷=().^%]+\??$/;
+const SIMPLE_MATH = /^(what(?:'s| is)|calculate|compute)\s+[-\d(][\s\d+\-*/×÷=().^%]*\??$/;
+const GREETING = /^(hi|hello|hey|yo|good (morning|afternoon|evening)|thanks|thank you)\b/;
 
 export function classify(question: string): Classification {
-  const q = question.toLowerCase();
-  if (PERSONAL.some((re) => re.test(q))) return { kind: "hard", reason: "personal-context keyword" };
-  const questionMarks = (question.match(/\?/g) ?? []).length;
-  if (questionMarks > 1) return { kind: "hard", reason: "multiple questions" };
-  const words = question.trim().split(/\s+/).filter(Boolean).length;
-  if (words > 12) return { kind: "hard", reason: "long/complex query" };
-  return { kind: "trivial", reason: "short, no personal context" };
+  const q = question.toLowerCase().trim();
+  if (ARITHMETIC.test(q) || SIMPLE_MATH.test(q)) return { kind: "trivial", reason: "arithmetic — no personal context can help" };
+  if (GREETING.test(q)) return { kind: "trivial", reason: "greeting/social — no personal context needed" };
+  // Default: consult the private context graph via the council.
+  return { kind: "hard", reason: "may need personal context — consult the graph" };
 }
 
 export interface AnswerTrivialParams {
