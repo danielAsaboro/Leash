@@ -35,6 +35,12 @@ export interface MeshGraphOptions {
    * via the local core's `referrer` (the edge on reopen).
    */
   bootstrapKey?: Buffer | null;
+  /**
+   * Optional 64-hex seed → deterministic corestore primary key → stable autobase
+   * key across fresh stores (CI/repeatable demos), mirroring QVAC_HYPERSWARM_SEED.
+   * Omit in normal use: a persistent store already gives a stable key across restarts.
+   */
+  seed?: string;
   /** Whether to stand up our own Hyperswarm (false for local-only tests). */
   swarm?: boolean;
   audit?: AuditLog;
@@ -48,6 +54,22 @@ export interface PairOptions {
 }
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Build our Corestore with `allowBackup: true` — this DISABLES the per-store
+ * rocksdb device-file lock. That lock is a volume-level safety marker; when our
+ * store and the SDK's `~/.qvac` corestores (rag-hyperdb / registry) live on the
+ * SAME physical volume (e.g. the repo + ~/.qvac both symlinked to one external
+ * SSD), the two stores collide on it and the SDK worker throws "Invalid device
+ * file, was modified" on its next corestore open. We never open the same mesh-store
+ * from two processes (each device owns its own), so skipping the lock is safe.
+ * Discovered via spike-style bisection (Task 6); see the Week-2 Sawdust entry.
+ */
+function makeStore(storeDir: string, seed?: string): Corestore {
+  const opts: { primaryKey?: Buffer; allowBackup: boolean } = { allowBackup: true };
+  if (seed) opts.primaryKey = b4a.from(seed, "hex");
+  return new Corestore(storeDir, opts);
+}
 
 /** The autobase view: a Hyperbee keyed by node.id (idempotent grow-only set). */
 function viewOpen(store: unknown) {
@@ -87,7 +109,7 @@ export class MeshGraph {
    * expecting to join the hub — use pair() the first time).
    */
   static async open(opts: MeshGraphOptions): Promise<MeshGraph> {
-    const g = MeshGraph.build(new Corestore(opts.storeDir), opts.bootstrapKey ?? null, opts.audit);
+    const g = MeshGraph.build(makeStore(opts.storeDir, opts.seed), opts.bootstrapKey ?? null, opts.audit);
     await g.base.ready();
     return g;
   }
@@ -185,7 +207,7 @@ export class MeshGraph {
    * host promotes us to a writer (the add-writer entry replicates in shortly after).
    */
   static async pair(opts: PairOptions): Promise<MeshGraph> {
-    const store = new Corestore(opts.storeDir);
+    const store = makeStore(opts.storeDir);
     await store.ready();
     const swarm = new Hyperswarm();
     swarm.on("connection", (conn) => { store.replicate(conn); });

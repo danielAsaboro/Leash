@@ -11,7 +11,7 @@
  */
 declare module "corestore" {
   export default class Corestore {
-    constructor(storage: string, opts?: { primaryKey?: Buffer });
+    constructor(storage: string, opts?: { primaryKey?: Buffer; allowBackup?: boolean });
     ready(): Promise<void>;
     get(name: string | { name?: string; key?: Buffer }): unknown;
     replicate(connection: unknown): unknown;
