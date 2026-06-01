@@ -55,6 +55,8 @@ export interface AuditRecord {
     | "finetune_progress"
     | "finetune_result"
     | "delegation"
+    | "graph_sync"
+    | "pairing"
     | "note";
   modelId?: string;
   modelSrc?: string;
@@ -102,3 +104,7 @@ export function createLogger(scope: string) {
 // Audit logger lives in its own module (filesystem-touching); re-exported here so
 // every layer imports it from "@mycelium/shared".
 export { AuditLog, now } from "./audit.ts";
+
+// The context-graph node type — the unit replicated across the mesh (Week-2). Lives
+// here (dependency-free) so both senses and mesh use it without a dependency cycle.
+export type { GraphNode, GraphNodeInput } from "./graph.ts";

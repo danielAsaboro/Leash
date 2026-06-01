@@ -6,7 +6,7 @@
  * voice.ts as the final slice step; Hypercore/Autobase P2P sync is Week-2.
  */
 export { GraphStore } from "./graph-store.ts";
-export type { GraphNode, GraphNodeInput } from "./graph-store.ts";
+export type { GraphNode, GraphNodeInput } from "@mycelium/shared";
 export { loadEmbeddings, unloadEmbeddings } from "./embeddings.ts";
 export { ingestNodes, searchGraph } from "./rag-index.ts";
 export type { Hit, IngestNodesParams, SearchGraphParams } from "./rag-index.ts";
