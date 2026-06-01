@@ -25,9 +25,9 @@ SENSES ──► MIND ──► MEMORY ──► (sharper SENSES) ──┐
 
 | Layer | Role | Status |
 |---|---|---|
-| 1 — Mesh | QVAC P2P registry + router/scheduler | Week 2 |
-| 2 — Senses | encrypted context graph + on-device RAG | Week 1 |
-| 3 — Mind | distributed council + delegated compute | Week 1 |
+| 1 — Mesh | QVAC P2P registry + delegated compute + **replicated CRDT context graph** | Week 1–2 ✓ (`MeshGraph`) |
+| 2 — Senses | encrypted context graph + on-device RAG + voice STT | Week 1 ✓ |
+| 3 — Mind | distributed council + delegated compute | Week 1 ✓ |
 | 4 — Memory | nightly on-device LoRA (QVAC Fabric) | Week 3 |
 | 5 — Clients | Mac dashboard + iPhone/iPad (Expo) app | Week 1–2 |
 | — | `packages/shared` | foundation: shared types + logging (real) |
@@ -39,10 +39,16 @@ is actually implemented** — not before.
 
 ```
 mycelium/
-  packages/shared/      # foundation lib: DeviceCapability, AuditRecord, logger (real, used)
-  spike/                # the Day 1–3 gate — runnable, proven GO
+  packages/shared/      # foundation: DeviceCapability, AuditRecord, GraphNode, logger
+  packages/senses/      # L2: context graph nodes + RAG index + voice STT + incremental embed
+  packages/mind/        # L3: 2-model council (proposer+critic) + router + search_graph tool
+  packages/mesh/        # L1: delegated-inference provider/consumer + MeshGraph (CRDT sync)
+  apps/hub/             # the always-on "strong brain": provider + founding graph writer
+  apps/edge-node/       # the weak "phone": classify → trivial-local / hard-delegated council
+  spike/                # the de-risk gates — runnable, proven GO
     00-warm-cache.ts  01-inference.ts  02-rag.ts
     03-p2p-provider.ts  03-p2p-consumer.ts  04-lora.ts
+    05-autobase-pairing.ts            # Week-2 CRDT graph-sync gate
     lib/audit-log.ts  fixtures/  logs/  results/  checkpoints/
   qvac.config.json      # swarmRelays (blind relays)
 ```
@@ -96,6 +102,39 @@ Each script prints to stdout **and** appends JSONL audit records under
 `spike/logs/` (model load/unload, prompt, tokens, TTFT, tok/s). See
 [`../submission/SPIKE_RESULTS.md`](../submission/SPIKE_RESULTS.md) for the recorded
 GO/NO-GO and committed log excerpts.
+
+## Run the mesh (Week 1–2: delegated council + replicated CRDT graph)
+
+Two processes — the hub (strong brain) and an edge node (weak consumer) — sharing
+**one replicated context graph** over multi-writer Autobase (Hypercore/Hyperbee),
+synced P2P with no shared files. Heavy reasoning is delegated to the hub; light
+retrieval stays local on the edge.
+
+```bash
+# Terminal A — the hub: starts a delegated-inference provider, opens the graph,
+# mints a blind-pairing invite (printed + written to apps/hub/data/invite.txt).
+# Optional MESH_GRAPH_SEED=<64hex> gives the mesh a stable key across fresh stores.
+npm run hub
+
+# Terminal B — the edge. First run pairs into the mesh (pass the invite, or it is
+# read from apps/hub/data/invite.txt); later runs reopen as a permanent writer.
+npm run ask -- "Which model does Dani run on the Pi, and why?" <hub-public-key> [<mesh-invite>]
+```
+
+The edge pairs, **replicates the hub's graph over CRDT**, embeds only the delta,
+and delegates the council to the hub — which streams back a `[Source N]`-cited,
+verifier-checked answer. A node sensed on either device becomes queryable on the
+other (the hub live-embeds edge-synced nodes). Trivial queries (e.g. arithmetic)
+are answered locally by `QWEN3_600M_INST_Q4` and never touch the hub.
+
+Re-prove the CRDT graph sync in isolation (two terminals, bidirectional, offline):
+
+```bash
+npm run spike:autobase hub                 # prints an invite
+npm run spike:autobase edge <invite>       # pairs → bidirectional sync → id-dedupe
+npm run mesh:smoke hub                      # same, through the @mycelium/mesh package API
+npm run mesh:smoke edge <invite>
+```
 
 ## Offline acceptance test
 

@@ -9,8 +9,6 @@ export const REPO_ROOT = join(here, "..", "..", "..");
 export const NOTES_DIR = join(REPO_ROOT, "data", "notes");
 /** Voice memos (.wav) transcribed into the graph. */
 export const VOICE_DIR = join(REPO_ROOT, "data", "voice");
-/** The hub's persistent graph node log. */
-export const GRAPH_FILE = join(here, "..", "data", "graph.jsonl");
 /** The hub's vector workspace. */
 export const HUB_WORKSPACE = "mycelium-hub";
 /** Where the hub writes its audit JSONL. */
