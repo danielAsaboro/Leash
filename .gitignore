@@ -25,6 +25,9 @@ logs/*.log
 **/logs/*.jsonl
 **/logs/*.log
 
+# generated graph node stores (rebuilt from data/notes on each run)
+**/data/graph.jsonl
+
 # os / editor
 .DS_Store
 *.pcap
