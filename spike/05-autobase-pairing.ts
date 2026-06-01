@@ -192,8 +192,9 @@ try {
     await graph.append({ kind: "note", source: "hub", text: "hub-seeded: the Pi runs QWEN3_600M" });
     console.log("appended hub node; waiting for the edge to pair + append…");
 
-    // (b)+(c) edge becomes a writer and an edge node arrives here.
-    await waitFor("(c) edge→hub node replicated", async () => (await graph.all()).some((n) => n.source === "edge"));
+    // (b)+(c) edge becomes a writer and an edge node arrives here. Generous window
+    // so a hand-driven two-terminal test has time to copy the invite + start the edge.
+    await waitFor("(c) edge→hub node replicated", async () => (await graph.all()).some((n) => n.source === "edge"), 300_000);
     const all = await graph.all();
     console.log(`hub view now has ${all.length} nodes: ${all.map((n) => n.source).join(", ")}`);
     audit.record({ event: "graph_sync", extra: { total: all.length, sources: all.map((n) => n.source) } });
