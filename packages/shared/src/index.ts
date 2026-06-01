@@ -71,6 +71,16 @@ export interface AuditRecord {
   extra?: Record<string, unknown>;
 }
 
+/**
+ * Build a {@link DeviceCapability} with `lastSeen` defaulted to now. Used to seed
+ * the Layer-1 capability registry from local config (mesh/registry.ts).
+ */
+export function makeCapability(
+  cap: Omit<DeviceCapability, "lastSeen"> & { lastSeen?: string },
+): DeviceCapability {
+  return { ...cap, lastSeen: cap.lastSeen ?? new Date().toISOString() };
+}
+
 /** Minimal leveled logger; real layers can swap in @qvac/sdk's logger later. */
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
@@ -88,3 +98,7 @@ export function createLogger(scope: string) {
     error: (m: string, e?: unknown) => emit("error", m, e),
   };
 }
+
+// Audit logger lives in its own module (filesystem-touching); re-exported here so
+// every layer imports it from "@mycelium/shared".
+export { AuditLog, now } from "./audit.ts";
