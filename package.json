@@ -6,14 +6,16 @@
   "license": "Apache-2.0",
   "description": "Mycelium — a private, offline, end-to-end-encrypted exocortex across a personal device mesh. Built on @qvac/sdk for QVAC Hackathon I.",
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "apps/*"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -b packages/shared",
-    "typecheck": "tsc -b packages/shared",
+    "build": "tsc -b",
+    "typecheck": "tsc -b",
+    "mind:smoke": "tsx packages/mind/scripts/smoke-tool-call.ts",
     "spike:warm": "tsx spike/00-warm-cache.ts",
     "spike:inference": "tsx spike/01-inference.ts",
     "spike:rag": "tsx spike/02-rag.ts",
