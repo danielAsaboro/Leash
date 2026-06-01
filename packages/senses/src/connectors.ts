@@ -9,7 +9,7 @@
 import { readdirSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { basename, join } from "node:path";
 import { ragDeleteWorkspace } from "@qvac/sdk";
-import type { AuditLog } from "@mycelium/shared";
+import type { AuditLog, GraphNode, GraphNodeInput } from "@mycelium/shared";
 import { GraphStore } from "./graph-store.ts";
 import { ingestNodes } from "./rag-index.ts";
 import { transcribeFile } from "./voice.ts";
@@ -59,4 +59,46 @@ export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspac
   const nodes = store.all();
   const chunks = await ingestNodes({ embModelId, workspace, nodes, audit });
   return { nodes: nodes.length, chunks, voiceNodes };
+}
+
+/** Minimal structural view of an appendable graph (a MeshGraph or GraphStore-like). */
+export interface AppendableGraph {
+  append(node: GraphNodeInput): Promise<GraphNode> | GraphNode;
+  all(): Promise<GraphNode[]> | GraphNode[];
+}
+
+export interface SeedFromDataDirParams {
+  graph: AppendableGraph;
+  notesDir: string;
+  voiceDir?: string;
+  sttModelId?: string;
+  audit?: AuditLog;
+}
+
+/**
+ * Additively seed a graph from a data dir (Week-2): append file/voice nodes whose
+ * `source` is not already in the graph. Idempotent — re-running adds nothing new.
+ * NO reset (no rmSync, no ragDeleteWorkspace) — the graph accretes, never destroys.
+ * Replaces the destructive `ingestNotesDir` rebuild for the replicated MeshGraph.
+ */
+export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, audit }: SeedFromDataDirParams): Promise<{ added: number }> {
+  const existing = new Set((await graph.all()).map((n) => n.source));
+  let added = 0;
+  for (const f of readdirSync(notesDir).filter((n) => n.endsWith(".md"))) {
+    const source = join("data/notes", basename(f));
+    if (existing.has(source)) continue;
+    await graph.append({ kind: "file", source, text: readFileSync(join(notesDir, f), "utf-8").trim() });
+    added++;
+  }
+  if (voiceDir && sttModelId && existsSync(voiceDir)) {
+    for (const f of readdirSync(voiceDir).filter((n) => n.endsWith(".wav"))) {
+      const source = join("data/voice", basename(f));
+      if (existing.has(source)) continue;
+      const text = await transcribeFile({ sttModelId, audioPath: join(voiceDir, f), audit });
+      if (!text) continue;
+      await graph.append({ kind: "voice", source, text, meta: { transcribed: true } });
+      added++;
+    }
+  }
+  return { added };
 }
