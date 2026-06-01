@@ -157,6 +157,20 @@ class AutobaseGraph {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Tear down in an order that avoids the Bare-worker double-free: shut the SDK
+ * worker down FIRST (so it releases its native UDX/UDP handles), THEN our own
+ * Hyperswarm/Autobase/Corestore, then let the loop drain before exiting. The
+ * earlier "malloc: pointer being freed was not allocated" came from both freeing
+ * overlapping native sockets at once on exit; sequencing + a short settle fixes it.
+ */
+async function cleanExit(graph: AutobaseGraph, code = 0): Promise<never> {
+  try { await close(); } catch { /* SDK already down */ }
+  try { await graph.close(); } catch { /* best effort */ }
+  await sleep(200);
+  process.exit(code);
+}
 async function waitFor(label: string, fn: () => Promise<boolean>, timeoutMs = 30_000): Promise<void> {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
@@ -199,9 +213,7 @@ try {
     console.log(`hub view now has ${all.length} nodes: ${all.map((n) => n.source).join(", ")}`);
     audit.record({ event: "graph_sync", extra: { total: all.length, sources: all.map((n) => n.source) } });
     console.log("\n✅ HUB GO — multi-writer + pairing + bidirectional + offline replication proven.");
-    await graph.close();
-    await close();
-    process.exit(0);
+    await cleanExit(graph);
   } else {
     if (!inviteArg) { console.error("edge needs an invite: npm run spike:autobase edge <invite>"); process.exit(1); }
     const dir = join(here, "checkpoints", "autobase-edge");
@@ -233,9 +245,7 @@ try {
     console.log("\n✅ EDGE GO — paired, promoted, bidirectional, id-deduped, offline.");
     console.log("(leaving the swarm up ~8s so the hub sees the edge node…)");
     await sleep(8000);
-    await graph.close();
-    await close();
-    process.exit(0);
+    await cleanExit(graph);
   }
 } catch (error) {
   console.error("❌ spike 05 failed:", error);
