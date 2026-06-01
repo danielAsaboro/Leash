@@ -17,6 +17,7 @@
     "typecheck": "tsc -b",
     "senses:smoke": "tsx packages/senses/scripts/smoke-graph-rag.ts",
     "mind:smoke": "tsx packages/mind/scripts/smoke-tool-call.ts",
+    "mind:council": "tsx packages/mind/scripts/smoke-council.ts",
     "spike:warm": "tsx spike/00-warm-cache.ts",
     "spike:inference": "tsx spike/01-inference.ts",
     "spike:rag": "tsx spike/02-rag.ts",
