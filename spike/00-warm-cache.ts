@@ -14,16 +14,22 @@ import {
   QWEN3_600M_INST_Q4,
   QWEN3_4B_INST_Q4_K_M,
   GTE_LARGE_FP16,
+  WHISPER_BASE_Q8_0,
 } from "@qvac/sdk";
 import { AuditLog, now } from "./lib/audit-log.ts";
 
 const audit = new AuditLog("00-warm-cache");
 
+// Every model the spike AND the Week-1 slice need, so all flows run offline after
+// one online warm. Council = QWEN3_4B_INST_Q4_K_M; trivial = QWEN3_600M_INST_Q4;
+// embeddings = GTE_LARGE_FP16; voice STT = WHISPER_BASE_Q8_0. (LLAMA_3_2_1B is the
+// spike's inference/RAG model.)
 const ASSETS: Array<[string, string]> = [
   ["GTE_LARGE_FP16 (embeddings, ~335M)", GTE_LARGE_FP16],
-  ["QWEN3_600M_INST_Q4 (phone/Pi-class LLM)", QWEN3_600M_INST_Q4],
-  ["LLAMA_3_2_1B_INST_Q4_0 (1B LLM)", LLAMA_3_2_1B_INST_Q4_0],
-  ["QWEN3_4B_INST_Q4_K_M (Mac-class LLM)", QWEN3_4B_INST_Q4_K_M],
+  ["QWEN3_600M_INST_Q4 (trivial/local LLM)", QWEN3_600M_INST_Q4],
+  ["LLAMA_3_2_1B_INST_Q4_0 (spike 1B LLM)", LLAMA_3_2_1B_INST_Q4_0],
+  ["QWEN3_4B_INST_Q4_K_M (council LLM)", QWEN3_4B_INST_Q4_K_M],
+  ["WHISPER_BASE_Q8_0 (voice STT)", WHISPER_BASE_Q8_0],
 ];
 
 try {
