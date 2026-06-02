@@ -32,6 +32,8 @@ logs/*.log
 **/data/mesh-store/
 **/data/invite.txt
 **/data/embedded-ids.json
+# ephemeral corestores created by two-process smokes under their logs/ dir
+**/logs/*-store/
 
 # os / editor
 .DS_Store

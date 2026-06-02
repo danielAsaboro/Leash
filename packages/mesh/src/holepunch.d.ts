@@ -65,6 +65,7 @@ declare module "hyperswarm" {
     join(topic: Buffer, opts?: { server?: boolean; client?: boolean }): unknown;
     flush(): Promise<void>;
     destroy(): Promise<void>;
+    readonly connections: Set<unknown>;
   }
 }
 declare module "blind-pairing" {

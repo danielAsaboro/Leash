@@ -69,8 +69,12 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
  * Discovered via spike-style bisection (Task 6); see the Week-2 Sawdust entry.
  */
 function makeStore(storeDir: string, seed?: string): Corestore {
-  const opts: { primaryKey?: Buffer; allowBackup: boolean } = { allowBackup: true };
-  if (seed) opts.primaryKey = b4a.from(seed, "hex");
+  const opts: { primaryKey?: Buffer; allowBackup: boolean; unsafe?: boolean } = { allowBackup: true };
+  // A deterministic seed → fixed corestore primary key → stable autobase/device key
+  // (CI/repeatable demos, registry keys, allow-list entries). Corestore now guards
+  // primaryKey behind `unsafe: true`; we intentionally opt in — the seed is supplied
+  // explicitly by the operator, never derived from untrusted input.
+  if (seed) { opts.primaryKey = b4a.from(seed, "hex"); opts.unsafe = true; }
   return new Corestore(storeDir, opts);
 }
 
@@ -122,6 +126,8 @@ export class MeshGraph {
   get autobaseKey(): string { return b4a.toString(this.base.key, "hex"); }
   get localWriterKey(): string { return b4a.toString(this.base.local.key, "hex"); }
   get writable(): boolean { return this.base.writable; }
+  /** Live swarm connection count (0 if not swarming) — replication liveness. */
+  get peerCount(): number { return this.swarm ? this.swarm.connections.size : 0; }
 
   /** Append a node to THIS device's input. Fills id/ts like GraphStore.append. */
   async append(input: GraphNodeInput): Promise<GraphNode> {
