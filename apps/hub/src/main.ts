@@ -13,9 +13,9 @@
 import { writeFileSync } from "node:fs";
 import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
-import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, seedFromDataDir, embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "@mycelium/senses";
+import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, loadOcr, unloadOcr, seedFromDataDir, embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "@mycelium/senses";
 import { startProvider, MeshGraph, startHeartbeat } from "@mycelium/mesh";
-import { NOTES_DIR, VOICE_DIR, HUB_WORKSPACE, LOG_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, loadAllowlist } from "./config.ts";
+import { NOTES_DIR, VOICE_DIR, PHOTOS_DIR, HUB_WORKSPACE, LOG_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, loadAllowlist } from "./config.ts";
 
 const audit = new AuditLog("hub", LOG_DIR);
 const seed = process.env["QVAC_HYPERSWARM_SEED"];
@@ -62,8 +62,10 @@ try {
   // Embeddings + STT to build/maintain the vector index over the graph.
   const embId = await loadEmbeddings(audit);
   const sttId = await loadWhisper(audit);
-  const seeded = await seedFromDataDir({ graph, notesDir: NOTES_DIR, voiceDir: VOICE_DIR, sttModelId: sttId, audit });
+  const ocrId = await loadOcr(audit);
+  const seeded = await seedFromDataDir({ graph, notesDir: NOTES_DIR, voiceDir: VOICE_DIR, sttModelId: sttId, photoDir: PHOTOS_DIR, ocrModelId: ocrId, audit });
   await unloadWhisper(sttId, audit);
+  await unloadOcr(ocrId, audit);
 
   const embedded = loadEmbeddedIds(EMBEDDED_IDS_FILE);
   const initial = await embedDelta({ embModelId: embId, workspace: HUB_WORKSPACE, nodes: await graph.all(), embedded, audit });

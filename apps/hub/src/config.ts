@@ -10,6 +10,8 @@ export const REPO_ROOT = join(here, "..", "..", "..");
 export const NOTES_DIR = join(REPO_ROOT, "data", "notes");
 /** Voice memos (.wav) transcribed into the graph. */
 export const VOICE_DIR = join(REPO_ROOT, "data", "voice");
+/** Photos (.png/.jpg) OCR'd into the graph (kind:"photo"). */
+export const PHOTOS_DIR = join(REPO_ROOT, "data", "photos");
 /** The hub's vector workspace. */
 export const HUB_WORKSPACE = "mycelium-hub";
 /** Where the hub writes its audit JSONL. */
