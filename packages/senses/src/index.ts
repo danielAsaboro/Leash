@@ -16,7 +16,9 @@ export { embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "./incremental.ts";
 export type { EmbedDeltaParams } from "./incremental.ts";
 export { loadWhisper, unloadWhisper, transcribeFile } from "./voice.ts";
 export type { TranscribeFileParams } from "./voice.ts";
+export { loadOcr, unloadOcr, ocrFile } from "./photo.ts";
+export type { OcrFileParams } from "./photo.ts";
 export { WHISPER_BASE_Q8_0 } from "./models.ts";
 // Typed model constants (works around the SDK's root-.d.ts gap; see models.ts).
-export { GTE_LARGE_FP16, QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M } from "./models.ts";
+export { GTE_LARGE_FP16, QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M, OCR_LATIN_RECOGNIZER_1 } from "./models.ts";
 export type { ModelSrc } from "./models.ts";

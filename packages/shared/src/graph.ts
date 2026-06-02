@@ -13,7 +13,7 @@ export interface GraphNode {
   /** Stable id (uuid) — the CRDT dedupe key in the replicated view. */
   id: string;
   /** What kind of signal produced this node. */
-  kind: "file" | "voice" | "note";
+  kind: "file" | "voice" | "note" | "photo";
   /** Provenance — file path, audio path, or a free-form origin label. */
   source: string;
   /** The text content that gets embedded + retrieved. */

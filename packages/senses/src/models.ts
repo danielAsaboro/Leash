@@ -14,8 +14,8 @@
  */
 import type { LoadModelOptions } from "@qvac/sdk";
 // prettier-ignore
-// @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts (LLM/embedding/whisper consts only).
-import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0 } from "@qvac/sdk";
+// @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts (LLM/embedding/whisper/OCR consts only).
+import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0, OCR_LATIN_RECOGNIZER_1 as _OCR_LATIN_RECOGNIZER_1 } from "@qvac/sdk";
 
 export type ModelSrc = LoadModelOptions["modelSrc"];
 
@@ -27,3 +27,6 @@ export const QWEN3_600M_INST_Q4: ModelSrc = _QWEN3_600M_INST_Q4;
 export const QWEN3_4B_INST_Q4_K_M: ModelSrc = _QWEN3_4B_INST_Q4_K_M;
 /** Speech-to-text (voice ingestion); loaded with modelType:"whisper". */
 export const WHISPER_BASE_Q8_0: ModelSrc = _WHISPER_BASE_Q8_0;
+/** Photo OCR recognizer (Latin/English); loaded with modelType:"ocr". Auto-pairs the
+ * CRAFT text detector at load, so only this constant is referenced in code. */
+export const OCR_LATIN_RECOGNIZER_1: ModelSrc = _OCR_LATIN_RECOGNIZER_1;
