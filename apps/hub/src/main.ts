@@ -14,7 +14,7 @@ import { writeFileSync } from "node:fs";
 import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, seedFromDataDir, embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "@mycelium/senses";
-import { startProvider, MeshGraph } from "@mycelium/mesh";
+import { startProvider, MeshGraph, startHeartbeat } from "@mycelium/mesh";
 import { NOTES_DIR, VOICE_DIR, HUB_WORKSPACE, LOG_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE } from "./config.ts";
 
 const audit = new AuditLog("hub", LOG_DIR);
@@ -41,13 +41,14 @@ try {
   console.log("Edge command (another terminal):");
   console.log(`   npm run ask -- "Which model does Dani run on the Pi, and why?" ${publicKey} ${invite}\n`);
 
-  // Advertise THIS device's capability over the mesh so edges can discover us as a
-  // provider without a hard-coded pubkey (Part A — capability-registry gossip).
-  await graph.advertise({
+  // Heartbeat THIS device's capability over the mesh so edges can discover us as a
+  // provider without a hard-coded pubkey AND tell we're still alive (Part A gossip +
+  // Part B failover: a fresh lastSeen every 10s; a killed hub goes stale → edges fail over).
+  const heartbeat = startHeartbeat(graph, {
     deviceId: graph.localWriterKey, displayName: "mycelium-hub", computeClass: "mac", ramMB: 65536,
     powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M", "GTE_LARGE_FP16", "WHISPER_BASE_Q8_0"],
-    isProvider: true, providerPublicKey: publicKey, lastSeen: new Date().toISOString(),
-  });
+    isProvider: true, providerPublicKey: publicKey,
+  }, 10_000);
 
   // Embeddings + STT to build/maintain the vector index over the graph.
   const embId = await loadEmbeddings(audit);
@@ -73,6 +74,7 @@ try {
   process.on("SIGINT", () => {
     void (async () => {
       audit.record({ event: "note", extra: { role: "hub", stopped: true } });
+      heartbeat.stop();
       saveEmbeddedIds(EMBEDDED_IDS_FILE, embedded);
       await graph.close();
       await unloadEmbeddings(embId, audit);

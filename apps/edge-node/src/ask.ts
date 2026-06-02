@@ -15,11 +15,11 @@
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { basename, join } from "node:path";
-import { close } from "@qvac/sdk";
+import { close, loadModel, unloadModel } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, transcribeFile, searchGraph, embedDelta, loadEmbeddedIds, saveEmbeddedIds, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
 import { classify, answerTrivial, runCouncil } from "@mycelium/mind";
-import { loadDelegated, MeshGraph, CapabilityRegistry } from "@mycelium/mesh";
+import { loadDelegated, MeshGraph, liveProviders } from "@mycelium/mesh";
 import { VOICE_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, EDGE_WORKSPACE, LOG_DIR } from "./config.ts";
 
 const question = process.argv[2];
@@ -72,25 +72,24 @@ async function runHard(question: string): Promise<void> {
     powerState: "battery", availableModels: ["QWEN3_600M_INST_Q4"], isProvider: false,
     lastSeen: new Date().toISOString(),
   });
-  // On a cold pair the hub's cap entry lands a few seconds after pairing (sync()
-  // only settles on node count, not cap:* entries), so poll the replicated registry
-  // up to 20s for a provider. An explicitly-passed hub pubkey short-circuits the wait.
-  const reg = new CapabilityRegistry();
+  // Build the ordered failover list from the replicated registry: live (fresh-
+  // heartbeat) providers, strongest+freshest first. On a cold pair the hub's cap lands
+  // a few seconds after pairing (sync() only settles on node count, not cap:* entries),
+  // so poll briefly until a live provider appears. A killed hub goes stale (>30s) and
+  // drops out of liveProviders → the edge degrades to a local council. An explicitly-
+  // passed pubkey floats to the front (back-compat / demo).
   const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  let caps = await graph.capabilities();
   const tWait = Date.now();
-  do {
-    (await graph.capabilities()).forEach((c) => reg.register(c));
-    if (hubPublicKey || reg.bestProvider()) break;
+  while (!hubPublicKey && liveProviders(caps).length === 0 && Date.now() - tWait < 20_000) {
     await sleep(500);
-  } while (Date.now() - tWait < 20_000);
-  const advertised = reg.bestProvider();
-  // `||` (not `??`): a blank/empty pubkey arg must fall through to gossip discovery.
-  const providerKey = hubPublicKey || advertised?.providerPublicKey;
-  if (!providerKey) {
-    console.error("❌ no provider known (pass a hub pubkey or wait for capability gossip)");
-    process.exit(1);
+    caps = await graph.capabilities();
   }
-  console.log(`🛰️  provider selected: ${providerKey.slice(0, 16)}… ${advertised ? `(gossiped: ${advertised.displayName})` : "(arg)"}`);
+  const ranked = liveProviders(caps);
+  const ordered = hubPublicKey
+    ? [hubPublicKey, ...ranked.map((c) => c.providerPublicKey!).filter((k) => k !== hubPublicKey)]
+    : ranked.map((c) => c.providerPublicKey!);
+  console.log(`🛰️  providers (ordered, freshest first): ${ordered.length ? ordered.map((k) => k.slice(0, 8) + "…").join(", ") : "none — will run LOCALLY"}`);
 
   const embId = await loadEmbeddings(audit);
 
@@ -114,9 +113,33 @@ async function runHard(question: string): Promise<void> {
   saveEmbeddedIds(EMBEDDED_IDS_FILE, embedded);
   console.log(`🧩 replicated graph: ${nodes.length} nodes (embedded ${delta.added} new, ${delta.skipped} cached)`);
 
-  // Heavy council reasoning is delegated to the hub (UNCHANGED from Week-1).
-  const councilId = await loadDelegated({ modelSrc: QWEN3_4B_INST_Q4_K_M, providerPublicKey: providerKey, audit });
-  console.log(`🛰️  delegated council model registered (id=${councilId})\n`);
+  // Failover walk: try each live provider in order with a short timeout; on
+  // timeout/reject, advance to the next; if none succeed, degrade to a LOCAL council.
+  // Timeout is 20s (not 8s): observed cold-DHT registration to a LIVE provider is ~8s,
+  // so a tighter bound would false-fail healthy providers.
+  let councilId: string | undefined;
+  for (const pk of ordered) {
+    try {
+      console.log(`🛰️  trying provider ${pk.slice(0, 16)}…`);
+      councilId = await loadDelegated({ modelSrc: QWEN3_4B_INST_Q4_K_M, providerPublicKey: pk, timeout: 20_000, fallbackToLocal: false, audit });
+      console.log(`✅ delegated to ${pk.slice(0, 16)}…`);
+      break;
+    } catch (err) {
+      console.log(`⚠️  provider ${pk.slice(0, 16)}… unavailable — failing over`);
+      audit.record({ event: "delegation", extra: { phase: "failover", from: pk, reason: String(err) } });
+    }
+  }
+
+  let localCouncilId: string | undefined;
+  if (!councilId) {
+    console.log("🟡 no live provider — running the council LOCALLY (degraded)");
+    audit.record({ event: "delegation", extra: { phase: "failover", to: "local", reason: "no live provider" } });
+    const local = await loadModel({ modelSrc: QWEN3_4B_INST_Q4_K_M, modelType: "llm", modelConfig: { ctx_size: 4096, tools: true }, onProgress: () => {} });
+    localCouncilId = local;
+    councilId = local;
+  }
+  if (!councilId) throw new Error("unreachable: no council model (delegated nor local)");
+  console.log(`🛰️  council model ready (id=${councilId})\n`);
 
   const runSearch = (query: string, topK: number): Promise<Hit[]> => searchGraph({ embModelId: embId, workspace: EDGE_WORKSPACE, query, topK, audit });
 
@@ -130,6 +153,7 @@ async function runHard(question: string): Promise<void> {
   // Keep the workspace + embedded-ids in lockstep across runs — do NOT delete it.
   await graph.close();
   await unloadEmbeddings(embId, audit);
+  if (localCouncilId) await unloadModel({ modelId: localCouncilId });
 }
 
 try {
