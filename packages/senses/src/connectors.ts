@@ -13,6 +13,9 @@ import type { AuditLog, GraphNode, GraphNodeInput } from "@mycelium/shared";
 import { GraphStore } from "./graph-store.ts";
 import { ingestNodes } from "./rag-index.ts";
 import { transcribeFile } from "./voice.ts";
+import { ocrFile } from "./photo.ts";
+
+const PHOTO_RE = /\.(png|jpg|jpeg)$/i;
 
 export interface IngestNotesDirParams {
   notesDir: string;
@@ -24,6 +27,10 @@ export interface IngestNotesDirParams {
   voiceDir?: string;
   /** Required if `voiceDir` is set: a loaded whisper modelId. */
   sttModelId?: string;
+  /** Optional: also OCR `.png/.jpg` files in this dir into `kind:"photo"` nodes. */
+  photoDir?: string;
+  /** Required if `photoDir` is set: a loaded OCR modelId. */
+  ocrModelId?: string;
   audit?: AuditLog;
 }
 
@@ -32,7 +39,7 @@ export interface IngestNotesDirParams {
  * fresh GraphStore, then index everything into the workspace. Files become
  * `kind:"file"` nodes; transcribed `.wav`s become `kind:"voice"` nodes.
  */
-export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspace, voiceDir, sttModelId, audit }: IngestNotesDirParams): Promise<{ nodes: number; chunks: number; voiceNodes: number }> {
+export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspace, voiceDir, sttModelId, photoDir, ocrModelId, audit }: IngestNotesDirParams): Promise<{ nodes: number; chunks: number; voiceNodes: number; photoNodes: number }> {
   // Deterministic: clear the prior node log and vector workspace.
   rmSync(graphFile, { force: true });
   try {
@@ -56,9 +63,19 @@ export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspac
     }
   }
 
+  let photoNodes = 0;
+  if (photoDir && ocrModelId && existsSync(photoDir)) {
+    for (const f of readdirSync(photoDir).filter((n) => PHOTO_RE.test(n))) {
+      const text = await ocrFile({ ocrModelId, imagePath: join(photoDir, f), audit });
+      if (!text) continue;
+      store.append({ kind: "photo", source: join("data/photos", basename(f)), text, meta: { ocr: true } });
+      photoNodes++;
+    }
+  }
+
   const nodes = store.all();
   const chunks = await ingestNodes({ embModelId, workspace, nodes, audit });
-  return { nodes: nodes.length, chunks, voiceNodes };
+  return { nodes: nodes.length, chunks, voiceNodes, photoNodes };
 }
 
 /** Minimal structural view of an appendable graph (a MeshGraph or GraphStore-like). */
@@ -72,6 +89,10 @@ export interface SeedFromDataDirParams {
   notesDir: string;
   voiceDir?: string;
   sttModelId?: string;
+  /** Optional: also OCR `.png/.jpg` files in this dir into `kind:"photo"` nodes. */
+  photoDir?: string;
+  /** Required if `photoDir` is set: a loaded OCR modelId. */
+  ocrModelId?: string;
   audit?: AuditLog;
 }
 
@@ -81,7 +102,7 @@ export interface SeedFromDataDirParams {
  * NO reset (no rmSync, no ragDeleteWorkspace) — the graph accretes, never destroys.
  * Replaces the destructive `ingestNotesDir` rebuild for the replicated MeshGraph.
  */
-export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, audit }: SeedFromDataDirParams): Promise<{ added: number }> {
+export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, photoDir, ocrModelId, audit }: SeedFromDataDirParams): Promise<{ added: number }> {
   const existing = new Set((await graph.all()).map((n) => n.source));
   let added = 0;
   for (const f of readdirSync(notesDir).filter((n) => n.endsWith(".md"))) {
@@ -97,6 +118,16 @@ export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, a
       const text = await transcribeFile({ sttModelId, audioPath: join(voiceDir, f), audit });
       if (!text) continue;
       await graph.append({ kind: "voice", source, text, meta: { transcribed: true } });
+      added++;
+    }
+  }
+  if (photoDir && ocrModelId && existsSync(photoDir)) {
+    for (const f of readdirSync(photoDir).filter((n) => PHOTO_RE.test(n))) {
+      const source = join("data/photos", basename(f));
+      if (existing.has(source)) continue;
+      const text = await ocrFile({ ocrModelId, imagePath: join(photoDir, f), audit });
+      if (!text) continue;
+      await graph.append({ kind: "photo", source, text, meta: { ocr: true } });
       added++;
     }
   }
