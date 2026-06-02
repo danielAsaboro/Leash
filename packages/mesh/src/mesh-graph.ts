@@ -46,6 +46,12 @@ export interface MeshGraphOptions {
   seed?: string;
   /** Whether to stand up our own Hyperswarm (false for local-only tests). */
   swarm?: boolean;
+  /**
+   * If set and non-empty, only these device writer-keys (hex `localWriterKey`) may
+   * pair and become writers. A leaked invite alone no longer adds a writer. Empty or
+   * absent = open (back-compat with the existing demos).
+   */
+  allowedDevices?: Set<string>;
   audit?: AuditLog;
 }
 
@@ -98,6 +104,7 @@ export class MeshGraph {
   private swarm: Hyperswarm | null = null;
   private pairing: BlindPairing | null = null;
   private member: { flushed(): Promise<void>; close(): Promise<void> } | null = null;
+  private allowedDevices?: Set<string>;
   private readonly audit?: AuditLog;
 
   private constructor(store: Corestore, base: Autobase<Entry>, audit?: AuditLog) {
@@ -118,6 +125,7 @@ export class MeshGraph {
    */
   static async open(opts: MeshGraphOptions): Promise<MeshGraph> {
     const g = MeshGraph.build(makeStore(opts.storeDir, opts.seed), opts.bootstrapKey ?? null, opts.audit);
+    g.allowedDevices = opts.allowedDevices;
     await g.base.ready();
     return g;
   }
@@ -128,6 +136,11 @@ export class MeshGraph {
   get writable(): boolean { return this.base.writable; }
   /** Live swarm connection count (0 if not swarming) — replication liveness. */
   get peerCount(): number { return this.swarm ? this.swarm.connections.size : 0; }
+  /** Number of writers Autobase has linearized (host + any added writers). */
+  writerCount(): number {
+    const aw = (this.base as unknown as { activeWriters?: { size: number } }).activeWriters;
+    return aw?.size ?? (this.base.writable ? 1 : 0);
+  }
 
   /** Append a node to THIS device's input. Fills id/ts like GraphStore.append. */
   async append(input: GraphNodeInput): Promise<GraphNode> {
@@ -212,8 +225,15 @@ export class MeshGraph {
     this.member = this.pairing.addMember({
       discoveryKey: this.base.discoveryKey,
       onadd: async (req) => {
-        req.open(publicKey);
+        req.open(publicKey); // decrypt-only: populates req.userData, grants nothing
         const writerKey = b4a.toString(req.userData, "hex");
+        // Allow-list firewall (Part C): a valid invite is necessary but not sufficient —
+        // an unlisted device is denied here, so the writer is never added/confirmed.
+        if (this.allowedDevices && this.allowedDevices.size > 0 && !this.allowedDevices.has(writerKey)) {
+          req.deny(); // status 1 → candidate throws PAIRING_REJECTED
+          this.audit?.record({ event: "pairing", extra: { role: "host", rejected: true, writerKey } });
+          return;
+        }
         await this.base.append({ type: "add-writer", key: writerKey });
         req.confirm({ key: this.base.key });
         this.audit?.record({ event: "pairing", extra: { role: "host", writerKey } });

@@ -69,7 +69,7 @@ declare module "hyperswarm" {
   }
 }
 declare module "blind-pairing" {
-  export interface MemberRequest { open(publicKey: Buffer): Buffer; confirm(data: { key: Buffer; encryptionKey?: Buffer }): void; userData: Buffer }
+  export interface MemberRequest { open(publicKey: Buffer): Buffer; confirm(data: { key: Buffer; encryptionKey?: Buffer }): void; deny(opts?: { status?: number }): void; userData: Buffer }
   export interface Candidate { pairing: Promise<{ key: Buffer; encryptionKey?: Buffer }>; close(): Promise<void> }
   export interface Member { flushed(): Promise<void>; close(): Promise<void> }
   export default class BlindPairing {
