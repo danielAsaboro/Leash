@@ -14,3 +14,5 @@ export type { LoadDelegatedParams } from "./consumer.ts";
 export { CapabilityRegistry } from "./registry.ts";
 export { MeshGraph } from "./mesh-graph.ts";
 export type { MeshGraphOptions, PairOptions } from "./mesh-graph.ts";
+export { liveProviders, startHeartbeat } from "./failover.ts";
+export type { LiveProviderOpts, HeartbeatHandle } from "./failover.ts";
