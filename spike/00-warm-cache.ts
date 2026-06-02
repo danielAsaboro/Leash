@@ -16,6 +16,8 @@ import {
   GTE_LARGE_FP16,
   WHISPER_BASE_Q8_0,
 } from "@qvac/sdk";
+// @ts-ignore — OCR constants are runtime exports absent from @qvac/sdk's root .d.ts.
+import { OCR_LATIN_RECOGNIZER_1, OCR_CRAFT_DETECTOR } from "@qvac/sdk";
 import { AuditLog, now } from "./lib/audit-log.ts";
 
 const audit = new AuditLog("00-warm-cache");
@@ -30,6 +32,9 @@ const ASSETS: Array<[string, string]> = [
   ["LLAMA_3_2_1B_INST_Q4_0 (spike 1B LLM)", LLAMA_3_2_1B_INST_Q4_0],
   ["QWEN3_4B_INST_Q4_K_M (council LLM)", QWEN3_4B_INST_Q4_K_M],
   ["WHISPER_BASE_Q8_0 (voice STT)", WHISPER_BASE_Q8_0],
+  // Photo OCR: the recognizer auto-pairs the CRAFT detector, so warm BOTH for offline.
+  ["OCR_LATIN_RECOGNIZER_1 (photo OCR recognizer)", OCR_LATIN_RECOGNIZER_1],
+  ["OCR_CRAFT_DETECTOR (photo OCR text detector)", OCR_CRAFT_DETECTOR],
 ];
 
 try {
