@@ -15,7 +15,7 @@ import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, seedFromDataDir, embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "@mycelium/senses";
 import { startProvider, MeshGraph, startHeartbeat } from "@mycelium/mesh";
-import { NOTES_DIR, VOICE_DIR, HUB_WORKSPACE, LOG_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE } from "./config.ts";
+import { NOTES_DIR, VOICE_DIR, HUB_WORKSPACE, LOG_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, loadAllowlist } from "./config.ts";
 
 const audit = new AuditLog("hub", LOG_DIR);
 const seed = process.env["QVAC_HYPERSWARM_SEED"];
@@ -28,12 +28,21 @@ try {
   // before the SDK's Bare worker opens its own corestore — opening the SDK provider
   // first trips the device-file check; spike proved our-store-before-SDK is the safe
   // order). This device is the founding writer of the one mesh.
-  const graph = await MeshGraph.open({ storeDir: MESH_STORE_DIR, seed: meshSeed, audit });
+  // Pairing allow-list (Part C): if set, only these device writer-keys may pair into
+  // the mesh. Empty/absent = open (existing demos still pair).
+  const allowedDevices = loadAllowlist();
+  if (allowedDevices.size > 0) console.log(`🔒 pairing allow-list active: ${allowedDevices.size} trusted device(s)`);
+  const graph = await MeshGraph.open({ storeDir: MESH_STORE_DIR, seed: meshSeed, audit, allowedDevices });
   await graph.joinSwarm();
   const invite = await graph.mintInvite();
   writeFileSync(INVITE_FILE, invite);
 
-  const { publicKey } = await startProvider({ seed, audit });
+  // Delegation firewall is a SEPARATE key-space (QVAC consumer pubkeys, not mesh writer-
+  // keys), so it's wired from its own MYCELIUM_TRUSTED_CONSUMERS env, not the pairing
+  // allow-list. Unset = open delegation (back-compat).
+  const trustedConsumer = process.env["MYCELIUM_TRUSTED_CONSUMERS"]?.split(",")[0]?.trim() || undefined;
+  if (trustedConsumer) console.log(`🔒 delegation firewall active: consumer ${trustedConsumer.slice(0, 16)}…`);
+  const { publicKey } = await startProvider({ seed, audit, allowedConsumer: trustedConsumer });
   console.log("📡 Provider public key — give this to the edge:\n");
   console.log(`   ${publicKey}\n`);
   console.log("🔗 Mesh invite (also written to data/invite.txt):\n");
