@@ -57,6 +57,7 @@ export interface AuditRecord {
     | "delegation"
     | "graph_sync"
     | "pairing"
+    | "capability"
     | "note";
   modelId?: string;
   modelSrc?: string;

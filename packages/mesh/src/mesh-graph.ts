@@ -22,9 +22,12 @@ import Hyperbee from "hyperbee";
 import Hyperswarm from "hyperswarm";
 import BlindPairing from "blind-pairing";
 import b4a from "b4a";
-import type { GraphNode, GraphNodeInput, AuditLog } from "@mycelium/shared";
+import type { GraphNode, GraphNodeInput, AuditLog, DeviceCapability } from "@mycelium/shared";
 
-type Entry = { type: "node"; node: GraphNode } | { type: "add-writer"; key: string };
+type Entry =
+  | { type: "node"; node: GraphNode }
+  | { type: "add-writer"; key: string }
+  | { type: "capability"; cap: DeviceCapability };
 
 export interface MeshGraphOptions {
   /** Directory for the corestore (one per device/role). */
@@ -80,7 +83,8 @@ async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { 
   const bee = view as Hyperbee;
   for (const { value } of nodes) {
     if (value?.type === "add-writer") { await host.addWriter(b4a.from(value.key, "hex"), { indexer: true }); continue; }
-    if (value?.type === "node") await bee.put(value.node.id, value.node);
+    if (value?.type === "node") { await bee.put("node:" + value.node.id, value.node); continue; }
+    if (value?.type === "capability") { await bee.put("cap:" + value.cap.deviceId, value.cap); }
   }
 }
 
@@ -138,12 +142,26 @@ export class MeshGraph {
   async all(): Promise<GraphNode[]> {
     await this.base.update();
     const out: GraphNode[] = [];
-    for await (const { value } of this.base.view.createReadStream()) out.push(value as GraphNode);
+    for await (const { value } of this.base.view.createReadStream({ gte: "node:", lt: "node;" })) out.push(value as GraphNode);
     return out;
   }
 
   /** Linearize whatever has locally replicated. Never blocks on peers. */
   async update(): Promise<void> { await this.base.update(); }
+
+  /** Advertise THIS device's capability to the mesh (LWW per deviceId). */
+  async advertise(cap: DeviceCapability): Promise<void> {
+    await this.base.append({ type: "capability", cap });
+    this.audit?.record({ event: "capability", extra: { deviceId: cap.deviceId, isProvider: cap.isProvider, role: "advertise" } });
+  }
+
+  /** Read every device's latest advertised capability from the replicated view. */
+  async capabilities(): Promise<DeviceCapability[]> {
+    await this.base.update();
+    const out: DeviceCapability[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "cap:", lt: "cap;" })) out.push(value as DeviceCapability);
+    return out;
+  }
 
   /**
    * Bounded best-effort replication wait: poll until the node count is stable for

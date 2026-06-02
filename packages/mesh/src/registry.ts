@@ -29,13 +29,18 @@ export class CapabilityRegistry {
     return this.devices.get(deviceId);
   }
 
+  /** All advertised providers, best-first (plugged/charging, then highest RAM). */
+  rankedProviders(): DeviceCapability[] {
+    return this.list()
+      .filter((d) => d.isProvider && d.providerPublicKey)
+      .sort((a, b) => POWER_RANK[b.powerState] - POWER_RANK[a.powerState] || b.ramMB - a.ramMB);
+  }
+
   /**
    * The best provider to delegate heavy work to: an advertised provider, preferring
    * plugged-in/charging devices, then highest RAM. Returns undefined if none.
    */
   bestProvider(): DeviceCapability | undefined {
-    return this.list()
-      .filter((d) => d.isProvider && d.providerPublicKey)
-      .sort((a, b) => POWER_RANK[b.powerState] - POWER_RANK[a.powerState] || b.ramMB - a.ramMB)[0];
+    return this.rankedProviders()[0];
   }
 }
