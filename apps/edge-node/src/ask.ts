@@ -19,7 +19,7 @@ import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, transcribeFile, searchGraph, embedDelta, loadEmbeddedIds, saveEmbeddedIds, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
 import { classify, answerTrivial, runCouncil } from "@mycelium/mind";
-import { loadDelegated, MeshGraph } from "@mycelium/mesh";
+import { loadDelegated, MeshGraph, CapabilityRegistry } from "@mycelium/mesh";
 import { VOICE_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, EDGE_WORKSPACE, LOG_DIR } from "./config.ts";
 
 const question = process.argv[2];
@@ -58,16 +58,39 @@ async function openGraph(): Promise<MeshGraph> {
 }
 
 async function runHard(question: string): Promise<void> {
-  if (!hubPublicKey) {
-    console.error('❌ HARD query needs a hub public key: npm run ask -- "<q>" <hub-pubkey> [<invite>]');
-    process.exit(1);
-  }
-  console.log(`🔴 router → HARD (delegated council on hub ${hubPublicKey.slice(0, 16)}…)\n`);
+  console.log(`🔴 router → HARD (delegated council)\n`);
 
   // Open the replicated graph FIRST (mirrors the hub's store-before-models order).
   const graph = await openGraph();
   // Bounded best-effort replication wait — returns fast offline (R6).
   await graph.sync();
+
+  // Advertise this edge, then discover a provider from the gossiped registry
+  // (Part A). Falls back to an explicitly-passed hub pubkey for back-compat.
+  await graph.advertise({
+    deviceId: graph.localWriterKey, displayName: "mycelium-edge", computeClass: "phone", ramMB: 6144,
+    powerState: "battery", availableModels: ["QWEN3_600M_INST_Q4"], isProvider: false,
+    lastSeen: new Date().toISOString(),
+  });
+  // On a cold pair the hub's cap entry lands a few seconds after pairing (sync()
+  // only settles on node count, not cap:* entries), so poll the replicated registry
+  // up to 20s for a provider. An explicitly-passed hub pubkey short-circuits the wait.
+  const reg = new CapabilityRegistry();
+  const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+  const tWait = Date.now();
+  do {
+    (await graph.capabilities()).forEach((c) => reg.register(c));
+    if (hubPublicKey || reg.bestProvider()) break;
+    await sleep(500);
+  } while (Date.now() - tWait < 20_000);
+  const advertised = reg.bestProvider();
+  // `||` (not `??`): a blank/empty pubkey arg must fall through to gossip discovery.
+  const providerKey = hubPublicKey || advertised?.providerPublicKey;
+  if (!providerKey) {
+    console.error("❌ no provider known (pass a hub pubkey or wait for capability gossip)");
+    process.exit(1);
+  }
+  console.log(`🛰️  provider selected: ${providerKey.slice(0, 16)}… ${advertised ? `(gossiped: ${advertised.displayName})` : "(arg)"}`);
 
   const embId = await loadEmbeddings(audit);
 
@@ -92,7 +115,7 @@ async function runHard(question: string): Promise<void> {
   console.log(`🧩 replicated graph: ${nodes.length} nodes (embedded ${delta.added} new, ${delta.skipped} cached)`);
 
   // Heavy council reasoning is delegated to the hub (UNCHANGED from Week-1).
-  const councilId = await loadDelegated({ modelSrc: QWEN3_4B_INST_Q4_K_M, providerPublicKey: hubPublicKey, audit });
+  const councilId = await loadDelegated({ modelSrc: QWEN3_4B_INST_Q4_K_M, providerPublicKey: providerKey, audit });
   console.log(`🛰️  delegated council model registered (id=${councilId})\n`);
 
   const runSearch = (query: string, topK: number): Promise<Hit[]> => searchGraph({ embModelId: embId, workspace: EDGE_WORKSPACE, query, topK, audit });

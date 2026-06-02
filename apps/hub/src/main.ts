@@ -41,6 +41,14 @@ try {
   console.log("Edge command (another terminal):");
   console.log(`   npm run ask -- "Which model does Dani run on the Pi, and why?" ${publicKey} ${invite}\n`);
 
+  // Advertise THIS device's capability over the mesh so edges can discover us as a
+  // provider without a hard-coded pubkey (Part A — capability-registry gossip).
+  await graph.advertise({
+    deviceId: graph.localWriterKey, displayName: "mycelium-hub", computeClass: "mac", ramMB: 65536,
+    powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M", "GTE_LARGE_FP16", "WHISPER_BASE_Q8_0"],
+    isProvider: true, providerPublicKey: publicKey, lastSeen: new Date().toISOString(),
+  });
+
   // Embeddings + STT to build/maintain the vector index over the graph.
   const embId = await loadEmbeddings(audit);
   const sttId = await loadWhisper(audit);
