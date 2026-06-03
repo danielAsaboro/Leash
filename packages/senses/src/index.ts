@@ -16,6 +16,9 @@ export { embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "./incremental.ts";
 export type { EmbedDeltaParams } from "./incremental.ts";
 export { loadWhisper, unloadWhisper, transcribeFile } from "./voice.ts";
 export type { TranscribeFileParams } from "./voice.ts";
+// 0.12.0: Parakeet diarization (who-spoke-when).
+export { loadDiarizer, loadTranscriber, unloadParakeet, diarizeFile } from "./voice.ts";
+export type { DiarizeFileParams, DiarizeResult, SpeakerSegment } from "./voice.ts";
 export { loadTts, unloadTts, synthesizeToWav } from "./tts.ts";
 export type { SynthesizeParams } from "./tts.ts";
 export { loadOcr, unloadOcr, ocrFile } from "./photo.ts";

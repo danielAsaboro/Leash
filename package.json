@@ -34,6 +34,7 @@
     "hub": "tsx apps/hub/src/main.ts",
     "ask": "tsx apps/edge-node/src/ask.ts",
     "senses:voice": "tsx packages/senses/scripts/smoke-voice.ts",
+    "senses:diarize": "tsx packages/senses/scripts/smoke-diarize.ts",
     "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema packages/db/prisma/schema.prisma",
     "newsroom": "tsx apps/newsroom/src/main.ts",
