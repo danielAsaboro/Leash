@@ -14,8 +14,8 @@
  */
 import type { LoadModelOptions } from "@qvac/sdk";
 // prettier-ignore
-// @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts (LLM/embedding/whisper/OCR consts only).
-import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0, OCR_LATIN_RECOGNIZER_1 as _OCR_LATIN_RECOGNIZER_1 } from "@qvac/sdk";
+// @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts (the gap persists in 0.12.1 — verified TS2305).
+import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0, OCR_LATIN_RECOGNIZER_1 as _OCR_LATIN_RECOGNIZER_1, TTS_EN_SUPERTONIC_Q8_0 as _TTS_EN_SUPERTONIC_Q8_0, PARAKEET_TDT_0_6B_V3_Q8_0 as _PARAKEET_TDT_0_6B_V3_Q8_0, PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 as _PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 } from "@qvac/sdk";
 
 export type ModelSrc = LoadModelOptions["modelSrc"];
 
@@ -30,3 +30,17 @@ export const WHISPER_BASE_Q8_0: ModelSrc = _WHISPER_BASE_Q8_0;
 /** Photo OCR recognizer (Latin/English); loaded with modelType:"ocr". Auto-pairs the
  * CRAFT text detector at load, so only this constant is referenced in code. */
 export const OCR_LATIN_RECOGNIZER_1: ModelSrc = _OCR_LATIN_RECOGNIZER_1;
+
+// ── 0.12.0 additions ──────────────────────────────────────────────────────────
+/** Text-to-speech (GGML Supertonic, English, 44.1 kHz, baked-in voices). Loaded with
+ * modelType:"tts" + modelConfig.ttsEngine:"supertonic". The SDK example passes the
+ * constant's `.src` string for TTS, so we re-export that form (still a valid ModelSrc). */
+export const TTS_EN_SUPERTONIC_Q8_0: ModelSrc = _TTS_EN_SUPERTONIC_Q8_0.src;
+/** Sample rate of TTS_EN_SUPERTONIC_Q8_0 output PCM — needed to wrap the buffer as WAV. */
+export const TTS_SUPERTONIC_SAMPLE_RATE = 44100;
+/** Parakeet TDT transcription (0.6B Q8). Loaded with modelType:"parakeet"; speaker-agnostic
+ * STT used to transcribe each diarized segment (and as a standalone Whisper alternative). */
+export const PARAKEET_TDT_0_6B_V3_Q8_0: ModelSrc = _PARAKEET_TDT_0_6B_V3_Q8_0;
+/** Parakeet Sortformer diarization (4-speaker, v2.1, Q8). Loaded with modelType:"parakeet";
+ * `transcribe()` returns "Speaker N: Xs - Ys" lines that we parse into segments. */
+export const PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0: ModelSrc = _PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0;
