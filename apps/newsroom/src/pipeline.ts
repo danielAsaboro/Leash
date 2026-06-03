@@ -9,6 +9,7 @@ import { research } from "./research.ts";
 import { draft } from "./draft.ts";
 import { review } from "./review.ts";
 import { makeHero } from "./image.ts";
+import { makeAudio } from "./audio.ts";
 import { publish } from "./publish.ts";
 import type { Newsroom } from "./context.ts";
 
@@ -20,6 +21,12 @@ export async function runPipeline(nr: Newsroom, articleId: string): Promise<void
     await recordRun("image", articleId, () => makeHero(nr, articleId));
   } catch (err) {
     nr.audit.record({ event: "note", extra: { role: "image-failed", articleId, error: String(err).slice(0, 200) } });
+  }
+  // Read-aloud narration — best-effort, same contract as the hero image (never blocks publish).
+  try {
+    await recordRun("audio", articleId, () => makeAudio(nr, articleId));
+  } catch (err) {
+    nr.audit.record({ event: "note", extra: { role: "audio-failed", articleId, error: String(err).slice(0, 200) } });
   }
   await recordRun("publish", articleId, () => publish(articleId));
 }

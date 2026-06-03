@@ -21,6 +21,8 @@ export interface Newsroom {
   llmId: string;
   /** Diffusion model id, loaded lazily by the image step. */
   diffId?: string;
+  /** TTS model id, loaded lazily by the audio (read-aloud) step. */
+  ttsId?: string;
 }
 
 /** Boot the always-needed models (embeddings + council LLM). */
@@ -45,6 +47,10 @@ export async function closeNewsroom(nr: Newsroom): Promise<void> {
   if (nr.diffId) {
     await unloadModel({ modelId: nr.diffId, clearStorage: false } as Parameters<typeof unloadModel>[0]);
     nr.audit.record({ event: "model_unload", modelId: nr.diffId, extra: { role: "diffusion" } });
+  }
+  if (nr.ttsId) {
+    await unloadModel({ modelId: nr.ttsId, clearStorage: false } as Parameters<typeof unloadModel>[0]);
+    nr.audit.record({ event: "model_unload", modelId: nr.ttsId, extra: { role: "tts" } });
   }
 }
 

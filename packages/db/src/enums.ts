@@ -52,6 +52,7 @@ export const RunKind = {
   draft: "draft",
   review: "review",
   image: "image",
+  audio: "audio",
   publish: "publish",
 } as const;
 export type RunKind = (typeof RunKind)[keyof typeof RunKind];

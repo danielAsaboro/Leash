@@ -16,6 +16,8 @@ export { embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "./incremental.ts";
 export type { EmbedDeltaParams } from "./incremental.ts";
 export { loadWhisper, unloadWhisper, transcribeFile } from "./voice.ts";
 export type { TranscribeFileParams } from "./voice.ts";
+export { loadTts, unloadTts, synthesizeToWav } from "./tts.ts";
+export type { SynthesizeParams } from "./tts.ts";
 export { loadOcr, unloadOcr, ocrFile } from "./photo.ts";
 export type { OcrFileParams } from "./photo.ts";
 export { WHISPER_BASE_Q8_0 } from "./models.ts";

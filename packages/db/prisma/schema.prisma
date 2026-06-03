@@ -39,6 +39,7 @@ model Article {
   body        String    @default("") // markdown, with [Source N] cites
   heroImagePath String? // /hero/<id>.png under apps/web/public
   heroPrompt  String?
+  audioPath   String? // /audio/<id>.wav under apps/web/public — on-device TTS "read aloud"
   stage       String    @default("QUEUED") // QUEUED|RESEARCHING|RESEARCH_READY|DRAFTING|REVIEW|PUBLISHED
   startedAt   DateTime?
   publishedAt DateTime?

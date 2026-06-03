@@ -20,6 +20,9 @@ export const LOG_DIR = join(here, "..", "logs");
 /** Diffusion hero images land in the web app's public/ so Next serves them at /hero/<id>.png. */
 export const HERO_DIR = join(REPO_ROOT, "apps", "web", "public", "hero");
 
+/** On-device TTS "read aloud" WAVs land in public/ so Next serves them at /audio/<id>.wav. */
+export const AUDIO_DIR = join(REPO_ROOT, "apps", "web", "public", "audio");
+
 /** Per-article RAG workspace name. Each article is grounded ONLY in its own pack. */
 export function workspaceFor(articleId: string): string {
   return `understory-${articleId}`;

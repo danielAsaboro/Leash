@@ -8,6 +8,7 @@ import { Markdown } from "../../../lib/markdown.tsx";
 import { SourcesList } from "../../../components/SourcesList.tsx";
 import { ClaimsList } from "../../../components/ClaimsList.tsx";
 import { LiveRefresh } from "../../../components/LiveRefresh.tsx";
+import { ArticleAudio } from "../../../components/ArticleAudio.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +53,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ date: 
               {stageLabel(article.stage)}
             </span>
           </div>
+          {article.audioPath && <ArticleAudio src={article.audioPath} />}
         </header>
 
         {/* Hero plate */}
