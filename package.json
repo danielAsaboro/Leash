@@ -33,7 +33,14 @@
     "senses:photo": "tsx packages/senses/scripts/smoke-photo.ts",
     "hub": "tsx apps/hub/src/main.ts",
     "ask": "tsx apps/edge-node/src/ask.ts",
-    "senses:voice": "tsx packages/senses/scripts/smoke-voice.ts"
+    "senses:voice": "tsx packages/senses/scripts/smoke-voice.ts",
+    "db:generate": "prisma generate --schema packages/db/prisma/schema.prisma",
+    "db:migrate": "prisma migrate dev --schema packages/db/prisma/schema.prisma",
+    "newsroom": "tsx apps/newsroom/src/main.ts",
+    "newsroom:seed": "tsx apps/newsroom/src/seed.ts",
+    "web:dev": "npm run dev -w @mycelium/web",
+    "web:build": "npm run build -w @mycelium/web",
+    "web:start": "npm run start -w @mycelium/web"
   },
   "dependencies": {
     "@qvac/sdk": "^0.11.0"

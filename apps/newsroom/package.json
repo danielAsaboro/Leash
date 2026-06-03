@@ -1,0 +1,19 @@
+{
+  "name": "@mycelium/newsroom",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc -b",
+    "seed": "tsx src/seed.ts",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@mycelium/shared": "*",
+    "@mycelium/senses": "*",
+    "@mycelium/mind": "*",
+    "@mycelium/db": "*",
+    "@qvac/sdk": "^0.11.0"
+  }
+}

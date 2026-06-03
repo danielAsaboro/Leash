@@ -1,0 +1,116 @@
+// The Understory — newsroom database (source of truth for the paper).
+//
+// SQLite + WAL: one writer (the newsroom daemon) + many readers (the web app).
+// Enum-like fields are TEXT (SQLite has no native enums); the allowed values are
+// documented inline and exported as typed unions/consts from `@mycelium/db`.
+//
+// `file:` paths are resolved relative to THIS schema's directory, so the db lives
+// at packages/db/prisma/newsroom.db. The runtime client (src/index.ts) opens the
+// exact same absolute path, so web + daemon always read/write one file.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// One day's paper. The homepage route is /[date] (e.g. 2026-06-02).
+model Edition {
+  id        Int       @id @default(autoincrement())
+  date      String    @unique // YYYY-MM-DD
+  createdAt DateTime  @default(now())
+  articles  Article[]
+}
+
+/// A story moving through the newsroom pipeline. `stage` drives Mission Control.
+model Article {
+  id          String    @id @default(cuid())
+  slug        String
+  date        String // YYYY-MM-DD it belongs to (matches its Edition.date once published)
+  editionId   Int?
+  edition     Edition?  @relation(fields: [editionId], references: [id])
+  section     String // AI | COMPUTE | SOLANA | BRIEF
+  origin      String // EXTERNAL | PERSONAL
+  headline    String
+  dek         String    @default("")
+  body        String    @default("") // markdown, with [Source N] cites
+  heroImagePath String? // /hero/<id>.png under apps/web/public
+  heroPrompt  String?
+  stage       String    @default("QUEUED") // QUEUED|RESEARCHING|RESEARCH_READY|DRAFTING|REVIEW|PUBLISHED
+  startedAt   DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  sources     Source[]
+  claims      Claim[]
+  dossier     Dossier?
+
+  @@unique([date, slug])
+  @@index([stage])
+  @@index([section])
+}
+
+/// A cited source backing an article. → the SOURCES sidebar.
+model Source {
+  id        String  @id @default(cuid())
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  label     String // e.g. "X News tokenomics story"
+  url       String?
+  kind      String? // rss | graph | web | voice | photo
+  order     Int     @default(0)
+
+  @@index([articleId])
+}
+
+/// A claim the reviewer surfaced. → the UNVERIFIED CLAIMS sidebar.
+model Claim {
+  id        String  @id @default(cuid())
+  articleId String
+  article   Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  text      String
+  status    String  @default("UNVERIFIED") // UNVERIFIED | VERIFIED | CONFLICTED
+  note      String  @default("Needs fact-checking or primary confirmation")
+  order     Int     @default(0)
+
+  @@index([articleId])
+}
+
+/// The research artifact behind an article ("Open dossier").
+model Dossier {
+  id           String  @id @default(cuid())
+  articleId    String  @unique
+  article      Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+  research     String // the raw fetched/assembled research pack
+  graphNodeIds String  @default("[]") // JSON array of GraphNode ids ingested for this article
+  tokens       Int?
+}
+
+/// One step the daemon executed. → telemetry feed / last-discovery.
+model DaemonRun {
+  id         Int       @id @default(autoincrement())
+  kind       String // discovery | research | draft | review | image | publish
+  articleId  String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  ok         Boolean   @default(true)
+  detail     String    @default("")
+
+  @@index([kind])
+  @@index([startedAt])
+}
+
+/// Singleton daemon state. → the "● Running" dot, countdown, telemetry labels.
+model DaemonState {
+  id             Int       @id @default(1)
+  status         String    @default("STOPPED") // RUNNING | IDLE | STOPPED
+  masthead       String    @default("The Understory")
+  startedAt      DateTime?
+  lastDiscoveryAt DateTime?
+  nextCheckAt    DateTime?
+  cadenceMin     Int       @default(60)
+  updatedAt      DateTime  @updatedAt
+}

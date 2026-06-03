@@ -1,0 +1,11 @@
+The bundled .woff2 webfonts are licensed under the SIL Open Font License 1.1:
+
+  · Fraunces        © The Undercase (Phaedra Charles, Flavia Zimbardi)
+  · Newsreader      © Production Type
+  · IBM Plex Mono   © IBM Corp.
+
+Full license text: https://openfontlicense.org  (SIL OFL 1.1)
+
+These fonts are self-hosted (subsetted to latin) so The Understory builds and runs
+fully offline. They are redistributable under the OFL alongside this Apache-2.0
+project; the OFL applies to the font files only, not to the application code.

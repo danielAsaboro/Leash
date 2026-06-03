@@ -16,8 +16,8 @@ import {
   GTE_LARGE_FP16,
   WHISPER_BASE_Q8_0,
 } from "@qvac/sdk";
-// @ts-ignore — OCR constants are runtime exports absent from @qvac/sdk's root .d.ts.
-import { OCR_LATIN_RECOGNIZER_1, OCR_CRAFT_DETECTOR } from "@qvac/sdk";
+// @ts-ignore — OCR + diffusion constants are runtime exports absent from @qvac/sdk's root .d.ts.
+import { OCR_LATIN_RECOGNIZER_1, OCR_CRAFT_DETECTOR, SD_V2_1_1B_Q8_0 } from "@qvac/sdk";
 import { AuditLog, now } from "./lib/audit-log.ts";
 
 const audit = new AuditLog("00-warm-cache");
@@ -35,6 +35,8 @@ const ASSETS: Array<[string, string]> = [
   // Photo OCR: the recognizer auto-pairs the CRAFT detector, so warm BOTH for offline.
   ["OCR_LATIN_RECOGNIZER_1 (photo OCR recognizer)", OCR_LATIN_RECOGNIZER_1],
   ["OCR_CRAFT_DETECTOR (photo OCR text detector)", OCR_CRAFT_DETECTOR],
+  // The Understory newsroom: on-device hero images (Stable Diffusion 2.1, ~1B Q8).
+  ["SD_V2_1_1B_Q8_0 (newsroom hero diffusion)", SD_V2_1_1B_Q8_0],
 ];
 
 try {

@@ -6,7 +6,9 @@
     { "path": "packages/senses" },
     { "path": "packages/mind" },
     { "path": "packages/mesh" },
+    { "path": "packages/db" },
     { "path": "apps/hub" },
-    { "path": "apps/edge-node" }
+    { "path": "apps/edge-node" },
+    { "path": "apps/newsroom" }
   ]
 }
