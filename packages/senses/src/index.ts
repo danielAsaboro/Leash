@@ -23,6 +23,9 @@ export { loadTts, unloadTts, synthesizeToWav } from "./tts.ts";
 export type { SynthesizeParams } from "./tts.ts";
 export { loadOcr, unloadOcr, ocrFile } from "./photo.ts";
 export type { OcrFileParams } from "./photo.ts";
+// 0.12.0: bundled GGML image classification (food/report/other) — cheap OCR pre-filter / tag.
+export { loadClassifier, unloadClassifier, classifyImage } from "./classify.ts";
+export type { ClassLabel, ClassifyImageParams, ClassifyImageResult } from "./classify.ts";
 export { WHISPER_BASE_Q8_0 } from "./models.ts";
 // Typed model constants (works around the SDK's root-.d.ts gap; see models.ts).
 export { GTE_LARGE_FP16, QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M, OCR_LATIN_RECOGNIZER_1 } from "./models.ts";

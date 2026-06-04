@@ -31,6 +31,7 @@
     "smoke:allowlist": "tsx packages/mesh/scripts/smoke-allowlist.ts",
     "spike:ocr": "tsx spike/06-ocr.ts",
     "senses:photo": "tsx packages/senses/scripts/smoke-photo.ts",
+    "senses:classify": "tsx packages/senses/scripts/smoke-classify.ts",
     "hub": "tsx apps/hub/src/main.ts",
     "ask": "tsx apps/edge-node/src/ask.ts",
     "senses:voice": "tsx packages/senses/scripts/smoke-voice.ts",

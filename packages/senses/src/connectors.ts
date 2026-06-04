@@ -14,8 +14,31 @@ import { GraphStore } from "./graph-store.ts";
 import { ingestNodes } from "./rag-index.ts";
 import { transcribeFile, diarizeFile } from "./voice.ts";
 import { ocrFile } from "./photo.ts";
+import { classifyImage } from "./classify.ts";
 
 const PHOTO_RE = /\.(png|jpg|jpeg)$/i;
+
+/**
+ * Turn one image into a `kind:"photo"` node payload (OCR text). If a classifier modelId is
+ * supplied, the coarse GGML class (food/report/other) is recorded in `meta` as a cheap tag /
+ * OCR pre-filter signal. Returns null for an empty OCR result.
+ */
+async function photoNode(
+  imagePath: string,
+  ids: { ocrModelId?: string; classifierModelId?: string },
+  audit?: AuditLog,
+): Promise<{ text: string; meta: Record<string, unknown> } | null> {
+  if (!ids.ocrModelId) return null;
+  const meta: Record<string, unknown> = { ocr: true };
+  if (ids.classifierModelId) {
+    const { top, isDocument } = await classifyImage({ classifierModelId: ids.classifierModelId, imagePath, audit });
+    meta.classification = top.label;
+    meta.classConfidence = top.confidence;
+    meta.isDocument = isDocument;
+  }
+  const text = await ocrFile({ ocrModelId: ids.ocrModelId, imagePath, audit });
+  return text ? { text, meta } : null;
+}
 
 /**
  * Turn one voice file into a `kind:"voice"` node payload. If a Parakeet diarizer +
@@ -58,6 +81,8 @@ export interface IngestNotesDirParams {
   photoDir?: string;
   /** Required if `photoDir` is set: a loaded OCR modelId. */
   ocrModelId?: string;
+  /** Optional GGML classifier modelId — tags each photo's coarse class (food/report/other) into `meta`. */
+  classifierModelId?: string;
   audit?: AuditLog;
 }
 
@@ -66,7 +91,7 @@ export interface IngestNotesDirParams {
  * fresh GraphStore, then index everything into the workspace. Files become
  * `kind:"file"` nodes; transcribed `.wav`s become `kind:"voice"` nodes.
  */
-export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspace, voiceDir, sttModelId, diarizerModelId, transcriberModelId, photoDir, ocrModelId, audit }: IngestNotesDirParams): Promise<{ nodes: number; chunks: number; voiceNodes: number; photoNodes: number }> {
+export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspace, voiceDir, sttModelId, diarizerModelId, transcriberModelId, photoDir, ocrModelId, classifierModelId, audit }: IngestNotesDirParams): Promise<{ nodes: number; chunks: number; voiceNodes: number; photoNodes: number }> {
   // Deterministic: clear the prior node log and vector workspace.
   rmSync(graphFile, { force: true });
   try {
@@ -93,9 +118,9 @@ export async function ingestNotesDir({ notesDir, graphFile, embModelId, workspac
   let photoNodes = 0;
   if (photoDir && ocrModelId && existsSync(photoDir)) {
     for (const f of readdirSync(photoDir).filter((n) => PHOTO_RE.test(n))) {
-      const text = await ocrFile({ ocrModelId, imagePath: join(photoDir, f), audit });
-      if (!text) continue;
-      store.append({ kind: "photo", source: join("data/photos", basename(f)), text, meta: { ocr: true } });
+      const node = await photoNode(join(photoDir, f), { ocrModelId, classifierModelId }, audit);
+      if (!node) continue;
+      store.append({ kind: "photo", source: join("data/photos", basename(f)), text: node.text, meta: node.meta });
       photoNodes++;
     }
   }
@@ -125,6 +150,8 @@ export interface SeedFromDataDirParams {
   photoDir?: string;
   /** Required if `photoDir` is set: a loaded OCR modelId. */
   ocrModelId?: string;
+  /** Optional GGML classifier modelId — tags each photo's coarse class (food/report/other) into `meta`. */
+  classifierModelId?: string;
   audit?: AuditLog;
 }
 
@@ -134,7 +161,7 @@ export interface SeedFromDataDirParams {
  * NO reset (no rmSync, no ragDeleteWorkspace) — the graph accretes, never destroys.
  * Replaces the destructive `ingestNotesDir` rebuild for the replicated MeshGraph.
  */
-export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, diarizerModelId, transcriberModelId, photoDir, ocrModelId, audit }: SeedFromDataDirParams): Promise<{ added: number }> {
+export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, diarizerModelId, transcriberModelId, photoDir, ocrModelId, classifierModelId, audit }: SeedFromDataDirParams): Promise<{ added: number }> {
   const existing = new Set((await graph.all()).map((n) => n.source));
   let added = 0;
   for (const f of readdirSync(notesDir).filter((n) => n.endsWith(".md"))) {
@@ -157,9 +184,9 @@ export async function seedFromDataDir({ graph, notesDir, voiceDir, sttModelId, d
     for (const f of readdirSync(photoDir).filter((n) => PHOTO_RE.test(n))) {
       const source = join("data/photos", basename(f));
       if (existing.has(source)) continue;
-      const text = await ocrFile({ ocrModelId, imagePath: join(photoDir, f), audit });
-      if (!text) continue;
-      await graph.append({ kind: "photo", source, text, meta: { ocr: true } });
+      const node = await photoNode(join(photoDir, f), { ocrModelId, classifierModelId }, audit);
+      if (!node) continue;
+      await graph.append({ kind: "photo", source, text: node.text, meta: node.meta });
       added++;
     }
   }
