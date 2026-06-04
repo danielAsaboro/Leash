@@ -41,10 +41,12 @@ is actually implemented** — not before.
 mycelium/
   packages/shared/      # foundation: DeviceCapability, AuditRecord, GraphNode, logger
   packages/senses/      # L2: context graph nodes + RAG index + voice STT + incremental embed
-  packages/mind/        # L3: 2-model council (proposer+critic) + router + search_graph tool
+  packages/mind/        # L3: council (proposer+critic) + router + generic runAgent (tool registry)
   packages/mesh/        # L1: delegated-inference provider/consumer + MeshGraph (CRDT sync)
   apps/hub/             # the always-on "strong brain": provider + founding graph writer
   apps/edge-node/       # the weak "phone": classify → trivial-local / hard-delegated council
+  apps/web/             # Leash dashboard (rail: Chat · Paper) + The Understory broadsheet
+                        #   chat = Vercel AI SDK + @qvac/ai-sdk-provider (local qvac serve openai)
   spike/                # the de-risk gates — runnable, proven GO
     00-warm-cache.ts  01-inference.ts  02-rag.ts
     03-p2p-provider.ts  03-p2p-consumer.ts  04-lora.ts
@@ -135,6 +137,39 @@ npm run spike:autobase edge <invite>       # pairs → bidirectional sync → id
 npm run mesh:smoke hub                      # same, through the @mycelium/mesh package API
 npm run mesh:smoke edge <invite>
 ```
+
+## Run Leash (the assistant shell)
+
+**Leash** is the headline app: a private, on-device assistant that "has access to
+everything", powered by the same Mycelium engine. The Understory (the auto-written
+paper) is one surface inside it. Leash is built on the **Vercel AI SDK** with QVAC as a
+**local provider** (`@qvac/ai-sdk-provider`) — inference runs 100% on-device through a
+local OpenAI-compatible QVAC server, so the "no cloud AI" rule holds.
+
+```bash
+# Terminal A — the on-device model server (from @qvac/cli). Reads qvac.config.json
+# (serve.models: qwen3-4b chat + gte-large embeddings, tools enabled). 11435 avoids
+# Ollama's default 11434.
+npx @qvac/cli serve openai --port 11435
+
+# Terminal B — the dashboard. Open http://localhost:3000 (→ /chat); "Paper" reaches
+# The Understory. ⌘K still searches the archive.
+npm run web:dev
+```
+
+The chat route (`app/api/leash/chat`) runs `streamText` with a real tool registry
+(no mocks): `search_graph` (your private notes, RAG over the QVAC embeddings endpoint),
+`understory_search` / `understory_today` (your paper), and `now`. Reasoning, tool calls,
+and cited sources stream to the browser via the AI SDK UI-message protocol (`useChat`).
+MCP servers listed in `LEASH_MCP_SERVERS` are merged in automatically — the drop-in path
+for Home Assistant (P3) and the activity watchers (P2).
+
+| env | default | where |
+|---|---|---|
+| `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | web — the local QVAC server the provider targets |
+| `LEASH_CHAT_MODEL` | `qwen3-4b` | web — chat model alias (must match `serve.models`) |
+| `LEASH_EMBED_MODEL` | `gte-large` | web — embedding model alias for `search_graph` |
+| `LEASH_MCP_SERVERS` | _(empty)_ | web — comma-separated MCP server URLs (HA/watchers later) |
 
 ## Offline acceptance test
 

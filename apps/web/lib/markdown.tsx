@@ -8,6 +8,32 @@
  */
 import type { ReactNode } from "react";
 
+/**
+ * A plain-text excerpt of a markdown body — strips the constrained token set
+ * (`**bold**`, `*italic*`, `[Source N]`, `- ` bullets) down to prose and returns the
+ * first paragraph, capped at `words`. Client-safe (no `@mycelium/db` import) so the
+ * page can clamp an over-long secondary story to a teaser. Returns "" for an empty
+ * body, so callers can fall back to the dek: `excerpt(body) || dek`.
+ */
+export function excerpt(body: string, words = 48): string {
+  const firstPara =
+    body
+      .replace(/\r/g, "")
+      .split(/\n\s*\n/)
+      .map((s) => s.trim())
+      .find(Boolean) ?? "";
+  const plain = firstPara
+    .replace(/\[Source\s*\d+\]/gi, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!plain) return "";
+  const parts = plain.split(" ");
+  return parts.length <= words ? plain : parts.slice(0, words).join(" ") + "…";
+}
+
 /** Parse inline spans: **bold**, *italic*, and [Source N] → citation chips. */
 function inline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];

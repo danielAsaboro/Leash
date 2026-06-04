@@ -27,6 +27,31 @@
   --font-mono: var(--font-plex), ui-monospace, "SF Mono", monospace;
 
   --tracking-label: 0.18em;
+
+  /* Leash shell — fixed left rail width; the layout offsets content by this. */
+  --leash-rail-w: 76px;
+
+  /* shadcn / AI Elements semantic tokens, mapped to the broadsheet palette so the
+     installed components inherit the paper aesthetic. (We deliberately do NOT redefine
+     the existing broadsheet tokens like --color-muted.) */
+  --color-background: var(--color-cream);
+  --color-foreground: var(--color-ink);
+  --color-card: var(--color-paper);
+  --color-card-foreground: var(--color-ink);
+  --color-popover: var(--color-cream);
+  --color-popover-foreground: var(--color-ink-soft);
+  --color-primary: var(--color-sage-deep);
+  --color-primary-foreground: var(--color-cream);
+  --color-secondary: color-mix(in srgb, var(--color-sage) 9%, var(--color-paper));
+  --color-secondary-foreground: var(--color-ink);
+  --color-muted-foreground: var(--color-muted);
+  --color-accent: color-mix(in srgb, var(--color-sage) 14%, transparent);
+  --color-accent-foreground: var(--color-ink);
+  --color-destructive: var(--color-brick);
+  --color-destructive-foreground: var(--color-cream);
+  --color-border: var(--color-rule);
+  --color-input: var(--color-rule-strong);
+  --color-ring: var(--color-sage);
 }
 
 @layer base {
@@ -49,7 +74,7 @@
     inset: 0;
     z-index: 0;
     pointer-events: none;
-    opacity: 0.55;
+    opacity: 0.65;
     background-image:
       radial-gradient(120% 80% at 50% -10%, rgba(255, 255, 255, 0.5), transparent 60%),
       radial-gradient(140% 120% at 50% 120%, rgba(120, 110, 80, 0.12), transparent 55%),
@@ -163,101 +188,308 @@
     animation: rise 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
   }
 
-  /* ───────────── Front-page mosaic — append-only, date-seeded ─────────────
-     6-column broadsheet grid on desktop, clamped to 2 cols on mobile. Uses
-     grid-auto-flow: row (NOT dense) so blocks place in DOM order and new arrivals
-     append at the end — what's laid out never reflows. */
-  .mosaic {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    grid-auto-flow: row;
-    column-gap: 2.25rem;
-    row-gap: 2.75rem;
-    align-items: start;
+  /* ───────────── Reader shell — pinned header, swipe deck, sticky page-bar ─────────────
+     The edition page is a viewport-locked reading surface: a sticky masthead/nav zone on
+     top, a horizontal scroll-snap filmstrip of broadsheet pages in the middle, and a
+     sticky page-bar of chips at the bottom. Pages swipe horizontally; a tall page scrolls
+     vertically inside itself. Heights flow from flexbox, so the deck just takes whatever
+     the header and bar leave — tune those two if a page feels cramped. */
+  .reader-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
   }
-  @media (min-width: 1024px) {
-    .mosaic {
-      grid-template-columns: repeat(6, 1fr);
-      column-gap: 2.5rem;
-      row-gap: 3rem;
-    }
-  }
-  .mosaic-cell {
+  .reader-header {
+    flex: 0 0 auto;
     position: relative;
-    min-width: 0;
-  }
-  /* Column spans: 1–2 on mobile, true 2/3/4 on desktop. */
-  .mz-2 { grid-column: span 1; }
-  .mz-3 { grid-column: span 2; }
-  .mz-4 { grid-column: span 2; }
-  @media (min-width: 1024px) {
-    .mz-2 { grid-column: span 2; }
-    .mz-3 { grid-column: span 3; }
-    .mz-4 { grid-column: span 4; }
-  }
-  /* Vertical column hairline in the gutter for any block that doesn't open a row. */
-  .mosaic-rule {
-    display: none;
-  }
-  @media (min-width: 1024px) {
-    .mosaic-rule {
-      display: block;
-      position: absolute;
-      top: 0.1rem;
-      bottom: 0.1rem;
-      left: -1.25rem;
-      width: 1px;
-      background: var(--color-rule);
-    }
+    z-index: 20;
+    background: var(--color-cream);
+    box-shadow: 0 12px 26px -22px rgba(25, 23, 18, 0.55);
   }
 
-  /* ───────────── Live "JUST IN" band ─────────────
-     Fresh arrivals pop in here; the mosaic stays frozen. */
-  .just-in-band {
-    position: relative;
-    z-index: 10;
-    border-bottom: 1px solid var(--color-rule);
-    background: color-mix(in srgb, var(--color-sage) 8%, var(--color-paper));
-    animation: bandIn 0.4s ease both;
+  /* PaperDeck owns the remaining height — the scroller plus the bar. */
+  .paper-deck {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
   }
+  .paper-deck-scroller {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .paper-deck-scroller::-webkit-scrollbar { display: none; }
+
+  /* One broadsheet page — a full-width, viewport-tall pane that scrolls vertically. */
+  .paper-page {
+    flex: 0 0 100%;
+    width: 100%;
+    height: 100%;
+    scroll-snap-align: start;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+
+  /* The page's content, centered to a broadsheet measure with a paper edge + grain. */
+  .paper-sheet {
+    max-width: 1180px;
+    min-height: 100%;
+    margin: 0 auto;
+    padding: 1.5rem 1.6rem 3.5rem;
+    background: var(--color-paper);
+    border-inline: 1px solid var(--color-rule);
+  }
+
+  /* Page furniture — the folio line and the masthead-style double rule under it. */
+  .page-folio {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .page-rule-double { margin-top: 0.4rem; }
+  .page-rule-double span { display: block; background: var(--color-ink); }
+  .page-rule-double span:first-child { height: 2px; }
+  .page-rule-double span:last-child { height: 1px; margin-top: 2px; }
+
+  /* ── Page-1 / lead spread: a dominant lead beside a ruled rail of columns. ── */
+  .page-lead-grid {
+    display: grid;
+    grid-template-columns: 1.9fr 1fr;
+    align-items: start;
+    margin-top: 1.6rem;
+  }
+  .page-lead-grid.is-lead-right { grid-template-columns: 1fr 1.9fr; }
+  .page-lead-grid.is-lead-right .lead-cell { order: 2; }
+  .page-lead-grid.is-lead-right .story-rail { order: 1; }
+  .lead-cell { min-width: 0; }
+  .story-rail {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1.7rem;
+    margin-left: 2.4rem;
+    padding-left: 2.4rem;
+    border-left: 1px solid var(--color-rule);
+  }
+  .page-lead-grid.is-lead-right .story-rail {
+    margin-left: 0;
+    padding-left: 0;
+    margin-right: 2.4rem;
+    padding-right: 2.4rem;
+    border-left: none;
+    border-right: 1px solid var(--color-rule);
+  }
+  .story-rail .story-col + .story-col {
+    border-top: 1px solid var(--color-rule);
+    padding-top: 1.7rem;
+  }
+
+  /* ── Interior page: a feature over a balanced, column-ruled row of stories. ── */
+  .page-feature { margin-top: 1.6rem; }
+  .feature-cell {
+    padding-bottom: 1.6rem;
+    margin-bottom: 1.6rem;
+    border-bottom: 2px solid var(--color-ink);
+  }
+  .story-row {
+    display: grid;
+    grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr));
+    align-items: start;
+  }
+  .story-row .story-col { padding: 0 1.5rem; }
+  .story-row .story-col:first-child { padding-left: 0; }
+  .story-row .story-col:last-child { padding-right: 0; }
+  .story-row .story-col + .story-col { border-left: 1px solid var(--color-rule); }
+
+  /* The lead's body: justified, hyphenated, column-ruled newsprint. The drop cap on
+     `.prose-broadsheet.lead` floats into the first column. */
+  .lead-plate {
+    position: relative;
+    display: block;
+    border: 1px solid var(--color-rule-strong);
+    box-shadow: 0 18px 40px -24px rgba(25, 23, 18, 0.45);
+  }
+  .lead-body {
+    column-count: var(--lead-cols, 3);
+    column-gap: 2rem;
+    column-rule: 1px solid var(--color-rule);
+  }
+  .lead-body .prose-broadsheet {
+    font-size: 1.02rem;
+    line-height: 1.55;
+    text-align: justify;
+    hyphens: auto;
+  }
+  .lead-body .prose-broadsheet p { margin-bottom: 0.85rem; }
+
+  /* A secondary story column. */
+  .story-col { min-width: 0; }
+  .story-col-rule {
+    height: 1px;
+    background: var(--color-rule);
+    margin: 0.7rem 0;
+  }
+  .story-col-body .prose-broadsheet {
+    font-size: 0.98rem;
+    line-height: 1.5;
+    text-align: justify;
+    hyphens: auto;
+  }
+  .story-col-body .prose-broadsheet p { margin-bottom: 0.7rem; }
+
+  /* ── Sticky bottom page-bar: numbered chips + prev/next arrows. ── */
+  .page-bar {
+    flex: 0 0 auto;
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    background: color-mix(in srgb, var(--color-sage) 6%, var(--color-paper));
+    border-top: 2px solid var(--color-ink);
+    box-shadow: 0 -12px 26px -22px rgba(25, 23, 18, 0.55);
+  }
+  .page-bar-arrow {
+    flex: 0 0 auto;
+    width: 2.4rem;
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    line-height: 1;
+    color: var(--color-sage-deep);
+    background: transparent;
+    border: 1px solid var(--color-rule);
+    cursor: pointer;
+    transition: background 0.15s, opacity 0.15s;
+  }
+  .page-bar-arrow:hover:not(:disabled) { background: color-mix(in srgb, var(--color-sage) 12%, transparent); }
+  .page-bar-arrow:disabled { opacity: 0.3; cursor: default; }
+  .page-bar-track {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: stretch;
+    gap: 0.55rem;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .page-bar-track::-webkit-scrollbar { display: none; }
+  .page-chip {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    max-width: 15rem;
+    text-align: left;
+    padding: 0.4rem 0.75rem;
+    background: var(--color-cream);
+    border: 1px solid var(--color-rule);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .page-chip:hover { border-color: var(--color-rule-strong); }
+  .page-chip.is-active {
+    border-color: var(--color-ink);
+    background: var(--color-paper);
+    box-shadow: inset 0 -2px 0 0 var(--color-sage);
+  }
+  .page-chip-no {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  .page-chip.is-active .page-chip-no { color: var(--color-sage-deep); }
+  .page-chip-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .page-chip-headline {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 0.9rem;
+    line-height: 1.12;
+    color: var(--color-ink);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+  .page-chip.is-pending {
+    max-width: 21rem;
+    cursor: default;
+    background: transparent;
+    border-style: dashed;
+    opacity: 0.72;
+  }
+  .page-chip.is-pending .page-chip-headline { font-weight: 500; color: var(--color-ink-soft); }
+  .page-chip-stage { margin-top: 0.3rem; transform: scale(0.8); transform-origin: left center; }
+
+  /* The reader page is fixed-height; an edition with no stories centers its notice. */
+  .paper-empty {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  /* Mobile: pages already swipe full-width; collapse columns to one and drop rules. */
+  @media (max-width: 880px) {
+    .page-lead-grid,
+    .page-lead-grid.is-lead-right { grid-template-columns: 1fr; }
+    .page-lead-grid .lead-cell,
+    .page-lead-grid .story-rail,
+    .page-lead-grid.is-lead-right .lead-cell,
+    .page-lead-grid.is-lead-right .story-rail { order: 0; }
+    .story-rail,
+    .page-lead-grid.is-lead-right .story-rail {
+      margin: 1.6rem 0 0;
+      padding: 1.6rem 0 0;
+      border: none;
+      border-top: 2px solid var(--color-ink);
+    }
+    .story-row { grid-template-columns: 1fr; }
+    .story-row .story-col { padding: 0; }
+    .story-row .story-col + .story-col {
+      border-left: none;
+      border-top: 1px solid var(--color-rule);
+      margin-top: 1.4rem;
+      padding-top: 1.4rem;
+    }
+    .lead-body { column-count: 1; column-rule: none; }
+    .lead-body .prose-broadsheet,
+    .story-col-body .prose-broadsheet { text-align: left; hyphens: manual; }
+  }
+
+  /* Generic fade-in, shared by the ⌘K palette (and formerly the live band). */
   @keyframes bandIn {
     from { opacity: 0; }
     to { opacity: 1; }
   }
-  .just-in-label {
-    color: var(--color-sage-deep);
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .just-in-pill {
-    font-family: var(--font-mono);
-    font-size: 0.58rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--color-cream);
-    background: var(--color-sage-deep);
-    padding: 0.12rem 0.45rem;
-    border-radius: 999px;
-    white-space: nowrap;
-  }
-  .just-in-track {
-    display: flex;
-    align-items: center;
-    gap: 1.75rem;
-    overflow-x: auto;
-    scrollbar-width: none;
-    min-width: 0;
-  }
-  .just-in-track::-webkit-scrollbar { display: none; }
-  .just-in-item {
-    white-space: nowrap;
-    animation: popIn 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  }
-  @keyframes popIn {
-    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
-    to { opacity: 1; transform: none; }
-  }
-  /* The fading sage ring on a mosaic card that just arrived (≈6s). */
+  /* The fading sage ring on a page-bar chip whose page just arrived (≈6s) — the
+     append-only "new since last visit" cue that replaced the JUST IN band. */
   .just-in-flash {
     animation: justInFlash 6s ease-out forwards;
   }
@@ -394,13 +626,720 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .just-in-item,
-    .just-in-band,
     .just-in-flash,
+    .paper-page,
     .search-overlay,
     .search-panel,
     .rise {
       animation: none !important;
     }
+  }
+
+  /* ───────────── Leash shell — fixed left rail ───────────── */
+  .leash-content {
+    padding-left: var(--leash-rail-w);
+  }
+  .leash-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 40;
+    width: var(--leash-rail-w);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.9rem 0.4rem 1rem;
+    background: color-mix(in srgb, var(--color-sage) 5%, var(--color-paper));
+    border-right: 1px solid var(--color-rule);
+  }
+  .leash-rail-mark {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-bottom: 0.6rem;
+    border-radius: 999px;
+    background: var(--color-ink);
+    color: var(--color-cream);
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.35rem;
+    line-height: 1;
+    box-shadow: 0 6px 22px rgba(25, 23, 18, 0.28);
+  }
+  .leash-rail-nav {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    width: 100%;
+    align-items: stretch;
+  }
+  .leash-rail-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+    padding: 0.55rem 0.2rem;
+    color: var(--color-muted);
+    border-radius: 8px;
+    transition: background 0.15s, color 0.15s;
+  }
+  .leash-rail-item span {
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .leash-rail-item:not(.is-disabled):hover {
+    color: var(--color-ink);
+    background: color-mix(in srgb, var(--color-sage) 12%, transparent);
+  }
+  .leash-rail-item.is-active {
+    color: var(--color-sage-deep);
+    background: color-mix(in srgb, var(--color-sage) 16%, transparent);
+    box-shadow: inset 2px 0 0 0 var(--color-sage-deep);
+  }
+  .leash-rail-item.is-disabled {
+    opacity: 0.38;
+    cursor: not-allowed;
+  }
+  .leash-rail-foot {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 999px;
+    color: var(--color-muted);
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .leash-rail-foot:hover {
+    color: var(--color-ink);
+    border-color: var(--color-ink);
+  }
+
+  /* ───────────── Leash chat surface ───────────── */
+  .chat-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  /* ── Chat history — an edge-peek drawer on the RIGHT ──
+     Hidden off-screen; nudging the cursor to the far-right edge (the hot zone) slides it
+     in. A faint handle at the right edge hints it's there. */
+  .chat-tray-edge {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100dvh;
+    width: 22px;
+    z-index: 45;
+  }
+  .chat-tray-edge::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 64px;
+    width: 4px;
+    border-radius: 4px 0 0 4px;
+    background: var(--color-rule-strong);
+    transition: background 0.15s, height 0.15s;
+  }
+  .chat-tray-edge:hover::after {
+    background: var(--color-sage);
+    height: 104px;
+  }
+
+  .chat-tray {
+    position: fixed;
+    top: 0;
+    right: 0;
+    height: 100dvh;
+    width: 264px;
+    z-index: 46;
+    display: flex;
+    flex-direction: column;
+    background: color-mix(in srgb, var(--color-sage) 4%, var(--color-paper));
+    border-left: 1px solid var(--color-rule);
+    box-shadow: -18px 0 40px -30px rgba(25, 23, 18, 0.5);
+    transform: translateX(100%);
+    transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+    overflow: hidden;
+  }
+  /* Reveal when the cursor is at the far-right hot zone, or anywhere over the tray. */
+  .chat-tray-edge:hover ~ .chat-tray,
+  .chat-tray:hover {
+    transform: translateX(0);
+  }
+  .chat-tray-handle {
+    flex: 0 0 auto;
+    padding: 0.95rem 1.1rem 0.3rem;
+    color: var(--color-muted);
+  }
+  .chat-list-new {
+    flex: 0 0 auto;
+    display: block;
+    padding: 1rem 1.1rem;
+    color: var(--color-sage-deep);
+    border-bottom: 1px solid var(--color-rule);
+    transition: background 0.15s;
+  }
+  .chat-list-new:hover { background: color-mix(in srgb, var(--color-sage) 10%, transparent); }
+  .chat-list-items {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0.5rem;
+  }
+  .chat-list-empty { padding: 1rem 0.6rem; color: var(--color-faint); }
+  .chat-list-item {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.45rem 0.25rem 0.7rem;
+    border-radius: 6px;
+    transition: background 0.12s;
+  }
+  .chat-list-item:hover { background: color-mix(in srgb, var(--color-sage) 9%, transparent); }
+  .chat-list-item.is-active {
+    background: color-mix(in srgb, var(--color-sage) 15%, transparent);
+    box-shadow: inset 2px 0 0 0 var(--color-sage-deep);
+  }
+  .chat-list-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.12rem;
+    padding: 0.3rem 0;
+  }
+  .chat-list-title {
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    color: var(--color-ink);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chat-list-time {
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  .chat-list-actions {
+    flex: 0 0 auto;
+    display: flex;
+    gap: 0.05rem;
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .chat-list-item:hover .chat-list-actions { opacity: 1; }
+  .chat-list-actions button {
+    width: 1.5rem;
+    height: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    color: var(--color-muted);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.12s, background 0.12s;
+  }
+  .chat-list-actions button:hover { color: var(--color-ink); background: color-mix(in srgb, var(--color-sage) 16%, transparent); }
+
+  /* "To work on" — the dreaming service's consolidations (hidden until it writes any). */
+  .chat-dreams {
+    flex: 0 0 auto;
+    padding: 0.7rem 0.5rem;
+    border-bottom: 1px solid var(--color-rule);
+  }
+  .chat-dreams-title { padding: 0 0.3rem 0.45rem; color: var(--color-sage-deep); }
+  .chat-dream {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    padding: 0.32rem 0.4rem;
+  }
+  .chat-dream-dot {
+    flex: 0 0 auto;
+    width: 0.4rem;
+    height: 0.4rem;
+    background: var(--color-sage);
+    transform: rotate(45deg);
+    align-self: center;
+  }
+  .chat-dream-text {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--color-ink-soft);
+  }
+  @media (max-width: 880px) {
+    .chat-tray,
+    .chat-tray-edge { display: none; }
+  }
+  .chat-scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .chat-thread {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 1.8rem 1.4rem 2.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+  .chat-empty {
+    margin-top: 8vh;
+    text-align: center;
+  }
+  .chat-empty-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.9rem;
+    line-height: 1.1;
+    color: var(--color-ink);
+  }
+  .chat-empty-sub {
+    margin-top: 0.7rem;
+    color: var(--color-muted);
+  }
+  .chat-suggest {
+    margin-top: 1.6rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: center;
+  }
+  .chat-suggest button {
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    color: var(--color-ink-soft);
+    padding: 0.45rem 0.85rem;
+    background: var(--color-paper);
+    border: 1px solid var(--color-rule);
+    border-radius: 999px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .chat-suggest button:hover {
+    border-color: var(--color-rule-strong);
+    background: var(--color-cream);
+  }
+
+  .chat-msg {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+  .chat-msg.is-user {
+    align-items: flex-end;
+  }
+  .chat-role {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  .chat-bubble {
+    max-width: 80%;
+    padding: 0.6rem 0.9rem;
+    background: var(--color-ink);
+    color: var(--color-cream);
+    border-radius: 14px 14px 2px 14px;
+    font-family: var(--font-body);
+    line-height: 1.5;
+  }
+  .chat-answer {
+    width: 100%;
+  }
+  .chat-answer .prose-broadsheet {
+    font-size: 1.06rem;
+  }
+  .chat-cursor {
+    display: inline-block;
+    width: 0.5ch;
+    margin-left: 1px;
+    color: var(--color-sage-deep);
+    animation: chatBlink 1s steps(2) infinite;
+  }
+  @keyframes chatBlink { 50% { opacity: 0; } }
+
+  /* ── Generative UI: bespoke tool-result cards ── */
+  .tool-loading {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.04em;
+    color: var(--color-sage-deep);
+    padding: 0.3rem 0;
+    animation: chatBlink 1.4s ease-in-out infinite;
+  }
+  .tool-card {
+    margin: 0.3rem 0 0.5rem;
+    padding: 0.7rem 0.9rem;
+    background: var(--color-paper);
+    border: 1px solid var(--color-rule);
+    border-left: 3px solid var(--color-sage);
+    border-radius: 4px;
+  }
+  .tool-card-kicker { display: block; margin-bottom: 0.5rem; }
+  .tool-image {
+    display: block;
+    margin-top: 0.4rem;
+    width: 512px;
+    max-width: 100%;
+    border: 1px solid var(--color-rule);
+    border-radius: 4px;
+  }
+  .tool-error-card {
+    border-left-color: var(--color-brick);
+    color: var(--color-brick);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+  }
+  .tool-articles { display: flex; flex-direction: column; }
+  .tool-article {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--color-rule);
+    transition: opacity 0.12s;
+  }
+  .tool-article:first-of-type { border-top: none; }
+  .tool-article:hover { opacity: 0.62; }
+  .tool-article-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 1.02rem;
+    line-height: 1.15;
+    color: var(--color-ink);
+  }
+  .tool-article-dek {
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--color-muted);
+  }
+  .tool-notes { display: flex; flex-direction: column; gap: 0.6rem; }
+  .tool-note { display: flex; flex-direction: column; gap: 0.15rem; }
+  .tool-note-src {
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  .tool-note-snip {
+    font-family: var(--font-body);
+    font-size: 0.94rem;
+    line-height: 1.45;
+    color: var(--color-ink-soft);
+  }
+  .chat-attached-img {
+    display: block;
+    max-width: 280px;
+    max-height: 280px;
+    margin-bottom: 0.4rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 6px;
+  }
+  .chat-mic {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.55rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 999px;
+    background: transparent;
+    color: var(--color-ink);
+    cursor: pointer;
+  }
+  .chat-mic:disabled { opacity: 0.55; cursor: default; }
+  .chat-mic-on {
+    border-color: #b4322a;
+    color: #b4322a;
+    font-weight: 600;
+  }
+  .chat-mic-err { border-color: #b4322a; color: #b4322a; }
+  .chat-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem 0;
+  }
+  .chat-attachment {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border: 1px solid var(--color-rule);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--color-cream, #f5f1e8);
+  }
+  .chat-attachment img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .chat-attachment-file {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    font-size: 0.65rem;
+    padding: 0.25rem;
+    text-align: center;
+    overflow: hidden;
+  }
+  .chat-attachment-x {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  .now-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0.3rem 0 0.5rem;
+    padding: 0.35rem 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-ink);
+    background: var(--color-paper);
+    border: 1px solid var(--color-rule);
+    border-radius: 999px;
+  }
+
+  /* Collapsible <think> reasoning panel. */
+  .chat-reasoning {
+    border-left: 2px solid var(--color-rule-strong);
+    padding-left: 0.7rem;
+  }
+  .chat-reasoning > summary {
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+  .chat-reasoning > summary::-webkit-details-marker { display: none; }
+  .chat-reasoning > summary::before { content: "▸ "; color: var(--color-faint); }
+  .chat-reasoning[open] > summary::before { content: "▾ "; }
+  .chat-reasoning-body {
+    margin-top: 0.4rem;
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    font-style: italic;
+    color: var(--color-muted);
+    white-space: pre-wrap;
+  }
+
+  /* Assistant footer: telemetry caption + regenerate, revealed on hover. */
+  .chat-foot {
+    margin-top: 0.4rem;
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+  }
+  .chat-meta {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    color: var(--color-faint);
+  }
+  .chat-regen {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .chat-msg:hover .chat-regen,
+  .group:hover .chat-regen { opacity: 1; }
+  .chat-regen:hover { color: var(--color-sage-deep); }
+
+  /* Error + retry row. */
+  .chat-error {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-brick);
+  }
+  .chat-error button {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.6rem;
+    color: var(--color-sage-deep);
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 4px;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+  }
+  .chat-error button:hover {
+    background: color-mix(in srgb, var(--color-sage) 12%, transparent);
+  }
+
+  /* Tool-call chips — what the assistant reached for, live. */
+  .chat-tools {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+  .chat-tool-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    color: var(--color-sage-deep);
+    padding: 0.25rem 0.55rem;
+    background: color-mix(in srgb, var(--color-sage) 10%, var(--color-paper));
+    border: 1px solid color-mix(in srgb, var(--color-sage) 35%, transparent);
+    border-radius: 999px;
+  }
+  .chat-tool-chip .chat-tool-name { font-weight: 600; text-transform: none; }
+  .chat-tool-chip .chat-tool-arg {
+    color: var(--color-muted);
+    max-width: 28ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* Cited sources under an answer. */
+  .chat-sources {
+    margin-top: 0.5rem;
+    border-top: 1px solid var(--color-rule);
+    padding-top: 0.7rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .chat-sources-title {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .chat-source {
+    display: flex;
+    gap: 0.55rem;
+    align-items: baseline;
+    font-size: 0.9rem;
+    color: var(--color-ink-soft);
+  }
+  .chat-source-n {
+    flex: 0 0 auto;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--color-sage-deep);
+    border: 1px solid color-mix(in srgb, var(--color-sage) 45%, transparent);
+    border-radius: 3px;
+    padding: 0 0.3rem;
+  }
+  .chat-source-body { min-width: 0; }
+  .chat-source-title { font-weight: 600; color: var(--color-ink); }
+  .chat-source a.chat-source-title:hover { color: var(--color-sage-deep); }
+  .chat-source-snippet {
+    color: var(--color-muted);
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+  }
+
+  /* Composer pinned to the bottom of the chat surface. */
+  .chat-composer {
+    flex: 0 0 auto;
+    border-top: 1px solid var(--color-rule);
+    background: color-mix(in srgb, var(--color-sage) 4%, var(--color-paper));
+    padding: 0.8rem 1.4rem 1.1rem;
+  }
+  .chat-composer-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    align-items: flex-end;
+    gap: 0.6rem;
+    background: var(--color-cream);
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 14px;
+    padding: 0.5rem 0.5rem 0.5rem 0.9rem;
+  }
+  .chat-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    resize: none;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-body);
+    font-size: 1.02rem;
+    line-height: 1.45;
+    color: var(--color-ink);
+    max-height: 8rem;
+  }
+  .chat-input::placeholder { color: var(--color-faint); }
+  .chat-send {
+    flex: 0 0 auto;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--color-ink);
+    color: var(--color-cream);
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+  }
+  .chat-send:hover:not(:disabled) { transform: translateY(-1px); }
+  .chat-send:disabled { opacity: 0.35; cursor: default; }
+  .chat-offline {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-brick);
+  }
+
+  @media (max-width: 880px) {
+    :root { --leash-rail-w: 60px; }
   }
 }

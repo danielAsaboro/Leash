@@ -9,10 +9,31 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/mcp": "^1.0.46",
+    "@ai-sdk/openai-compatible": "^2.0.48",
+    "@ai-sdk/react": "^3.0.198",
     "@mycelium/db": "*",
+    "@qvac/ai-sdk-provider": "^0.1.0",
+    "@radix-ui/react-use-controllable-state": "^1.2.2",
+    "@streamdown/cjk": "^1.0.3",
+    "@streamdown/code": "^1.1.1",
+    "@streamdown/math": "^1.0.2",
+    "@streamdown/mermaid": "^1.0.2",
+    "ai": "^6.0.196",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^1.17.0",
+    "motion": "^12.40.0",
+    "nanoid": "^3.3.12",
     "next": "^15.1.6",
+    "radix-ui": "^1.4.3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "shiki": "^4.2.0",
+    "streamdown": "^2.5.0",
+    "tailwind-merge": "^3.6.0",
+    "use-stick-to-bottom": "^1.1.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.0.0",

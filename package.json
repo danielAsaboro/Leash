@@ -42,12 +42,18 @@
     "newsroom:seed": "tsx apps/newsroom/src/seed.ts",
     "web:dev": "npm run dev -w @mycelium/web",
     "web:build": "npm run build -w @mycelium/web",
-    "web:start": "npm run start -w @mycelium/web"
+    "web:start": "npm run start -w @mycelium/web",
+    "qvac": "qvac serve openai --port 11435",
+    "dream": "tsx apps/web/scripts/dream.mts",
+    "warm:media": "tsx apps/web/scripts/warm-media.ts",
+    "tag-photos": "tsx apps/web/scripts/tag-photos.mts"
   },
   "dependencies": {
-    "@qvac/sdk": "^0.12.0"
+    "@qvac/sdk": "^0.12.0",
+    "undici": "^8.3.0"
   },
   "devDependencies": {
+    "@qvac/cli": "^0.6.0",
     "@types/node": "^22.10.2",
     "autobase": "^7.28.1",
     "blind-pairing": "^2.3.1",

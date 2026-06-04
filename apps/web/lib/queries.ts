@@ -10,10 +10,13 @@ export type ArticleCard = Awaited<ReturnType<typeof getEditionArticles>>[number]
 /**
  * Published articles for a date in **publishedAt ASC** order — oldest first.
  *
- * Ascending is deliberate and load-bearing: the front-page compositor
- * (`lib/layout.ts`) keys each story's block size + position on its index, so a
- * permanent index means a permanent slot. The first story of the day becomes the
- * LEAD and stays there; new arrivals append to the end. (See `composeFrontPage`.)
+ * Ascending is deliberate and load-bearing: the paper compositor (`lib/layout.ts`)
+ * keys each story's **page assignment** on its index, so a permanent index means a
+ * permanent page slot. The first story of the day opens page 1 as the LEAD and stays
+ * there; new arrivals fill the current last page, then spill onto a freshly appended
+ * page — never reordering what's already laid out. (See `composePaper`.)
+ *
+ * `body` is selected so every front-page story can render real prose, not just a dek.
  */
 export async function getEditionArticles(date: string, section?: Section) {
   return prisma.article.findMany({
@@ -31,6 +34,7 @@ export async function getEditionArticles(date: string, section?: Section) {
       origin: true,
       headline: true,
       dek: true,
+      body: true,
       heroImagePath: true,
       publishedAt: true,
       _count: { select: { sources: true, claims: true } },

@@ -1,4 +1,30 @@
 {
   "swarmRelays": [],
-  "loggerConsoleOutput": false
+  "loggerConsoleOutput": false,
+  "serve": {
+    "models": {
+      "qwen3-4b": {
+        "model": "QWEN3_4B_INST_Q4_K_M",
+        "preload": true,
+        "default": true,
+        "config": { "tools": true, "toolsMode": "dynamic", "ctx_size": 4096 }
+      },
+      "gte-large": { "model": "GTE_LARGE_FP16", "preload": true },
+      "medpsy": {
+        "src": "/Users/cartel/.qvac/models/medpsy-1.7b-q4_k_m-imat.gguf",
+        "type": "llamacpp-completion",
+        "preload": true,
+        "config": { "tools": true, "toolsMode": "dynamic", "ctx_size": 4096 }
+      },
+      "qwen3vl": {
+        "model": "QWEN3VL_2B_MULTIMODAL_Q4_K",
+        "preload": true,
+        "config": {
+          "ctx_size": 4096,
+          "projectionModelSrc": "/Users/cartel/.qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
+        }
+      },
+      "parakeet": { "model": "PARAKEET_TDT_0_6B_V3_Q8_0", "preload": true }
+    }
+  }
 }

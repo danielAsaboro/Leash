@@ -1,0 +1,137 @@
+/**
+ * File-based chat persistence (server-only).
+ *
+ * One self-describing JSON record per chat in a stable, enumerable directory, storing
+ * the full `useChat` message parts (text, reasoning, tool calls/results) plus per-message
+ * telemetry metadata and chat-level `createdAt`/`updatedAt`.
+ *
+ * Designed for the planned **"dreaming" service**: a later background pass will enumerate
+ * this store (`listChats`), read each `ChatRecord`, and consolidate past conversations into
+ * follow-ups / things to work on (feeding the graph / newsroom — roadmap P5). Keeping the
+ * format rich + scannable now means that service is a reader, not a migration. The
+ * `UIMessage`-shaped storage is deliberate (richer than `ModelMessage`); swap the fs calls
+ * for a DB later without changing callers.
+ */
+import "server-only";
+import { generateId } from "ai";
+import { readFile, writeFile, mkdir, readdir, rm } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import type { LeashUIMessage, ChatSummary, ConsolidationItem } from "./types.ts";
+
+const here = dirname(fileURLToPath(import.meta.url));
+/** apps/web/lib/leash → repo root → data/leash-chats. */
+const CHAT_DIR = process.env["LEASH_CHAT_DIR"] ?? join(here, "..", "..", "..", "..", "data", "leash-chats");
+
+export interface ChatRecord {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Optional user-set title; overrides the derived first-message title. */
+  title?: string;
+  messages: LeashUIMessage[];
+}
+
+async function ensureDir(): Promise<void> {
+  if (!existsSync(CHAT_DIR)) await mkdir(CHAT_DIR, { recursive: true });
+}
+const chatFile = (id: string): string => join(CHAT_DIR, `${id}.json`);
+
+/** First user message text, as a short title. */
+function deriveTitle(messages: LeashUIMessage[]): string {
+  const firstUser = messages.find((m) => m.role === "user");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const text = (firstUser?.parts as any[] | undefined)?.filter((p) => p?.type === "text").map((p) => p.text).join(" ") ?? "";
+  const clean = text.replace(/\s+/g, " ").trim();
+  return clean ? (clean.length > 60 ? clean.slice(0, 60) + "…" : clean) : "New chat";
+}
+
+/**
+ * Mint a new chat id — WITHOUT writing a file. The record is persisted lazily on the
+ * first message (`saveChat` in the route's `onFinish`), so abandoned/never-sent chats
+ * never clutter the store (and the dreaming pass only ever sees real conversations).
+ */
+export async function createChat(): Promise<string> {
+  return generateId();
+}
+
+/** Load a chat's full record, or null if it doesn't exist / is unreadable. */
+export async function loadRecord(id: string): Promise<ChatRecord | null> {
+  try {
+    return JSON.parse(await readFile(chatFile(id), "utf8")) as ChatRecord;
+  } catch {
+    return null;
+  }
+}
+
+/** Load a chat's messages (empty if missing). */
+export async function loadChat(id: string): Promise<LeashUIMessage[]> {
+  return (await loadRecord(id))?.messages ?? [];
+}
+
+/** Persist a chat's messages, preserving `createdAt` and bumping `updatedAt`. */
+export async function saveChat({ chatId, messages }: { chatId: string; messages: LeashUIMessage[] }): Promise<void> {
+  await ensureDir();
+  const existing = await loadRecord(chatId);
+  const now = Date.now();
+  const record: ChatRecord = { id: chatId, createdAt: existing?.createdAt ?? now, updatedAt: now, messages, ...(existing?.title ? { title: existing.title } : {}) };
+  await writeFile(chatFile(chatId), JSON.stringify(record, null, 2));
+}
+
+/** Delete a chat (no-op if already gone). */
+export async function deleteChat(id: string): Promise<void> {
+  try {
+    await rm(chatFile(id));
+  } catch {
+    /* already gone */
+  }
+}
+
+/** Set a chat's display title (overrides the derived one). */
+export async function renameChat(id: string, title: string): Promise<void> {
+  const rec = await loadRecord(id);
+  if (!rec) return;
+  rec.title = title.trim().slice(0, 120);
+  await writeFile(chatFile(id), JSON.stringify(rec, null, 2));
+}
+
+/** Whether a chat exists. */
+export async function chatExists(id: string): Promise<boolean> {
+  return existsSync(chatFile(id));
+}
+
+/** All chats, newest-updated first — for the chat list + the dreaming pass. */
+export async function listChats(): Promise<ChatSummary[]> {
+  if (!existsSync(CHAT_DIR)) return [];
+  const files = (await readdir(CHAT_DIR)).filter((f) => f.endsWith(".json"));
+  const records = await Promise.all(
+    files.map(async (f) => {
+      const rec = await loadRecord(f.replace(/\.json$/, ""));
+      return rec ? { id: rec.id, createdAt: rec.createdAt, updatedAt: rec.updatedAt, title: rec.title ?? deriveTitle(rec.messages), messageCount: rec.messages.length } : null;
+    }),
+  );
+  return records.filter((r): r is ChatSummary => r !== null).sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+/** The most-recently-updated chat id, or null if none. */
+export async function latestChat(): Promise<string | null> {
+  return (await listChats())[0]?.id ?? null;
+}
+
+/**
+ * One consolidated "thing to work on", produced by the future **dreaming** service from
+ * past chats. Stored at `data/leash-dreams.json` (override `LEASH_DREAMS_FILE`). Until
+ * that service runs, the file is absent and this returns `[]` — the tray's "To work on"
+ * section stays hidden (honest empty state, not a mock).
+ */
+const DREAMS_FILE = process.env["LEASH_DREAMS_FILE"] ?? join(CHAT_DIR, "..", "leash-dreams.json");
+
+export async function loadConsolidations(): Promise<ConsolidationItem[]> {
+  try {
+    const raw = JSON.parse(await readFile(DREAMS_FILE, "utf8"));
+    return Array.isArray(raw) ? (raw as ConsolidationItem[]) : [];
+  } catch {
+    return [];
+  }
+}
