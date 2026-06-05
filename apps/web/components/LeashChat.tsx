@@ -33,7 +33,7 @@ function telemetry(md: LeashMetadata | undefined): string | null {
   if (!md?.totalTokens) return null;
   const secs = md.createdAt && md.finishedAt ? (md.finishedAt - md.createdAt) / 1000 : 0;
   const tps = secs > 0 ? Math.round(md.totalTokens / secs) : 0;
-  return [md.model ?? "on-device", `${md.totalTokens} tok`, tps ? `${tps} tok/s` : ""].filter(Boolean).join(" · ");
+  return [md.effort, md.model ?? "on-device", `${md.totalTokens} tok`, tps ? `${tps} tok/s` : ""].filter(Boolean).join(" · ");
 }
 
 /**
@@ -303,6 +303,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
         sendMessage={sendMessage}
         status={status}
         error={error}
+        stop={stop}
       />
     </TooltipProvider>
   );

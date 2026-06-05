@@ -4,6 +4,7 @@
   "private": true,
   "license": "Apache-2.0",
   "scripts": {
+    "brand:icons": "tsx scripts/generate-brand-assets.ts",
     "dev": "next dev",
     "build": "next build",
     "start": "next start"

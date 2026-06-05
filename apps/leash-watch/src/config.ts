@@ -30,7 +30,9 @@ export const INTERVAL_SEC = Number(process.env["LEASH_WATCH_INTERVAL_SEC"] ?? 60
 export const IDLE_SKIP_SEC = Number(process.env["LEASH_WATCH_IDLE_SKIP_SEC"] ?? 120);
 /** Temp frame path — the PNG is deleted right after each capture (no residual frames). */
 export const FRAME_PATH = process.env["LEASH_WATCH_FRAME"] ?? "/tmp/leash/frame.png";
-/** Vision request timeout (a cold VLM can take a while on first call). */
+/** SOFT vision timeout — how long a tick WAITS for the VLM reply before moving on. The request is
+ * never aborted (a mid-decode disconnect wedges the qvac serve); it finishes in the background and
+ * ticks are skipped until it settles. */
 export const VISION_TIMEOUT_MS = Number(process.env["LEASH_WATCH_VISION_TIMEOUT_MS"] ?? 60000);
 
 const csv = (v: string | undefined): string[] =>

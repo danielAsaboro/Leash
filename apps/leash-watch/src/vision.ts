@@ -56,15 +56,31 @@ interface ChatCompletion {
   usage?: { completion_tokens?: number };
 }
 
-/** Summarize one frame with the on-device VLM. Throws on transport error / junk reply. */
+/**
+ * The single in-flight VLM call. We never run two at once and NEVER abort one mid-decode:
+ * disconnecting the qvac serve mid-generation wedges its decode loop machine-wide until a reboot
+ * (verified 2026-06-05 — this watcher's old 60s AbortController was killing the serve whenever a
+ * vision tick contended with a chat turn and ran long).
+ */
+let inFlight: Promise<unknown> | null = null;
+
+/** The pending vision request, if any — shutdown awaits it so quitting never disconnects mid-decode. */
+export function visionInFlight(): Promise<unknown> | null {
+  return inFlight;
+}
+
+/**
+ * Summarize one frame with the on-device VLM. Throws on transport error / junk reply.
+ * Resilience is single-flight + SOFT timeout: if the reply takes longer than VISION_TIMEOUT_MS we
+ * stop WAITING (this tick errors, the loop moves on) but the request keeps running to completion in
+ * the background — and ticks are skipped until it settles, so requests never stack on a busy serve.
+ */
 export async function summarizeFrame(dataUrl: string, app: string): Promise<VisionResult> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), VISION_TIMEOUT_MS);
+  if (inFlight) throw new Error("previous vision request still in flight — tick skipped (never abort mid-decode)");
   const t0 = now();
-  try {
+  const request = (async (): Promise<VisionResult> => {
     const res = await fetch(`${QVAC_OPENAI_URL}/chat/completions`, {
       method: "POST",
-      signal: ctrl.signal,
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         model: VISION_MODEL,
@@ -80,7 +96,10 @@ export async function summarizeFrame(dataUrl: string, app: string): Promise<Visi
       }),
     });
     const ttftMs = now() - t0; // no streaming here: time to the (single) response
-    if (!res.ok) throw new Error(`vision endpoint returned ${res.status}`);
+    if (!res.ok) {
+      void res.text().catch(() => {}); // drain the error body — leave the connection clean
+      throw new Error(`vision endpoint returned ${res.status}`);
+    }
     const json = (await res.json()) as ChatCompletion;
     const summary = stripThink(json.choices?.[0]?.message?.content ?? "");
     if (isJunk(summary)) throw new Error("empty/junk vision summary");
@@ -95,6 +114,26 @@ export async function summarizeFrame(dataUrl: string, app: string): Promise<Visi
       extra: { app, summary },
     });
     return { summary, tags: deriveTags(app, summary) };
+  })();
+  inFlight = request.finally(() => {
+    inFlight = null;
+  });
+  inFlight.catch(() => {
+    /* orphaned past the soft timeout — its outcome was already reported to the tick */
+  });
+
+  // Soft timeout: give up waiting, do NOT abort (no AbortController anywhere near this fetch).
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      request,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`vision reply >${VISION_TIMEOUT_MS / 1000}s — letting it finish in the background (tick skipped, NOT aborted)`)),
+          VISION_TIMEOUT_MS,
+        );
+      }),
+    ]);
   } finally {
     clearTimeout(timer);
   }

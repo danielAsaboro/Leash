@@ -154,6 +154,12 @@ export const VAD = {
   preRollMs: 300,
   /** Utterances shorter than this are treated as noise and ignored. */
   minUtteranceMs: 250,
+  /** Hard cap on a single capture — a continuous talker (no silence gap) is force-ended here so the
+   * turn can't run forever (per the QVAC voice-assistant doc's `max_speech_duration_s: 15`). */
+  maxUtteranceMs: 15000,
+  /** After TTS playback ends, ignore mic onset this long so speaker/room reverb tail doesn't
+   * self-trigger the next utterance (per the QVAC voice-assistant doc's post-playback cooldown). */
+  postPlaybackCooldownMs: 300,
   /** MediaRecorder timeslice — emit a chunk this often so pre-roll/slicing is fine-grained. */
   recorderTimesliceMs: 100,
 } as const;

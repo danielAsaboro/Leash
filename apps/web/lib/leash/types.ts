@@ -1,6 +1,12 @@
 /** Client-safe Leash chat types (no server-only imports — shared by route + UI). */
 import type { UIMessage } from "ai";
 
+/**
+ * Dynamic-effort tier a turn was graded into (server-side embedding classifier).
+ * Client-safe so VoiceCall/LeashChat can reference it without pulling server-only code.
+ */
+export type EffortTier = "quick" | "standard" | "deep";
+
 /** Per-message telemetry, emitted by the route via `messageMetadata`. */
 export interface LeashMetadata {
   /** ms epoch when generation started (the `start` stream part). */
@@ -11,6 +17,8 @@ export interface LeashMetadata {
   model?: string;
   /** Total tokens for the turn (from the finish part's usage). */
   totalTokens?: number;
+  /** The dynamic-effort tier this turn was classified into. */
+  effort?: EffortTier;
 }
 
 /** The Leash UI message, carrying `LeashMetadata`. */

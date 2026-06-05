@@ -9,6 +9,8 @@
  * can surface an honest, actionable message: `offline` (serve down), `model_not_found`
  * (TTS voice model not registered/loaded), or the serve's own message verbatim.
  */
+import { stripMarkdownForSpeech } from "../../../../lib/leash/speech-text.ts";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -25,7 +27,9 @@ const json = (body: unknown, status: number): Response =>
 
 export async function POST(req: Request): Promise<Response> {
   const { text, voice, model } = (await req.json()) as { text?: string; voice?: string; model?: string };
-  const input = (text ?? "").trim();
+  // Strip markdown defensively for EVERY caller (voice queue + the read-aloud button) so Supertonic
+  // never reads "asterisk"/backticks aloud, even if a caller forgot to clean the text upstream.
+  const input = stripMarkdownForSpeech(text ?? "").trim();
   if (!input) return json({ error: "Nothing to read aloud.", code: "empty_input" }, 400);
 
   // Validate against the allowlists; unknown values fall back to the configured default rather

@@ -13,7 +13,7 @@
 import { INTERVAL_SEC, IDLE_SKIP_SEC, ACTIVITY_LOG, appAllowed } from "./config.ts";
 import { frontmost, idleSeconds } from "./ax.ts";
 import { captureScreen, CaptureError } from "./capture.ts";
-import { summarizeFrame } from "./vision.ts";
+import { summarizeFrame, visionInFlight } from "./vision.ts";
 import { appendRecord, forgetLastMinutes, type ActivityRecord } from "./store.ts";
 import { setupControls, type Controls } from "./controls.ts";
 
@@ -62,7 +62,11 @@ async function tick(controls: Controls): Promise<void> {
 
 let shuttingDown = false;
 function shutdown(): void {
-  if (shuttingDown) return;
+  if (shuttingDown) {
+    // Second quit = force. Warn honestly: dying mid-decode disconnects the serve and wedges it.
+    console.log("\n   ⚠ force quit — if a vision request was mid-generation this can wedge the qvac serve");
+    process.exit(1);
+  }
   shuttingDown = true;
   stopping = true;
   console.log("\n⏹  stopping screen watcher…");
@@ -70,6 +74,19 @@ function shutdown(): void {
     if (process.stdin.isTTY) process.stdin.setRawMode(false);
   } catch {
     /* ignore */
+  }
+  // Never exit while a vision request is mid-decode — the disconnect wedges the qvac serve
+  // (machine-wide, reboot-only recovery). Drain it first; quit again to force.
+  const pending = visionInFlight();
+  if (pending) {
+    console.log("   ⏳ draining the in-flight vision request (exiting mid-decode wedges the serve; quit again to force)…");
+    void Promise.resolve(pending)
+      .catch(() => {})
+      .then(() => {
+        console.log("✅ leash-watch stopped.");
+        process.exit(0);
+      });
+    return;
   }
   console.log("✅ leash-watch stopped.");
   process.exit(0);

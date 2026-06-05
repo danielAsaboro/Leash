@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { LeashMark } from "./LeashMark.tsx";
 
 /**
  * The Leash shell's left rail — the app's primary nav.
@@ -54,8 +55,8 @@ export function LeashRail() {
 
   return (
     <nav className="leash-rail" aria-label="Leash">
-      <Link href="/chat" className="leash-rail-mark" title="Leash">
-        L
+      <Link href="/chat" className="leash-rail-mark" title="Leash" aria-label="Leash">
+        <LeashMark className="leash-rail-mark-icon" cutoutColor="var(--color-ink)" />
       </Link>
 
       <div className="leash-rail-nav">

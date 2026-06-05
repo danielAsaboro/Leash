@@ -1,15 +1,16 @@
 import Link from "next/link";
+import { LeashMark } from "./LeashMark.tsx";
 
 /**
- * The floating monogram, bottom-left — a quiet wordmark that links home and to
- * Mission Control. A mycelial spore "U" for The Understory.
+ * The floating Leash mark, bottom-left — a quiet bridge to Mission Control.
  */
 export function BrandMark() {
   return (
     <Link
       href="/mission-control"
       title="Mission Control"
-      className="group fixed bottom-5 left-5 z-50 flex items-center gap-3"
+      aria-label="Mission Control"
+      className="group fixed bottom-5 left-5 z-50 flex items-center gap-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[var(--color-sage-deep)]"
     >
       <span
         className="flex items-center justify-center rounded-full transition-transform group-hover:scale-105"
@@ -24,7 +25,7 @@ export function BrandMark() {
           boxShadow: "0 6px 22px rgba(25,23,18,0.28)",
         }}
       >
-        U
+        <LeashMark className="h-6 w-6" cutoutColor="var(--color-ink)" />
       </span>
       <span
         className="kicker hidden opacity-0 transition-opacity group-hover:opacity-100 sm:inline"

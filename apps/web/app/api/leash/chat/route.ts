@@ -13,30 +13,41 @@
 import { streamText, convertToModelMessages, stepCountIs, validateUIMessages, createIdGenerator } from "ai";
 import { z } from "zod";
 import { chatModel, medpsyModel, visionModel, CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL } from "../../../../lib/leash/provider.ts";
-import { leashTools, LEASH_SYSTEM } from "../../../../lib/leash/tools.ts";
+import { leashTools, LEASH_SYSTEM, LEASH_VOICE_DIRECTIVE } from "../../../../lib/leash/tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { loadChat, saveChat } from "../../../../lib/leash/chat-store.ts";
+import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const metadataSchema = z.object({
-  createdAt: z.number().optional(),
-  finishedAt: z.number().optional(),
-  model: z.string().optional(),
-  totalTokens: z.number().optional(),
-});
+// `.optional()` on the OBJECT: user messages carry no metadata at all (only assistant messages get
+// it via `messageMetadata`), so the schema must accept `undefined` or validation fails on every
+// stored thread and falls back to raw history.
+const metadataSchema = z
+  .object({
+    createdAt: z.number().optional(),
+    finishedAt: z.number().optional(),
+    model: z.string().optional(),
+    totalTokens: z.number().optional(),
+    effort: z.enum(["quick", "standard", "deep"]).optional(),
+  })
+  .optional();
+
+/** The text-parts join of the most recent user message (intent classifiers + effort grading). */
+function lastUserText(messages: LeashUIMessage[]): string {
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((lastUser?.parts as any[]) ?? []).filter((p) => p?.type === "text").map((p) => p.text ?? "").join(" ");
+}
 
 /** P4 specialist routing: health/medical/mental-health intent → the MedPsy specialist. */
 const HEALTH_RE =
   /\b(symptom|diagnos|treatment|medicat|dosage|dose|prescri|disease|illness|infection|fever|nausea|migraine|asthma|diabet|pneumonia|antibiotic|blood ?pressure|cholesterol|doctor|physician|clinic|therap|anxiet|depress|mental health|insomnia|panic|trauma|psych|wellbeing|well-being)\w*/i;
 function isHealthIntent(messages: LeashUIMessage[]): boolean {
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const text = ((lastUser?.parts as any[]) ?? []).filter((p) => p?.type === "text").map((p) => p.text ?? "").join(" ");
-  return HEALTH_RE.test(text);
+  return HEALTH_RE.test(lastUserText(messages));
 }
 
 /** Vision routing: the latest user message carries an image (file part) → use the VLM. */
@@ -81,21 +92,38 @@ export async function POST(req: Request): Promise<Response> {
   const health = !imageTurn && isHealthIntent(validated);
   const activeModel = imageTurn ? VISION_MODEL : health ? MEDPSY_MODEL : CHAT_MODEL;
 
-  // Voice ("call") fast path: a spoken turn must answer in seconds, not ~100s. Disable Qwen3's
-  // `<think>` reasoning (the `/no_think` soft-switch) and cap the tool loop to 2 steps. The text
-  // chat is untouched — it keeps full reasoning + the 6-step tool loop.
-  const noThink = !!voice && !imageTurn;
+  // Dynamic effort: grade each non-image turn (text + voice) into a tier and derive its params
+  // (tools on/off, step cap, `/no_think`, token ceiling). A spoken turn must answer in seconds,
+  // so voice always runs `/no_think`; text keeps full `<think>` reasoning on the `deep` tier.
+  // Image turns are unchanged (the VLM handles one image-grounded turn, no tools/no /no_think).
+  const tier = imageTurn ? null : await classifyEffort(lastUserText(validated));
+  const cfg = tier ? effortConfig(tier, !!voice) : null;
   const baseSystem = health ? MEDPSY_SYSTEM : LEASH_SYSTEM;
+  const useNoThink = !!cfg?.noThink;
+
+  // On voice turns (non-image), append the spoken-output directive so the model answers in short,
+  // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
+  const system = [baseSystem, voice && !imageTurn ? LEASH_VOICE_DIRECTIVE : "", useNoThink ? "/no_think" : ""]
+    .filter(Boolean)
+    .join(" ");
 
   const result = streamText({
     model: imageTurn ? visionModel() : health ? medpsyModel() : chatModel(),
-    system: noThink ? `${baseSystem} /no_think` : baseSystem,
+    system,
+    // DELIBERATELY no `abortSignal: req.signal` — the qvac serve WEDGES its LLM decode loop if the
+    // client disconnects mid-generation (verified 2026-06-05: one aborted request → every later
+    // generation hangs at zero tokens until the serve restarts; upstream SDK bug). So on a voice
+    // barge-in / stop, the abandoned generation runs to completion server-side (bounded by the
+    // tier's maxOutputTokens) and the next turn queues briefly behind it — slow beats dead.
     messages: await convertToModelMessages(validated),
     // VLMs handle one image-grounded turn; tools/multi-step only on the text models.
-    ...(imageTurn ? {} : { tools, stopWhen: stepCountIs(noThink ? 2 : 6) }),
+    ...(imageTurn || !cfg
+      ? {}
+      : { ...(cfg.tools ? { tools } : {}), stopWhen: stepCountIs(cfg.steps), maxOutputTokens: cfg.maxOutputTokens }),
   });
 
-  // Persist even if the client disconnects mid-stream.
+  // Persist even if the client disconnects mid-stream (and keep the serve connection open until the
+  // generation completes — see the no-abortSignal note above).
   void result.consumeStream();
 
   return result.toUIMessageStreamResponse({
@@ -103,7 +131,7 @@ export async function POST(req: Request): Promise<Response> {
     sendReasoning: true,
     generateMessageId: createIdGenerator({ prefix: "msg", size: 16 }),
     messageMetadata: ({ part }) => {
-      if (part.type === "start") return { createdAt: Date.now(), model: activeModel };
+      if (part.type === "start") return { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}) };
       if (part.type === "finish") return { finishedAt: Date.now(), totalTokens: part.totalUsage?.totalTokens };
     },
     onFinish: ({ messages: finalMessages }) => {
