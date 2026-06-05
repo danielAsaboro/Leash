@@ -80,3 +80,7 @@ data/leash-downloads/
 data/leash-research/
 data/leash-services/
 data/leash-skills/
+
+# Leash secret vault (per-machine; key + ciphertext never ship)
+data/.leash-key
+data/leash-secrets.enc

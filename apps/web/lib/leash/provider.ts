@@ -15,6 +15,19 @@
 import "server-only";
 import { createQvac } from "@qvac/ai-sdk-provider";
 import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel } from "ai";
+import { Agent, fetch as undiciFetch } from "undici";
+
+/**
+ * A fetch with NO body/headers timeout for the serve. On-device decodes are slow and a
+ * request can legitimately wait (behind the broker queue, or for the serve to free its
+ * single slot); undici's default ~300s timeouts would 500 those turns spuriously — which
+ * is exactly what we kept hitting. The serve never gets a client-abort either (wedge
+ * rule); a turn runs to completion or the user navigates away. Headers timeout is the
+ * connect, kept short so a truly-down serve still fails fast.
+ */
+const patientDispatcher = new Agent({ bodyTimeout: 0, headersTimeout: 0, connectTimeout: 10_000 });
+const patientFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
+  undiciFetch(input, { ...init, dispatcher: patientDispatcher })) as unknown as typeof fetch;
 
 /** Where `qvac serve openai` listens. 11435 (not Ollama's 11434). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
@@ -27,12 +40,32 @@ export const MEDPSY_MODEL = process.env["LEASH_MEDPSY_MODEL"] ?? "medpsy";
 /** Vision-language model (Qwen3VL) for image turns — via the forked serve's image-content support. */
 export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
 
-export const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac" });
+/**
+ * Priority-tagged provider instances. The `x-leash-priority` header is consumed by the
+ * leash-broker (the queue in front of the serve) to order requests — interactive chat
+ * over background maintenance — and is harmless when `QVAC_OPENAI_URL` points straight
+ * at the serve (it ignores the header). Background callers should use `qvacBackground`.
+ */
+export const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: patientFetch, headers: { "x-leash-priority": "interactive" } });
+const qvacInline = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: patientFetch, headers: { "x-leash-priority": "inline" } });
+export const qvacBackground = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: patientFetch, headers: { "x-leash-priority": "background" } });
+
+/** Background utility model alias for maintenance work (compaction, etc.). Defaults to
+ *  the chat model so nothing changes until the user adds a small reasoning-off alias. */
+export const UTILITY_MODEL = process.env["LEASH_UTILITY_MODEL"] ?? CHAT_MODEL;
 
 /** The chat model with `<think>` reasoning extracted into reasoning parts. */
 export function chatModel(): LanguageModel {
   return wrapLanguageModel({
     model: qvac(CHAT_MODEL),
+    middleware: extractReasoningMiddleware({ tagName: "think" }),
+  });
+}
+
+/** The chat model tagged BACKGROUND priority (compaction, summaries) — yields to interactive. */
+export function chatModelBackground(): LanguageModel {
+  return wrapLanguageModel({
+    model: qvacBackground(UTILITY_MODEL),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }
@@ -53,9 +86,9 @@ export function visionModel(): LanguageModel {
   });
 }
 
-/** The embedding model (GTE-large) for `search_graph` retrieval. */
+/** The embedding model (GTE-large) for `search_graph` retrieval — tagged INLINE priority. */
 export function embeddingModel() {
-  return qvac.textEmbeddingModel(EMBED_MODEL);
+  return qvacInline.textEmbeddingModel(EMBED_MODEL);
 }
 
 /** Served image model alias (must match `qvac.config.json` → `serve.models`). */

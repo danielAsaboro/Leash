@@ -24,6 +24,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma, Stage } from "@mycelium/db";
 import { searchNotes, readActivityRecords } from "./graph.ts";
+import { getSecret } from "./vault.ts";
 import { imageModel, IMAGE_MODEL } from "./provider.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -34,10 +35,9 @@ const PHOTO_TAGS = process.env["LEASH_PHOTO_TAGS"] ?? join(here, "..", "..", "..
 
 // ── Home Assistant (P3) ──────────────────────────────────────────────────────
 // HA's LAN REST API is reachable from the Next server, so we expose it directly as
-// server-side tools (no daemon). The long-lived token stays server-side (this module
-// is `import "server-only"`). HA's own API is on-device/LAN, not a cloud AI API.
-const HA_URL = (process.env["LEASH_HA_URL"] ?? "").trim().replace(/\/+$/, "");
-const HA_TOKEN = (process.env["LEASH_HA_TOKEN"] ?? "").trim();
+// server-side tools (no daemon). The URL + long-lived token come from the encrypted
+// secret vault (falling back to env for back-compat) and are read PER CALL, so editing
+// them in /services takes effect with no restart. HA's own API is on-device/LAN.
 const HA_TIMEOUT_MS = Number(process.env["LEASH_HA_TIMEOUT_MS"] ?? 5000);
 const HA_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "scene"] as const;
 const HA_LIST_CAP = 60;
@@ -57,8 +57,10 @@ type HaResult = { ok: false; status?: number; text: string } | { ok: true; statu
  * pattern plus an AbortController timeout; turns every failure mode into honest text.
  */
 async function haFetch(path: string, init?: RequestInit): Promise<HaResult> {
+  const HA_URL = getSecret("LEASH_HA_URL").replace(/\/+$/, "");
+  const HA_TOKEN = getSecret("LEASH_HA_TOKEN");
   if (!HA_URL || !HA_TOKEN) {
-    return { ok: false, text: "Home Assistant is not configured (set LEASH_HA_URL and LEASH_HA_TOKEN)." };
+    return { ok: false, text: "Home Assistant is not configured (set its URL + token in Services → Connections)." };
   }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), HA_TIMEOUT_MS);

@@ -31,7 +31,10 @@ export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, 
 /** Touched by leash-cron every tick. */
 export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
 
-export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron";
+export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker";
+
+/** Where the broker listens (probe target for its health). */
+const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
 
 interface ServiceDef {
   name: Exclude<ServiceName, "qvac-serve">;
@@ -92,6 +95,23 @@ const DEFS: ServiceDef[] = [
     freshness: async () => {
       const { fresh, ageMs } = mtimeWithin(CRON_HEARTBEAT, 2 * 60 * 1000);
       return { fresh, detail: `heartbeat ${ago(ageMs)}` };
+    },
+  },
+  {
+    name: "leash-broker",
+    label: "Serve Broker",
+    command: ["npx", "tsx", "apps/leash-broker/src/main.ts"],
+    blurb: `Priority queue in front of the serve (:${BROKER_PORT}) — serializes per-model, prioritizes chat over background, never collides. Point QVAC_OPENAI_URL at it to use.`,
+    freshness: async () => {
+      try {
+        const r = await fetch(`http://127.0.0.1:${BROKER_PORT}/__broker/stats`, { signal: AbortSignal.timeout(1500) });
+        if (!r.ok) return { fresh: false, detail: "not answering" };
+        const s = (await r.json()) as { served?: number; aliases?: Record<string, { queued: number }> };
+        const queued = Object.values(s.aliases ?? {}).reduce((n, a) => n + (a.queued ?? 0), 0);
+        return { fresh: true, detail: `${s.served ?? 0} served · ${queued} queued` };
+      } catch {
+        return { fresh: null, detail: "not running" };
+      }
     },
   },
 ];

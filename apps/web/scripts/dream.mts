@@ -41,7 +41,9 @@ const dispatcher = new Agent({ bodyTimeout: BATCH_TIMEOUT_MS, headersTimeout: BA
 const dreamFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
   undiciFetch(input, { ...init, dispatcher })) as unknown as typeof fetch;
 
-const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: dreamFetch });
+// `x-leash-priority: background` lets the leash-broker yield this batch job to
+// interactive chat (harmless when QVAC_OPENAI_URL points straight at the serve).
+const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: dreamFetch, headers: { "x-leash-priority": "background" } });
 
 interface Rec {
   id: string;

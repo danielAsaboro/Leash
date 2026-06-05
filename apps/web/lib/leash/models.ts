@@ -94,7 +94,9 @@ export function fmtBytes(bytes: number): string {
 /** One catalog entry from the SDK dump (see scripts/leash-model-catalog.mts). */
 export interface CatalogModel {
   name: string;
-  addon: string;
+  /** Authoritative use-case from @qvac/ai-sdk-provider (chat/embedding/transcription/speech/image/ocr/translation). */
+  endpointCategory?: string;
+  addon?: string;
   engine?: string;
   params?: string;
   quantization?: string;

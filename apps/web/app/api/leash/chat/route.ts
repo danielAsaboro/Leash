@@ -22,7 +22,8 @@ import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { filterEnabledTools, disabledTools } from "../../../../lib/leash/tool-config.ts";
-import { loadChat, saveChat } from "../../../../lib/leash/chat-store.ts";
+import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
+import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
 import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
@@ -74,7 +75,8 @@ export async function POST(req: Request): Promise<Response> {
   const tools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...(await leashMcpTools()) };
 
   // Rebuild the working history from the store + the incoming trigger.
-  const previous = await loadChat(id);
+  const record = await loadRecord(id);
+  const previous = record?.messages ?? [];
   let messages: LeashUIMessage[];
   if (trigger === "regenerate-message" && messageId) {
     const idx = previous.findIndex((m) => m.id === messageId);
@@ -121,9 +123,23 @@ export async function POST(req: Request): Promise<Response> {
   const off = await disabledTools();
   const disabledNote = off.size > 0 ? `The following tools are DISABLED and unavailable right now — do not attempt to call them: ${[...off].join(", ")}.` : "";
 
+  // Context compaction (text turns only): when the thread outgrows the model's window,
+  // summarize the oldest messages into a stored running summary and send only
+  // [summary + recent tail] to the model. The FULL history stays in `validated` →
+  // `originalMessages` → saved/displayed; only the model's input shrinks. Image turns
+  // are single-shot, so they skip this. Best-effort: failure falls back to full history.
+  const CTX = Number(process.env["LEASH_CHAT_CTX"] ?? 4096);
+  let modelMessages = validated;
+  let summarySection = "";
+  if (!imageTurn) {
+    const c = await compact(id, validated, CTX, { summary: record?.summary, summarizedThrough: record?.summarizedThrough });
+    if (c.tailFrom > 0 && c.tailFrom < validated.length) modelMessages = validated.slice(c.tailFrom);
+    if (c.summary) summarySection = `Earlier in this conversation (summary of ${c.tailFrom} prior message${c.tailFrom === 1 ? "" : "s"}): ${c.summary}`;
+  }
+
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, prefSection, skillsSection, disabledNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, prefSection, skillsSection, disabledNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -139,7 +155,9 @@ export async function POST(req: Request): Promise<Response> {
     // generation hangs at zero tokens until the serve restarts; upstream SDK bug). So on a voice
     // barge-in / stop, the abandoned generation runs to completion server-side (bounded by the
     // tier's maxOutputTokens) and the next turn queues briefly behind it — slow beats dead.
-    messages: await convertToModelMessages(validated),
+    // Compacted for the model (summary + recent tail); the full thread is still saved
+    // via `originalMessages: validated` below.
+    messages: await convertToModelMessages(modelMessages),
     // VLMs handle one image-grounded turn; tools/multi-step only on the text models.
     ...(imageTurn || !cfg
       ? {}

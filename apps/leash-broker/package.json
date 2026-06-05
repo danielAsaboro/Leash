@@ -1,0 +1,12 @@
+{
+  "name": "@mycelium/leash-broker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Leash serve broker — cross-process priority queue / reverse proxy in front of qvac serve (per-alias serialize, priority+aging, wedge-safe drain).",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "tsx src/main.ts"
+  }
+}

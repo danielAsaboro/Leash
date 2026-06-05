@@ -9,6 +9,7 @@ import { listSkills } from "../../lib/leash/skills-store.ts";
 import { listNotes, activityPage, indexStats } from "../../lib/leash/memory-admin.ts";
 import { listMemories } from "../../lib/leash/memories-store.ts";
 import { modelsInventory, catalogWithFit, listDownloads } from "../../lib/leash/models.ts";
+import { forage } from "../../lib/leash/forage.ts";
 import { serveStatus } from "../../lib/leash/serve-control.ts";
 import { getPrompts } from "../../lib/leash/prompts-store.ts";
 import { disabledTools } from "../../lib/leash/tool-config.ts";
@@ -25,10 +26,11 @@ import { PromptsPanel } from "../../components/PromptsPanel.tsx";
 import { MemoryPanel } from "../../components/MemoryPanel.tsx";
 import { MemoriesSection } from "../../components/MemoriesSection.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
+import { ForagePanel } from "../../components/ForagePanel.tsx";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "tools", "prompts", "models"] as const;
+const TABS = ["memory", "skills", "tools", "prompts", "models", "forage"] as const;
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
@@ -80,6 +82,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       {tab === "models" && (
         <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />
       )}
+      {tab === "forage" && <ForagePanel result={await forage()} />}
     </DashShell>
   );
 }

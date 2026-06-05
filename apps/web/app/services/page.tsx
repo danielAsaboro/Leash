@@ -7,9 +7,11 @@
  */
 import { servicesStatus } from "../../lib/leash/services.ts";
 import { listSchedules, cronState, cronRuns } from "../../lib/leash/schedules-store.ts";
+import { listSecretStatus } from "../../lib/leash/vault.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { ServiceCard } from "../../components/ServiceCard.tsx";
 import { SchedulesSection } from "../../components/SchedulesSection.tsx";
+import { SecretsCard } from "../../components/SecretsCard.tsx";
 import { LiveRefresh } from "../../components/LiveRefresh.tsx";
 
 export const dynamic = "force-dynamic";
@@ -26,6 +28,7 @@ export default async function ServicesPage() {
             {s.name === "leash-cron" && <SchedulesSection schedules={schedules} state={state} runs={runs} />}
           </ServiceCard>
         ))}
+        <SecretsCard secrets={listSecretStatus()} />
       </div>
     </DashShell>
   );

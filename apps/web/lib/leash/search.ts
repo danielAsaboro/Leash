@@ -19,6 +19,8 @@
  * no `cheerio`/`jsdom` dependency enters the tree.
  */
 
+import { getSecret } from "./vault.ts";
+
 export interface SearchResult {
   title: string;
   url: string;
@@ -26,7 +28,8 @@ export interface SearchResult {
 }
 
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
-const SEARXNG_URL = (process.env["LEASH_SEARXNG_URL"] ?? "").trim().replace(/\/+$/, "");
+/** SearXNG URL from the vault (env fallback); read per-search so /services edits apply live. */
+const searxngUrl = (): string => getSecret("LEASH_SEARXNG_URL").replace(/\/+$/, "");
 
 const decode = (s: string): string =>
   s
@@ -59,7 +62,7 @@ function resolveDdg(href: string): string {
 
 /** SearXNG JSON search (English-pinned, like Odysseus). */
 async function searxng(query: string, count: number): Promise<SearchResult[]> {
-  const u = new URL(`${SEARXNG_URL}/search`);
+  const u = new URL(`${searxngUrl()}/search`);
   u.search = new URLSearchParams({ q: query, format: "json", language: "en", safesearch: "0" }).toString();
   const res = await fetch(u, { headers: { "User-Agent": UA, Accept: "application/json" }, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`SearXNG ${res.status}`);
@@ -109,7 +112,7 @@ export interface SearchOutcome {
 
 /** Web search: SearXNG when configured, else DuckDuckGo HTML; honest on failure. */
 export async function webSearch(query: string, count = 8): Promise<SearchOutcome> {
-  if (SEARXNG_URL) {
+  if (searxngUrl()) {
     try {
       const results = await searxng(query, count);
       if (results.length) return { results, provider: "searxng" };

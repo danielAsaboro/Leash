@@ -31,6 +31,14 @@ export interface ChatRecord {
   /** Optional user-set title; overrides the derived first-message title. */
   title?: string;
   messages: LeashUIMessage[];
+  /**
+   * Context-compaction state (see compactor.ts). When a thread outgrows the model's
+   * window, the oldest messages are summarized into `summary` and the model is sent
+   * `[summary + messages.slice(summarizedThrough)]`. The FULL `messages` array is still
+   * stored and displayed — only the model's input is compacted, never the record.
+   */
+  summary?: string;
+  summarizedThrough?: number;
 }
 
 async function ensureDir(): Promise<void> {
@@ -70,13 +78,30 @@ export async function loadChat(id: string): Promise<LeashUIMessage[]> {
   return (await loadRecord(id))?.messages ?? [];
 }
 
-/** Persist a chat's messages, preserving `createdAt` and bumping `updatedAt`. */
+/** Persist a chat's messages, preserving `createdAt`, `title`, and compaction state. */
 export async function saveChat({ chatId, messages }: { chatId: string; messages: LeashUIMessage[] }): Promise<void> {
   await ensureDir();
   const existing = await loadRecord(chatId);
   const now = Date.now();
-  const record: ChatRecord = { id: chatId, createdAt: existing?.createdAt ?? now, updatedAt: now, messages, ...(existing?.title ? { title: existing.title } : {}) };
+  const record: ChatRecord = {
+    id: chatId,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    messages,
+    ...(existing?.title ? { title: existing.title } : {}),
+    ...(existing?.summary ? { summary: existing.summary, summarizedThrough: existing.summarizedThrough ?? 0 } : {}),
+  };
   await writeFile(chatFile(chatId), JSON.stringify(record, null, 2));
+}
+
+/** Persist updated compaction state for a chat (preserves everything else). */
+export async function saveSummary(chatId: string, summary: string, summarizedThrough: number): Promise<void> {
+  const rec = await loadRecord(chatId);
+  if (!rec) return;
+  rec.summary = summary;
+  rec.summarizedThrough = summarizedThrough;
+  rec.updatedAt = Date.now();
+  await writeFile(chatFile(chatId), JSON.stringify(rec, null, 2));
 }
 
 /** Delete a chat (no-op if already gone). */

@@ -40,7 +40,9 @@ const BODY_TIMEOUT_MS = Number(process.env["LEASH_RESEARCH_TIMEOUT_MS"] ?? "6000
 const dispatcher = new Agent({ bodyTimeout: BODY_TIMEOUT_MS, headersTimeout: BODY_TIMEOUT_MS });
 const researchFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
   undiciFetch(input, { ...init, dispatcher })) as unknown as typeof fetch;
-const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: researchFetch });
+// `x-leash-priority: background` lets the leash-broker yield research to interactive
+// chat (harmless when QVAC_OPENAI_URL points straight at the serve).
+const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: researchFetch, headers: { "x-leash-priority": "background" } });
 
 const [runId, question] = [process.argv[2], process.argv[3]];
 
