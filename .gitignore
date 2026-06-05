@@ -62,3 +62,21 @@ apps/web/public/leash-gen/*.png
 # os / editor
 .DS_Store
 *.pcap
+
+# Leash dashboard — per-machine runtime / user state (regenerated; not source)
+data/leash-tasks.json
+data/leash-memories.json
+data/leash-prompts.json
+data/leash-tools.json
+data/leash-schedule.json
+data/leash-activity-tombstones.json
+data/leash-cron-state.json
+data/leash-cron-runs.jsonl
+data/leash-serve.json
+data/leash-serve.log
+data/leash-models-catalog.json
+data/leash-dreams.json
+data/leash-downloads/
+data/leash-research/
+data/leash-services/
+data/leash-skills/

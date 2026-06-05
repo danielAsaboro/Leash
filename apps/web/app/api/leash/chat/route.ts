@@ -13,10 +13,18 @@
 import { streamText, convertToModelMessages, stepCountIs, validateUIMessages, createIdGenerator } from "ai";
 import { z } from "zod";
 import { chatModel, medpsyModel, visionModel, CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL } from "../../../../lib/leash/provider.ts";
-import { leashTools, LEASH_SYSTEM, LEASH_VOICE_DIRECTIVE } from "../../../../lib/leash/tools.ts";
+import { leashTools } from "../../../../lib/leash/tools.ts";
+import { taskTools } from "../../../../lib/leash/task-tools.ts";
+import { memoryTools } from "../../../../lib/leash/memory-tools.ts";
+import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
+import { skillTools, skillsSystemSection } from "../../../../lib/leash/skill-tools.ts";
+import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
+import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
+import { filterEnabledTools, disabledTools } from "../../../../lib/leash/tool-config.ts";
 import { loadChat, saveChat } from "../../../../lib/leash/chat-store.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
+import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
 
 export const runtime = "nodejs";
@@ -57,16 +65,13 @@ function isImageTurn(messages: LeashUIMessage[]): boolean {
   return ((lastUser?.parts as any[]) ?? []).some((p) => p?.type === "file" && typeof p.mediaType === "string" && p.mediaType.startsWith("image/"));
 }
 
-const MEDPSY_SYSTEM =
-  LEASH_SYSTEM +
-  " The current question is health/medical/wellbeing-related: you are MedPsy, an on-device medical assistant. " +
-  "Be accurate and concise, ground in the tools when relevant, and add a brief 'not a substitute for a clinician' caveat.";
-
 export async function POST(req: Request): Promise<Response> {
   const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean };
   const { id, trigger, messageId, message, voice } = body;
 
-  const tools = { ...leashTools, ...(await leashMcpTools()) };
+  // Task/memory tools are per-request factories: writes get stamped with this chat's id.
+  // This is the FULL registry — used for message validation; `streamText` gets the filtered set.
+  const tools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...(await leashMcpTools()) };
 
   // Rebuild the working history from the store + the incoming trigger.
   const previous = await loadChat(id);
@@ -98,14 +103,33 @@ export async function POST(req: Request): Promise<Response> {
   // Image turns are unchanged (the VLM handles one image-grounded turn, no tools/no /no_think).
   const tier = imageTurn ? null : await classifyEffort(lastUserText(validated));
   const cfg = tier ? effortConfig(tier, !!voice) : null;
-  const baseSystem = health ? MEDPSY_SYSTEM : LEASH_SYSTEM;
   const useNoThink = !!cfg?.noThink;
+
+  // Prompts come from the store (dashboard override ?? code default; mtime-cached reads),
+  // plus the skills section ("" when no skills — honest empty state).
+  const [systemPrompt, skillsSection, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), preferenceTexts()]);
+  const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
+  // `preference` memories steer behavior on EVERY turn (other memory types are
+  // retrieval-only via recall/search_graph). Bounded: newest 20.
+  const prefSection = prefs.length ? "Saved user preferences — follow them: " + prefs.slice(0, 20).map((p) => `· ${p}`).join(" ") : "";
+
+  // Tool toggles apply at streamText (not at validation): old threads must still
+  // validate against the full registry even when a tool they used is now disabled.
+  const enabledTools = await filterEnabledTools(tools);
+  // The (possibly overridden) system prompt may still NAME disabled tools — tell the
+  // model they're gone, or it text-hallucinates <tool_call> blocks for them.
+  const off = await disabledTools();
+  const disabledNote = off.size > 0 ? `The following tools are DISABLED and unavailable right now — do not attempt to call them: ${[...off].join(", ")}.` : "";
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, voice && !imageTurn ? LEASH_VOICE_DIRECTIVE : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, prefSection, skillsSection, disabledNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
+
+  // Count this generation as in-flight so the dashboard's serve stop/restart refuses
+  // while the serve is decoding (aborting/killing mid-generation wedges the GPU).
+  const release = beginGeneration();
 
   const result = streamText({
     model: imageTurn ? visionModel() : health ? medpsyModel() : chatModel(),
@@ -119,12 +143,13 @@ export async function POST(req: Request): Promise<Response> {
     // VLMs handle one image-grounded turn; tools/multi-step only on the text models.
     ...(imageTurn || !cfg
       ? {}
-      : { ...(cfg.tools ? { tools } : {}), stopWhen: stepCountIs(cfg.steps), maxOutputTokens: cfg.maxOutputTokens }),
+      : { ...(cfg.tools ? { tools: enabledTools } : {}), stopWhen: stepCountIs(cfg.steps), maxOutputTokens: cfg.maxOutputTokens }),
   });
 
   // Persist even if the client disconnects mid-stream (and keep the serve connection open until the
-  // generation completes — see the no-abortSignal note above).
-  void result.consumeStream();
+  // generation completes — see the no-abortSignal note above). `then(release, release)` is the one
+  // signal that ALWAYS fires once the serve is done decoding (success, error, or abandoned client).
+  void result.consumeStream().then(release, release);
 
   return result.toUIMessageStreamResponse({
     originalMessages: validated,
@@ -135,8 +160,12 @@ export async function POST(req: Request): Promise<Response> {
       if (part.type === "finish") return { finishedAt: Date.now(), totalTokens: part.totalUsage?.totalTokens };
     },
     onFinish: ({ messages: finalMessages }) => {
+      release(); // idempotent belt-and-braces alongside consumeStream().finally
       void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
     },
-    onError: (error) => (error instanceof Error ? error.message : String(error)),
+    onError: (error) => {
+      release();
+      return error instanceof Error ? error.message : String(error);
+    },
   });
 }

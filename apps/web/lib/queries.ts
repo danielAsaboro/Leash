@@ -192,6 +192,46 @@ export async function getMissionControl() {
   return { state, counts, active, recentRuns, lastDiscovery };
 }
 
+/** Filterable, read-only pipeline view for the /tasks Pipeline tab. */
+export async function getPipeline(filter: { stage?: string; date?: string; section?: string; origin?: string }, take = 100) {
+  return prisma.article.findMany({
+    where: {
+      ...(filter.stage ? { stage: filter.stage } : {}),
+      ...(filter.date ? { date: filter.date } : {}),
+      ...(filter.section ? { section: filter.section } : {}),
+      ...(filter.origin ? { origin: filter.origin } : {}),
+    },
+    orderBy: [{ updatedAt: "desc" }],
+    take,
+    select: { id: true, date: true, slug: true, section: true, origin: true, stage: true, headline: true, updatedAt: true, publishedAt: true },
+  });
+}
+
+/** Distinct filter values present in the pipeline (drives the /tasks filter chips). */
+export async function getPipelineFacets() {
+  const [stages, dates, sections, origins] = await Promise.all([
+    prisma.article.groupBy({ by: ["stage"], _count: { _all: true } }),
+    prisma.article.groupBy({ by: ["date"], _count: { _all: true }, orderBy: { date: "desc" }, take: 14 }),
+    prisma.article.groupBy({ by: ["section"], _count: { _all: true } }),
+    prisma.article.groupBy({ by: ["origin"], _count: { _all: true } }),
+  ]);
+  return {
+    stages: stages.map((r) => ({ value: r.stage, count: r._count._all })),
+    dates: dates.map((r) => ({ value: r.date, count: r._count._all })),
+    sections: sections.map((r) => ({ value: r.section, count: r._count._all })),
+    origins: origins.map((r) => ({ value: r.origin, count: r._count._all })),
+  };
+}
+
+/** Daemon state + recent runs for the /tasks Daemons tab. */
+export async function getDaemons(takeRuns = 30) {
+  const [state, runs] = await Promise.all([
+    prisma.daemonState.findUnique({ where: { id: 1 } }),
+    prisma.daemonRun.findMany({ orderBy: { id: "desc" }, take: takeRuns }),
+  ]);
+  return { state, runs };
+}
+
 /** The dossier artifact for an article. */
 export async function getDossier(date: string, slug: string) {
   const article = await prisma.article.findUnique({

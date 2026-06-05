@@ -6,6 +6,8 @@
  * recognized `{ text }`. Pure HTTP, on-device, no `@qvac/sdk` in Next — same pattern
  * as the chat/speak routes.
  */
+import { beginGeneration } from "../../../../lib/leash/inflight.ts";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -25,10 +27,14 @@ export async function POST(req: Request): Promise<Response> {
     upstream.append("model", STT_MODEL);
 
     let res: Response;
+    // Count the STT inference as in-flight (serve stop/restart must not interrupt it).
+    const release = beginGeneration();
     try {
       res = await fetch(`${QVAC_OPENAI_URL}/audio/transcriptions`, { method: "POST", body: upstream });
     } catch {
       return Response.json({ error: "The on-device speech service is offline. Start it with `npm run qvac`.", code: "offline" }, { status: 503 });
+    } finally {
+      release();
     }
     if (!res.ok) {
       let detail: { error?: { message?: string; code?: string } } = {};

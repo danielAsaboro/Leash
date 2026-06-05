@@ -5,9 +5,9 @@
   "license": "Apache-2.0",
   "scripts": {
     "brand:icons": "tsx scripts/generate-brand-assets.ts",
-    "dev": "next dev",
+    "dev": "next dev -p 6801",
     "build": "next build",
-    "start": "next start"
+    "start": "next start -p 6801"
   },
   "dependencies": {
     "@ai-sdk/mcp": "^1.0.46",

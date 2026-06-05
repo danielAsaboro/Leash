@@ -125,7 +125,14 @@ export async function classifyEffort(text: string): Promise<EffortTier> {
 
 /** Streaming params for a tier. Voice biases to speed; text keeps reasoning on `deep`. */
 export interface EffortConfig {
-  /** Whether the tool loop is available at all (`quick` omits tools entirely). */
+  /**
+   * Whether the tool loop is available. ALWAYS true on every tier since 2026-06-05:
+   * the forked qvac serve HANGS (zero tokens, forever) on a chat request that carries
+   * NO tools when the model is configured `tools: true` + `toolsMode: "dynamic"`
+   * (bisected with apps/web/scripts/probe-provider.mts — tools+`/no_think` answers in
+   * ~2.5s; the same request without tools never returns). `quick` keeps its small
+   * step/token budget instead of dropping tools.
+   */
   tools: boolean;
   /** `stopWhen: stepCountIs(steps)` cap. */
   steps: number;
@@ -138,12 +145,15 @@ export interface EffortConfig {
 export function effortConfig(tier: EffortTier, isVoice: boolean): EffortConfig {
   switch (tier) {
     case "quick":
-      return { tools: false, steps: 1, noThink: true, maxOutputTokens: 150 };
+      // tools:true is load-bearing (see EffortConfig.tools); steps:2 so a stray tool
+      // call on a greeting still gets a closing answer instead of ending mid-loop.
+      return { tools: true, steps: 2, noThink: true, maxOutputTokens: 150 };
     case "deep":
       // Voice stays fast (`/no_think`, 4 steps); text keeps the `<think>` panel + 6 steps.
       return { tools: true, steps: isVoice ? 4 : 6, noThink: isVoice, maxOutputTokens: 600 };
     case "standard":
     default:
-      return { tools: true, steps: 2, noThink: true, maxOutputTokens: 300 };
+      // 3 steps: a skill-driven turn needs read_skill → read_skill_file → answer.
+      return { tools: true, steps: 3, noThink: true, maxOutputTokens: 300 };
   }
 }

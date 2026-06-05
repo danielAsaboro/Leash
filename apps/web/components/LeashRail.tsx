@@ -6,16 +6,24 @@ import { LeashMark } from "./LeashMark.tsx";
 /**
  * The Leash shell's left rail — the app's primary nav.
  *
- * Leash is a personal on-device assistant; The Understory (the auto-written paper) is
- * one surface inside it. Live surfaces: **Chat** (the assistant) and **Paper** (the
- * broadsheet). **Home** (Home Assistant) and **Activity** (screen/AX watchers) are
- * honest *disabled* entries — real "Not configured" states, never fake panels — until
- * their daemon-side tools land (roadmap P2/P3). Fixed-position; the layout offsets the
- * main content by the rail width so the 100dvh reader sits beside it untouched.
+ * Leash is the project's full dashboard. Surfaces: **Home** (overview — serve, daemons,
+ * tasks, disk), **Chat** (the assistant), **Paper** (The Understory broadsheet),
+ * **Brain** (memory · skills · tools · prompts · models — everything the assistant is
+ * made of), **Tasks** (tasks · pipeline · daemons). Every entry is a real, working
+ * page — no disabled placeholders. Fixed-position; the layout offsets the main content
+ * by the rail width so the 100dvh reader sits beside it untouched.
  */
 
 const DATE_RE = /^\/\d{4}-\d{2}-\d{2}(\/|$)/;
 
+function HomeIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <path d="M4 10.5 12 4l8 6.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 9.5V20h12V9.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 function ChatIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
@@ -32,26 +40,51 @@ function PaperIcon() {
     </svg>
   );
 }
-function HomeIcon() {
+function BrainIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
-      <path d="M4 10.5 12 4l8 6.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M6 9.5V20h12V9.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 4.5a3 3 0 0 0-3-1.5 3 3 0 0 0-2.6 3.4A3.2 3.2 0 0 0 4 9.5a3.2 3.2 0 0 0 1 5.7A3 3 0 0 0 8 19a3 3 0 0 0 4 .9V4.5z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M12 4.5a3 3 0 0 1 3-1.5 3 3 0 0 1 2.6 3.4A3.2 3.2 0 0 1 20 9.5a3.2 3.2 0 0 1-1 5.7A3 3 0 0 1 16 19a3 3 0 0 1-4 .9" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
-function ActivityIcon() {
+function TasksIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
-      <path d="M3 12h4l2.5-7 5 14 2.5-7H21" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="m3.5 6 1.5 1.5L8 4.5M3.5 12.5 5 14l3-3M3.5 19l1.5 1.5 3-3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M11.5 6.5H21M11.5 13H21M11.5 19.5H21" strokeLinecap="round" />
+    </svg>
+  );
+}
+function ResearchIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <circle cx="11" cy="11" r="6.5" strokeLinecap="round" />
+      <path d="m16 16 4.5 4.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+function ServicesIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M12 3.5v2.6M12 17.9v2.6M3.5 12h2.6M17.9 12h2.6M6 6l1.9 1.9M16.1 16.1 18 18M18 6l-1.9 1.9M7.9 16.1 6 18" strokeLinecap="round" />
     </svg>
   );
 }
 
+const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isActive: (p: string) => boolean }[] = [
+  { href: "/home", label: "Home", Icon: HomeIcon, isActive: (p) => p === "/home" },
+  { href: "/chat", label: "Chat", Icon: ChatIcon, isActive: (p) => p.startsWith("/chat") },
+  { href: "/paper", label: "Paper", Icon: PaperIcon, isActive: (p) => p === "/paper" || DATE_RE.test(p) },
+  { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
+  { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
+  { href: "/research", label: "Research", Icon: ResearchIcon, isActive: (p) => p.startsWith("/research") },
+  { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
+];
+
 export function LeashRail() {
   const pathname = usePathname() ?? "/";
-  const onChat = pathname.startsWith("/chat");
-  const onPaper = pathname === "/paper" || DATE_RE.test(pathname);
 
   return (
     <nav className="leash-rail" aria-label="Leash">
@@ -60,22 +93,15 @@ export function LeashRail() {
       </Link>
 
       <div className="leash-rail-nav">
-        <Link href="/chat" className={`leash-rail-item ${onChat ? "is-active" : ""}`} aria-current={onChat ? "page" : undefined}>
-          <ChatIcon />
-          <span>Chat</span>
-        </Link>
-        <Link href="/paper" className={`leash-rail-item ${onPaper ? "is-active" : ""}`} aria-current={onPaper ? "page" : undefined}>
-          <PaperIcon />
-          <span>Paper</span>
-        </Link>
-        <div className="leash-rail-item is-disabled" title="Home Assistant — not configured" aria-disabled>
-          <HomeIcon />
-          <span>Home</span>
-        </div>
-        <div className="leash-rail-item is-disabled" title="Activity sensors — not configured" aria-disabled>
-          <ActivityIcon />
-          <span>Activity</span>
-        </div>
+        {ITEMS.map(({ href, label, Icon, isActive }) => {
+          const active = isActive(pathname);
+          return (
+            <Link key={href} href={href} className={`leash-rail-item ${active ? "is-active" : ""}`} aria-current={active ? "page" : undefined}>
+              <Icon />
+              <span>{label}</span>
+            </Link>
+          );
+        })}
       </div>
 
       <Link href="/mission-control" className="leash-rail-foot kicker" title="Mission Control">

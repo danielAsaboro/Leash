@@ -152,7 +152,7 @@ local OpenAI-compatible QVAC server, so the "no cloud AI" rule holds.
 # Ollama's default 11434.
 npx @qvac/cli serve openai --port 11435
 
-# Terminal B — the dashboard. Open http://localhost:3000 (→ /chat); "Paper" reaches
+# Terminal B — the dashboard. Open http://localhost:6801 (→ /chat); "Paper" reaches
 # The Understory. ⌘K still searches the archive.
 npm run web:dev
 ```

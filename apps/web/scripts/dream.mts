@@ -4,17 +4,20 @@
  *   npm run dream            (from repo root; needs `qvac serve` running)
  *
  * Reads every stored chat (`data/leash-chats/*.json`), asks the on-device model to
- * distill a handful of concrete "things to work on", and writes them to
- * `data/leash-dreams.json` — which the chat tray's "To work on" section reads
- * (`loadConsolidations`). Pure HTTP to the local QVAC server; on-device; no cloud.
+ * distill a handful of concrete "things to work on", and appends them as
+ * source:"dream" tasks to `data/leash-tasks.json` — the dashboard's task store
+ * (/tasks page, chat tray "To work on", create_task/list_tasks chat tools). Dedupes
+ * by title against existing tasks so a nightly run never re-adds what's already
+ * tracked. Pure HTTP to the local QVAC server; on-device; no cloud.
  *
  * Run it on a schedule (cron / nightly, alongside the LoRA idea) so the assistant
- * surfaces what matters without being asked. Honest empty state: no chats → `[]`.
+ * surfaces what matters without being asked. Honest empty state: no chats → no tasks.
  */
-import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { readFileSync, readdirSync, writeFileSync, renameSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { streamText } from "ai";
+import { streamText, stepCountIs, tool } from "ai";
+import { z } from "zod";
 import { createQvac } from "@qvac/ai-sdk-provider";
 import { Agent, fetch as undiciFetch } from "undici";
 
@@ -22,7 +25,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/scripts → repo root. */
 const ROOT = join(here, "..", "..", "..");
 const CHAT_DIR = process.env["LEASH_CHAT_DIR"] ?? join(ROOT, "data", "leash-chats");
-const DREAMS_FILE = process.env["LEASH_DREAMS_FILE"] ?? join(ROOT, "data", "leash-dreams.json");
+const TASKS_FILE = process.env["LEASH_TASKS_FILE"] ?? join(ROOT, "data", "leash-tasks.json");
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 // Quality model by default — qwen3-4b distills well. It buffers a long <think> pass, so
 // this batch job uses a 10-min body timeout (below) rather than fighting it. `qwen3-0.6b`
@@ -76,6 +79,38 @@ function extractJsonArray(text: string): unknown[] {
   return [];
 }
 
+/** A task row in the shared store (mirrors apps/web lib/leash/tasks-store.ts). */
+interface TaskRow {
+  id: string;
+  title: string;
+  detail?: string;
+  status: string;
+  priority: string;
+  tags: string[];
+  source: string;
+  chatIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Read the shared task store leniently (missing/garbled → []). */
+function readTasks(): TaskRow[] {
+  try {
+    const raw = JSON.parse(readFileSync(TASKS_FILE, "utf8"));
+    return Array.isArray(raw) ? (raw as TaskRow[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Atomic write (tmp+rename) — the web process reads this file on every /tasks view. */
+function writeTasks(tasks: TaskRow[]): void {
+  mkdirSync(dirname(TASKS_FILE), { recursive: true });
+  const tmp = join(dirname(TASKS_FILE), `.dream-${Date.now()}.tmp`);
+  writeFileSync(tmp, JSON.stringify(tasks, null, 2));
+  renameSync(tmp, TASKS_FILE);
+}
+
 async function main(): Promise<void> {
   if (!existsSync(CHAT_DIR)) {
     console.log("💤 no chat store yet — nothing to dream on.");
@@ -88,10 +123,8 @@ async function main(): Promise<void> {
     .sort((a, b) => b.updatedAt - a.updatedAt)
     .slice(0, MAX_CHATS);
 
-  mkdirSync(dirname(DREAMS_FILE), { recursive: true });
   if (recs.length === 0) {
-    writeFileSync(DREAMS_FILE, "[]");
-    console.log("💤 no non-empty chats — wrote empty consolidations.");
+    console.log("💤 no non-empty chats — nothing to dream on.");
     return;
   }
 
@@ -111,24 +144,44 @@ async function main(): Promise<void> {
 
   console.log(`💤 dreaming over ${recs.length} chat(s) on ${MODEL}…`);
   // This serve only supports streaming completions (non-stream 500s) — drain the stream.
-  const result = streamText({ model: qvac(MODEL), prompt, maxOutputTokens: 1200 });
+  // One inert tool is REQUIRED: the serve hangs forever on a tool-less request to a
+  // tools-enabled model (qwen3-4b, toolsMode:dynamic — verified 2026-06-05). `/no_think`
+  // in the prompt + stopWhen(2) keep it answering in text, not calling the tool.
+  const inertTools = {
+    noop: tool({ description: "Unused. Do NOT call this — answer directly in text.", inputSchema: z.object({}), execute: async () => ({ ignore: true }) }),
+  };
+  const result = streamText({ model: qvac(MODEL), prompt, maxOutputTokens: 1200, tools: inertTools, stopWhen: stepCountIs(2) });
   let text = "";
   for await (const delta of result.textStream) text += delta;
   console.log(`   (model returned ${text.length} chars)`);
   const raw = extractJsonArray(text) as { title?: string; detail?: string }[];
   const now = Date.now();
-  const items = raw
+  const existing = readTasks();
+  const known = new Set(existing.map((t) => t.title.trim().toLowerCase()));
+  const items: TaskRow[] = raw
     .filter((x) => x && typeof x.title === "string" && x.title.trim())
     .slice(0, 8)
     .map((x, i) => ({
       id: `dream-${now}-${i}`,
       title: String(x.title).trim().slice(0, 120),
       ...(x.detail ? { detail: String(x.detail).trim().slice(0, 300) } : {}),
+      status: "open",
+      priority: "normal",
+      tags: [],
+      source: "dream",
+      chatIds: [],
       createdAt: now,
-    }));
+      updatedAt: now,
+    }))
+    // Nightly idempotence: skip anything already tracked under the same title.
+    .filter((t) => !known.has(t.title.trim().toLowerCase()));
 
-  writeFileSync(DREAMS_FILE, JSON.stringify(items, null, 2));
-  console.log(`💤 wrote ${items.length} consolidation(s) → ${DREAMS_FILE}`);
+  if (items.length === 0) {
+    console.log("💤 nothing new — every follow-up is already on the task list.");
+    return;
+  }
+  writeTasks([...existing, ...items]);
+  console.log(`💤 added ${items.length} dream task(s) → ${TASKS_FILE}`);
   for (const it of items) console.log(`   • ${it.title}`);
 }
 

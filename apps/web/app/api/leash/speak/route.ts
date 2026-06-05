@@ -10,6 +10,7 @@
  * (TTS voice model not registered/loaded), or the serve's own message verbatim.
  */
 import { stripMarkdownForSpeech } from "../../../../lib/leash/speech-text.ts";
+import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,9 @@ export async function POST(req: Request): Promise<Response> {
   const ttsVoice = voice && ALLOWED_VOICES.has(voice) ? voice : undefined;
 
   let upstream: Response;
+  // Count the TTS inference as in-flight (serve stop/restart must not interrupt it). The serve
+  // buffers the full WAV before responding, so release-after-fetch covers the whole generation.
+  const release = beginGeneration();
   try {
     upstream = await fetch(`${QVAC_OPENAI_URL}/audio/speech`, {
       method: "POST",
@@ -48,6 +52,8 @@ export async function POST(req: Request): Promise<Response> {
   } catch {
     // Connection refused / DNS / network: the local serve isn't reachable.
     return json({ error: "The on-device speech service is offline. Start it with `npm run qvac`.", code: "offline" }, 503);
+  } finally {
+    release();
   }
 
   if (!upstream.ok || !upstream.body) {

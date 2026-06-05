@@ -23,7 +23,7 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma, Stage } from "@mycelium/db";
-import { searchNotes, ACTIVITY_LOG } from "./graph.ts";
+import { searchNotes, readActivityRecords } from "./graph.ts";
 import { imageModel, IMAGE_MODEL } from "./provider.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -84,35 +84,11 @@ async function haFetch(path: string, init?: RequestInit): Promise<HaResult> {
 }
 
 // ── Screen-watcher activity trail (P2) ─────────────────────────────────────────
-/** One screen-watcher activity record (mirrors apps/leash-watch store.ts). */
-interface ActivityRecord {
-  ts: string;
-  app: string;
-  window: string;
-  summary: string;
-  tags: string[];
-}
+// Activity reads go through graph.ts's `readActivityRecords`, which filters out
+// tombstoned ("forgotten") records — see tombstones.ts.
+import type { ActivityRecord } from "./graph.ts";
 
-/** Lenient per-line JSONL read of the activity trail (`[]` on missing/garbled file). */
-async function readActivity(): Promise<ActivityRecord[]> {
-  let raw: string;
-  try {
-    raw = await readFile(ACTIVITY_LOG, "utf-8");
-  } catch {
-    return [];
-  }
-  const out: ActivityRecord[] = [];
-  for (const line of raw.split("\n")) {
-    const s = line.trim();
-    if (!s) continue;
-    try {
-      out.push(JSON.parse(s) as ActivityRecord);
-    } catch {
-      /* skip a torn/partial line */
-    }
-  }
-  return out;
-}
+const readActivity = readActivityRecords;
 
 /** "12m ago" / "just now" from an ISO timestamp. */
 function agoLabel(ts: string): string {
@@ -390,15 +366,21 @@ export const leashTools = {
   }),
 };
 
-/** The assistant's system prompt — tool-first grounding. */
-export const LEASH_SYSTEM =
+/**
+ * The assistant's DEFAULT system prompt — tool-first grounding. The effective prompt is
+ * `getPrompt("system")` (prompts-store.ts): a dashboard override beats this default.
+ */
+export const DEFAULT_LEASH_SYSTEM =
   "You are Leash, a private, on-device assistant with access to the user's world. You have tools: " +
   "search_graph (their private notes/files/voice memos — and their on-device screen-activity trail, for semantic recall like 'when was I in the budget sheet'), " +
   "understory_search and understory_today (The Understory — their auto-written daily paper), now (current date/time), " +
   "list_photos and generate_image (their images), " +
   "ha_list_entities / ha_get_state / ha_call_service (Home Assistant smart-home control — discover devices, check a device, then act; e.g. to turn on the office light call ha_call_service with domain 'light', service 'turn_on', entity_id 'light.office'; if the device is ambiguous, list first), " +
-  "and active_context / activity_recent (what the user is doing on screen right now / over the last N minutes, from the on-device screen watcher). " +
-  "For anything about the user, their notes, their paper, their home devices, or their current activity, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
+  "active_context / activity_recent (what the user is doing on screen right now / over the last N minutes, from the on-device screen watcher), " +
+  "create_task / list_tasks / update_task (the user's task list on the /tasks dashboard — use create_task when they ask to be reminded or to track a follow-up, update_task with status 'done' when they finish something), " +
+  "remember / recall (your long-term memory of the user — remember durable preferences/facts/goals/people/routines they state; recall before answering questions about them), " +
+  "and deep_research (kick off a background web-research run for questions needing current multi-source evidence — it returns a /research link, not an instant answer). " +
+  "For anything about the user, their notes, their paper, their home devices, their tasks, or their current activity, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
   "After tool results, answer concisely and factually. If the tools don't contain the answer, say so plainly.";
 
 /**
@@ -407,7 +389,16 @@ export const LEASH_SYSTEM =
  * light-disfluency clause is calibrated to a professional assistant persona (Vapi persona-matching);
  * `stripMarkdownForSpeech` is still applied defensively, but steering the model is the real fix.
  */
-export const LEASH_VOICE_DIRECTIVE =
+export const DEFAULT_LEASH_VOICE_DIRECTIVE =
   "This reply will be spoken aloud by a text-to-speech voice. Answer in at most two short sentences of plain spoken prose. " +
   "Never use markdown, lists, code blocks, headings, links, or emoji — say 'first… then… finally…' instead of bullets. " +
   "Where it feels natural, use at most one light, professional disfluency such as 'let me see' or 'one moment' — never 'um/uh/like'.";
+
+/**
+ * DEFAULT suffix appended to the system prompt when a turn routes to the MedPsy
+ * specialist (health/medical/mental-health intent). Override via the dashboard
+ * (`getPrompt("medpsy")`).
+ */
+export const DEFAULT_MEDPSY_SUFFIX =
+  " The current question is health/medical/wellbeing-related: you are MedPsy, an on-device medical assistant. " +
+  "Be accurate and concise, ground in the tools when relevant, and add a brief 'not a substitute for a clinician' caveat.";

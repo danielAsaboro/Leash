@@ -18,7 +18,7 @@ import { readFile, writeFile, mkdir, readdir, rm } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { LeashUIMessage, ChatSummary, ConsolidationItem } from "./types.ts";
+import type { LeashUIMessage, ChatSummary } from "./types.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/lib/leash → repo root → data/leash-chats. */
@@ -119,19 +119,6 @@ export async function latestChat(): Promise<string | null> {
   return (await listChats())[0]?.id ?? null;
 }
 
-/**
- * One consolidated "thing to work on", produced by the future **dreaming** service from
- * past chats. Stored at `data/leash-dreams.json` (override `LEASH_DREAMS_FILE`). Until
- * that service runs, the file is absent and this returns `[]` — the tray's "To work on"
- * section stays hidden (honest empty state, not a mock).
- */
-const DREAMS_FILE = process.env["LEASH_DREAMS_FILE"] ?? join(CHAT_DIR, "..", "leash-dreams.json");
-
-export async function loadConsolidations(): Promise<ConsolidationItem[]> {
-  try {
-    const raw = JSON.parse(await readFile(DREAMS_FILE, "utf8"));
-    return Array.isArray(raw) ? (raw as ConsolidationItem[]) : [];
-  } catch {
-    return [];
-  }
-}
+// "To work on" consolidations moved to the task store (`tasks-store.ts`): the dreaming
+// pass writes source:"dream" tasks to data/leash-tasks.json, and any legacy
+// data/leash-dreams.json is migrated on the store's first load.
