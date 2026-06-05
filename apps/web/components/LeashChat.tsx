@@ -8,6 +8,8 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { PromptInput, PromptInputProvider, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputSubmit, PromptInputActionMenu, PromptInputActionMenuTrigger, PromptInputActionMenuContent, PromptInputActionAddAttachments, usePromptInputController, usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { ToolView } from "./leash-tools.tsx";
+import { VoiceCall } from "./VoiceCall.tsx";
+import { blobToWav } from "@/lib/leash/audio";
 import type { LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
 
 /**
@@ -72,52 +74,13 @@ async function normalizeImageFiles(files: any[]): Promise<any[]> {
   );
 }
 
-/**
- * Decode recorded audio → 16 kHz mono 16-bit PCM WAV. The on-device transcriber (parakeet)
- * does NOT accept the browser's webm/opus (returns empty), so we re-encode to WAV first.
- */
-async function blobToWav(blob: Blob): Promise<Blob> {
-  const data = await blob.arrayBuffer();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const Ctor: typeof AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  const ctx = new Ctor({ sampleRate: 16000 });
-  const audio = await ctx.decodeAudioData(data);
-  void ctx.close();
-  const samples = audio.getChannelData(0);
-  const rate = audio.sampleRate;
-  const ab = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(ab);
-  const wr = (o: number, s: string) => {
-    for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i));
-  };
-  wr(0, "RIFF");
-  view.setUint32(4, 36 + samples.length * 2, true);
-  wr(8, "WAVE");
-  wr(12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true); // PCM
-  view.setUint16(22, 1, true); // mono
-  view.setUint32(24, rate, true);
-  view.setUint32(28, rate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  wr(36, "data");
-  view.setUint32(40, samples.length * 2, true);
-  let off = 44;
-  for (let i = 0; i < samples.length; i++) {
-    const s = Math.max(-1, Math.min(1, samples[i] ?? 0));
-    view.setInt16(off, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-    off += 2;
-  }
-  return new Blob([ab], { type: "audio/wav" });
-}
-
 /** 🎙 Voice input — record → WAV → on-device transcribe → drop the text into the composer. */
 function MicButton({ disabled }: { disabled: boolean }) {
   const controller = usePromptInputController();
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
-  const [errored, setErrored] = useState(false);
+  // Honest failure reason (permission / offline / model / no-speech) instead of a silent boolean.
+  const [micError, setMicError] = useState<string | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
@@ -126,7 +89,7 @@ function MicButton({ disabled }: { disabled: boolean }) {
       recorderRef.current?.stop();
       return;
     }
-    setErrored(false);
+    setMicError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const rec = new MediaRecorder(stream);
@@ -138,23 +101,27 @@ function MicButton({ disabled }: { disabled: boolean }) {
         stream.getTracks().forEach((t) => t.stop());
         setRecording(false);
         const raw = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
-        if (raw.size === 0) return;
+        if (raw.size === 0) {
+          setMicError("No audio captured.");
+          return;
+        }
         setTranscribing(true);
         try {
           const wav = await blobToWav(raw);
           const fd = new FormData();
           fd.append("file", wav, "speech.wav");
           const res = await fetch("/api/leash/transcribe", { method: "POST", body: fd });
-          const data = (await res.json()) as { text?: string };
+          const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+          if (!res.ok) throw new Error(data.error || `Transcription failed (HTTP ${res.status}).`);
           const text = (data.text ?? "").trim();
           if (text) {
             const cur = controller.textInput.value;
             controller.textInput.setInput(cur ? `${cur} ${text}` : text);
           } else {
-            setErrored(true);
+            setMicError("No speech detected — try again.");
           }
-        } catch {
-          setErrored(true);
+        } catch (err) {
+          setMicError(err instanceof Error ? err.message : "Transcription failed.");
         } finally {
           setTranscribing(false);
         }
@@ -162,22 +129,31 @@ function MicButton({ disabled }: { disabled: boolean }) {
       recorderRef.current = rec;
       rec.start();
       setRecording(true);
-    } catch {
-      setErrored(true);
+    } catch (err) {
+      // getUserMedia rejection: most often a denied permission.
+      const denied = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "SecurityError");
+      setMicError(denied ? "Microphone permission denied — allow it in your browser." : "Couldn't access the microphone.");
     }
   };
 
   return (
-    <button
-      type="button"
-      onClick={toggle}
-      disabled={disabled || transcribing}
-      aria-label={recording ? "Stop recording" : "Record voice input"}
-      title={recording ? "Stop & transcribe" : transcribing ? "Transcribing…" : errored ? "Couldn't transcribe — try again" : "Speak"}
-      className={`chat-mic${recording ? " chat-mic-on" : ""}${errored ? " chat-mic-err" : ""}`}
-    >
-      {recording ? "● Rec" : transcribing ? "Transcribing…" : errored ? "🎙 ⚠" : "🎙"}
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={disabled || transcribing}
+        aria-label={recording ? "Stop recording" : "Record voice input"}
+        title={recording ? "Stop & transcribe" : transcribing ? "Transcribing…" : micError ? micError : "Speak"}
+        className={`chat-mic${recording ? " chat-mic-on" : ""}${micError ? " chat-mic-err" : ""}`}
+      >
+        {recording ? "● Rec" : transcribing ? "Transcribing…" : micError ? "🎙 ⚠" : "🎙"}
+      </button>
+      {micError && (
+        <span className="chat-mic-msg" role="status" title={micError}>
+          {micError}
+        </span>
+      )}
+    </>
   );
 }
 
@@ -204,16 +180,34 @@ function ComposerAttachments() {
   );
 }
 
+/** Turn a useChat error into an honest, actionable line (offline vs model-not-loaded vs the raw message). */
+export function friendlyChatError(error: Error): string {
+  const m = (error?.message ?? "").toLowerCase();
+  if (!m) return "Something went wrong talking to the on-device model.";
+  if (m.includes("fetch failed") || m.includes("econnrefused") || m.includes("failed to fetch") || m.includes("connect")) {
+    return "The on-device model service is offline. Start it with `npm run qvac`.";
+  }
+  if (m.includes("model_not_found") || m.includes("not available") || m.includes("not loaded")) {
+    return "The chat model isn't loaded — check qvac.config.json → serve.models and restart `npm run qvac`.";
+  }
+  return error.message;
+}
+
 export function LeashChat({ id, initialMessages }: { id: string; initialMessages: LeashUIMessage[] }) {
+  // Hands-free "call" overlay — shares THIS useChat instance (no second transport/store).
+  const [callOpen, setCallOpen] = useState(false);
   const { messages, sendMessage, status, error, regenerate, stop } = useChat<LeashUIMessage>({
     id,
     messages: initialMessages,
     transport: new DefaultChatTransport({
       api: "/api/leash/chat",
       // Send only the last message + trigger; the server rebuilds history from the store.
-      prepareSendMessagesRequest: ({ id, messages, trigger, messageId }) => {
+      prepareSendMessagesRequest: ({ id, messages, trigger, messageId, body }) => {
         if (trigger === "regenerate-message") return { body: { id, trigger, messageId } };
-        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1] } };
+        // `voice: true` (set by the call overlay via sendMessage's body option) routes this turn
+        // to the chat route's fast path (/no_think + 2-step tools). Text composer sends no body.
+        const voice = (body as { voice?: boolean } | undefined)?.voice ?? false;
+        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice } };
       },
     }),
     experimental_throttle: 50,
@@ -252,7 +246,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
 
           {error && (
             <div className="chat-error">
-              <span>Something went wrong.</span>
+              <span>⚠ {friendlyChatError(error)}</span>
               <button type="button" onClick={() => regenerate()}>
                 Retry
               </button>
@@ -282,6 +276,16 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 </PromptInputActionMenu>
                 {/* 🎙 Voice input → on-device transcription → text dropped into the box to review/send. */}
                 <MicButton disabled={busy} />
+                {/* 📞 Call → hands-free, audio-only voice loop over the SAME conversation. */}
+                <button
+                  type="button"
+                  onClick={() => setCallOpen(true)}
+                  aria-label="Start hands-free voice call"
+                  title="Call — hands-free voice mode"
+                  className="chat-mic chat-call-btn"
+                >
+                  📞 Call
+                </button>
               </PromptInputTools>
               {/* Stop while generating (status === streaming/submitted), else submit. */}
               <PromptInputSubmit status={status} onStop={stop} />
@@ -289,6 +293,17 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
           </PromptInput>
         </PromptInputProvider>
       </div>
+
+      {/* Hands-free call overlay — fed the LIVE useChat handles so spoken turns land in this
+          same transcript/store; closing returns to the text chat. */}
+      <VoiceCall
+        open={callOpen}
+        onClose={() => setCallOpen(false)}
+        messages={messages}
+        sendMessage={sendMessage}
+        status={status}
+        error={error}
+      />
     </TooltipProvider>
   );
 }
@@ -296,31 +311,66 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
 function MessageView({ message, streaming, onRegenerate }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void }) {
   const { role } = message;
   const parts = message.parts as Part[];
-  const [speaking, setSpeaking] = useState(false);
+  // Read-aloud is a small state machine: idle → loading (synthesizing) → playing → idle.
+  // Clicking while loading/playing cancels (aborts the fetch / stops playback). Failures
+  // surface an inline, actionable message instead of silently resetting.
+  const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">("idle");
+  const [ttsError, setTtsError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  /** Stop/cancel any in-flight synthesis or playback and return to idle. */
+  const stopSpeak = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    audioRef.current?.pause();
+    audioRef.current = null;
+    setTtsState("idle");
+  };
 
   /** On-device read-aloud of the answer text via /api/leash/speak (supertonic TTS). */
   const speak = async (text: string) => {
-    if (speaking) {
-      audioRef.current?.pause();
-      setSpeaking(false);
+    if (ttsState !== "idle") {
+      stopSpeak(); // toggle: cancel synthesis or stop playback
       return;
     }
     if (!text.trim()) return;
-    setSpeaking(true);
+    setTtsError(null);
+    setTtsState("loading");
+    const ac = new AbortController();
+    abortRef.current = ac;
     try {
-      const res = await fetch("/api/leash/speak", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) });
-      if (!res.ok) throw new Error("tts");
+      const res = await fetch("/api/leash/speak", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: ac.signal,
+      });
+      if (!res.ok) {
+        const info = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(info.error || `Read aloud failed (HTTP ${res.status}).`);
+      }
       const url = URL.createObjectURL(await res.blob());
       const audio = new Audio(url);
       audioRef.current = audio;
       audio.onended = () => {
-        setSpeaking(false);
+        setTtsState("idle");
+        URL.revokeObjectURL(url);
+      };
+      audio.onerror = () => {
+        setTtsError("Couldn't play the synthesized audio.");
+        setTtsState("idle");
         URL.revokeObjectURL(url);
       };
       await audio.play();
-    } catch {
-      setSpeaking(false);
+      setTtsState("playing");
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        setTtsState("idle"); // user cancelled — not an error
+        return;
+      }
+      setTtsError(err instanceof Error ? err.message : "Read aloud failed.");
+      setTtsState("idle");
     }
   };
 
@@ -367,9 +417,25 @@ function MessageView({ message, streaming, onRegenerate }: { message: LeashUIMes
         <div className="chat-foot">
           {meta && <span className="chat-meta">{meta}</span>}
           {answerText && (
-            <button type="button" className="chat-regen" onClick={() => void speak(answerText)} title="Read aloud (on-device TTS)">
-              {speaking ? "■ Stop" : "🔊 Read aloud"}
+            <button
+              type="button"
+              className={`chat-regen${ttsState !== "idle" ? " is-active" : ""}${ttsError ? " is-err" : ""}`}
+              onClick={() => void speak(answerText)}
+              title={
+                ttsState === "loading"
+                  ? "Synthesizing… click to cancel"
+                  : ttsState === "playing"
+                    ? "Stop"
+                    : "Read aloud (on-device TTS)"
+              }
+            >
+              {ttsState === "loading" ? "⏳ Synthesizing… (cancel)" : ttsState === "playing" ? "■ Stop" : "🔊 Read aloud"}
             </button>
+          )}
+          {ttsError && (
+            <span className="chat-tts-err" role="status" title={ttsError}>
+              ⚠ {ttsError}
+            </span>
           )}
           {onRegenerate && (
             <button type="button" className="chat-regen" onClick={onRegenerate} title="Regenerate">

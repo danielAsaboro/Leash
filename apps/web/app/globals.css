@@ -1079,6 +1079,16 @@
     font-weight: 600;
   }
   .chat-mic-err { border-color: #b4322a; color: #b4322a; }
+  .chat-mic-msg {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    color: #b4322a;
+    max-width: 22ch;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    align-self: center;
+  }
   .chat-attachments {
     display: flex;
     flex-wrap: wrap;
@@ -1187,6 +1197,16 @@
   .chat-msg:hover .chat-regen,
   .group:hover .chat-regen { opacity: 1; }
   .chat-regen:hover { color: var(--color-sage-deep); }
+  /* Keep the read-aloud control visible while it's working/erroring (not just on hover). */
+  .chat-regen.is-active { opacity: 1; color: var(--color-sage-deep); }
+  .chat-regen.is-err { opacity: 1; color: var(--color-brick); }
+  /* Inline read-aloud failure message. */
+  .chat-tts-err {
+    font-family: var(--font-mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
+    color: var(--color-brick);
+  }
 
   /* Error + retry row. */
   .chat-error {
@@ -1341,5 +1361,185 @@
 
   @media (max-width: 880px) {
     :root { --leash-rail-w: 60px; }
+  }
+
+  /* ───────────── Hands-free voice "call" overlay ───────────── */
+  /* Backdrop reuses .search-overlay (fixed inset, dim + blur). This is the centered column. */
+  .call-stage {
+    width: 100%;
+    max-width: 520px;
+    margin: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.6rem;
+    padding: 2rem 1.5rem;
+    animation: searchPop 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  }
+
+  /* The orb — a layered disc + a live-level ring whose transform is set from RMS in JS. */
+  .call-orb-wrap {
+    position: relative;
+    width: 200px;
+    height: 200px;
+    display: grid;
+    place-items: center;
+  }
+  .call-orb-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid color-mix(in srgb, var(--color-sage) 55%, transparent);
+    transform: scale(1);
+    transition: transform 0.06s linear, border-color 0.2s;
+    will-change: transform;
+  }
+  .call-orb {
+    width: 132px;
+    height: 132px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, var(--color-glow), var(--color-sage) 55%, var(--color-sage-deep));
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-sage) 50%, transparent);
+    display: grid;
+    place-items: center;
+  }
+  /* Listening: gentle breathing pulse + the live ring tracks the mic level. */
+  .call-orb.is-listening { animation: callPulse 2.4s ease-in-out infinite; }
+  /* Thinking: dim + blink (reuse chatBlink's cadence) while the model streams. */
+  .call-orb.is-thinking {
+    animation: chatBlink 1.2s steps(2) infinite;
+    background: radial-gradient(circle at 35% 30%, var(--color-sage), var(--color-sage-deep) 70%);
+  }
+  /* Speaking: warm outward glow while TTS plays. */
+  .call-orb.is-speaking { animation: callGlow 1.6s ease-in-out infinite; }
+  /* Error / denied: brick. */
+  .call-orb.is-error {
+    background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--color-brick) 80%, #fff), var(--color-brick));
+    animation: none;
+  }
+  .call-orb.is-error + .call-orb-ring,
+  .call-orb-wrap.is-error .call-orb-ring { border-color: color-mix(in srgb, var(--color-brick) 60%, transparent); }
+
+  @keyframes callPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-sage) 45%, transparent); }
+    50% { transform: scale(1.04); box-shadow: 0 0 0 14px color-mix(in srgb, var(--color-sage) 8%, transparent); }
+  }
+  @keyframes callGlow {
+    0%, 100% { box-shadow: 0 0 24px 4px color-mix(in srgb, var(--color-glow) 45%, transparent); }
+    50% { box-shadow: 0 0 48px 16px color-mix(in srgb, var(--color-glow) 70%, transparent); }
+  }
+
+  /* State label under the orb (mono, uppercase telemetry voice). */
+  .call-state {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    min-height: 1rem;
+  }
+  .call-state.is-error { color: var(--color-brick); }
+
+  /* Live captions — mono "you" line + a Leash line (chat-bubble feel). */
+  .call-captions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-height: 4.5rem;
+  }
+  .call-cap-user,
+  .call-cap-assistant {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    line-height: 1.45;
+    padding: 0.55rem 0.75rem;
+    border-radius: 8px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+  .call-cap-user {
+    align-self: flex-end;
+    max-width: 85%;
+    background: color-mix(in srgb, var(--color-sage) 14%, transparent);
+    color: var(--color-sage-deep);
+  }
+  .call-cap-assistant {
+    align-self: flex-start;
+    max-width: 95%;
+    background: color-mix(in srgb, var(--color-sage) 5%, var(--color-paper));
+    border: 1px solid var(--color-rule);
+    color: var(--color-ink);
+  }
+  .call-cap-label {
+    display: block;
+    font-size: 0.58rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+    margin-bottom: 0.2rem;
+  }
+  .call-cap-muted { color: var(--color-faint); font-style: italic; }
+
+  /* Controls row — hang up, voice picker, retry/resume. */
+  .call-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .call-hangup {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 1.1rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-brick);
+    background: var(--color-brick);
+    color: var(--color-cream);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  .call-hangup:hover { filter: brightness(1.08); }
+  .call-action {
+    padding: 0.45rem 0.9rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-rule-strong);
+    background: transparent;
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    cursor: pointer;
+  }
+  .call-action:hover { background: color-mix(in srgb, var(--color-sage) 12%, transparent); }
+  .call-voice {
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    color: var(--color-ink);
+    background: var(--color-paper);
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 6px;
+    padding: 0.4rem 0.6rem;
+    cursor: pointer;
+  }
+  .call-note {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    color: var(--color-faint);
+    text-align: center;
+    max-width: 36ch;
+  }
+  .call-note.is-error { color: var(--color-brick); }
+
+  @media (prefers-reduced-motion: reduce) {
+    .call-stage,
+    .call-orb.is-listening,
+    .call-orb.is-speaking,
+    .call-orb-ring {
+      animation: none !important;
+      transition: none !important;
+    }
   }
 }

@@ -40,6 +40,7 @@
     "db:migrate": "prisma migrate dev --schema packages/db/prisma/schema.prisma",
     "newsroom": "tsx apps/newsroom/src/main.ts",
     "newsroom:seed": "tsx apps/newsroom/src/seed.ts",
+    "watch": "tsx apps/leash-watch/src/main.ts",
     "web:dev": "npm run dev -w @mycelium/web",
     "web:build": "npm run build -w @mycelium/web",
     "web:start": "npm run start -w @mycelium/web",

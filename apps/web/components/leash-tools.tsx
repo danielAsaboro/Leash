@@ -82,7 +82,8 @@ function NotesCard({ output }: { output: { sources?: Source[] } }) {
   );
 }
 
-function ImageCard({ output }: { output: { url?: string; prompt?: string } }) {
+function ImageCard({ output }: { output: { url?: string; prompt?: string; error?: string } }) {
+  if (output.error) return <div className="tool-card tool-error-card">⚠ {output.error}</div>;
   if (!output.url) return null;
   return (
     <div className="tool-card">

@@ -1,15 +1,20 @@
 /**
  * Leash's AI SDK tool registry (server-only) — all real, no mocks.
  *
- *   search_graph      — the user's private notes (RAG over QVAC embeddings)
+ *   search_graph      — the user's private notes + screen-activity trail (RAG over QVAC embeddings)
  *   understory_search — published articles in The Understory (the user's paper)
  *   understory_today  — the latest edition's headlines
  *   now               — current local date/time
+ *   list_photos       — the user's images + on-device auto-tags
+ *   generate_image    — on-device diffusion image generation
+ *   ha_list_entities / ha_get_state / ha_call_service — Home Assistant control over its LAN REST API
+ *   active_context / activity_recent — the on-device screen watcher's activity trail (apps/leash-watch)
  *
  * Each tool returns `{ text, sources }`: `text` is what the model reads to compose its
  * answer; `sources` is the structured citation list the UI renders (AI Elements Sources).
- * Home Assistant / activity watchers join later as MCP tools (see `mcp.ts`) — merged
- * into this set with zero changes here.
+ * Home Assistant is reached directly over its LAN REST API (server-side, token never leaves
+ * the Next process); the activity tools read the watcher's JSONL trail. Both auto-merge into
+ * the chat call with zero route changes (further MCP servers still join via `mcp.ts`).
  */
 import "server-only";
 import { tool, experimental_generateImage as generateImage } from "ai";
@@ -18,14 +23,111 @@ import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { prisma, Stage } from "@mycelium/db";
-import { searchNotes } from "./graph.ts";
-import { imageModel } from "./provider.ts";
+import { searchNotes, ACTIVITY_LOG } from "./graph.ts";
+import { imageModel, IMAGE_MODEL } from "./provider.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/lib/leash → apps/web/public/leash-gen (Next serves /leash-gen/*). */
 const GEN_DIR = join(here, "..", "..", "public", "leash-gen");
 /** apps/web/lib/leash → repo root → data/leash-photo-tags.json (written by `npm run tag-photos`). */
 const PHOTO_TAGS = process.env["LEASH_PHOTO_TAGS"] ?? join(here, "..", "..", "..", "..", "data", "leash-photo-tags.json");
+
+// ── Home Assistant (P3) ──────────────────────────────────────────────────────
+// HA's LAN REST API is reachable from the Next server, so we expose it directly as
+// server-side tools (no daemon). The long-lived token stays server-side (this module
+// is `import "server-only"`). HA's own API is on-device/LAN, not a cloud AI API.
+const HA_URL = (process.env["LEASH_HA_URL"] ?? "").trim().replace(/\/+$/, "");
+const HA_TOKEN = (process.env["LEASH_HA_TOKEN"] ?? "").trim();
+const HA_TIMEOUT_MS = Number(process.env["LEASH_HA_TIMEOUT_MS"] ?? 5000);
+const HA_DOMAINS = ["light", "switch", "fan", "cover", "input_boolean", "scene"] as const;
+const HA_LIST_CAP = 60;
+
+/** A Home Assistant entity state (the subset we read from `/api/states`). */
+interface HaState {
+  entity_id: string;
+  state: string;
+  attributes?: Record<string, unknown>;
+}
+
+/** Tagged result of an HA call — never throws, so tools always return honest text. */
+type HaResult = { ok: false; status?: number; text: string } | { ok: true; status: number; data: unknown };
+
+/**
+ * Single auth + timeout point for every HA REST call. Mirrors the speak/transcribe HTTP
+ * pattern plus an AbortController timeout; turns every failure mode into honest text.
+ */
+async function haFetch(path: string, init?: RequestInit): Promise<HaResult> {
+  if (!HA_URL || !HA_TOKEN) {
+    return { ok: false, text: "Home Assistant is not configured (set LEASH_HA_URL and LEASH_HA_TOKEN)." };
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), HA_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${HA_URL}${path}`, {
+      ...init,
+      signal: ctrl.signal,
+      headers: { Authorization: `Bearer ${HA_TOKEN}`, "content-type": "application/json", ...(init?.headers ?? {}) },
+    });
+    if (!res.ok) {
+      const hint = res.status === 401 ? " (check LEASH_HA_TOKEN)" : "";
+      return { ok: false, status: res.status, text: `Home Assistant returned ${res.status}${hint}.` };
+    }
+    return { ok: true, status: res.status, data: await res.json() };
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { ok: false, text: `Home Assistant request timed out after ${HA_TIMEOUT_MS}ms.` };
+    }
+    return { ok: false, text: "Home Assistant is unreachable (check LEASH_HA_URL / that it is online)." };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// ── Screen-watcher activity trail (P2) ─────────────────────────────────────────
+/** One screen-watcher activity record (mirrors apps/leash-watch store.ts). */
+interface ActivityRecord {
+  ts: string;
+  app: string;
+  window: string;
+  summary: string;
+  tags: string[];
+}
+
+/** Lenient per-line JSONL read of the activity trail (`[]` on missing/garbled file). */
+async function readActivity(): Promise<ActivityRecord[]> {
+  let raw: string;
+  try {
+    raw = await readFile(ACTIVITY_LOG, "utf-8");
+  } catch {
+    return [];
+  }
+  const out: ActivityRecord[] = [];
+  for (const line of raw.split("\n")) {
+    const s = line.trim();
+    if (!s) continue;
+    try {
+      out.push(JSON.parse(s) as ActivityRecord);
+    } catch {
+      /* skip a torn/partial line */
+    }
+  }
+  return out;
+}
+
+/** "12m ago" / "just now" from an ISO timestamp. */
+function agoLabel(ts: string): string {
+  const then = new Date(ts).getTime();
+  if (Number.isNaN(then)) return "recently";
+  const mins = Math.max(0, Math.round((Date.now() - then) / 60000));
+  return mins <= 0 ? "just now" : `${mins}m ago`;
+}
+
+/** Local HH:MM from an ISO timestamp (for timeline lines). */
+function hhmm(ts: string): string {
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return "--:--";
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
 
 interface PhotoTag {
   file: string;
@@ -145,12 +247,145 @@ export const leashTools = {
       prompt: z.string().describe("A detailed visual description of the image to generate."),
     }),
     execute: async ({ prompt }) => {
-      const { image } = await generateImage({ model: imageModel(), prompt, size: "512x512" });
-      await mkdir(GEN_DIR, { recursive: true });
-      const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
-      await writeFile(join(GEN_DIR, name), Buffer.from(image.uint8Array));
-      // Return a small URL (not base64) so the message stream stays light; UI renders the file.
-      return { url: `/leash-gen/${name}`, prompt, text: `Generated an image for: ${prompt}` };
+      try {
+        const { image } = await generateImage({ model: imageModel(), prompt, size: "512x512" });
+        await mkdir(GEN_DIR, { recursive: true });
+        const name = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`;
+        await writeFile(join(GEN_DIR, name), Buffer.from(image.uint8Array));
+        // Return a small URL (not base64) so the message stream stays light; UI renders the file.
+        return { url: `/leash-gen/${name}`, prompt, text: `Generated an image for: ${prompt}` };
+      } catch (err) {
+        // Don't throw a raw provider error at the UI — return an honest, actionable result
+        // (the model relays `text`; the ImageCard renders `error`).
+        const raw = err instanceof Error ? err.message : String(err);
+        const offline = /fetch failed|ECONNREFUSED|failed to fetch|connect/i.test(raw);
+        const missing = /model_not_found|not available|not loaded/i.test(raw);
+        const text = offline
+          ? "I couldn't generate the image — the on-device model service is offline. Start it with `npm run qvac`."
+          : missing
+            ? `I couldn't generate the image — the image model "${IMAGE_MODEL}" isn't loaded. Add it to qvac.config.json → serve.models and restart \`npm run qvac\`.`
+            : `I couldn't generate the image: ${raw}`;
+        return { error: text, prompt, text };
+      }
+    },
+  }),
+
+  ha_list_entities: tool({
+    description:
+      "List the user's Home Assistant devices/entities you can control (lights, switches, fans, covers, scenes, input booleans). Use to discover what's available before acting, or to answer 'what lights/devices do I have?'. Optionally narrow to one domain.",
+    inputSchema: z.object({
+      domain: z.enum(HA_DOMAINS).optional().describe("Optional: only entities in this domain (e.g. 'light', 'switch')."),
+    }),
+    execute: async ({ domain }) => {
+      const r = await haFetch("/api/states");
+      if (!r.ok) return { text: r.text, sources: [] as LeashSource[] };
+      const states = (r.data as HaState[]) ?? [];
+      const domains: readonly string[] = domain ? [domain] : HA_DOMAINS;
+      const filtered = states.filter((s) => domains.includes(s.entity_id.split(".")[0] ?? ""));
+      if (filtered.length === 0) {
+        return { text: domain ? `No Home Assistant entities in domain "${domain}".` : "No controllable Home Assistant entities found.", sources: [] as LeashSource[] };
+      }
+      const shown = filtered.slice(0, HA_LIST_CAP);
+      const lines = shown.map((s) => `${s.entity_id} — ${(s.attributes?.["friendly_name"] as string) ?? s.entity_id} — ${s.state}`);
+      const more = filtered.length > HA_LIST_CAP ? `\n…and ${filtered.length - HA_LIST_CAP} more (narrow with domain).` : "";
+      return { text: lines.join("\n") + more, sources: [] as LeashSource[] };
+    },
+  }),
+
+  ha_get_state: tool({
+    description:
+      "Get the current state and attributes of one Home Assistant entity (e.g. is the office light on, what's the thermostat set to). Pass the full entity_id (e.g. 'light.office'); use ha_list_entities first if unsure of the id.",
+    inputSchema: z.object({
+      entity_id: z.string().describe("Full Home Assistant entity id, e.g. 'light.office' or 'switch.kettle'."),
+    }),
+    execute: async ({ entity_id }) => {
+      const r = await haFetch(`/api/states/${encodeURIComponent(entity_id)}`);
+      if (!r.ok) {
+        return { text: r.status === 404 ? `No Home Assistant entity named "${entity_id}".` : r.text, sources: [] as LeashSource[] };
+      }
+      const s = r.data as HaState;
+      const name = (s.attributes?.["friendly_name"] as string) ?? s.entity_id;
+      const attrs = Object.entries(s.attributes ?? {})
+        .filter(([k]) => k !== "friendly_name")
+        .slice(0, 8)
+        .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`);
+      return {
+        text: `${s.entity_id} (${name})\nstate: ${s.state}` + (attrs.length ? `\n${attrs.join("\n")}` : ""),
+        sources: [] as LeashSource[],
+      };
+    },
+  }),
+
+  ha_call_service: tool({
+    description:
+      "Control a Home Assistant device by calling a service (e.g. turn on the office light = domain 'light', service 'turn_on', entity_id 'light.office'). Common services: turn_on, turn_off, toggle (light/switch/fan/input_boolean), open_cover/close_cover (cover), turn_on (scene). Confirm the entity_id with ha_list_entities if the device is ambiguous.",
+    inputSchema: z.object({
+      domain: z.enum(HA_DOMAINS).describe("Service domain, must match the entity's domain (e.g. 'light')."),
+      service: z.string().describe("Service to call, e.g. 'turn_on', 'turn_off', 'toggle'."),
+      entity_id: z.string().describe("Target entity id, e.g. 'light.office'."),
+      data: z.record(z.string(), z.any()).optional().describe("Optional extra service data, e.g. { brightness_pct: 50 }."),
+    }),
+    execute: async ({ domain, service, entity_id, data }) => {
+      const r = await haFetch(`/api/services/${encodeURIComponent(domain)}/${encodeURIComponent(service)}`, {
+        method: "POST",
+        body: JSON.stringify({ entity_id, ...(data ?? {}) }),
+      });
+      if (!r.ok) return { text: r.text, sources: [] as LeashSource[] };
+      const changed = (r.data as HaState[]) ?? [];
+      const target = changed.find((s) => s.entity_id === entity_id);
+      if (target) return { text: `${entity_id} is now ${target.state}.`, sources: [] as LeashSource[] };
+      if (changed.length === 0) {
+        return { text: `Called ${domain}.${service} on ${entity_id} (no state change — may already be in that state).`, sources: [] as LeashSource[] };
+      }
+      return { text: `Called ${domain}.${service}; changed: ${changed.map((s) => `${s.entity_id}=${s.state}`).join(", ")}.`, sources: [] as LeashSource[] };
+    },
+  }),
+
+  active_context: tool({
+    description:
+      "What the user is doing on their screen RIGHT NOW, from the on-device screen watcher (`npm run watch`). Use for 'what am I doing?' / 'what's on my screen?'. Returns the most recent observed app, window, and a one-line summary.",
+    inputSchema: z.object({}),
+    execute: async () => {
+      const records = await readActivity();
+      if (records.length === 0) {
+        return { text: "No screen activity recorded yet. Start the watcher with `npm run watch` (and grant Screen Recording).", sources: [] as LeashSource[] };
+      }
+      const r = records[records.length - 1] as ActivityRecord;
+      const window = r.window ? ` (${r.window})` : "";
+      const tags = Array.isArray(r.tags) && r.tags.length ? ` [${r.tags.join(", ")}]` : "";
+      const text = `As of ${agoLabel(r.ts)} — ${r.app}${window}: ${r.summary}${tags}`;
+      const sources: LeashSource[] = [{ kind: "graph", title: `Activity · ${r.app} ${hhmm(r.ts)}`, snippet: oneLine(r.summary).slice(0, 200) }];
+      return { text, sources };
+    },
+  }),
+
+  activity_recent: tool({
+    description:
+      "The user's screen activity over the last N minutes, from the on-device screen watcher. Use for 'what have I been working on?' / 'summarize the last 30 minutes'. Returns a timeline of observed apps and tasks.",
+    inputSchema: z.object({
+      minutes: z.number().int().min(1).max(1440).optional().describe("How far back to look, in minutes (default 30)."),
+    }),
+    execute: async ({ minutes }) => {
+      const window = minutes ?? 30;
+      const cutoff = Date.now() - window * 60000;
+      const records = await readActivity();
+      if (records.length === 0) {
+        return { text: "No screen activity recorded yet. Start the watcher with `npm run watch` (and grant Screen Recording).", sources: [] as LeashSource[] };
+      }
+      const recent = records.filter((r) => new Date(r.ts).getTime() >= cutoff);
+      if (recent.length === 0) {
+        return { text: `No screen activity in the last ${window} minutes.`, sources: [] as LeashSource[] };
+      }
+      const lines = recent.map((r) => {
+        const win = r.window ? ` — ${r.window}` : "";
+        return `${hhmm(r.ts)} ${r.app}${win}: ${r.summary}`;
+      });
+      const sources: LeashSource[] = recent.slice(-5).map((r) => ({
+        kind: "graph",
+        title: `Activity · ${r.app} ${hhmm(r.ts)}`,
+        snippet: oneLine(r.summary).slice(0, 200),
+      }));
+      return { text: `Activity in the last ${window} minutes (${recent.length} observations):\n${lines.join("\n")}`, sources };
     },
   }),
 };
@@ -158,7 +393,10 @@ export const leashTools = {
 /** The assistant's system prompt — tool-first grounding. */
 export const LEASH_SYSTEM =
   "You are Leash, a private, on-device assistant with access to the user's world. You have tools: " +
-  "search_graph (their private notes/files/voice memos), understory_search and understory_today " +
-  "(The Understory — their auto-written daily paper), and now (current date/time). " +
-  "For anything about the user, their notes, or their paper, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
+  "search_graph (their private notes/files/voice memos — and their on-device screen-activity trail, for semantic recall like 'when was I in the budget sheet'), " +
+  "understory_search and understory_today (The Understory — their auto-written daily paper), now (current date/time), " +
+  "list_photos and generate_image (their images), " +
+  "ha_list_entities / ha_get_state / ha_call_service (Home Assistant smart-home control — discover devices, check a device, then act; e.g. to turn on the office light call ha_call_service with domain 'light', service 'turn_on', entity_id 'light.office'; if the device is ambiguous, list first), " +
+  "and active_context / activity_recent (what the user is doing on screen right now / over the last N minutes, from the on-device screen watcher). " +
+  "For anything about the user, their notes, their paper, their home devices, or their current activity, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
   "After tool results, answer concisely and factually. If the tools don't contain the answer, say so plainly.";

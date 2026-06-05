@@ -24,7 +24,12 @@
           "projectionModelSrc": "/Users/cartel/.qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
         }
       },
-      "parakeet": { "model": "PARAKEET_TDT_0_6B_V3_Q8_0", "preload": true }
+      "parakeet": { "model": "PARAKEET_TDT_0_6B_V3_Q8_0", "preload": true },
+      "supertonic": {
+        "model": "TTS_EN_SUPERTONIC_Q8_0",
+        "preload": true,
+        "config": { "ttsEngine": "supertonic", "language": "en", "voice": "F1", "ttsSpeed": 1.05, "ttsNumInferenceSteps": 5 }
+      }
     }
   }
 }

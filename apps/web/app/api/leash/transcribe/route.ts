@@ -24,13 +24,29 @@ export async function POST(req: Request): Promise<Response> {
     upstream.append("file", file, name);
     upstream.append("model", STT_MODEL);
 
-    const res = await fetch(`${QVAC_OPENAI_URL}/audio/transcriptions`, { method: "POST", body: upstream });
+    let res: Response;
+    try {
+      res = await fetch(`${QVAC_OPENAI_URL}/audio/transcriptions`, { method: "POST", body: upstream });
+    } catch {
+      return Response.json({ error: "The on-device speech service is offline. Start it with `npm run qvac`.", code: "offline" }, { status: 503 });
+    }
     if (!res.ok) {
-      return Response.json({ error: `transcription failed (${res.status})` }, { status: 502 });
+      let detail: { error?: { message?: string; code?: string } } = {};
+      try {
+        detail = (await res.json()) as typeof detail;
+      } catch {
+        /* non-JSON error body */
+      }
+      const code = detail.error?.code ?? `http_${res.status}`;
+      const message =
+        code === "model_not_found"
+          ? `The transcription model "${STT_MODEL}" isn't loaded. Add it to qvac.config.json → serve.models and restart \`npm run qvac\`.`
+          : detail.error?.message ?? `Transcription failed (HTTP ${res.status}).`;
+      return Response.json({ error: message, code }, { status: 502 });
     }
     const data = (await res.json()) as { text?: string };
     return Response.json({ text: (data.text ?? "").trim() });
   } catch {
-    return Response.json({ error: "transcription offline" }, { status: 502 });
+    return Response.json({ error: "Couldn't process the recording.", code: "internal" }, { status: 500 });
   }
 }

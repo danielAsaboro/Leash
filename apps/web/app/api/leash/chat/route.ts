@@ -52,8 +52,8 @@ const MEDPSY_SYSTEM =
   "Be accurate and concise, ground in the tools when relevant, and add a brief 'not a substitute for a clinician' caveat.";
 
 export async function POST(req: Request): Promise<Response> {
-  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage };
-  const { id, trigger, messageId, message } = body;
+  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean };
+  const { id, trigger, messageId, message, voice } = body;
 
   const tools = { ...leashTools, ...(await leashMcpTools()) };
 
@@ -81,12 +81,18 @@ export async function POST(req: Request): Promise<Response> {
   const health = !imageTurn && isHealthIntent(validated);
   const activeModel = imageTurn ? VISION_MODEL : health ? MEDPSY_MODEL : CHAT_MODEL;
 
+  // Voice ("call") fast path: a spoken turn must answer in seconds, not ~100s. Disable Qwen3's
+  // `<think>` reasoning (the `/no_think` soft-switch) and cap the tool loop to 2 steps. The text
+  // chat is untouched — it keeps full reasoning + the 6-step tool loop.
+  const noThink = !!voice && !imageTurn;
+  const baseSystem = health ? MEDPSY_SYSTEM : LEASH_SYSTEM;
+
   const result = streamText({
     model: imageTurn ? visionModel() : health ? medpsyModel() : chatModel(),
-    system: health ? MEDPSY_SYSTEM : LEASH_SYSTEM,
+    system: noThink ? `${baseSystem} /no_think` : baseSystem,
     messages: await convertToModelMessages(validated),
     // VLMs handle one image-grounded turn; tools/multi-step only on the text models.
-    ...(imageTurn ? {} : { tools, stopWhen: stepCountIs(6) }),
+    ...(imageTurn ? {} : { tools, stopWhen: stepCountIs(noThink ? 2 : 6) }),
   });
 
   // Persist even if the client disconnects mid-stream.

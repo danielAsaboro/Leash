@@ -1,0 +1,16 @@
+{
+  "name": "@mycelium/leash-watch",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Leash screen watcher — on-device activity sensing (capture → on-device VLM summary → activity trail).",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@mycelium/shared": "*",
+    "@qvac/sdk": "^0.12.0"
+  }
+}

@@ -170,6 +170,9 @@ for Home Assistant (P3) and the activity watchers (P2).
 | `LEASH_CHAT_MODEL` | `qwen3-4b` | web — chat model alias (must match `serve.models`) |
 | `LEASH_EMBED_MODEL` | `gte-large` | web — embedding model alias for `search_graph` |
 | `LEASH_MCP_SERVERS` | _(empty)_ | web — comma-separated MCP server URLs (HA/watchers later) |
+| `LEASH_HA_URL` | _(empty)_ | web — Home Assistant base URL (e.g. `http://homeassistant.local:8123`); unset ⇒ HA tools report "not configured" |
+| `LEASH_HA_TOKEN` | _(empty)_ | web — HA long-lived access token (stays server-side); required with `LEASH_HA_URL` |
+| `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | web + leash-watch — the screen watcher's activity trail (read by `active_context`/`activity_recent` and embedded into `search_graph`) |
 
 ## Offline acceptance test
 

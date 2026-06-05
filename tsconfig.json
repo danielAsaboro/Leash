@@ -9,6 +9,7 @@
     { "path": "packages/db" },
     { "path": "apps/hub" },
     { "path": "apps/edge-node" },
-    { "path": "apps/newsroom" }
+    { "path": "apps/newsroom" },
+    { "path": "apps/leash-watch" }
   ]
 }

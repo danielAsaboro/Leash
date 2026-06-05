@@ -4,6 +4,10 @@
  * Relays text to the local `qvac serve openai` speech endpoint (supertonic TTS, served
  * from `qvac.config.json`) and streams the WAV straight back to the browser. Pure HTTP,
  * on-device, no `@qvac/sdk` in Next — same pattern as the chat route.
+ *
+ * On failure we return a structured `{ error, code }` JSON (not a generic 502) so the UI
+ * can surface an honest, actionable message: `offline` (serve down), `model_not_found`
+ * (TTS voice model not registered/loaded), or the serve's own message verbatim.
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,22 +15,52 @@ export const dynamic = "force-dynamic";
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 const TTS_MODEL = process.env["LEASH_TTS_MODEL"] ?? "supertonic";
 
-export async function POST(req: Request): Promise<Response> {
-  const { text } = (await req.json()) as { text?: string };
-  const input = (text ?? "").trim();
-  if (!input) return new Response(JSON.stringify({ error: "missing text" }), { status: 400, headers: { "content-type": "application/json" } });
+// Allowlists so an arbitrary client value can't be relayed to the serve. Keep in sync with
+// `lib/leash/audio.ts` VOICES (only verified Supertonic voices) — no fake voices (hard rule #4).
+const ALLOWED_VOICES = new Set(["F1"]);
+const ALLOWED_MODELS = new Set([TTS_MODEL]);
 
+const json = (body: unknown, status: number): Response =>
+  new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+
+export async function POST(req: Request): Promise<Response> {
+  const { text, voice, model } = (await req.json()) as { text?: string; voice?: string; model?: string };
+  const input = (text ?? "").trim();
+  if (!input) return json({ error: "Nothing to read aloud.", code: "empty_input" }, 400);
+
+  // Validate against the allowlists; unknown values fall back to the configured default rather
+  // than 400'ing — the serve resolves voices[voice] → `${model}-${voice}` → bare model anyway.
+  const ttsModel = model && ALLOWED_MODELS.has(model) ? model : TTS_MODEL;
+  const ttsVoice = voice && ALLOWED_VOICES.has(voice) ? voice : undefined;
+
+  let upstream: Response;
   try {
-    const upstream = await fetch(`${QVAC_OPENAI_URL}/audio/speech`, {
+    upstream = await fetch(`${QVAC_OPENAI_URL}/audio/speech`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ model: TTS_MODEL, input: input.slice(0, 4000), response_format: "wav" }),
+      // Option B: keep `model: TTS_MODEL`, add `voice` so the serve resolves the voiced alias.
+      body: JSON.stringify({ model: ttsModel, input: input.slice(0, 4000), response_format: "wav", ...(ttsVoice ? { voice: ttsVoice } : {}) }),
     });
-    if (!upstream.ok || !upstream.body) {
-      return new Response(JSON.stringify({ error: `tts ${upstream.status}` }), { status: 502, headers: { "content-type": "application/json" } });
-    }
-    return new Response(upstream.body, { status: 200, headers: { "content-type": "audio/wav", "cache-control": "no-store" } });
   } catch {
-    return new Response(JSON.stringify({ error: "tts offline" }), { status: 502, headers: { "content-type": "application/json" } });
+    // Connection refused / DNS / network: the local serve isn't reachable.
+    return json({ error: "The on-device speech service is offline. Start it with `npm run qvac`.", code: "offline" }, 503);
   }
+
+  if (!upstream.ok || !upstream.body) {
+    // Surface the serve's own error (e.g. model_not_found) so the UI message is actionable.
+    let detail: { error?: { message?: string; code?: string } } = {};
+    try {
+      detail = (await upstream.json()) as typeof detail;
+    } catch {
+      /* non-JSON error body */
+    }
+    const code = detail.error?.code ?? `http_${upstream.status}`;
+    const message =
+      code === "model_not_found"
+        ? `The voice model "${ttsModel}" isn't loaded. Add it to qvac.config.json → serve.models and restart \`npm run qvac\`.`
+        : detail.error?.message ?? `Speech failed (HTTP ${upstream.status}).`;
+    return json({ error: message, code }, 502);
+  }
+
+  return new Response(upstream.body, { status: 200, headers: { "content-type": "audio/wav", "cache-control": "no-store" } });
 }
