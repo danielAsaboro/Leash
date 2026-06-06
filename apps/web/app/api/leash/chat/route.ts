@@ -22,6 +22,7 @@ import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { filterEnabledTools, disabledTools } from "../../../../lib/leash/tool-config.ts";
+import { repairLeashToolCall } from "../../../../lib/leash/json-repair.ts";
 import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
@@ -161,7 +162,11 @@ export async function POST(req: Request): Promise<Response> {
     // VLMs handle one image-grounded turn; tools/multi-step only on the text models.
     ...(imageTurn || !cfg
       ? {}
-      : { ...(cfg.tools ? { tools: enabledTools } : {}), stopWhen: stepCountIs(cfg.steps), maxOutputTokens: cfg.maxOutputTokens }),
+      : {
+          ...(cfg.tools ? { tools: enabledTools, experimental_repairToolCall: repairLeashToolCall } : {}),
+          stopWhen: stepCountIs(cfg.steps),
+          maxOutputTokens: cfg.maxOutputTokens,
+        }),
   });
 
   // Persist even if the client disconnects mid-stream (and keep the serve connection open until the

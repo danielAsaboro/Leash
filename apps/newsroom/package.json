@@ -10,10 +10,11 @@
     "start": "tsx src/main.ts"
   },
   "dependencies": {
-    "@mycelium/shared": "*",
-    "@mycelium/senses": "*",
-    "@mycelium/mind": "*",
     "@mycelium/db": "*",
-    "@qvac/sdk": "^0.12.0"
+    "@mycelium/mind": "*",
+    "@mycelium/senses": "*",
+    "@mycelium/shared": "*",
+    "@qvac/sdk": "^0.12.0",
+    "jsonrepair": "^3.14.0"
   }
 }
