@@ -19,6 +19,7 @@ import { completion } from "@qvac/sdk";
 import type { CompletionFinal } from "@qvac/sdk";
 import type { WarmPool } from "./warm-pool.ts";
 import type { DiscoveredDevice } from "./discovery.ts";
+import { HYPHA_TTFB_MS } from "./config.ts";
 
 export interface Inflight {
   inc(): void;
@@ -84,6 +85,17 @@ async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, u
     return JSON.parse((await readBody(req)).toString("utf8")) as Record<string, unknown>;
   } catch {
     return {};
+  }
+}
+
+/** Re-attach an already-raced first result to the rest of its iterator (TTFB guard plumbing). */
+async function* prependToken<T>(first: IteratorResult<T>, rest: AsyncIterator<T>): AsyncGenerator<T> {
+  if (!first.done) yield first.value;
+  else return;
+  while (true) {
+    const n = await rest.next();
+    if (n.done) return;
+    yield n.value;
   }
 }
 
@@ -201,12 +213,50 @@ export function createShim(deps: ShimDeps): http.Server {
     let tokenCount = 0;
     try {
       const run = completion({ modelId: warm.modelId, history, stream: true });
-      if (stream) {
+      if (stream && clientOpen) {
+        res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+        res.write(sseChunk(id, alias, created, { role: "assistant" }, null));
+      }
+
+      // TTFB guard: a peer that registered the delegated load but dies at decode (e.g. its
+      // modelSrc path doesn't exist on ITS disk) yields no tokens and no error — a silent
+      // forever-hang. Race the first token against HYPHA_TTFB_MS so it fails loud + self-heals.
+      const rest = run.tokenStream[Symbol.asyncIterator]();
+      let ttfbTimer: ReturnType<typeof setTimeout> | undefined;
+      const first = await Promise.race([
+        rest.next(),
+        new Promise<"ttfb-timeout">((resolve) => {
+          ttfbTimer = setTimeout(() => resolve("ttfb-timeout"), HYPHA_TTFB_MS);
+          ttfbTimer.unref?.();
+        }),
+      ]);
+      clearTimeout(ttfbTimer);
+      if (first === "ttfb-timeout") {
+        // Drop the warm entry (the 5s reconcile tick re-warms fresh) but do NOT cancel the
+        // run — wedge discipline: abandon it draining in the background, exactly like a
+        // client disconnect.
+        pool.dropWarm(warm.modelId);
+        void (async () => {
+          for (let n = await rest.next(); !n.done; n = await rest.next()) {
+            /* drain abandoned run */
+          }
+        })().catch(() => {});
+        void run.final.catch(() => {}); // abandoned — never let it become an unhandled rejection
+        const msg = `hypha shim: no first token within ${HYPHA_TTFB_MS}ms from peer serving "${alias}" (delegated decode dead) — warm entry dropped, re-warming`;
+        audit?.record({ event: "note", extra: { role: "shim", phase: "ttfb-timeout", alias, peer: warm.peerKey.slice(0, 16), ttfbMs: HYPHA_TTFB_MS } });
         if (clientOpen) {
-          res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
-          res.write(sseChunk(id, alias, created, { role: "assistant" }, null));
+          if (!res.headersSent) json(res, 504, { error: { message: msg, code: "ttfb_timeout" } });
+          else {
+            res.write(`data: ${JSON.stringify({ error: { message: msg } })}\n\n`);
+            res.end();
+          }
         }
-        for await (const token of run.tokenStream) {
+        return;
+      }
+      const tokenStream = prependToken(first, rest);
+
+      if (stream) {
+        for await (const token of tokenStream) {
           if (tokenCount === 0) ttft = Date.now() - t0;
           tokenCount++;
           if (clientOpen) res.write(sseChunk(id, alias, created, { content: token }, null));
@@ -218,7 +268,7 @@ export function createShim(deps: ShimDeps): http.Server {
         }
       } else {
         let text = "";
-        for await (const token of run.tokenStream) {
+        for await (const token of tokenStream) {
           if (tokenCount === 0) ttft = Date.now() - t0;
           tokenCount++;
           text += token;

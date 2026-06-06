@@ -139,6 +139,19 @@ export class WarmPool {
     return { modelId: best.modelId, peerKey: best.peerKey };
   }
 
+  /**
+   * Drop the warm entry holding `modelId` (e.g. after a TTFB timeout — the delegated load
+   * registered but decode is dead). The reconcile tick re-warms the (peer, model) pair fresh.
+   */
+  dropWarm(modelId: string): void {
+    for (const [k, e] of this.warm) {
+      if (e.modelId === modelId) {
+        this.warm.delete(k);
+        this.deps.audit?.record({ event: "delegation", extra: { role: "consumer", phase: "dropped-dead", peer: e.peerKey.slice(0, 16), alias: e.alias } });
+      }
+    }
+  }
+
   /** Aliases we currently hold warm (the broker's "a warm peer serves this alias" check). */
   warmAliases(): Set<string> {
     return new Set([...this.warm.values()].map((e) => e.alias));

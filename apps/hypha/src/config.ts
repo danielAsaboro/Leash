@@ -62,6 +62,13 @@ export const HEARTBEAT_MS = Number(process.env["HYPHA_HEARTBEAT_MS"] ?? 10_000);
 export const STALE_MS = Number(process.env["HYPHA_STALE_MS"] ?? 30_000);
 /** How often the consumer reconciles warm models against live peers. */
 export const WARM_TICK_MS = Number(process.env["HYPHA_WARM_TICK_MS"] ?? 5_000);
+/**
+ * Max wait for the FIRST delegated token (TTFB). A peer that registers a delegated load but
+ * dies at decode (e.g. its modelSrc path doesn't exist on its disk) otherwise hangs the shim
+ * silently forever — the no-token hang. On timeout the shim errors loudly and drops the warm
+ * entry so the pool re-warms fresh.
+ */
+export const HYPHA_TTFB_MS = Number(process.env["HYPHA_TTFB_MS"] ?? 60_000);
 
 /** Coarse device self-description for the capability registry (env-overridable). */
 export const DEVICE_NAME = process.env["HYPHA_NAME"] ?? hostname();

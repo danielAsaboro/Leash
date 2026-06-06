@@ -12,7 +12,7 @@
  * `.src` path, e.g. medpsy) are advertised but only delegable to a peer holding the same
  * local file.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { CATALOG_FILE, QVAC_CONFIG_FILE } from "./config.ts";
 
 interface CatalogEntry {
@@ -84,8 +84,15 @@ export function localChatAliases(): AliasModel[] {
     const name = entry.model;
     const catEntry = name ? cat.get(name) : undefined;
     if (!isChatLlm(entry, catEntry)) continue;
-    if (entry.src) out.push({ alias, modelSrc: entry.src });
-    else if (catEntry?.registryPath) out.push({ alias, modelSrc: catEntry.registryPath });
+    if (entry.src) {
+      // Advertise honestly: a filesystem `src` that doesn't exist HERE would register the
+      // delegated load and then die silently at decode, poisoning peers' warm pools.
+      if (!existsSync(entry.src)) {
+        console.warn(`hypha: not advertising alias "${alias}" — src missing on this machine: ${entry.src}`);
+        continue;
+      }
+      out.push({ alias, modelSrc: entry.src });
+    } else if (catEntry?.registryPath) out.push({ alias, modelSrc: catEntry.registryPath });
     // A registry-name model absent from the catalog is skipped (can't resolve a modelSrc).
   }
   return out;
