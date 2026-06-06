@@ -174,6 +174,48 @@ for Home Assistant (P3) and the activity watchers (P2).
 | `LEASH_HA_TOKEN` | _(empty)_ | web — HA long-lived access token (stays server-side); required with `LEASH_HA_URL` |
 | `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | web + leash-watch — the screen watcher's activity trail (read by `active_context`/`activity_recent` and embedded into `search_graph`) |
 
+### Agentic upgrades (skills · approval · MCP elicitation · kvCache)
+
+**Skills** (Brain → Skills) follow the agentskills.io folder layout —
+`data/leash-skills/<slug>/SKILL.md` + `references/` + `scripts/` + `assets/` (nested
+paths, ≤3 deep). Import a packaged skill as a `.zip`; **imports and any SKILL.md without
+an explicit `enabled: true` land DISABLED** (prompt-injection posture: review, then
+enable). Enabled skills can bundle executable scripts the model runs via
+`run_skill_script` — interpreter chosen by extension only (`.js/.mjs/.cjs` → node,
+`.py` → python3, `.sh` → bash), argv spawn (no shell), realpath-contained to
+`<skill>/scripts/`, stripped env, 60 s SIGKILL, 16 KB output caps. **This is real code
+execution as the web-app user, not a sandbox** — which is why it's approval-gated:
+
+**Tool approval** (Brain → Tools → "Ask first"): marked tools pause the chat on an
+in-chat Approve/Deny card before running (`ha_call_service` and `run_skill_script`
+default to ask-first). The pause ends the stream normally — the serve sits idle while
+you decide; Deny is acknowledged, never retried. Malformed model tool-calls are
+self-healed by `jsonrepair` (`experimental_repairToolCall`) before they ever error.
+
+**MCP** (Brain → MCP): add MCP servers by URL (plus `LEASH_MCP_SERVERS` env rows,
+read-only). Leash advertises the **elicitation** capability — when an MCP tool needs
+the user mid-call, a form renders in the chat (string/number/boolean/enum), with a
+120 s timeout-cancel so an unanswered form never hangs a tool. The bundled
+`apps/leash-mcp` server (`:11439`, Services → "MCP (Mesh Tools)") turns mesh pairing
+into chat: *"pair this device with my laptop"* discovers LAN devices and asks for the
+6-digit PIN shown on the other machine's screen — input no model can know.
+Limitations, honestly: voice turns don't speak approval/elicitation cards (answer them
+on screen), and an elicitation holds its HTTP stream open while waiting (bounded by the
+timeout; the serve can't be restarted during the wait).
+
+**Delegated kvCache** (hypha): overflow turns shed to a mesh peer now reuse the peer's
+KV cache across the conversation — the shim keys each session (`shim.*`) and only
+reuses a key when the request provably extends exactly what the peer cached; edits,
+regenerates, peer changes, errors, and restarts re-prime fresh (correctness over
+speed). Evidence lands in `apps/hypha/logs/hypha.jsonl` as `cacheTokens` +
+`extra.kvKey/kvFresh`. Kill switch `HYPHA_KV_CACHE=0`; hourly janitor TTLs each
+device's own `~/.qvac/kv-cache/shim.*` (a session `.bin` runs tens of MB). The forked
+serve also accepts an opt-in `kv_cache` body field (restored by `patch-package` from
+`patches/`), but the web chat route deliberately doesn't send it: every text tier runs
+tools-ON (the toolless-hang guard), and custom-key kv across tool-call turns is
+unverified SDK territory. Hypha-only, on purpose. Note: a *cold* prime on a small fast
+model barely moves TTFT — the win grows with history length.
+
 ## Offline acceptance test
 
 After warming the cache, disable networking (airplane mode / pull the cable) and
