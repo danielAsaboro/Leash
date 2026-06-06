@@ -19,6 +19,7 @@ import { completion } from "@qvac/sdk";
 import type { CompletionFinal } from "@qvac/sdk";
 import type { WarmPool } from "./warm-pool.ts";
 import type { DiscoveredDevice } from "./discovery.ts";
+import type { KvSessions } from "@mycelium/shared";
 import { HYPHA_TTFB_MS } from "./config.ts";
 
 export interface Inflight {
@@ -112,10 +113,12 @@ export interface ShimDeps {
   pairing: PairingControl;
   mesh: MeshControl;
   audit?: AuditLog;
+  /** KV-cache session ledger (absent when HYPHA_KV_CACHE=0 — completions run uncached). */
+  kv?: KvSessions;
 }
 
 export function createShim(deps: ShimDeps): http.Server {
-  const { getPool, inflight, pairing, mesh, audit } = deps;
+  const { getPool, inflight, pairing, mesh, audit, kv } = deps;
   const json = (res: http.ServerResponse, code: number, body: unknown): void => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
@@ -212,7 +215,10 @@ export function createShim(deps: ShimDeps): http.Server {
     let ttft = 0;
     let tokenCount = 0;
     try {
-      const run = completion({ modelId: warm.modelId, history, stream: true });
+      // KV-cache session: reuse the provider-side cache only when the ledger PROVES this
+      // request extends the exact committed prefix (kv-sessions.ts); else a fresh key.
+      const kvRes = kv ? kv.resolve(alias, history, warm.peerKey) : null;
+      const run = completion({ modelId: warm.modelId, history, stream: true, ...(kvRes ? { kvCache: kvRes.key } : {}) });
       if (stream && clientOpen) {
         res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
         res.write(sseChunk(id, alias, created, { role: "assistant" }, null));
@@ -255,10 +261,14 @@ export function createShim(deps: ShimDeps): http.Server {
       }
       const tokenStream = prependToken(first, rest);
 
+      // The full assistant text is accumulated in BOTH branches — the kv ledger commit
+      // needs the exact reply that the provider's cache now holds.
+      let text = "";
       if (stream) {
         for await (const token of tokenStream) {
           if (tokenCount === 0) ttft = Date.now() - t0;
           tokenCount++;
+          text += token;
           if (clientOpen) res.write(sseChunk(id, alias, created, { content: token }, null));
         }
         if (clientOpen) {
@@ -267,7 +277,6 @@ export function createShim(deps: ShimDeps): http.Server {
           res.end();
         }
       } else {
-        let text = "";
         for await (const token of tokenStream) {
           if (tokenCount === 0) ttft = Date.now() - t0;
           tokenCount++;
@@ -276,8 +285,27 @@ export function createShim(deps: ShimDeps): http.Server {
         if (clientOpen) json(res, 200, { id, object: "chat.completion", created, model: alias, choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }] });
       }
 
-      const stats = await run.final.then((f: CompletionFinal) => f.stats).catch(() => undefined);
-      audit?.record({ event: "completion", modelId: warm.modelId, ttftMs: ttft, tokens: stats?.generatedTokens ?? tokenCount, tokensPerSecond: stats?.tokensPerSecond, durationMs: Date.now() - t0, extra: { role: "shim", delegated: true, alias, peer: warm.peerKey.slice(0, 16) } });
+      let finalOk = false;
+      const stats = await run.final
+        .then((f: CompletionFinal) => {
+          finalOk = true;
+          return f.stats;
+        })
+        .catch(() => undefined);
+      // Commit ONLY on a clean final (drained disconnects included; the TTFB-timeout and
+      // error paths never reach here) — an uncommitted entry stays dirty, so the next
+      // turn of that session auto-bumps to a fresh key instead of trusting unknown state.
+      if (kvRes && finalOk) kv?.commit(kvRes.sessionId, history, text);
+      audit?.record({
+        event: "completion",
+        modelId: warm.modelId,
+        ttftMs: ttft,
+        tokens: stats?.generatedTokens ?? tokenCount,
+        tokensPerSecond: stats?.tokensPerSecond,
+        ...(stats?.cacheTokens != null ? { cacheTokens: stats.cacheTokens } : {}),
+        durationMs: Date.now() - t0,
+        extra: { role: "shim", delegated: true, alias, peer: warm.peerKey.slice(0, 16), ...(kvRes ? { kvKey: kvRes.key, kvFresh: kvRes.fresh } : {}) },
+      });
     } catch (err) {
       const msg = `hypha shim: delegated completion failed: ${err instanceof Error ? err.message : String(err)}`;
       audit?.record({ event: "note", extra: { role: "shim", alias, peer: warm.peerKey.slice(0, 16), error: msg, afterFirstByte: tokenCount > 0 } });

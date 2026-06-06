@@ -87,6 +87,8 @@ export interface AuditRecord {
   /** Time to first token, ms. */
   ttftMs?: number;
   tokensPerSecond?: number;
+  /** Prompt tokens served from a KV-cache hit (delegated kvCache sessions). */
+  cacheTokens?: number;
   /** Wall-clock duration of the operation, ms. */
   durationMs?: number;
   /** Free-form structured extras (latency breakdowns, scores, loss, etc.). */
@@ -124,6 +126,10 @@ export function createLogger(scope: string) {
 // Audit logger lives in its own module (filesystem-touching); re-exported here so
 // every layer imports it from "@mycelium/shared".
 export { AuditLog, now } from "./audit.ts";
+
+// KV-cache session ledger (hypha shim + Leash web chat route share the proven logic).
+export { KvSessions, sweepKvCacheDir } from "./kv-sessions.ts";
+export type { ChatTurn, KvResolution } from "./kv-sessions.ts";
 
 // The context-graph node type — the unit replicated across the mesh (Week-2). Lives
 // here (dependency-free) so both senses and mesh use it without a dependency cycle.

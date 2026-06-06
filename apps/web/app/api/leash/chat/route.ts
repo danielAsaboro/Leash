@@ -161,6 +161,13 @@ export async function POST(req: Request): Promise<Response> {
   // while the serve is decoding (aborting/killing mid-generation wedges the GPU).
   const release = beginGeneration();
 
+  // NOTE on serve-side kvCache: the forked serve accepts a `kv_cache` body field (see
+  // patches/@qvac+cli) and hypha's shim caches delegated sessions — but THIS route does
+  // not send a key. Every text tier runs tools-ON (the TOOLLESS-HANG guard in effort.ts),
+  // and custom-key kv reuse across tool-call turns is unverified SDK territory; a wrong
+  // count-state silently corrupts answers. Hypha-only by design — see the README.
+  const modelInput = await convertToModelMessages(modelMessages);
+
   const result = streamText({
     model: imageTurn ? visionModel() : health ? medpsyModel() : chatModel(),
     system,
@@ -171,7 +178,7 @@ export async function POST(req: Request): Promise<Response> {
     // tier's maxOutputTokens) and the next turn queues briefly behind it — slow beats dead.
     // Compacted for the model (summary + recent tail); the full thread is still saved
     // via `originalMessages: validated` below.
-    messages: await convertToModelMessages(modelMessages),
+    messages: modelInput,
     // VLMs handle one image-grounded turn; tools/multi-step only on the text models.
     ...(imageTurn || !cfg
       ? {}

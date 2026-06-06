@@ -1,5 +1,29 @@
+diff --git a/node_modules/@qvac/cli/dist/serve/routes/chat.js b/node_modules/@qvac/cli/dist/serve/routes/chat.js
+index fe35bbb..b3c161a 100644
+--- a/node_modules/@qvac/cli/dist/serve/routes/chat.js
++++ b/node_modules/@qvac/cli/dist/serve/routes/chat.js
+@@ -84,7 +84,8 @@ async function runBlocking(req, reply, p) {
+         stream: false,
+         ...(p.tools !== undefined ? { tools: p.tools } : {}),
+         ...(p.generationParams !== undefined ? { generationParams: p.generationParams } : {}),
+-        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {})
++        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {}),
++        ...(p.kvCache !== undefined ? { kvCache: p.kvCache } : {}) // [leash fork] kv_cache passthrough
+     });
+     req.bindCancel(result.requestId);
+     const text = await result.text;
+@@ -121,7 +122,8 @@ async function runStreaming(req, reply, p) {
+         stream: true,
+         ...(p.tools !== undefined ? { tools: p.tools } : {}),
+         ...(p.generationParams !== undefined ? { generationParams: p.generationParams } : {}),
+-        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {})
++        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {}),
++        ...(p.kvCache !== undefined ? { kvCache: p.kvCache } : {}) // [leash fork] kv_cache passthrough
+     });
+     req.bindCancel(result.requestId);
+     initSSE(reply);
 diff --git a/node_modules/@qvac/cli/dist/serve/schemas/chat.js b/node_modules/@qvac/cli/dist/serve/schemas/chat.js
-index 45e0693..8a4e9e4 100644
+index 45e0693..7c2492d 100644
 --- a/node_modules/@qvac/cli/dist/serve/schemas/chat.js
 +++ b/node_modules/@qvac/cli/dist/serve/schemas/chat.js
 @@ -1,5 +1,28 @@
@@ -59,6 +83,17 @@ index 45e0693..8a4e9e4 100644
          return {
              role: msg.role,
              content: typeof msg.content === 'string' ? msg.content : (msg.content ?? '').toString()
+@@ -52,6 +96,9 @@ export function toSdkChatArgs(body) {
+         tools: openaiToolsToSdk(body.tools),
+         generationParams: extractGenerationParams(body, 'max_completion_tokens'),
+         responseFormat: responseFmt,
+-        stream: Boolean(body.stream)
++        stream: Boolean(body.stream),
++        // [leash fork] opt-in KV-cache session key — passthrough body field `kv_cache`
++        // (string). The web chat route sends it for toolless turns (LEASH_KV_CACHE=1).
++        kvCache: typeof body.kv_cache === 'string' && body.kv_cache ? body.kv_cache : undefined
+     };
+ }
 diff --git a/node_modules/@qvac/cli/dist/serve/schemas/common.js b/node_modules/@qvac/cli/dist/serve/schemas/common.js
 index 1286edb..aa7ebb5 100644
 --- a/node_modules/@qvac/cli/dist/serve/schemas/common.js
