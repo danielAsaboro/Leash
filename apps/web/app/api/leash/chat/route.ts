@@ -10,7 +10,7 @@
  * client disconnect still saves. Server-side message IDs keep stored threads stable —
  * which the future "dreaming"/consolidation pass relies on.
  */
-import { streamText, convertToModelMessages, stepCountIs, validateUIMessages, createIdGenerator } from "ai";
+import { streamText, convertToModelMessages, stepCountIs, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
 import { chatModel, medpsyModel, visionModel, CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL } from "../../../../lib/leash/provider.ts";
 import { leashTools } from "../../../../lib/leash/tools.ts";
@@ -27,6 +27,7 @@ import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
 import { beginGeneration } from "../../../../lib/leash/inflight.ts";
+import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
 
 export const runtime = "nodejs";
@@ -186,21 +187,44 @@ export async function POST(req: Request): Promise<Response> {
   // signal that ALWAYS fires once the serve is done decoding (success, error, or abandoned client).
   void result.consumeStream().then(release, release);
 
-  return result.toUIMessageStreamResponse({
+  // Wrap the model stream so out-of-band MCP elicitation events (server→user forms, see
+  // elicitations.ts) ride this same SSE response as TRANSIENT data parts — they reach
+  // `useChat`'s onData but are never persisted into the message. Wedge invariants are
+  // unchanged: same no-abortSignal streamText above, same consumeStream→release, and
+  // `originalMessages` keeps the same message-id reuse as before.
+  let unsubscribe: (() => void) | undefined;
+  const stream = createUIMessageStream<LeashUIMessage>({
     originalMessages: validated,
-    sendReasoning: true,
-    generateMessageId: createIdGenerator({ prefix: "msg", size: 16 }),
-    messageMetadata: ({ part }) => {
-      if (part.type === "start") return { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}) };
-      if (part.type === "finish") return { finishedAt: Date.now(), totalTokens: part.totalUsage?.totalTokens };
+    generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+    execute: ({ writer }) => {
+      unsubscribe = subscribeElicitations((ev) => {
+        try {
+          writer.write({ type: "data-elicitation", data: ev, transient: true });
+        } catch {
+          /* stream already closed — the GET /elicitations fallback covers reloads */
+        }
+      });
+      writer.merge(
+        result.toUIMessageStream({
+          sendReasoning: true,
+          messageMetadata: ({ part }) => {
+            if (part.type === "start") return { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}) };
+            if (part.type === "finish") return { finishedAt: Date.now(), totalTokens: part.totalUsage?.totalTokens };
+            return undefined;
+          },
+          onError: (error) => {
+            release();
+            return error instanceof Error ? error.message : String(error);
+          },
+        }),
+      );
     },
     onFinish: ({ messages: finalMessages }) => {
+      unsubscribe?.();
       release(); // idempotent belt-and-braces alongside consumeStream().finally
       void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
     },
-    onError: (error) => {
-      release();
-      return error instanceof Error ? error.message : String(error);
-    },
   });
+
+  return createUIMessageStreamResponse({ stream });
 }

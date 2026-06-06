@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,9 +8,10 @@ import { Message, MessageContent, MessageResponse } from "@/components/ai-elemen
 import { PromptInput, PromptInputProvider, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputSubmit, PromptInputActionMenu, PromptInputActionMenuTrigger, PromptInputActionMenuContent, PromptInputActionAddAttachments, usePromptInputController, usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { ToolView } from "./leash-tools.tsx";
+import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
 import { blobToWav } from "@/lib/leash/audio";
-import type { LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
+import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
 
 /**
  * The Leash chat surface (client) — Vercel AI Elements on the AI SDK, re-skinned with
@@ -196,6 +197,16 @@ export function friendlyChatError(error: Error): string {
 export function LeashChat({ id, initialMessages }: { id: string; initialMessages: LeashUIMessage[] }) {
   // Hands-free "call" overlay — shares THIS useChat instance (no second transport/store).
   const [callOpen, setCallOpen] = useState(false);
+  // Pending MCP elicitation forms (server→user questions mid-tool-call). Fed by the
+  // stream's transient `data-elicitation` parts; seeded from GET /elicitations on mount
+  // so a reload mid-form recovers the card. Resolved/timed-out ids drop out.
+  const [elicitations, setElicitations] = useState<ElicitationView[]>([]);
+  useEffect(() => {
+    fetch("/api/leash/elicitations")
+      .then((r) => (r.ok ? r.json() : { elicitations: [] }))
+      .then((d: { elicitations?: ElicitationView[] }) => setElicitations((prev) => (prev.length === 0 ? (d.elicitations ?? []) : prev)))
+      .catch(() => {});
+  }, []);
   const { messages, sendMessage, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
     id,
     messages: initialMessages,
@@ -214,6 +225,11 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       },
     }),
     experimental_throttle: 50,
+    onData: (part) => {
+      if (part.type !== "data-elicitation") return;
+      const ev = part.data as LeashElicitationEvent;
+      setElicitations((prev) => (ev.kind === "open" ? [...prev.filter((e) => e.id !== ev.elicitation.id), ev.elicitation] : prev.filter((e) => e.id !== ev.id)));
+    },
     onError: (e) => console.error("Leash chat error:", e),
   });
   const busy = status === "submitted" || status === "streaming";
@@ -254,6 +270,11 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
               />
             ))
           )}
+
+          {/* Pending MCP elicitation forms — an MCP server is waiting on the user. */}
+          {elicitations.map((e) => (
+            <ElicitationCard key={e.id} elicitation={e} onDone={(doneId) => setElicitations((prev) => prev.filter((x) => x.id !== doneId))} />
+          ))}
 
           {error && (
             <div className="chat-error">
