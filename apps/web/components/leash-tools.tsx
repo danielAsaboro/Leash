@@ -26,7 +26,12 @@ const LOADING_LABEL: Record<string, string> = {
   generate_image: "Painting your image (on-device)…",
 };
 
-export function ToolView({ part }: { part: Part }) {
+/** Approval handle (mirrors LeashChat's) — present only when the card is actionable. */
+interface ApprovalHandle {
+  respond: (args: { id: string; approved: boolean; reason?: string }) => void;
+}
+
+export function ToolView({ part, approval }: { part: Part; approval?: ApprovalHandle }) {
   const name = toolName(part);
   const state = part.state as string;
 
@@ -35,6 +40,26 @@ export function ToolView({ part }: { part: Part }) {
   }
   if (state === "output-error") {
     return <div className="tool-card tool-error-card">⚠ {name}: {String(part.errorText ?? "failed")}</div>;
+  }
+  // HITL "Ask first": the run pauses here until the user approves or denies.
+  if (state === "approval-requested") return <ApprovalCard name={name} part={part} approval={approval} />;
+  if (state === "approval-responded") {
+    return (
+      <div className="tool-card">
+        <span className="tool-card-kicker kicker">
+          {part.approval?.approved ? "✓ Approved" : "✕ Denied"} · {name} {part.approval?.approved ? "— running…" : ""}
+        </span>
+      </div>
+    );
+  }
+  if (state === "output-denied") {
+    return (
+      <div className="tool-card">
+        <span className="tool-card-kicker kicker" style={{ color: "var(--color-brick)" }}>
+          ✕ {name} — denied by you, not run
+        </span>
+      </div>
+    );
   }
   if (state !== "output-available") return null;
 
@@ -99,6 +124,36 @@ function NowChip({ output }: { output: { text?: string } }) {
   return (
     <div className="now-chip">
       <span aria-hidden>🕑</span> {when || "now"}
+    </div>
+  );
+}
+
+/**
+ * The approval card: tool name + pretty-printed input + Approve / Deny. Only actionable
+ * on the last assistant message of an idle chat (the `approval` handle is withheld
+ * otherwise — e.g. mid-stream or in history after a reload).
+ */
+function ApprovalCard({ name, part, approval }: { name: string; part: Part; approval?: ApprovalHandle }) {
+  const input = part.input ?? {};
+  const pretty = JSON.stringify(input, null, 2);
+  return (
+    <div className="tool-card tool-approval-card">
+      <span className="tool-card-kicker kicker kicker-sage">⏸ Approval needed · {name}</span>
+      <pre className="tool-approval-input">{pretty}</pre>
+      {approval && part.approval?.id ? (
+        <div className="tool-approval-actions">
+          <button type="button" className="tool-approve" onClick={() => approval.respond({ id: part.approval.id, approved: true })}>
+            ✓ Approve &amp; run
+          </button>
+          <button type="button" className="tool-deny" onClick={() => approval.respond({ id: part.approval.id, approved: false, reason: "denied by user" })}>
+            ✕ Deny
+          </button>
+        </div>
+      ) : (
+        <span className="kicker" style={{ color: "var(--color-faint)" }}>
+          awaiting a decision
+        </span>
+      )}
     </div>
   );
 }

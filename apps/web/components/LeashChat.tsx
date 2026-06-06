@@ -1,7 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
@@ -196,9 +196,12 @@ export function friendlyChatError(error: Error): string {
 export function LeashChat({ id, initialMessages }: { id: string; initialMessages: LeashUIMessage[] }) {
   // Hands-free "call" overlay — shares THIS useChat instance (no second transport/store).
   const [callOpen, setCallOpen] = useState(false);
-  const { messages, sendMessage, status, error, regenerate, stop } = useChat<LeashUIMessage>({
+  const { messages, sendMessage, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
     id,
     messages: initialMessages,
+    // Tool approvals ("Ask first" tools): once every approval card on the last assistant
+    // message has an answer, resend it automatically so the run continues server-side.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     transport: new DefaultChatTransport({
       api: "/api/leash/chat",
       // Send only the last message + trigger; the server rebuilds history from the store.
@@ -239,8 +242,16 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
               </div>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => (
-              <MessageView key={m.id} message={m} streaming={busy} onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined} />
+            messages.map((m, idx) => (
+              <MessageView
+                key={m.id}
+                message={m}
+                streaming={busy}
+                onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined}
+                // Approval cards are actionable only on the LAST message of an idle chat —
+                // historical cards render as inert chips.
+                approval={idx === messages.length - 1 && status === "ready" ? { respond: addToolApprovalResponse } : undefined}
+              />
             ))
           )}
 
@@ -309,7 +320,12 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   );
 }
 
-function MessageView({ message, streaming, onRegenerate }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void }) {
+/** Approval handle passed down only when the card should be actionable (last message, idle). */
+export interface ApprovalHandle {
+  respond: (args: { id: string; approved: boolean; reason?: string }) => void;
+}
+
+function MessageView({ message, streaming, onRegenerate, approval }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void; approval?: ApprovalHandle }) {
   const { role } = message;
   const parts = message.parts as Part[];
   // Read-aloud is a small state machine: idle → loading (synthesizing) → playing → idle.
@@ -410,7 +426,7 @@ function MessageView({ message, streaming, onRegenerate }: { message: LeashUIMes
             return <MessageResponse key={i}>{p.text ?? ""}</MessageResponse>;
           }
           if (isToolPart(p)) {
-            return <ToolView key={i} part={p} />;
+            return <ToolView key={i} part={p} approval={approval} />;
           }
           return null;
         })}

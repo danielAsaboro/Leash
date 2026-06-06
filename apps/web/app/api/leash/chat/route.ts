@@ -21,7 +21,7 @@ import { skillTools, skillsSystemSection } from "../../../../lib/leash/skill-too
 import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
-import { filterEnabledTools, disabledTools } from "../../../../lib/leash/tool-config.ts";
+import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
 import { repairLeashToolCall } from "../../../../lib/leash/json-repair.ts";
 import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
@@ -82,8 +82,15 @@ export async function POST(req: Request): Promise<Response> {
   if (trigger === "regenerate-message" && messageId) {
     const idx = previous.findIndex((m) => m.id === messageId);
     messages = idx === -1 ? previous : previous.slice(0, idx); // drop the assistant msg → regenerate
+  } else if (message) {
+    // REPLACE-BY-ID, not append: a tool-approval response mutates the LAST ASSISTANT
+    // message in place client-side and resends it under the SAME id — appending would
+    // duplicate it in the stored thread. A normal user submit has a fresh id (i === -1)
+    // and still appends.
+    const i = previous.findIndex((m) => m.id === message.id);
+    messages = i === -1 ? [...previous, message] : [...previous.slice(0, i), message, ...previous.slice(i + 1)];
   } else {
-    messages = message ? [...previous, message] : previous; // submit-message
+    messages = previous;
   }
 
   // Validate stored+new messages against current tool/metadata schemas; fall back to raw on drift.
@@ -118,11 +125,16 @@ export async function POST(req: Request): Promise<Response> {
 
   // Tool toggles apply at streamText (not at validation): old threads must still
   // validate against the full registry even when a tool they used is now disabled.
-  const enabledTools = await filterEnabledTools(tools);
+  // Approval gates ("Ask first") read config at call time — a toggle applies next turn.
+  const enabledTools = withApprovalGates(await filterEnabledTools(tools));
   // The (possibly overridden) system prompt may still NAME disabled tools — tell the
   // model they're gone, or it text-hallucinates <tool_call> blocks for them.
   const off = await disabledTools();
   const disabledNote = off.size > 0 ? `The following tools are DISABLED and unavailable right now — do not attempt to call them: ${[...off].join(", ")}.` : "";
+  // Some tool calls pause on a human approval card. A DENIED call must not be retried —
+  // acknowledge the refusal and move on (without this, small models loop the same call).
+  const approvalNote =
+    "Some tool calls require the user's approval before running. If the user denies a tool call, do NOT retry it — acknowledge that it was declined and continue without it.";
 
   // Context compaction (text turns only): when the thread outgrows the model's window,
   // summarize the oldest messages into a stored running summary and send only
@@ -140,7 +152,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, prefSection, skillsSection, disabledNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, prefSection, skillsSection, disabledNote, approvalNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 

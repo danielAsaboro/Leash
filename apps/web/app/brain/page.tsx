@@ -12,7 +12,7 @@ import { modelsInventory, catalogWithFit, listDownloads } from "../../lib/leash/
 import { forage } from "../../lib/leash/forage.ts";
 import { serveStatus } from "../../lib/leash/serve-control.ts";
 import { getPrompts } from "../../lib/leash/prompts-store.ts";
-import { disabledTools } from "../../lib/leash/tool-config.ts";
+import { disabledTools, askFirstOverrides, DEFAULT_ASK_FIRST } from "../../lib/leash/tool-config.ts";
 import { leashTools } from "../../lib/leash/tools.ts";
 import { taskTools } from "../../lib/leash/task-tools.ts";
 import { memoryTools } from "../../lib/leash/memory-tools.ts";
@@ -34,12 +34,14 @@ const TABS = ["memory", "skills", "tools", "prompts", "models", "forage"] as con
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, off] = await Promise.all([leashMcpTools(), disabledTools()]);
+  const [mcp, off, ask] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides()]);
   const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...mcp };
   return Object.entries(registry).map(([name, t]) => ({
     name,
     description: ((t as { description?: string }).description ?? "").slice(0, 240),
     enabled: !off.has(name),
+    askFirst: ask[name] ?? DEFAULT_ASK_FIRST.has(name),
+    askFirstDefault: DEFAULT_ASK_FIRST.has(name),
   }));
 }
 

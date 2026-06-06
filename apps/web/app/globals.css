@@ -1026,6 +1026,37 @@
     font-family: var(--font-mono);
     font-size: 0.72rem;
   }
+  /* HITL approval card (Ask-first tools) + the kin elicitation card (MCP forms). */
+  .tool-approval-card { border-left-color: var(--color-gold, #b8860b); }
+  .tool-approval-input {
+    margin: 0.2rem 0 0.6rem;
+    padding: 0.5rem 0.6rem;
+    background: var(--color-cream);
+    border: 1px solid var(--color-rule);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 14rem;
+    overflow: auto;
+  }
+  .tool-approval-actions { display: flex; gap: 0.5rem; }
+  .tool-approve,
+  .tool-deny {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.8rem;
+    border-radius: 3px;
+    border: 1px solid var(--color-rule-strong);
+    transition: opacity 0.12s;
+  }
+  .tool-approve { background: var(--color-sage-deep); color: var(--color-cream); border-color: var(--color-sage-deep); }
+  .tool-deny { background: transparent; color: var(--color-brick); }
+  .tool-approve:hover,
+  .tool-deny:hover { opacity: 0.75; }
   .tool-articles { display: flex; flex-direction: column; }
   .tool-article {
     display: flex;
