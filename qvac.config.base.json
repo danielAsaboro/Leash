@@ -18,7 +18,7 @@
         "preload": true
       },
       "medpsy": {
-        "src": "/Users/cartel/.qvac/models/medpsy-1.7b-q4_k_m-imat.gguf",
+        "src": "~/.qvac/models/medpsy-1.7b-q4_k_m-imat.gguf",
         "type": "llamacpp-completion",
         "preload": true,
         "config": {
@@ -32,7 +32,7 @@
         "preload": true,
         "config": {
           "ctx_size": 4096,
-          "projectionModelSrc": "/Users/cartel/.qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
+          "projectionModelSrc": "~/.qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
         }
       },
       "parakeet": {

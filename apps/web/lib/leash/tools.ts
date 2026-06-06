@@ -241,7 +241,7 @@ export const leashTools = {
         const text = offline
           ? "I couldn't generate the image — the on-device model service is offline. Start it with `npm run qvac`."
           : missing
-            ? `I couldn't generate the image — the image model "${IMAGE_MODEL}" isn't loaded. Add it to qvac.config.json → serve.models and restart \`npm run qvac\`.`
+            ? `I couldn't generate the image — the image model "${IMAGE_MODEL}" isn't loaded. Add it to qvac.config.base.json → serve.models and restart \`npm run qvac\`.`
             : `I couldn't generate the image: ${raw}`;
         return { error: text, prompt, text };
       }

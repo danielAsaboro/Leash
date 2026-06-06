@@ -8,7 +8,7 @@
  * lists READY models only.
  */
 import "server-only";
-import { readdir, stat } from "node:fs/promises";
+import { readdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, basename } from "node:path";
 import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
@@ -17,11 +17,29 @@ import { estimateFit, type FitEstimate } from "./hwfit.ts";
 /** Where `qvac serve openai` listens (same default as the provider). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 
-/** The SDK's model cache (`~/.qvac/models`; symlinked to the external SSD on this Mac). */
+/** The SDK's model cache (`~/.qvac/models`; on some machines symlinked to an external SSD). */
 export const QVAC_MODELS_DIR = process.env["QVAC_MODELS_DIR"] ?? join(homedir(), ".qvac", "models");
 
-/** The serve's config — the `serve.models` set Leash edits (load = config + restart). */
-export const QVAC_CONFIG_FILE = process.env["QVAC_CONFIG_PATH"] ?? join(DATA_DIR, "..", "qvac.config.json");
+/**
+ * Where the model cache REALLY lives — follows the `~/.qvac` symlink when present
+ * ("external SSD · <volume>") instead of hardcoding one machine's setup.
+ */
+export async function modelsDirLocation(): Promise<string> {
+  try {
+    const real = await realpath(QVAC_MODELS_DIR);
+    const vol = /^\/Volumes\/([^/]+)/.exec(real);
+    return vol ? `external SSD · ${vol[1]}` : "internal SSD";
+  } catch {
+    return "internal SSD";
+  }
+}
+
+/**
+ * The serve's config DATA — the `serve.models` set Leash edits (load = config + restart).
+ * NOTE: this is the machine-neutral base JSON behind `qvac.config.mjs` (which expands
+ * `~/` paths for the CLI/SDK); Leash edits the JSON, the serve loads the wrapper.
+ */
+export const QVAC_CONFIG_FILE = process.env["QVAC_CONFIG_PATH"] ?? join(DATA_DIR, "..", "qvac.config.base.json");
 
 /** The SDK catalog dump written by `scripts/leash-model-catalog.mts` (spawned child). */
 export const CATALOG_FILE = process.env["LEASH_MODELS_CATALOG"] ?? join(DATA_DIR, "leash-models-catalog.json");
@@ -89,7 +107,7 @@ export function fmtBytes(bytes: number): string {
   return `${bytes} B`;
 }
 
-// ── Inventory merge: catalog + qvac.config.json + disk + live ─────────────────
+// ── Inventory merge: catalog + qvac.config.base.json + disk + live ─────────────────
 
 /** One catalog entry from the SDK dump (see scripts/leash-model-catalog.mts). */
 export interface CatalogModel {
@@ -112,7 +130,7 @@ interface CatalogFile {
   models: CatalogModel[];
 }
 
-/** A `serve.models` entry as written in qvac.config.json (both shapes). */
+/** A `serve.models` entry as written in qvac.config.base.json (both shapes). */
 export interface ServeModelEntry {
   /** SDK constant name (constant shape). */
   model?: string;
@@ -143,7 +161,7 @@ export async function readCatalog(): Promise<CatalogModel[]> {
   return raw?.models ?? [];
 }
 
-/** qvac.config.json, leniently (mtime-cached; tolerates hand-edits). */
+/** qvac.config.base.json, leniently (mtime-cached; tolerates hand-edits). */
 export async function readQvacConfig(): Promise<QvacConfig> {
   return readJsonCached<QvacConfig>(QVAC_CONFIG_FILE, {});
 }
@@ -179,7 +197,7 @@ export interface InventoryRow {
 
 export interface ModelsInventory {
   serve: LiveModels;
-  /** Models referenced by qvac.config.json (the serve set). */
+  /** Models referenced by qvac.config.base.json (the serve set). */
   configured: InventoryRow[];
   /** Cached files on disk not referenced by the config (catalog-identified when possible). */
   onDiskOnly: InventoryRow[];
@@ -368,7 +386,7 @@ export async function listDownloads(): Promise<DownloadStatus[]> {
   return all.map(settle).sort((a, b) => b.startedAt - a.startedAt);
 }
 
-// ── qvac.config.json edits (the "load a model" half of the lifecycle) ──────────
+// ── qvac.config.base.json edits (the "load a model" half of the lifecycle) ──────────
 // There is NO HTTP load endpoint on the serve: loading = add the alias here +
 // restart the serve. Edits go through a promise-mutex with a FRESH read per edit
 // and an atomic rename, so concurrent dashboard clicks and hand-edits never lose

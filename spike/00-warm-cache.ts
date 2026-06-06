@@ -2,7 +2,7 @@
  * Spike 00 — warm the model cache (run ONCE, online).
  *
  * Pre-downloads every GGUF weight the spike needs from the QVAC registry so all
- * later runs (01–04) are fully offline. `qvac.config.json` in the repo root is
+ * later runs (01–04) are fully offline. `qvac.config.base.json` in the repo root is
  * auto-discovered by the SDK (swarmRelays empty = LAN/no relay).
  *
  *   npm run spike:warm

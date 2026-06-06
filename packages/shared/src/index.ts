@@ -29,7 +29,7 @@ export interface DeviceCapability {
   /**
    * Serve aliases this device exposes, each paired with the delegable `modelSrc`
    * (the SDK `.src` / registryPath string) a peer hands to `loadDelegated`. Resolved
-   * from `qvac.config.json` against the model catalog. Optional: pre-Hypha devices
+   * from `qvac.config.base.json` against the model catalog. Optional: pre-Hypha devices
    * advertise only `availableModels`. (Layer-1 / Hypha overflow.)
    */
   models?: { alias: string; modelSrc: string }[];

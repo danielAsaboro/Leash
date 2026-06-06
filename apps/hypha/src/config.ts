@@ -43,8 +43,8 @@ export const FORGOTTEN_FILE = join(HYPHA_DATA_DIR, "forgotten.json");
 export const UNPAIR_ACK_FILE = join(HYPHA_DATA_DIR, "unpair-ack.json");
 /** Audit JSONL dir (evidence bundle). */
 export const LOG_DIR = join(here, "..", "logs");
-/** Serve alias config — the source of which aliases this device serves locally. */
-export const QVAC_CONFIG_FILE = join(REPO_ROOT, "qvac.config.json");
+/** Serve alias config DATA (machine-neutral `~/` paths; `qvac.config.mjs` wraps it for the CLI/SDK). */
+export const QVAC_CONFIG_FILE = join(REPO_ROOT, "qvac.config.base.json");
 /** Cached `@qvac/ai-sdk-provider` allModels dump (name → registryPath/cacheFile). */
 export const CATALOG_FILE = join(DATA_DIR, "leash-models-catalog.json");
 

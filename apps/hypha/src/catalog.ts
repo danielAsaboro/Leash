@@ -1,7 +1,7 @@
 /**
  * Alias → modelSrc resolution.
  *
- * A device advertises serve ALIASES (from `qvac.config.json`), but a peer delegates by
+ * A device advertises serve ALIASES (from `qvac.config.base.json`), but a peer delegates by
  * `modelSrc`. We resolve each alias's registry `model` name against the cached
  * `data/leash-models-catalog.json` (the `@qvac/ai-sdk-provider` allModels dump) into a
  * delegable id, and can rebuild a full SDK descriptor from that id on the consumer side.
@@ -13,7 +13,12 @@
  * local file.
  */
 import { existsSync, readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { CATALOG_FILE, QVAC_CONFIG_FILE } from "./config.ts";
+
+/** Expand a machine-neutral `~/` config path to THIS machine's home dir. */
+const expandHome = (p: string): string => (p.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
 
 interface CatalogEntry {
   name: string;
@@ -73,7 +78,7 @@ function isChatLlm(entry: ServeModelEntry, cat?: CatalogEntry): boolean {
 }
 
 /**
- * Read THIS device's chat-completable aliases from `qvac.config.json`, each resolved to a
+ * Read THIS device's chat-completable aliases from `qvac.config.base.json`, each resolved to a
  * delegable modelSrc id. Custom-GGUF aliases keep their absolute `.src` path.
  */
 export function localChatAliases(): AliasModel[] {
@@ -85,13 +90,16 @@ export function localChatAliases(): AliasModel[] {
     const catEntry = name ? cat.get(name) : undefined;
     if (!isChatLlm(entry, catEntry)) continue;
     if (entry.src) {
+      // The gossiped modelSrc must be THIS machine's absolute path (the advertiser's own
+      // provider loads it on a delegated request) — expand the config's `~/` prefix.
+      const src = expandHome(entry.src);
       // Advertise honestly: a filesystem `src` that doesn't exist HERE would register the
       // delegated load and then die silently at decode, poisoning peers' warm pools.
-      if (!existsSync(entry.src)) {
-        console.warn(`hypha: not advertising alias "${alias}" — src missing on this machine: ${entry.src}`);
+      if (!existsSync(src)) {
+        console.warn(`hypha: not advertising alias "${alias}" — src missing on this machine: ${src}`);
         continue;
       }
-      out.push({ alias, modelSrc: entry.src });
+      out.push({ alias, modelSrc: src });
     } else if (catEntry?.registryPath) out.push({ alias, modelSrc: catEntry.registryPath });
     // A registry-name model absent from the catalog is skipped (can't resolve a modelSrc).
   }

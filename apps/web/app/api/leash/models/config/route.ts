@@ -1,5 +1,5 @@
 /**
- * `PUT /api/leash/models/config` — edit `serve.models` in qvac.config.json:
+ * `PUT /api/leash/models/config` — edit `serve.models` in qvac.config.base.json:
  *   { action: "add", alias, model }   → add/replace an alias (SDK constant, preload)
  *   { action: "remove", alias }       → drop an alias
  * Honest semantics: changes apply on the NEXT serve restart (no HTTP load exists).

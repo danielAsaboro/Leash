@@ -32,7 +32,7 @@ const patientFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Paramete
 /** Where `qvac serve openai` listens. 11435 (not Ollama's 11434). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 
-/** Served model aliases — must match keys in `qvac.config.json` → `serve.models`. */
+/** Served model aliases — must match keys in `qvac.config.base.json` → `serve.models`. */
 export const CHAT_MODEL = process.env["LEASH_CHAT_MODEL"] ?? "qwen3-4b";
 export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "gte-large";
 /** QVAC's own medical/healthcare specialist (qvac/MedPsy, a Qwen3 fine-tune). */
@@ -91,7 +91,7 @@ export function embeddingModel() {
   return qvacInline.textEmbeddingModel(EMBED_MODEL);
 }
 
-/** Served image model alias (must match `qvac.config.json` → `serve.models`). */
+/** Served image model alias (must match `qvac.config.base.json` → `serve.models`). */
 export const IMAGE_MODEL = process.env["LEASH_IMAGE_MODEL"] ?? "sd";
 
 /** The on-device diffusion model for the `generate_image` tool. */

@@ -10,7 +10,7 @@
  * (source:"dream") so the old store retires without losing anything. Mutations go
  * through an in-process promise-mutex with a fresh read per edit + atomic rename, so
  * concurrent chat-tool calls and UI edits never lose updates (the same discipline the
- * dashboard uses for qvac.config.json edits).
+ * dashboard uses for qvac.config.base.json edits).
  */
 import "server-only";
 import { generateId } from "ai";

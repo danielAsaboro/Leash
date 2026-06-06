@@ -188,7 +188,7 @@ export function friendlyChatError(error: Error): string {
     return "The on-device model service is offline. Start it with `npm run qvac`.";
   }
   if (m.includes("model_not_found") || m.includes("not available") || m.includes("not loaded")) {
-    return "The chat model isn't loaded — check qvac.config.json → serve.models and restart `npm run qvac`.";
+    return "The chat model isn't loaded — check qvac.config.base.json → serve.models and restart `npm run qvac`.";
   }
   return error.message;
 }

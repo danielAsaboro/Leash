@@ -3,7 +3,7 @@
  * child handle.
  *
  *   · start: spawn DETACHED+unref `npx @qvac/cli serve openai --port <port>` with
- *     cwd = the mycelium root — LOAD-BEARING: the CLI find-ups `qvac.config.json`
+ *     cwd = the mycelium root — LOAD-BEARING: the CLI find-ups `qvac.config.*` (the `.mjs` wrapper)
  *     from cwd. Pid recorded in `data/leash-serve.json`; output appended to
  *     `data/leash-serve.log`.
  *   · status: pidfile probe + `lsof` listener probe + HTTP `/v1/models` probe. The
@@ -103,7 +103,7 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
   const log = openSync(LOGFILE, "a");
   try {
     const child = spawn("npx", ["@qvac/cli", "serve", "openai", "--port", String(PORT)], {
-      cwd: ROOT, // load-bearing: the CLI resolves qvac.config.json upward from cwd
+      cwd: ROOT, // load-bearing: the CLI resolves qvac.config.* (the .mjs wrapper) upward from cwd
       detached: true,
       stdio: ["ignore", log, log],
     });

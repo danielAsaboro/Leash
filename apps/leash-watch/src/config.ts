@@ -21,7 +21,7 @@ export const LOG_DIR = join(APP_ROOT, "logs");
 
 /** Where `qvac serve openai` listens (OpenAI-compatible; same default as the web provider). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
-/** Vision-language model alias (must match `qvac.config.json` → `serve.models`). */
+/** Vision-language model alias (must match `qvac.config.base.json` → `serve.models`). */
 export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
 
 /** Capture cadence — seconds between ticks. */

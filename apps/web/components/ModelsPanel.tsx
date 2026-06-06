@@ -38,7 +38,7 @@ function fitBadge(fit: FitEstimate) {
  *   · serve control: start / stop / restart with the inflight 409 guard server-side
  *     and a confirm dialog as the human backstop (a `next dev` restart resets the
  *     counter while the serve may still be decoding)
- *   · inventory: catalog + qvac.config.json + disk cache + live serve, merged
+ *   · inventory: catalog + qvac.config.base.json + disk cache + live serve, merged
  *   · download: detached child with a polled status file (survives dev restarts)
  *   · honest lifecycle: UNLOAD is instant (live `DELETE /v1/models`); LOAD = config
  *     entry + serve restart (the serve has no HTTP load endpoint)
@@ -221,7 +221,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
             </IconButton>
           )}
           {r.inConfig && r.alias && (
-            <IconButton title="Remove from qvac.config.json (won't load next restart)" disabled={busy} onClick={() => void call(() => fetch("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", alias: r.alias }) }), `Remove "${r.alias}" from qvac.config.json? It won't load on the next serve restart.`)}>
+            <IconButton title="Remove from qvac.config.base.json (won't load next restart)" disabled={busy} onClick={() => void call(() => fetch("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", alias: r.alias }) }), `Remove "${r.alias}" from qvac.config.base.json? It won't load on the next serve restart.`)}>
               <RemoveIcon />
             </IconButton>
           )}
@@ -360,7 +360,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
 
       <section>
         <div className="mb-2 flex items-center gap-3">
-          <span className="kicker kicker-sage">Configured (qvac.config.json)</span>
+          <span className="kicker kicker-sage">Configured (qvac.config.base.json)</span>
           <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
         </div>
         <table className="w-full border-collapse">

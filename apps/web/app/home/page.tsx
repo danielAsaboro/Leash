@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { stat } from "node:fs/promises";
 import { prisma } from "../../lib/db.ts";
-import { liveModels, modelsDiskUsage, fmtBytes } from "../../lib/leash/models.ts";
+import { liveModels, modelsDiskUsage, modelsDirLocation, fmtBytes } from "../../lib/leash/models.ts";
 import { ACTIVITY_LOG } from "../../lib/leash/graph.ts";
 import { taskCounts } from "../../lib/leash/tasks-store.ts";
 import { listChats } from "../../lib/leash/chat-store.ts";
@@ -39,9 +39,10 @@ async function watcherMtime(): Promise<number | null> {
 }
 
 export default async function HomePage() {
-  const [live, disk, daemon, watchMs, tasks, chats] = await Promise.all([
+  const [live, disk, diskWhere, daemon, watchMs, tasks, chats] = await Promise.all([
     liveModels(),
     modelsDiskUsage(),
+    modelsDirLocation(),
     prisma.daemonState.findUnique({ where: { id: 1 } }).catch(() => null),
     watcherMtime(),
     taskCounts(),
@@ -172,7 +173,7 @@ export default async function HomePage() {
             <Stat label="Files" value={disk.files.length} />
           </div>
           <p className="kicker mt-3" style={{ color: "var(--color-faint)" }}>
-            ~/.qvac/models (external SSD)
+            ~/.qvac/models ({diskWhere})
           </p>
         </DashCard>
       </div>

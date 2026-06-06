@@ -69,7 +69,7 @@ export async function blobToWav(blob: Blob): Promise<Blob> {
 /**
  * Voices we are willing to ask the local `qvac serve` for, by display label → served alias.
  * The serve resolves an unknown/extra voice down to the bare TTS model, but we only expose
- * what is actually configured (`qvac.config.json` → supertonic.config.voice = "F1") — no fake
+ * what is actually configured (`qvac.config.base.json` → supertonic.config.voice = "F1") — no fake
  * voices (hard rule #4 / plan honesty note). Add a sibling alias here ONLY after verifying the
  * Supertonic voice ID exists; the picker auto-shows once this has more than one entry.
  */

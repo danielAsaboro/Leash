@@ -2,7 +2,7 @@
  * `POST /api/leash/transcribe` — on-device speech-to-text for voice input.
  *
  * Relays the uploaded audio (multipart `file`) to the local `qvac serve openai`
- * transcription endpoint (Parakeet, served from `qvac.config.json`) and returns the
+ * transcription endpoint (Parakeet, served from `qvac.config.base.json`) and returns the
  * recognized `{ text }`. Pure HTTP, on-device, no `@qvac/sdk` in Next — same pattern
  * as the chat/speak routes.
  */
@@ -46,7 +46,7 @@ export async function POST(req: Request): Promise<Response> {
       const code = detail.error?.code ?? `http_${res.status}`;
       const message =
         code === "model_not_found"
-          ? `The transcription model "${STT_MODEL}" isn't loaded. Add it to qvac.config.json → serve.models and restart \`npm run qvac\`.`
+          ? `The transcription model "${STT_MODEL}" isn't loaded. Add it to qvac.config.base.json → serve.models and restart \`npm run qvac\`.`
           : detail.error?.message ?? `Transcription failed (HTTP ${res.status}).`;
       return Response.json({ error: message, code }, { status: 502 });
     }

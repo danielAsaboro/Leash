@@ -2,7 +2,7 @@
  * `POST /api/leash/speak` — on-device "read aloud" for an assistant answer.
  *
  * Relays text to the local `qvac serve openai` speech endpoint (supertonic TTS, served
- * from `qvac.config.json`) and streams the WAV straight back to the browser. Pure HTTP,
+ * from `qvac.config.base.json`) and streams the WAV straight back to the browser. Pure HTTP,
  * on-device, no `@qvac/sdk` in Next — same pattern as the chat route.
  *
  * On failure we return a structured `{ error, code }` JSON (not a generic 502) so the UI
@@ -67,7 +67,7 @@ export async function POST(req: Request): Promise<Response> {
     const code = detail.error?.code ?? `http_${upstream.status}`;
     const message =
       code === "model_not_found"
-        ? `The voice model "${ttsModel}" isn't loaded. Add it to qvac.config.json → serve.models and restart \`npm run qvac\`.`
+        ? `The voice model "${ttsModel}" isn't loaded. Add it to qvac.config.base.json → serve.models and restart \`npm run qvac\`.`
         : detail.error?.message ?? `Speech failed (HTTP ${upstream.status}).`;
     return json({ error: message, code }, 502);
   }
