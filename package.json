@@ -51,7 +51,8 @@
     "warm:media": "tsx apps/web/scripts/warm-media.ts",
     "tag-photos": "tsx apps/web/scripts/tag-photos.mts",
     "broker": "tsx apps/leash-broker/src/main.ts",
-    "hypha": "tsx apps/hypha/src/main.ts"
+    "hypha": "tsx apps/hypha/src/main.ts",
+    "mcp": "tsx apps/leash-mcp/src/main.ts"
   },
   "dependencies": {
     "@qvac/sdk": "^0.12.0",

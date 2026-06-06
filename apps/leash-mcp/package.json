@@ -1,0 +1,16 @@
+{
+  "name": "@mycelium/leash-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Leash MCP server — exposes mesh pairing as MCP tools (:11439). PIN entry and device choice arrive as MCP elicitation forms in the Leash chat.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^4.4.3"
+  }
+}

@@ -18,7 +18,7 @@ import { taskTools } from "../../lib/leash/task-tools.ts";
 import { memoryTools } from "../../lib/leash/memory-tools.ts";
 import { skillTools } from "../../lib/leash/skill-tools.ts";
 import { researchTools } from "../../lib/leash/research-tools.ts";
-import { leashMcpTools } from "../../lib/leash/mcp.ts";
+import { leashMcpTools, mcpServerStatuses } from "../../lib/leash/mcp.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
 import { ToolsPanel, type ToolRow } from "../../components/ToolsPanel.tsx";
@@ -27,10 +27,11 @@ import { MemoryPanel } from "../../components/MemoryPanel.tsx";
 import { MemoriesSection } from "../../components/MemoriesSection.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
 import { ForagePanel } from "../../components/ForagePanel.tsx";
+import { McpPanel } from "../../components/McpPanel.tsx";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "tools", "prompts", "models", "forage"] as const;
+const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "forage"] as const;
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
@@ -67,7 +68,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
             }
             aria-current={tab === t ? "page" : undefined}
           >
-            {t[0]?.toUpperCase() + t.slice(1)}
+            {t === "mcp" ? "MCP" : t[0]?.toUpperCase() + t.slice(1)}
           </Link>
         ))}
       </div>
@@ -80,6 +81,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       )}
       {tab === "skills" && <SkillsPanel skills={await listSkills()} />}
       {tab === "tools" && <ToolsPanel tools={await toolRows()} />}
+      {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
       {tab === "models" && (
         <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />
