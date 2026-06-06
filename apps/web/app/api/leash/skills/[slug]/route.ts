@@ -22,6 +22,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ slug: st
     description: body.description ?? existing.description,
     enabled: body.enabled ?? existing.enabled,
     body: body.body ?? existing.body,
+    extras: existing.extras, // unknown spec frontmatter survives dashboard edits
   });
   return Response.json({ skill });
 }

@@ -4,11 +4,16 @@ import { useRouter } from "next/navigation";
 import type { Skill } from "../lib/leash/skills-store.ts";
 
 /**
- * Skills editor (client) — create / edit / enable / delete skill folders
- * (`<slug>/SKILL.md` + optional attachments). Enabled skills are advertised in the
- * chat system prompt; the model loads the body via `read_skill` and attachments via
- * `read_skill_file`.
+ * Skills editor (client) — create / edit / enable / delete / IMPORT skill folders
+ * (`<slug>/SKILL.md` + optional nested attachments per the agentskills.io layout:
+ * references/, scripts/, assets/). Enabled skills are advertised in the chat system
+ * prompt; the model loads the body via `read_skill`, attachments via `read_skill_file`,
+ * and runs `scripts/*` via `run_skill_script`. Imported zips always land DISABLED —
+ * review, then enable.
  */
+
+/** Nested attachment paths need each segment encoded (not the slashes). */
+const fileUrl = (slug: string, f: string): string => `/api/leash/skills/${slug}/files/${f.split("/").map(encodeURIComponent).join("/")}`;
 
 interface Draft {
   name: string;
@@ -26,7 +31,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
 
   const load = async (f: string) => {
     try {
-      const res = await fetch(`/api/leash/skills/${slug}/files/${encodeURIComponent(f)}`);
+      const res = await fetch(fileUrl(slug, f));
       const body = (await res.json()) as { text?: string; error?: string };
       if (!res.ok) return onError(body.error ?? `Couldn't read ${f}.`);
       setFileName(f);
@@ -40,7 +45,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
     if (!fileName.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/leash/skills/${slug}/files/${encodeURIComponent(fileName.trim())}`, {
+      const res = await fetch(fileUrl(slug, fileName.trim()), {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ content: fileBody }),
@@ -62,7 +67,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
 
   const del = async (f: string) => {
     if (!confirm(`Delete the attachment "${f}"?`)) return;
-    await fetch(`/api/leash/skills/${slug}/files/${encodeURIComponent(f)}`, { method: "DELETE" });
+    await fetch(fileUrl(slug, f), { method: "DELETE" });
     onChanged();
   };
 
@@ -89,7 +94,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
         <input
           value={fileName}
           onChange={(e) => setFileName(e.target.value)}
-          placeholder="filename.md (text files only)"
+          placeholder="filename.md — nested paths ok (references/x.md, scripts/run.sh)"
           aria-label="Attachment filename"
           className="border bg-transparent px-3 py-2"
           style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}
@@ -163,6 +168,12 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
     void call(() => fetch(`/api/leash/skills/${s.slug}`, { method: "DELETE" }));
   };
 
+  const importZip = (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    void call(() => fetch("/api/leash/skills/import", { method: "POST", body: fd }));
+  };
+
   const editor = (
     <section className="border p-4" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }}>
       <span className="kicker kicker-sage">{editing === "new" ? "New skill" : `Editing · ${editing}`}</span>
@@ -218,17 +229,36 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
       {editing !== null ? (
         editor
       ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setEditing("new");
-            setDraft(EMPTY);
-          }}
-          className="kicker self-start px-3 py-2 transition-opacity hover:opacity-80"
-          style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
-        >
-          ＋ New skill
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setEditing("new");
+              setDraft(EMPTY);
+            }}
+            className="kicker px-3 py-2 transition-opacity hover:opacity-80"
+            style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
+          >
+            ＋ New skill
+          </button>
+          <label className="kicker cursor-pointer border px-3 py-2 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
+            Import skill (.zip)
+            <input
+              type="file"
+              accept=".zip,application/zip"
+              className="hidden"
+              disabled={busy}
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = ""; // allow re-selecting the same file
+                if (f) importZip(f);
+              }}
+            />
+          </label>
+          <span className="kicker" style={{ color: "var(--color-faint)" }}>
+            imports land disabled — review, then enable
+          </span>
+        </div>
       )}
 
       {skills.length === 0 && editing === null ? (
