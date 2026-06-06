@@ -34,6 +34,22 @@ interface Status {
   updatedAt: number;
 }
 
+/**
+ * Translate the SDK's registry-corestore failure signatures into actionable messages.
+ * The registry store is SINGLE-PROCESS (exclusive fd-lock, ~10s retry budget) and a
+ * serve/hypha that ever needed the registry holds the lock until stopped.
+ */
+function explainSdkError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (msg.includes("File descriptor could not be locked")) {
+    return `${msg} — the model registry is held by a running daemon (a Model Serve or Hypha that fetched registry data keeps the lock until stopped). Stop Model Serve + Hypha, retry this download, then start them again.`;
+  }
+  if (msg.toLowerCase().includes("moved unsafely")) {
+    return `${msg} — the registry store lost its device-file xattr (copied between machines without -X?). Stop all daemons, delete ~/.qvac/registry-corestore/<key>/CORESTORE (lossless, auto-recreated), and retry.`;
+  }
+  return msg;
+}
+
 function writeStatus(s: Status): void {
   mkdirSync(STATUS_DIR, { recursive: true });
   const tmp = join(STATUS_DIR, `.${s.name}.tmp`);
@@ -72,7 +88,7 @@ async function main(): Promise<void> {
     console.log(`✅ ${name} downloaded`);
     process.exit(0);
   } catch (err) {
-    writeStatus({ ...status, state: "error", error: err instanceof Error ? err.message : String(err), updatedAt: Date.now() });
+    writeStatus({ ...status, state: "error", error: explainSdkError(err), updatedAt: Date.now() });
     console.error(`❌ ${name} download failed:`, err);
     process.exit(1);
   }
