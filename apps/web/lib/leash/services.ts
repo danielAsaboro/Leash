@@ -64,6 +64,8 @@ interface ServiceDef {
    * pairing state (hypha: seed + mesh-store + invite + tombstones).
    */
   dataDir?: string;
+  /** Extra env DEFAULTS for the spawned daemon (the parent's process.env still wins). */
+  env?: Record<string, string>;
 }
 
 function mtimeWithin(file: string, ms: number): { fresh: boolean | null; ageMs: number | null } {
@@ -126,6 +128,9 @@ const DEFS: ServiceDef[] = [
     command: ["npx", "tsx", "apps/leash-broker/src/main.ts"],
     procMatch: "apps/leash-broker/src/main.ts",
     readyProbe: true,
+    // Overflow to the local Hypha shim by default — the dashboard supervises hypha right
+    // next to the broker, and overflow is inert until warm mesh peers actually exist.
+    env: { LEASH_BROKER_HYPHA_URL: `http://127.0.0.1:${HYPHA_PORT}` },
     blurb: `Priority queue in front of the serve (:${BROKER_PORT}) — serializes per-model, prioritizes chat over background, never collides. Point QVAC_OPENAI_URL at it to use.`,
     freshness: async () => {
       try {
@@ -339,7 +344,7 @@ export async function startService(name: ServiceName): Promise<{ ok: boolean; er
   // Truncate ("w") so each Start/Restart begins with a clean log — old runs' noise is cleared.
   const log = openSync(logFile(name), "w");
   try {
-    const child = spawn(def.command[0] as string, def.command.slice(1), { cwd: ROOT, detached: true, stdio: ["ignore", log, log] });
+    const child = spawn(def.command[0] as string, def.command.slice(1), { cwd: ROOT, detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } });
     child.unref();
     if (child.pid === undefined) return { ok: false, error: "spawn returned no pid" };
     await writeJson(pidFile(name), { pid: child.pid, startedAt: Date.now() } satisfies PidRecord);
