@@ -27,7 +27,21 @@ import type { GraphNode, GraphNodeInput, AuditLog, DeviceCapability } from "@myc
 type Entry =
   | { type: "node"; node: GraphNode }
   | { type: "add-writer"; key: string }
-  | { type: "capability"; cap: DeviceCapability };
+  | { type: "remove-writer"; key: string }
+  | { type: "capability"; cap: DeviceCapability }
+  | { type: "forget-capability"; deviceId: string }
+  | { type: "unpair"; a: string; b: string; active: boolean; ts: string };
+
+/** One replicated unpair edge between two devices (writer keys). active=true → unpaired. */
+export interface UnpairRecord {
+  a: string;
+  b: string;
+  active: boolean;
+  ts: string;
+}
+
+/** Canonical view key for an unpair edge — order-independent across the two writer keys. */
+export const unpairKey = (a: string, b: string): string => "unpair:" + [a, b].sort().join("|");
 
 export interface MeshGraphOptions {
   /** Directory for the corestore (one per device/role). */
@@ -59,6 +73,8 @@ export interface PairOptions {
   storeDir: string;
   /** Hex blind-pairing invite minted by the host's mintInvite(). */
   invite: string;
+  /** Give up (close the half-open swarm/store and throw) if the host hasn't confirmed by then. */
+  timeoutMs?: number;
   audit?: AuditLog;
 }
 
@@ -88,13 +104,29 @@ function makeStore(storeDir: string, seed?: string): Corestore {
 function viewOpen(store: unknown) {
   return new Hyperbee((store as Corestore).get("view"), { keyEncoding: "utf-8", valueEncoding: "json" });
 }
-/** The entire CRDT: two idempotent entry shapes. (No view.flush — plain Hyperbee put is durable.) */
-async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { addWriter(key: Buffer, opts?: { indexer?: boolean }): Promise<void> }) {
+/** The entire CRDT: idempotent entry shapes. (No view.flush — plain Hyperbee put is durable.) */
+async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { addWriter(key: Buffer, opts?: { indexer?: boolean }): Promise<void>; removeWriter?(key: Buffer): Promise<void> }) {
   const bee = view as Hyperbee;
   for (const { value } of nodes) {
     if (value?.type === "add-writer") { await host.addWriter(b4a.from(value.key, "hex"), { indexer: true }); continue; }
+    if (value?.type === "remove-writer") {
+      // Revoke a device's write access (disconnect/unpair). Guarded: not every Autobase build
+      // supports removeWriter — a failure must not break linearization of the rest of the batch.
+      try { await host.removeWriter?.(b4a.from(value.key, "hex")); } catch { /* unsupported / already gone */ }
+      continue;
+    }
     if (value?.type === "node") { await bee.put("node:" + value.node.id, value.node); continue; }
-    if (value?.type === "capability") { await bee.put("cap:" + value.cap.deviceId, value.cap); }
+    if (value?.type === "capability") { await bee.put("cap:" + value.cap.deviceId, value.cap); continue; }
+    if (value?.type === "forget-capability") { await bee.del("cap:" + value.deviceId); continue; }
+    if (value?.type === "unpair") {
+      // LWW per pair-edge by ts: a later re-pair retraction (active:false) must beat an earlier
+      // unpair. `>=` so a same-ts record from the later log position wins (retraction-friendly).
+      const key = unpairKey(value.a, value.b);
+      const existing = (await bee.get(key)) as { value?: UnpairRecord } | null;
+      if (!existing?.value || value.ts >= existing.value.ts) {
+        await bee.put(key, { a: value.a, b: value.b, active: value.active, ts: value.ts } satisfies UnpairRecord);
+      }
+    }
   }
 }
 
@@ -124,9 +156,17 @@ export class MeshGraph {
    * expecting to join the hub — use pair() the first time).
    */
   static async open(opts: MeshGraphOptions): Promise<MeshGraph> {
-    const g = MeshGraph.build(makeStore(opts.storeDir, opts.seed), opts.bootstrapKey ?? null, opts.audit);
+    const store = makeStore(opts.storeDir, opts.seed);
+    const g = MeshGraph.build(store, opts.bootstrapKey ?? null, opts.audit);
     g.allowedDevices = opts.allowedDevices;
-    await g.base.ready();
+    try {
+      await g.base.ready();
+    } catch (err) {
+      // A failed open must not keep holding the rocksdb lock in-process (every later open
+      // of this dir would die with "lock hold by current process") — close before rethrowing.
+      await store.close().catch(() => undefined);
+      throw err;
+    }
     return g;
   }
 
@@ -140,6 +180,85 @@ export class MeshGraph {
   writerCount(): number {
     const aw = (this.base as unknown as { activeWriters?: { size: number } }).activeWriters;
     return aw?.size ?? (this.base.writable ? 1 : 0);
+  }
+
+  /**
+   * This device is the ONLY writer — a lone/un-joined mesh (founded but never joined by a
+   * peer). Safe to abandon (close + delete) so the device can join another mesh instead.
+   * A mesh with ≥2 writers holds real peers and must not be silently discarded.
+   */
+  isLone(): boolean {
+    return this.writerCount() <= 1;
+  }
+
+  /**
+   * Add a device writer-key to the pairing allow-list at runtime (LAN click-to-pair). The
+   * host calls this for the initiator's key BEFORE handing back an invite, so a sniffed
+   * invite is useless to any other key (the allow-list is the real capability gate).
+   */
+  allow(writerKey: string): void {
+    if (!this.allowedDevices) this.allowedDevices = new Set<string>();
+    this.allowedDevices.add(writerKey);
+  }
+
+  /** Remove a device writer-key from the pairing allow-list (revoke its ability to re-pair). */
+  disallow(writerKey: string): void {
+    this.allowedDevices?.delete(writerKey);
+  }
+
+  /**
+   * Forget a peer's advertised capability (delete `cap:<deviceId>` from the view). A LIVE
+   * peer re-advertises within a heartbeat and reappears (correct); a stale/dead one stays
+   * gone. Pairs with the firewall reconcile (cap gone → peer dropped from the serve allow-list)
+   * and the warm pool (cap gone → its warm models are dropped).
+   */
+  async forgetCapability(deviceId: string): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot forget a capability");
+    await this.base.append({ type: "forget-capability", deviceId });
+    this.audit?.record({ event: "capability", extra: { deviceId, role: "forget" } });
+  }
+
+  /**
+   * Record (active=true) or retract (active=false) a mutual unpair between two devices.
+   * The record replicates like any other entry, so the OTHER device's daemon learns to
+   * tombstone the initiator back (or to clear the tombstone on re-pair). LWW by ts in apply.
+   */
+  async unpair(a: string, b: string, active: boolean): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot record an unpair");
+    await this.base.append({ type: "unpair", a, b, active, ts: new Date().toISOString() });
+    this.audit?.record({ event: "pairing", extra: { role: "unpair", a, b, active } });
+  }
+
+  /** Read every pair-edge's latest unpair record from the replicated view. */
+  async unpairs(): Promise<UnpairRecord[]> {
+    await this.base.update();
+    const out: UnpairRecord[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "unpair:", lt: "unpair;" })) out.push(value as UnpairRecord);
+    return out;
+  }
+
+  /** Revoke a device's write access to the mesh (full disconnect/unpair). Best-effort. */
+  async removeWriter(writerKey: string): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot remove a writer");
+    await this.base.append({ type: "remove-writer", key: writerKey });
+    this.audit?.record({ event: "pairing", extra: { role: "host", phase: "remove-writer", writerKey } });
+  }
+
+  /**
+   * The writer-key a (possibly fresh) store at `storeDir` would use, computed WITHOUT
+   * pairing — corestore persists its primary key on first `ready()`, so reopening the same
+   * dir later via `pair()` yields the SAME key. Lets a joiner hand its key to the host up
+   * front (so the host can allow-list it before the joiner redeems the invite).
+   */
+  static async prospectiveWriterKey(storeDir: string, seed?: string): Promise<string> {
+    const store = makeStore(storeDir, seed);
+    await store.ready();
+    const localCore = Autobase.getLocalCore(store);
+    await localCore.ready();
+    const key = b4a.toString(localCore.key, "hex");
+    await localCore.close();
+    await store.close();
+    return key;
   }
 
   /** Append a node to THIS device's input. Fills id/ts like GraphStore.append. */
@@ -220,23 +339,46 @@ export class MeshGraph {
   /** Host: mint a hex invite and auto-confirm the first candidate as a writer. */
   async mintInvite(): Promise<string> {
     if (!this.swarm) throw new Error("call joinSwarm() before mintInvite()");
+    // Re-minting (PIN retries / a second pairing session) must not leak the previous
+    // member + BlindPairing — close them first; only the latest invite stays redeemable.
+    if (this.member) {
+      await this.member.close().catch(() => undefined);
+      this.member = null;
+    }
+    if (this.pairing) {
+      await this.pairing.close().catch(() => undefined);
+      this.pairing = null;
+    }
     const { invite, publicKey } = BlindPairing.createInvite(this.base.key);
     this.pairing = new BlindPairing(this.swarm);
     this.member = this.pairing.addMember({
       discoveryKey: this.base.discoveryKey,
       onadd: async (req) => {
-        req.open(publicKey); // decrypt-only: populates req.userData, grants nothing
-        const writerKey = b4a.toString(req.userData, "hex");
-        // Allow-list firewall (Part C): a valid invite is necessary but not sufficient —
-        // an unlisted device is denied here, so the writer is never added/confirmed.
-        if (this.allowedDevices && this.allowedDevices.size > 0 && !this.allowedDevices.has(writerKey)) {
-          req.deny(); // status 1 → candidate throws PAIRING_REJECTED
-          this.audit?.record({ event: "pairing", extra: { role: "host", rejected: true, writerKey } });
-          return;
+        try {
+          req.open(publicKey); // decrypt-only: populates req.userData, grants nothing
+          const writerKey = b4a.toString(req.userData, "hex");
+          // Allow-list firewall (Part C): a valid invite is necessary but not sufficient —
+          // an unlisted device is denied here, so the writer is never added/confirmed.
+          if (this.allowedDevices && this.allowedDevices.size > 0 && !this.allowedDevices.has(writerKey)) {
+            req.deny(); // status 1 → candidate throws PAIRING_REJECTED
+            this.audit?.record({ event: "pairing", extra: { role: "host", rejected: true, writerKey } });
+            return;
+          }
+          if (!this.base.writable) throw new Error("host mesh not writable — cannot append the add-writer record");
+          await this.base.append({ type: "add-writer", key: writerKey });
+          req.confirm({ key: this.base.key });
+          this.audit?.record({ event: "pairing", extra: { role: "host", writerKey } });
+        } catch (err) {
+          // NEVER leave the candidate hanging: a failed admission (non-writable mesh, append
+          // error) must DENY so the joiner gets a fast PAIRING_REJECTED instead of an
+          // infinite "pairing…" wait on its end.
+          this.audit?.record({ event: "pairing", extra: { role: "host", phase: "onadd-failed", error: String(err) } });
+          try {
+            req.deny();
+          } catch {
+            /* channel already gone */
+          }
         }
-        await this.base.append({ type: "add-writer", key: writerKey });
-        req.confirm({ key: this.base.key });
-        this.audit?.record({ event: "pairing", extra: { role: "host", writerKey } });
       },
     });
     await this.member.flushed();
@@ -261,7 +403,39 @@ export class MeshGraph {
     const userData = b4a.from(localCore.key); // hand our writer key to the host
     await localCore.close();
     const candidate = pairing.addCandidate({ invite: b4a.from(opts.invite, "hex"), userData, onadd: () => {} });
-    const result = await candidate.pairing; // { key: autobaseKey }
+    // `candidate.pairing` resolves only when the HOST confirms (rejects on deny). A host that
+    // errors mid-admission (e.g. a non-writable mesh failing its add-writer append) does
+    // neither — without a deadline the joiner would await forever, leaking the swarm and
+    // holding the store open. Time out, clean up fully, and surface a real error instead.
+    const timeoutMs = opts.timeoutMs ?? 60_000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let result: { key: Buffer };
+    try {
+      result = (await Promise.race([
+        candidate.pairing,
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  `pairing not confirmed within ${Math.round(timeoutMs / 1000)}s — the host accepted the PIN but never admitted this device (its mesh may not be writable; if its peers are gone, Reset mesh on the host and pair fresh)`,
+                ),
+              ),
+            timeoutMs,
+          );
+          if (typeof timer.unref === "function") timer.unref();
+        }),
+      ])) as { key: Buffer };
+    } catch (err) {
+      await candidate.close().catch(() => undefined);
+      await pairing.close().catch(() => undefined);
+      await swarm.destroy().catch(() => undefined);
+      await store.close().catch(() => undefined);
+      opts.audit?.record({ event: "pairing", extra: { role: "candidate", failed: true, error: String(err) } });
+      throw err;
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
     await candidate.close();
     await pairing.close();
 

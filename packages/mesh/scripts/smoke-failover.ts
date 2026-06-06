@@ -36,6 +36,21 @@ function pureLogicGate(): void {
   if (allDead.length !== 0) throw new Error(`expected 0 live providers when all stale, got ${allDead.length}`);
 
   console.log("✅ liveProviders: stale + non-providers filtered; plugged ranks above battery; all-stale → empty (→ local fallback)");
+
+  // Load-aware ranking (Hypha): two providers matched on power+RAM are ordered by LOWEST
+  // inflight — the two-identical-Macs case, where a free strong peer must beat a saturated
+  // one. Also exercises the new gossiped fields: models[] (alias→modelSrc) + consumerPublicKey.
+  const models = [{ alias: "qwen3-4b", modelSrc: "mradermacher/Qwen3-4B.Q4_K_M.gguf" }];
+  const busy = makeCapability({ deviceId: "E", displayName: "mac-busy", computeClass: "mac", ramMB: 65536, powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M"], models, inflight: 3, consumerPublicKey: "CK_E", isProvider: true, providerPublicKey: "PK_E", lastSeen: new Date(now - 2_000).toISOString() });
+  const free = makeCapability({ deviceId: "F", displayName: "mac-free", computeClass: "mac", ramMB: 65536, powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M"], models, inflight: 0, consumerPublicKey: "CK_F", isProvider: true, providerPublicKey: "PK_F", lastSeen: new Date(now - 2_000).toISOString() });
+  const loadRanked = liveProviders([busy, free], { now, staleMs: 30_000 });
+  if (loadRanked[0]?.providerPublicKey !== "PK_F" || loadRanked[1]?.providerPublicKey !== "PK_E") {
+    throw new Error(`load-aware ordering wrong: expected PK_F (free) before PK_E (busy), got ${loadRanked.map((c) => `${c.providerPublicKey}@${c.inflight}`).join(",")}`);
+  }
+  if (!loadRanked[0]?.models?.some((m) => m.alias === "qwen3-4b") || loadRanked[0]?.consumerPublicKey !== "CK_F") {
+    throw new Error("new capability fields (models[]/consumerPublicKey) did not survive ranking");
+  }
+  console.log("✅ rankedProviders: equal power+RAM → lower inflight wins (free strong peer beats saturated); models[]+consumerPublicKey carried through");
 }
 
 if (!role) {

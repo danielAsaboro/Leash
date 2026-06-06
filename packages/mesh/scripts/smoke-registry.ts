@@ -34,7 +34,9 @@ try {
     await g.joinSwarm();
     await g.advertise(makeCapability({
       deviceId: g.localWriterKey, displayName: "hub-mac", computeClass: "mac", ramMB: 65536,
-      powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M"], isProvider: true,
+      powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M"],
+      models: [{ alias: "qwen3-4b", modelSrc: "mradermacher/Qwen3-4B.Q4_K_M.gguf" }],
+      inflight: 0, consumerPublicKey: "HUBCONSUMERPUBKEY", isProvider: true,
       providerPublicKey: "HUBPROVIDERPUBKEY",
     }));
     const inv = await g.mintInvite();
@@ -53,15 +55,18 @@ try {
     await waitFor("edge promoted to writer", async () => { await g.update(); return g.writable; });
     await g.advertise(makeCapability({
       deviceId: g.localWriterKey, displayName: "edge-phone", computeClass: "phone", ramMB: 6144,
-      powerState: "battery", availableModels: ["QWEN3_600M_INST_Q4"], isProvider: false,
+      powerState: "battery", availableModels: ["QWEN3_600M_INST_Q4"],
+      consumerPublicKey: "EDGECONSUMERPUBKEY", isProvider: false,
     }));
     await waitFor("hub cap replicated to edge", async () => (await g.capabilities()).some((c) => c.isProvider));
     const caps = await g.capabilities();
     const reg = new CapabilityRegistry();
     caps.forEach((c) => reg.register(c));
     const best = reg.bestProvider();
-    console.log(`edge sees ${caps.length} caps; bestProvider = ${best?.displayName} (provider=${best?.isProvider}, pubkey=${best?.providerPublicKey})`);
+    console.log(`edge sees ${caps.length} caps; bestProvider = ${best?.displayName} (provider=${best?.isProvider}, pubkey=${best?.providerPublicKey}, models=${best?.models?.map((m) => m.alias).join("/") ?? "—"})`);
     if (!best?.isProvider || best.providerPublicKey !== "HUBPROVIDERPUBKEY") throw new Error("bestProvider did not select the replicated hub");
+    if (!best.models?.some((m) => m.alias === "qwen3-4b" && m.modelSrc)) throw new Error("hub's models[] (alias→modelSrc) did not replicate to the edge");
+    if (best.consumerPublicKey !== "HUBCONSUMERPUBKEY") throw new Error("hub's consumerPublicKey did not replicate (firewall gossip broken)");
     console.log("\n✅ EDGE GO");
     await sleep(6000);
     await g.close();

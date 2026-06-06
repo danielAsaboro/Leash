@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "Apache-2.0",
-  "description": "Mycelium \u2014 a private, offline, end-to-end-encrypted exocortex across a personal device mesh. Built on @qvac/sdk for QVAC Hackathon I.",
+  "description": "Mycelium — a private, offline, end-to-end-encrypted exocortex across a personal device mesh. Built on @qvac/sdk for QVAC Hackathon I.",
   "workspaces": [
     "packages/*",
     "apps/*"
@@ -13,6 +13,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "postinstall": "npm run db:generate",
     "build": "tsc -b",
     "typecheck": "tsc -b",
     "senses:smoke": "tsx packages/senses/scripts/smoke-graph-rag.ts",
@@ -49,7 +50,8 @@
     "dream": "tsx apps/web/scripts/dream.mts",
     "warm:media": "tsx apps/web/scripts/warm-media.ts",
     "tag-photos": "tsx apps/web/scripts/tag-photos.mts",
-    "broker": "tsx apps/leash-broker/src/main.ts"
+    "broker": "tsx apps/leash-broker/src/main.ts",
+    "hypha": "tsx apps/hypha/src/main.ts"
   },
   "dependencies": {
     "@qvac/sdk": "^0.12.0",

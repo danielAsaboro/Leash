@@ -18,8 +18,8 @@
  * works on pids we recorded.
  */
 import "server-only";
-import { spawn } from "node:child_process";
-import { openSync, closeSync, statSync, existsSync, readFileSync, mkdirSync } from "node:fs";
+import { spawn, execFileSync } from "node:child_process";
+import { openSync, closeSync, statSync, existsSync, readFileSync, mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson, DATA_DIR } from "./json-store.ts";
 import { ACTIVITY_LOG } from "./graph.ts";
@@ -31,10 +31,12 @@ export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, 
 /** Touched by leash-cron every tick. */
 export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
 
-export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker";
+export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker" | "hypha";
 
 /** Where the broker listens (probe target for its health). */
 const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
+/** Where the Hypha delegated-compute shim listens (probe target for its health). */
+const HYPHA_PORT = Number(process.env["HYPHA_PORT"] ?? 11437);
 
 interface ServiceDef {
   name: Exclude<ServiceName, "qvac-serve">;
@@ -44,6 +46,24 @@ interface ServiceDef {
   blurb: string;
   /** Freshness: true=signal fresh, false=signal stale, null=no signal yet. */
   freshness: () => Promise<{ fresh: boolean | null; detail: string }>;
+  /**
+   * A unique substring of the daemon's command line. If set, the card offers "Force stop":
+   * find EVERY matching process (even ones started outside the dashboard / orphaned) and
+   * kill them. NEVER set this for qvac-serve — SIGKILL mid-decode is the GPU-wedge hazard.
+   */
+  procMatch?: string;
+  /**
+   * The freshness signal flips true quickly once truly ready (an HTTP health probe). When set,
+   * a just-started daemon shows "Starting…" until its probe answers — instead of "Running" the
+   * instant the pid exists. (mtime/db-based services don't get this; their signal lags by design.)
+   */
+  readyProbe?: boolean;
+  /**
+   * The daemon's private state directory. When set, the card offers "Reset": force-stop,
+   * wipe this directory, start fresh. The always-works escape hatch for wedged identity/
+   * pairing state (hypha: seed + mesh-store + invite + tombstones).
+   */
+  dataDir?: string;
 }
 
 function mtimeWithin(file: string, ms: number): { fresh: boolean | null; ageMs: number | null } {
@@ -66,6 +86,7 @@ const DEFS: ServiceDef[] = [
     name: "watcher",
     label: "Screen Watcher",
     command: ["npm", "run", "watch"],
+    procMatch: "apps/leash-watch/src/main.ts",
     blurb: "Observes the screen every ~2 min and appends summaries to the activity trail.",
     freshness: async () => {
       const { fresh, ageMs } = mtimeWithin(ACTIVITY_LOG, 10 * 60 * 1000);
@@ -76,6 +97,7 @@ const DEFS: ServiceDef[] = [
     name: "newsroom",
     label: "Newsroom",
     command: ["npm", "run", "newsroom"],
+    procMatch: "apps/newsroom/src/main.ts",
     blurb: "Writes The Understory — discovers leads and moves articles through the pipeline.",
     freshness: async () => {
       try {
@@ -91,6 +113,7 @@ const DEFS: ServiceDef[] = [
     name: "leash-cron",
     label: "Cron",
     command: ["npx", "tsx", "apps/leash-cron/src/main.ts"],
+    procMatch: "apps/leash-cron/src/main.ts",
     blurb: "The scheduler — fires jobs (dream, tag-photos) and recurring tasks on time.",
     freshness: async () => {
       const { fresh, ageMs } = mtimeWithin(CRON_HEARTBEAT, 2 * 60 * 1000);
@@ -101,14 +124,37 @@ const DEFS: ServiceDef[] = [
     name: "leash-broker",
     label: "Serve Broker",
     command: ["npx", "tsx", "apps/leash-broker/src/main.ts"],
+    procMatch: "apps/leash-broker/src/main.ts",
+    readyProbe: true,
     blurb: `Priority queue in front of the serve (:${BROKER_PORT}) — serializes per-model, prioritizes chat over background, never collides. Point QVAC_OPENAI_URL at it to use.`,
     freshness: async () => {
       try {
         const r = await fetch(`http://127.0.0.1:${BROKER_PORT}/__broker/stats`, { signal: AbortSignal.timeout(1500) });
         if (!r.ok) return { fresh: false, detail: "not answering" };
-        const s = (await r.json()) as { served?: number; aliases?: Record<string, { queued: number }> };
+        const s = (await r.json()) as { served?: number; aliases?: Record<string, { queued: number }>; overflow?: { shed?: number; availabilityRouted?: number } };
         const queued = Object.values(s.aliases ?? {}).reduce((n, a) => n + (a.queued ?? 0), 0);
-        return { fresh: true, detail: `${s.served ?? 0} served · ${queued} queued` };
+        const borrowed = (s.overflow?.shed ?? 0) + (s.overflow?.availabilityRouted ?? 0);
+        return { fresh: true, detail: `${s.served ?? 0} served · ${queued} queued${borrowed > 0 ? ` · ${borrowed} shed→peer` : ""}` };
+      } catch {
+        return { fresh: null, detail: "not running" };
+      }
+    },
+  },
+  {
+    name: "hypha",
+    label: "Mesh (Hypha)",
+    command: ["npx", "tsx", "apps/hypha/src/main.ts"],
+    procMatch: "apps/hypha/src/main.ts",
+    readyProbe: true,
+    dataDir: join(ROOT, "data", "hypha"),
+    blurb: `Delegated-compute daemon (:${HYPHA_PORT}) — joins the encrypted mesh, serves paired peers, pre-warms their models, and is the broker's overflow path. Pair peers via \`npm run hypha invite\` / \`npm run hypha pair <code>\`.`,
+    freshness: async () => {
+      try {
+        const r = await fetch(`http://127.0.0.1:${HYPHA_PORT}/health`, { signal: AbortSignal.timeout(1500) });
+        if (!r.ok) return { fresh: false, detail: "not answering" };
+        const s = (await r.json()) as { peers?: number; warmAliases?: string[]; inflight?: number };
+        const warm = s.warmAliases?.length ?? 0;
+        return { fresh: true, detail: `${s.peers ?? 0} peer(s) · ${warm} warm model(s)${(s.inflight ?? 0) > 0 ? ` · ${s.inflight} delegating` : ""}` };
       } catch {
         return { fresh: null, detail: "not running" };
       }
@@ -127,6 +173,10 @@ export interface ServiceStatus {
   detail: string;
   /** Whether Stop can work (we own a live pid; the serve is port-discovered). */
   stoppable: boolean;
+  /** Whether "Force stop" is offered (kills EVERY matching process, even external/orphaned). */
+  forceStoppable: boolean;
+  /** Whether "Reset" is offered (force-stop + wipe the daemon's data dir + start fresh). */
+  resettable: boolean;
   /** Last lines of the service log (supervised spawns only). */
   logTail: string[];
 }
@@ -148,6 +198,19 @@ function pidAlive(pid: number): boolean {
   }
 }
 
+/** PIDs whose full command line contains `match` (via `pgrep -f`). Empty if none / unavailable. */
+function pgrepF(match: string): number[] {
+  try {
+    const out = execFileSync("pgrep", ["-f", match], { encoding: "utf8" });
+    return out
+      .split("\n")
+      .map((l) => Number(l.trim()))
+      .filter((n) => Number.isInteger(n) && n > 0);
+  } catch {
+    return []; // pgrep exits non-zero when there are no matches
+  }
+}
+
 /** Last `n` lines of a service's log (empty when none). */
 export function readLogTail(name: ServiceName, n = 20): string[] {
   const file = name === "qvac-serve" ? (process.env["LEASH_SERVE_LOG"] ?? join(DATA_DIR, "leash-serve.log")) : logFile(name);
@@ -163,7 +226,8 @@ async function genericStatus(def: ServiceDef): Promise<ServiceStatus> {
   const rec = await readJson<PidRecord | null>(pidFile(def.name), null);
   const ours = rec !== null && pidAlive(rec.pid);
   const { fresh, detail } = await def.freshness();
-  const state: ServiceStatus["state"] = ours ? "running" : fresh ? "external" : "stopped";
+  // Our pid is alive but a readyProbe service hasn't answered yet → "starting", not "running".
+  const state: ServiceStatus["state"] = ours ? (def.readyProbe && fresh !== true ? "starting" : "running") : fresh ? "external" : "stopped";
   return {
     name: def.name,
     label: def.label,
@@ -171,8 +235,10 @@ async function genericStatus(def: ServiceDef): Promise<ServiceStatus> {
     state,
     pid: ours ? (rec as PidRecord).pid : null,
     fresh,
-    detail,
+    detail: state === "starting" ? "starting up…" : detail,
     stoppable: ours,
+    forceStoppable: Boolean(def.procMatch) && (state === "running" || state === "external" || state === "starting"),
+    resettable: Boolean(def.dataDir),
     logTail: readLogTail(def.name),
   };
 }
@@ -192,10 +258,69 @@ export async function servicesStatus(): Promise<ServiceStatus[]> {
         ? `${serve.ready.length} model(s) ready${serve.inflight > 0 ? ` · ${serve.inflight} generation(s) in flight` : ""}`
         : serve.state,
     stoppable: serve.state !== "stopped",
+    forceStoppable: false, // never SIGKILL the serve — GPU-wedge hazard mid-decode
+    resettable: false,
     logTail: readLogTail("qvac-serve"),
   };
   const rest = await Promise.all(DEFS.map(genericStatus));
   return [serveRow, ...rest];
+}
+
+/**
+ * Force stop: find EVERY process whose command line matches the service's `procMatch` —
+ * including copies started outside the dashboard or orphaned — and kill them (SIGTERM, then
+ * SIGKILL after a grace). This is the non-technical "it's stuck, just clear it" button. The
+ * serve has no procMatch, so it can never be force-killed here (wedge safety).
+ */
+export async function forceStopService(name: ServiceName): Promise<{ ok: boolean; error?: string; killed?: number }> {
+  const def = DEFS.find((d) => d.name === name);
+  if (!def?.procMatch) return { ok: false, error: "Force stop isn't available for this service." };
+
+  const pids = pgrepF(def.procMatch).filter((p) => p !== process.pid);
+  for (const pid of pids) {
+    try {
+      process.kill(pid, "SIGTERM");
+    } catch {
+      /* already gone */
+    }
+  }
+  // Grace, then SIGKILL whatever's left.
+  for (let i = 0; i < 8; i++) {
+    await new Promise((r) => setTimeout(r, 400));
+    if (!pids.some((p) => pidAlive(p))) break;
+  }
+  for (const pid of pids) {
+    if (pidAlive(pid)) {
+      try {
+        process.kill(pid, "SIGKILL");
+      } catch {
+        /* gone */
+      }
+    }
+  }
+  await writeJson(pidFile(name), null); // we no longer own anything
+  const survivors = pids.filter((p) => pidAlive(p));
+  if (survivors.length > 0) return { ok: false, error: `couldn't kill pid(s) ${survivors.join(", ")}`, killed: pids.length - survivors.length };
+  return { ok: true, killed: pids.length };
+}
+
+/**
+ * Reset: force-stop every copy, wipe the daemon's private state directory, start fresh.
+ * For hypha this deletes the device's mesh identity (seed), the mesh corestore, the invite,
+ * and the tombstones — the device comes back unpaired with a brand-new writer key. Other
+ * devices keep their state; the user re-pairs afterwards. Only offered for defs with dataDir.
+ */
+export async function resetService(name: ServiceName): Promise<{ ok: boolean; error?: string; pid?: number }> {
+  const def = DEFS.find((d) => d.name === name);
+  if (!def?.dataDir) return { ok: false, error: "Reset isn't available for this service." };
+  const stopped = await forceStopService(name);
+  if (!stopped.ok) return { ok: false, error: stopped.error };
+  try {
+    rmSync(def.dataDir, { recursive: true, force: true });
+  } catch (err) {
+    return { ok: false, error: `couldn't wipe ${def.dataDir}: ${String(err)}` };
+  }
+  return startService(name);
 }
 
 /** Start a generic service (detached, log-file stdio). The serve has its own path. */
@@ -211,7 +336,8 @@ export async function startService(name: ServiceName): Promise<{ ok: boolean; er
     return { ok: false, error: "leash-cron isn't built yet" };
   }
   mkdirSync(SERVICES_DIR, { recursive: true });
-  const log = openSync(logFile(name), "a");
+  // Truncate ("w") so each Start/Restart begins with a clean log — old runs' noise is cleared.
+  const log = openSync(logFile(name), "w");
   try {
     const child = spawn(def.command[0] as string, def.command.slice(1), { cwd: ROOT, detached: true, stdio: ["ignore", log, log] });
     child.unref();

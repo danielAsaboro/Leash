@@ -24,6 +24,13 @@ export interface LoadDelegatedParams {
   fallbackToLocal?: boolean;
   /** Context window for the delegated model. */
   ctxSize?: number;
+  /**
+   * Load the delegated context tool-capable (default true — the council proposer needs
+   * it). Set FALSE for a plain chat/completion path (e.g. the Hypha overflow shim, which
+   * does raw `completion()` with no tool execution): a tools-enabled context driven with
+   * no tools offered can hang (the TOOLLESS-HANG gotcha), so the shim warms toolless.
+   */
+  tools?: boolean;
   audit?: AuditLog;
 }
 
@@ -34,13 +41,14 @@ export async function loadDelegated({
   timeout = 60_000,
   fallbackToLocal = true,
   ctxSize = 4096,
+  tools = true,
   audit,
 }: LoadDelegatedParams): Promise<string> {
   const t = now();
   const modelId = await loadModel({
     modelSrc,
     modelType: "llm",
-    modelConfig: { ctx_size: ctxSize, tools: true },
+    modelConfig: { ctx_size: ctxSize, tools },
     delegate: { providerPublicKey, timeout, fallbackToLocal },
     onProgress: () => {},
   });

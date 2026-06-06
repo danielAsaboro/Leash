@@ -31,14 +31,18 @@ const STATE_LABEL: Record<ServiceStatus["state"], string> = {
 export function ServiceCard({ service, children }: { service: ServiceStatus; children?: React.ReactNode }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showLog, setShowLog] = useState(false);
 
-  const act = async (action: "start" | "stop" | "restart") => {
+  const act = async (action: "start" | "stop" | "restart" | "force-stop" | "force-restart" | "reset") => {
     const danger = service.name === "qvac-serve" && action !== "start";
     if (danger && !confirm(`${action === "stop" ? "Stop" : "Restart"} the model serve? Make sure no generation is running.`)) return;
     if (action === "stop" && service.name !== "qvac-serve" && !confirm(`Stop ${service.label}?`)) return;
+    if ((action === "force-stop" || action === "force-restart") && !confirm(`Force ${action === "force-stop" ? "stop" : "restart"} ${service.label}? This kills every copy of it — including any started in a terminal or left orphaned — and ${action === "force-restart" ? "starts a fresh one." : "leaves it stopped."}`)) return;
+    if (action === "reset" && !confirm(`Wipe this device's mesh identity and ALL pairings, then restart fresh? Other devices keep their state; you'll need to re-pair.`)) return;
     setBusy(true);
+    setPending(action);
     setError(null);
     try {
       const res = await fetch("/api/leash/services", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: service.name, action }) });
@@ -51,8 +55,12 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
       setError("Request failed — is the app still running?");
     } finally {
       setBusy(false);
+      setPending(null);
     }
   };
+
+  /** Button label that switches to a working indicator while its action is in flight. */
+  const lbl = (action: string, idle: string): string => (pending === action ? "working…" : idle);
 
   const running = service.state === "running" || service.state === "ready" || service.state === "starting" || service.state === "unhealthy";
 
@@ -72,17 +80,17 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
           </Link>
         )}
         {!running && service.state !== "external" && (
-          <button type="button" disabled={busy} onClick={() => void act("start")} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-            Start
+          <button type="button" disabled={busy} onClick={() => void act("start")} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-50" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
+            {lbl("start", "Start")}
           </button>
         )}
         {(running || service.state === "external") && service.stoppable && (
           <>
-            <button type="button" disabled={busy} onClick={() => void act("restart")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-              Restart
+            <button type="button" disabled={busy} onClick={() => void act("restart")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
+              {lbl("restart", "Restart")}
             </button>
-            <button type="button" disabled={busy} onClick={() => void act("stop")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
-              Stop
+            <button type="button" disabled={busy} onClick={() => void act("stop")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
+              {lbl("stop", "Stop")}
             </button>
           </>
         )}
@@ -90,6 +98,21 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
           <span className="kicker" style={{ color: "var(--color-faint)" }}>
             started outside the dashboard
           </span>
+        )}
+        {service.forceStoppable && (
+          <>
+            <button type="button" disabled={busy} title="Kills every copy (even ones started in a terminal) and starts a fresh one" onClick={() => void act("force-restart")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
+              {lbl("force-restart", "Force restart")}
+            </button>
+            <button type="button" disabled={busy} title="Kills every copy of this service" onClick={() => void act("force-stop")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
+              {lbl("force-stop", "Force stop")}
+            </button>
+          </>
+        )}
+        {service.resettable && (
+          <button type="button" disabled={busy} title="Force-stops, wipes this device's mesh identity + pairings, and starts fresh" onClick={() => void act("reset")} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-50" style={{ background: "var(--color-brick)", color: "var(--color-cream)" }}>
+            {lbl("reset", "Reset mesh")}
+          </button>
         )}
       </div>
       <p className="mt-1.5" style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>

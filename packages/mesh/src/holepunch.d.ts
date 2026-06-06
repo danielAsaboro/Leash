@@ -54,6 +54,7 @@ declare module "hyperbee" {
   export default class Hyperbee {
     constructor(core: unknown, opts?: { keyEncoding?: string; valueEncoding?: string });
     put(key: string, value: unknown): Promise<void>;
+    del(key: string): Promise<void>;
     get(key: string): Promise<{ key: string; value: unknown } | null>;
     createReadStream(opts?: unknown): AsyncIterable<{ key: string; value: unknown }>;
   }

@@ -26,6 +26,25 @@ export interface DeviceCapability {
   powerState: PowerState;
   /** QVAC model registry ids this device has cached and can serve. */
   availableModels: string[];
+  /**
+   * Serve aliases this device exposes, each paired with the delegable `modelSrc`
+   * (the SDK `.src` / registryPath string) a peer hands to `loadDelegated`. Resolved
+   * from `qvac.config.json` against the model catalog. Optional: pre-Hypha devices
+   * advertise only `availableModels`. (Layer-1 / Hypha overflow.)
+   */
+  models?: { alias: string; modelSrc: string }[];
+  /**
+   * Current in-flight generations on this device (delegated + local), a live load
+   * signal. The registry prefers lower-`inflight` providers so a free strong peer
+   * beats a saturated one. Absent → treated as 0.
+   */
+  inflight?: number;
+  /**
+   * This device's delegated-inference CONSUMER public key, gossiped so providers can
+   * allow-list it in their SDK firewall (closed-mesh trust). Distinct from
+   * `providerPublicKey` (the provider identity).
+   */
+  consumerPublicKey?: string;
   /** True if this device exposes a delegated-inference provider (startQVACProvider). */
   isProvider: boolean;
   /** Provider public key when isProvider is true. */

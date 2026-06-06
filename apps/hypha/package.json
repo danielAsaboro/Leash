@@ -1,0 +1,19 @@
+{
+  "name": "@mycelium/hypha",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Hypha — the headless delegated-compute daemon. Joins the encrypted mesh, serves a delegated-inference provider (firewall = paired peers), pre-warms peer models as a consumer, and exposes a local OpenAI shim (:11437) the leash-broker sheds overflow to.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@mycelium/mesh": "*",
+    "@mycelium/senses": "*",
+    "@mycelium/shared": "*",
+    "@qvac/sdk": "^0.12.0",
+    "bonjour-service": "^1.4.0"
+  }
+}

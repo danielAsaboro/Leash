@@ -37,6 +37,17 @@ const AGING_MS = Number(process.env["LEASH_BROKER_AGING_MS"] ?? 8000);
 // No upstream timeout — decodes are slow; the broker must not body-time-out the serve.
 const dispatcher = new Agent({ bodyTimeout: 0, headersTimeout: 0, connectTimeout: 10_000 });
 
+// ── Mesh overflow (Hypha) — purely additive; OFF unless LEASH_BROKER_HYPHA_URL is set.
+// When on, a saturated/unavailable alias is shed to a paired peer's local OpenAI shim
+// instead of waiting on the single local GPU. Unset → the broker behaves exactly as before.
+const HYPHA_URL = (process.env["LEASH_BROKER_HYPHA_URL"] ?? "").replace(/\/+$/, "");
+const OVERFLOW_ENABLED = HYPHA_URL.length > 0;
+/** Shed a same-alias request once this many are already waiting locally (depth gate). */
+const OVERFLOW_DEPTH = Number(process.env["LEASH_BROKER_OVERFLOW_DEPTH"] ?? 2);
+let shed = 0; // depth-triggered sheds
+let availabilityRouted = 0; // alias-not-served-locally routes
+let overflowFailures = 0; // overflow attempted but fell through / broke mid-stream
+
 interface Waiter {
   resolve: () => void;
   priority: string;
@@ -115,10 +126,120 @@ function defaultPriority(path: string): string {
   return "interactive";
 }
 
+interface Cached<T> {
+  value: T;
+  at: number;
+}
+let modelsCache: Cached<Set<string>> | null = null;
+let peersCache: Cached<Array<{ live?: boolean; warmModels?: string[] }>> | null = null;
+
+/** Aliases the LOCAL serve actually serves (from /v1/models), cached ~5s. */
+async function localAliases(): Promise<Set<string>> {
+  if (modelsCache && Date.now() - modelsCache.at < 5000) return modelsCache.value;
+  try {
+    const r = await undiciFetch(`${UPSTREAM}/v1/models`, { dispatcher });
+    const j = (await r.json()) as { data?: Array<{ id?: string }> };
+    const set = new Set((j.data ?? []).map((m) => m.id).filter((x): x is string => Boolean(x)));
+    modelsCache = { value: set, at: Date.now() };
+    return set;
+  } catch {
+    // Transient /v1/models blip: reuse last-known (empty on cold start → availability-route to a warm peer).
+    return modelsCache?.value ?? new Set<string>();
+  }
+}
+
+/** Live peers from the Hypha shim with their warm aliases, cached ~2s. */
+async function hyphaPeers(): Promise<Array<{ live?: boolean; warmModels?: string[] }>> {
+  if (peersCache && Date.now() - peersCache.at < 2000) return peersCache.value;
+  try {
+    const r = await undiciFetch(`${HYPHA_URL}/peers`, { dispatcher });
+    const j = (await r.json()) as { peers?: Array<{ live?: boolean; warmModels?: string[] }> };
+    peersCache = { value: j.peers ?? [], at: Date.now() };
+    return peersCache.value;
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Should this alias overflow to a peer right now? Two OR'd triggers, both requiring a
+ * live peer that holds the alias WARM (never pay cold-start on the request path):
+ *   · availabilityRouted — the alias isn't served locally at all
+ *   · shed — the local alias queue is already ≥ OVERFLOW_DEPTH deep
+ */
+async function overflowReason(alias: string): Promise<"shed" | "availabilityRouted" | null> {
+  const warm = (await hyphaPeers()).some((p) => p.live && (p.warmModels ?? []).includes(alias));
+  if (!warm) return null;
+  if (!(await localAliases()).has(alias)) return "availabilityRouted";
+  const depth = slots.get(alias)?.queue.length ?? 0;
+  return depth >= OVERFLOW_DEPTH ? "shed" : null;
+}
+
+/**
+ * Forward a chat completion to the Hypha shim, streaming the SSE back. Returns:
+ *   · "served"      — relayed a 200 to completion
+ *   · "fallthrough" — peer couldn't serve before any byte → caller serves locally (never drop)
+ *   · "midstream"   — broke after bytes were sent → ended truthfully (can't re-route)
+ * Wedge rule holds: if the client leaves, keep draining the shim — never abort the decode.
+ */
+async function forwardToHypha(
+  url: string,
+  body: Buffer,
+  fwd: Record<string, string>,
+  res: http.ServerResponse,
+  isOpen: () => boolean,
+): Promise<"served" | "fallthrough" | "midstream"> {
+  let headSent = false;
+  try {
+    const up = await undiciFetch(`${HYPHA_URL}${url}`, { method: "POST", headers: fwd, body, dispatcher });
+    if (!up.ok) {
+      try {
+        await up.body?.cancel();
+      } catch {
+        /* nothing to drain on an error response */
+      }
+      return "fallthrough";
+    }
+    const outHeaders: Record<string, string> = {};
+    up.headers.forEach((v, k) => {
+      if (k.toLowerCase() !== "content-length") outHeaders[k] = v;
+    });
+    if (isOpen()) {
+      res.writeHead(up.status, outHeaders);
+      headSent = true;
+    }
+    if (up.body) {
+      const reader = up.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (isOpen()) {
+          if (!res.write(Buffer.from(value))) {
+            await new Promise<void>((r) => res.once("drain", () => r())).catch(() => undefined);
+          }
+        }
+      }
+    }
+    if (isOpen()) res.end();
+    return "served";
+  } catch {
+    if (!headSent) return "fallthrough";
+    if (isOpen()) {
+      try {
+        res.end();
+      } catch {
+        /* already closed */
+      }
+    }
+    return "midstream";
+  }
+}
+
 const stats = (): string =>
   JSON.stringify({
     upstream: UPSTREAM,
     served,
+    overflow: { enabled: OVERFLOW_ENABLED, hyphaUrl: HYPHA_URL || null, depth: OVERFLOW_DEPTH, shed, availabilityRouted, overflowFailures },
     aliases: Object.fromEntries([...slots].map(([a, s]) => [a, { busy: s.busy, queued: s.queue.length }])),
   });
 
@@ -142,6 +263,31 @@ const server = http.createServer(async (req, res) => {
     clientOpen = false;
   });
 
+  // Forward headers verbatim minus hop-by-hop / length (undici recomputes).
+  const fwd: Record<string, string> = {};
+  for (const [k, v] of Object.entries(req.headers)) {
+    if (["host", "content-length", "connection", "x-leash-priority"].includes(k.toLowerCase())) continue;
+    if (typeof v === "string") fwd[k] = v;
+  }
+
+  // Mesh overflow: decide BEFORE taking a local slot (the whole point — don't queue locally
+  // when a warm peer can take it). Only chat completions; the shim speaks nothing else.
+  if (OVERFLOW_ENABLED && alias && method === "POST" && url.includes("/chat/completions")) {
+    const reason = await overflowReason(alias);
+    if (reason) {
+      const outcome = await forwardToHypha(url, body, fwd, res, () => clientOpen);
+      if (outcome === "served") {
+        if (reason === "shed") shed++;
+        else availabilityRouted++;
+        served++;
+        return;
+      }
+      overflowFailures++;
+      // "midstream" already ended the response truthfully; "fallthrough" continues to local.
+      if (outcome === "midstream") return;
+    }
+  }
+
   // Non-aliased traffic (model list, multipart audio, etc.) passes through unqueued —
   // those endpoints don't collide on a chat/vision context.
   const release = alias ? await acquire(alias, priority) : null;
@@ -151,13 +297,6 @@ const server = http.createServer(async (req, res) => {
   if (release && !clientOpen) {
     release();
     return;
-  }
-
-  // Forward headers verbatim minus hop-by-hop / length (undici recomputes).
-  const fwd: Record<string, string> = {};
-  for (const [k, v] of Object.entries(req.headers)) {
-    if (["host", "content-length", "connection", "x-leash-priority"].includes(k.toLowerCase())) continue;
-    if (typeof v === "string") fwd[k] = v;
   }
 
   try {

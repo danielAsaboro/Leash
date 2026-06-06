@@ -29,16 +29,27 @@ export class CapabilityRegistry {
     return this.devices.get(deviceId);
   }
 
-  /** All advertised providers, best-first (plugged/charging, then highest RAM). */
+  /**
+   * All advertised providers, best-first: power state (plugged > charging > battery),
+   * then highest RAM, then LOWEST in-flight load (a free strong peer beats a saturated
+   * one — decisive when two peers match on power+RAM, e.g. two identical Macs). A
+   * missing `inflight` counts as 0.
+   */
   rankedProviders(): DeviceCapability[] {
     return this.list()
       .filter((d) => d.isProvider && d.providerPublicKey)
-      .sort((a, b) => POWER_RANK[b.powerState] - POWER_RANK[a.powerState] || b.ramMB - a.ramMB);
+      .sort(
+        (a, b) =>
+          POWER_RANK[b.powerState] - POWER_RANK[a.powerState] ||
+          b.ramMB - a.ramMB ||
+          (a.inflight ?? 0) - (b.inflight ?? 0),
+      );
   }
 
   /**
    * The best provider to delegate heavy work to: an advertised provider, preferring
-   * plugged-in/charging devices, then highest RAM. Returns undefined if none.
+   * plugged-in/charging devices, then highest RAM, then lowest load. Returns undefined
+   * if none.
    */
   bestProvider(): DeviceCapability | undefined {
     return this.rankedProviders()[0];
