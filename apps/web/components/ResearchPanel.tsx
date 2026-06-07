@@ -1,6 +1,7 @@
 "use client";
 import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { ResearchStatus } from "../lib/leash/research-store.ts";
 
 /** Inline-format one line: **bold**, *italic*, [text](url), `code`. */
@@ -229,7 +230,7 @@ export function ResearchPanel({ runs, report }: { runs: ResearchStatus[]; report
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/leash/research", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question }) });
+      const res = await fetchWithTimeout("/api/leash/research", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question }) });
       if (!res.ok) setError(`Couldn't start research (${res.status}).`);
       else setQuestion("");
       router.refresh();
@@ -242,8 +243,29 @@ export function ResearchPanel({ runs, report }: { runs: ResearchStatus[]; report
 
   const del = async (id: string) => {
     if (!confirm("Delete this research run and its report?")) return;
-    await fetch(`/api/leash/research/${id}`, { method: "DELETE" });
-    router.refresh();
+    setError(null);
+    try {
+      const res = await fetchWithTimeout(`/api/leash/research/${id}`, { method: "DELETE" });
+      if (!res.ok) setError(`Delete failed (${res.status}).`);
+      router.refresh();
+    } catch {
+      setError("Request failed — is the app still running?");
+    }
+  };
+
+  const cancel = async (id: string) => {
+    if (!confirm("Cancel this research run? Anything gathered so far is kept; if a model call is mid-decode the worker finishes it first (a few seconds).")) return;
+    setError(null);
+    try {
+      const res = await fetchWithTimeout(`/api/leash/research/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "cancel" }) });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? `Cancel failed (${res.status}).`);
+      }
+      router.refresh();
+    } catch {
+      setError("Request failed — is the app still running?");
+    }
   };
 
   // The run to visualize: the one whose report is open, else the newest active run.
@@ -305,9 +327,16 @@ export function ResearchPanel({ runs, report }: { runs: ResearchStatus[]; report
                           </span>
                         </p>
                       </a>
-                      <button type="button" onClick={() => void del(r.id)} aria-label="Delete run" className="px-1.5 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
-                        ×
-                      </button>
+                      <span className="flex shrink-0 items-center gap-1">
+                        {activeRun && (
+                          <button type="button" onClick={() => void cancel(r.id)} aria-label="Cancel run" className="kicker px-1.5 transition-opacity hover:opacity-60" style={{ color: "var(--color-brick)" }}>
+                            Cancel
+                          </button>
+                        )}
+                        <button type="button" onClick={() => void del(r.id)} aria-label="Delete run" className="px-1.5 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
+                          ×
+                        </button>
+                      </span>
                     </div>
                     {r.note && (
                       <p className="kicker mt-1" style={{ color: "var(--color-faint)" }}>

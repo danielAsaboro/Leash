@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { McpServerStatus } from "../lib/leash/mcp.ts";
 
 /**
@@ -40,7 +41,7 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
   const add = async () => {
     if (!url.trim()) return;
     const ok = await call(() =>
-      fetch("/api/leash/mcp", {
+      fetchWithTimeout("/api/leash/mcp", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: url.trim(), ...(name.trim() ? { name: name.trim() } : {}), transport }),
@@ -53,11 +54,11 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
   };
 
   const toggle = (s: McpServerStatus) =>
-    void call(() => fetch(`/api/leash/mcp/${encodeURIComponent(s.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/mcp/${encodeURIComponent(s.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }));
 
   const remove = (s: McpServerStatus) => {
     if (!confirm(`Remove the MCP server "${s.name}"?`)) return;
-    void call(() => fetch(`/api/leash/mcp/${encodeURIComponent(s.id)}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/mcp/${encodeURIComponent(s.id)}`, { method: "DELETE" }));
   };
 
   return (

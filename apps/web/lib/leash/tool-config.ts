@@ -20,7 +20,16 @@ import { readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json
 export const TOOLS_FILE = process.env["LEASH_TOOLS_FILE"] ?? join(DATA_DIR, "leash-tools.json");
 
 /** Tools that pause on a human approval card unless explicitly overridden off. */
-export const DEFAULT_ASK_FIRST: ReadonlySet<string> = new Set(["ha_call_service", "run_skill_script"]);
+export const DEFAULT_ASK_FIRST: ReadonlySet<string> = new Set([
+  "ha_call_service",
+  "run_skill_script",
+  // Computer-use: every side-effectful action on the Mac asks first (screenshot +
+  // read_file stay un-gated — see-only / hard-jailed read — but remain toggleable).
+  "run_command",
+  "write_file",
+  "edit_file",
+  "computer",
+]);
 
 interface ToolConfig {
   disabled: string[];

@@ -41,10 +41,16 @@ const registry: Registry = (g.__leashMcp ??= { connections: new Map(), failures:
 /** How long a failed connect is remembered before we retry (avoids hammering a dead server every turn). */
 const FAILURE_TTL_MS = 30_000;
 
+// Next.js patches globalThis.fetch and tries to cache every response body. MCP transports
+// use SSE streams that never close, so the body-read times out with "Failed to set fetch
+// cache". Passing `cache: 'no-store'` tells Next.js not to buffer the response.
+const mcpFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: "no-store" });
+
 async function connectOne(entry: McpServerEntry): Promise<void> {
   try {
     const client = await createMCPClient({
-      transport: { type: entry.transport, url: entry.url },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      transport: { type: entry.transport, url: entry.url, fetch: mcpFetch } as any,
       // Advertise elicitation support; server→client elicitInput lands in the broker and
       // times out to cancel there, so a tool call can pause on a human form mid-chat.
       capabilities: { elicitation: {} },

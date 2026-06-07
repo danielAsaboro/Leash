@@ -2,6 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { ServiceStatus } from "../lib/leash/services.ts";
 
 /**
@@ -45,7 +46,8 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
     setPending(action);
     setError(null);
     try {
-      const res = await fetch("/api/leash/services", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: service.name, action }) });
+      // Service start/stop can legitimately take a while (graceful drain) → heavy tier.
+      const res = await fetchWithTimeout("/api/leash/services", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: service.name, action }) }, TIMEOUT.heavy);
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
         setError(body.error ?? `Request failed (${res.status}).`);

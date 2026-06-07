@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
+import { fetchWithTimeout } from "../lib/http.ts";
 
 /**
  * "Add a device" — the LAN click-to-pair flow in the Mesh (Hypha) card. Toggles the
@@ -42,7 +43,7 @@ export function AddDeviceSection() {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch("/api/leash/hypha/pair", { cache: "no-store" });
+      const r = await fetchWithTimeout("/api/leash/hypha/pair", { cache: "no-store" });
       const d = (await r.json()) as Record<string, unknown>;
       // Normalize defensively — a stale daemon (pre-Part-B) can return an unexpected shape.
       setState({
@@ -64,7 +65,7 @@ export function AddDeviceSection() {
       setBusy(true);
       setActionError(null);
       try {
-        const r = await fetch("/api/leash/hypha/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
+        const r = await fetchWithTimeout("/api/leash/hypha/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
         const body = (await r.json().catch(() => ({}))) as { error?: unknown };
         if (!r.ok || body.error) setActionError(errStr(body.error) ?? `Request failed (${r.status}).`);
       } catch {

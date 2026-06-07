@@ -18,6 +18,8 @@ import { taskTools } from "../../lib/leash/task-tools.ts";
 import { memoryTools } from "../../lib/leash/memory-tools.ts";
 import { skillTools } from "../../lib/leash/skill-tools.ts";
 import { researchTools } from "../../lib/leash/research-tools.ts";
+import { computerTools } from "../../lib/leash/computer-tools.ts";
+import { computerModelInfo } from "../../lib/leash/computer-model.ts";
 import { leashMcpTools, mcpServerStatuses } from "../../lib/leash/mcp.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
@@ -35,14 +37,17 @@ const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "forage"]
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, off, ask] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides()]);
-  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...mcp };
+  const [mcp, off, ask, computerNote] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides(), computerModelInfo()]);
+  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...computerTools, ...mcp };
+  const computerNames = new Set(Object.keys(computerTools));
   return Object.entries(registry).map(([name, t]) => ({
     name,
     description: ((t as { description?: string }).description ?? "").slice(0, 240),
     enabled: !off.has(name),
     askFirst: ask[name] ?? DEFAULT_ASK_FIRST.has(name),
     askFirstDefault: DEFAULT_ASK_FIRST.has(name),
+    // The computer-use rows show which model drives them and where it runs (local / mesh peer).
+    ...(computerNames.has(name) ? { infoNote: computerNote } : {}),
   }));
 }
 

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { ModelsInventory, InventoryRow, CatalogModel } from "../lib/leash/models.ts";
 import type { FitEstimate } from "../lib/leash/hwfit.ts";
 import type { ServeStatus } from "../lib/leash/serve-control.ts";
@@ -128,7 +129,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
     if (!active) return;
     const t = setInterval(async () => {
       try {
-        const res = await fetch("/api/leash/models/download");
+        const res = await fetchWithTimeout("/api/leash/models/download", {}, TIMEOUT.probe);
         if (res.ok) {
           const body = (await res.json()) as { downloads: DownloadStatus[] };
           setDownloads(body.downloads);
@@ -161,7 +162,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
 
   const serveAction = (action: "start" | "stop" | "restart") =>
     void call(
-      () => fetch("/api/leash/serve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) }),
+      () => fetchWithTimeout("/api/leash/serve", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action }) }, TIMEOUT.heavy),
       action === "start"
         ? undefined
         : `${action === "stop" ? "Stop" : "Restart"} the model serve? Make sure no generation is running (a chat/voice turn mid-decode would wedge the GPU).`,
@@ -170,7 +171,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
   const startDownload = () => {
     const name = pick.trim().toUpperCase();
     if (!name) return;
-    void call(() => fetch("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) })).then(() => {
+    void call(() => fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }, TIMEOUT.heavy)).then(() => {
       setDownloads((d) => [...d.filter((x) => x.name !== name), { name, state: "starting", percentage: 0, downloaded: 0, total: 0 }]);
     });
   };
@@ -216,12 +217,12 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
       <Cell>
         <span className="flex flex-wrap gap-1.5">
           {r.loaded && r.alias && (
-            <IconButton title="Unload from the running serve (comes back on restart)" danger disabled={busy} onClick={() => void call(() => fetch(`/api/leash/models/loaded/${encodeURIComponent(r.alias as string)}`, { method: "DELETE" }), `Unload "${r.alias}" from the running serve? It comes back on the next restart.`)}>
+            <IconButton title="Unload from the running serve (comes back on restart)" danger disabled={busy} onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/loaded/${encodeURIComponent(r.alias as string)}`, { method: "DELETE" }), `Unload "${r.alias}" from the running serve? It comes back on the next restart.`)}>
               <UnloadIcon />
             </IconButton>
           )}
           {r.inConfig && r.alias && (
-            <IconButton title="Remove from qvac.config.base.json (won't load next restart)" disabled={busy} onClick={() => void call(() => fetch("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", alias: r.alias }) }), `Remove "${r.alias}" from qvac.config.base.json? It won't load on the next serve restart.`)}>
+            <IconButton title="Remove from qvac.config.base.json (won't load next restart)" disabled={busy} onClick={() => void call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", alias: r.alias }) }), `Remove "${r.alias}" from qvac.config.base.json? It won't load on the next serve restart.`)}>
               <RemoveIcon />
             </IconButton>
           )}
@@ -232,14 +233,14 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
               onClick={() => {
                 const alias = prompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24));
                 if (!alias) return;
-                void call(() => fetch("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }));
+                void call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }));
               }}
             >
               <AddIcon />
             </IconButton>
           )}
           {r.onDiskBytes !== null && r.cacheFile && (
-            <IconButton title="Delete the cached file from disk" danger disabled={busy} onClick={() => void call(() => fetch(`/api/leash/models/file/${encodeURIComponent(r.cacheFile as string)}${r.inConfig ? "?force=1" : ""}`, { method: "DELETE" }), `Delete ${r.cacheFile} (${fmtBytes(r.onDiskBytes)}) from the model cache?${r.inConfig ? " It is referenced by the config — the next restart will re-download it." : ""}`)}>
+            <IconButton title="Delete the cached file from disk" danger disabled={busy} onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/file/${encodeURIComponent(r.cacheFile as string)}${r.inConfig ? "?force=1" : ""}`, { method: "DELETE" }), `Delete ${r.cacheFile} (${fmtBytes(r.onDiskBytes)}) from the model cache?${r.inConfig ? " It is referenced by the config — the next restart will re-download it." : ""}`)}>
               <TrashIcon />
             </IconButton>
           )}

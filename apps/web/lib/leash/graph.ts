@@ -1,17 +1,20 @@
 /**
  * The private context graph for `search_graph` — a tiny in-memory RAG index built
- * over the user's notes AND the screen-watcher's activity trail, embedded through the
- * QVAC embeddings endpoint (HTTP).
+ * over the user's notes, the screen-watcher's activity trail, typed memories, AND
+ * past Leash conversations, embedded through the QVAC embeddings endpoint (HTTP).
  *
  * Keeping retrieval HTTP-only (via the AI SDK `embed`/`embedMany` against `qvac serve`)
  * means the Next route stays a pure client — no native `@qvac/sdk` in the web process.
- * Both indexes are cache-invalidated by cheap filesystem fingerprints, so the dashboard's
+ * All indexes are cache-invalidated by cheap filesystem fingerprints, so the dashboard's
  * memory operations are live without a restart:
  *   · notes — keyed on a directory fingerprint (file count + newest mtime), so adding,
  *     editing, or DELETING a note (Brain → Memory "forget") re-embeds on the next search
  *   · activity — keyed on (jsonl mtime, tombstones mtime); the watcher appending OR a
  *     record being tombstoned both refresh it. Tombstoned records are filtered out
  *     everywhere (see tombstones.ts — the JSONL itself is never rewritten).
+ *   · chats — recall memory ("what did we decide about X?"): one chunk per user↔assistant
+ *     exchange, cached PER FILE by mtime — the active chat re-embeds alone each turn,
+ *     never the whole corpus. Deleting a chat (tray ×) drops its chunks on the next search.
  * At this scale (a handful of notes + a rolling activity log) an in-memory cosine search
  * is plenty; a larger graph would swap in a real vector store behind `searchNotes`.
  */
@@ -29,6 +32,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 export const NOTES_DIR = process.env["LEASH_NOTES_DIR"] ?? join(here, "..", "..", "..", "..", "data", "notes");
 /** apps/web/lib/leash → repo root → data/leash-activity.jsonl (written by `npm run watch`). */
 export const ACTIVITY_LOG = process.env["LEASH_ACTIVITY_LOG"] ?? join(here, "..", "..", "..", "..", "data", "leash-activity.jsonl");
+/** apps/web/lib/leash → repo root → data/leash-chats (same resolution as chat-store.ts). */
+export const CHATS_DIR = process.env["LEASH_CHAT_DIR"] ?? join(here, "..", "..", "..", "..", "data", "leash-chats");
 
 interface Chunk {
   source: string;
@@ -161,6 +166,93 @@ async function getActivityIndex(): Promise<Chunk[]> {
   return chunks;
 }
 
+// ── Chats (recall memory) ──────────────────────────────────────────────────────
+
+/** Caps: bounded embed cost per changed chat, bounded total index size (newest chats win). */
+const CHAT_EXCHANGES_PER_CHAT = 60;
+const CHAT_CHUNK_CAP = 600;
+const CHAT_SIDE_CAP = 700; // chars kept per side of an exchange
+
+/** Per-FILE chunk cache keyed by mtime — only a changed chat re-embeds, never the corpus. */
+const chatsCache = new Map<string, { mtimeMs: number; chunks: Chunk[] }>();
+
+interface StoredChatMessage {
+  role?: string;
+  parts?: Array<{ type?: string; text?: string }>;
+}
+
+/** Text-parts join of one stored message (tool/reasoning parts are skipped — they can be huge). */
+function messageText(m: StoredChatMessage): string {
+  return (m.parts ?? [])
+    .filter((p) => p?.type === "text" && typeof p.text === "string")
+    .map((p) => p.text as string)
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/** One "You: … / Leash: …" chunk per user↔assistant exchange (newest kept when over cap). */
+function chatExchanges(rec: { title?: string; updatedAt?: number; messages?: StoredChatMessage[] }): { source: string; text: string }[] {
+  const messages = Array.isArray(rec.messages) ? rec.messages : [];
+  const date = rec.updatedAt ? new Date(rec.updatedAt).toISOString().slice(0, 10) : "";
+  const title = (rec.title ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
+  const source = `chat · ${title || "untitled"}${date ? ` · ${date}` : ""}`;
+  const out: { source: string; text: string }[] = [];
+  for (let i = 0; i < messages.length; i++) {
+    const m = messages[i] as StoredChatMessage;
+    if (m.role !== "user") continue;
+    const user = messageText(m).slice(0, CHAT_SIDE_CAP);
+    let assistant = "";
+    for (let j = i + 1; j < messages.length && (messages[j] as StoredChatMessage).role !== "user"; j++) {
+      assistant += (assistant ? " " : "") + messageText(messages[j] as StoredChatMessage);
+    }
+    const text = `You: ${user}\nLeash: ${assistant.slice(0, CHAT_SIDE_CAP)}`;
+    if (text.length > 40) out.push({ source, text });
+  }
+  return out.slice(-CHAT_EXCHANGES_PER_CHAT);
+}
+
+/**
+ * The conversations index. Incremental: each chat file's chunks are cached by its own
+ * mtime, so a turn that updates ONE chat re-embeds only that chat's exchanges. Deleted
+ * files are pruned. The merged index is capped at CHAT_CHUNK_CAP, newest chats first.
+ */
+async function getChatsIndex(): Promise<Chunk[]> {
+  let files: { name: string; mtimeMs: number }[];
+  try {
+    files = readdirSync(CHATS_DIR)
+      .filter((n) => n.endsWith(".json") && !n.startsWith("."))
+      .map((name) => ({ name, mtimeMs: statSync(join(CHATS_DIR, name)).mtimeMs }));
+  } catch {
+    return []; // no chats yet
+  }
+  for (const key of chatsCache.keys()) if (!files.some((f) => f.name === key)) chatsCache.delete(key); // pruned on delete
+  files.sort((a, b) => b.mtimeMs - a.mtimeMs); // newest first → they win the cap
+  const merged: Chunk[] = [];
+  for (const f of files) {
+    if (merged.length >= CHAT_CHUNK_CAP) break;
+    const cached = chatsCache.get(f.name);
+    if (cached && cached.mtimeMs === f.mtimeMs) {
+      merged.push(...cached.chunks.slice(0, CHAT_CHUNK_CAP - merged.length));
+      continue;
+    }
+    let docs: { source: string; text: string }[] = [];
+    try {
+      docs = chatExchanges(JSON.parse(readFileSync(join(CHATS_DIR, f.name), "utf-8")));
+    } catch {
+      /* torn write / bad record — skip this chat, retry on its next mtime change */
+    }
+    let chunks: Chunk[] = [];
+    if (docs.length > 0) {
+      const { embeddings } = await embedMany({ model: embeddingModel(), values: docs.map((d) => d.text) });
+      chunks = docs.map((d, i) => ({ ...d, embedding: embeddings[i] as number[] }));
+    }
+    chatsCache.set(f.name, { mtimeMs: f.mtimeMs, chunks });
+    merged.push(...chunks.slice(0, Math.max(0, CHAT_CHUNK_CAP - merged.length)));
+  }
+  return merged;
+}
+
 /** The typed-memories index: one chunk per memory, rebuilt when the store file changes. */
 async function getMemoriesIndex(): Promise<Chunk[]> {
   let mtimeMs = 0;
@@ -203,10 +295,17 @@ export interface GraphHit {
   score: number;
 }
 
-/** Top-K most similar chunks for a query — notes + activity + typed memories, cosine over QVAC embeddings. */
+/** Top-K most similar chunks for a query — notes + activity + typed memories + past chats, cosine over QVAC embeddings. */
 export async function searchNotes(query: string, topK = 3): Promise<GraphHit[]> {
-  const [notes, activity, memories] = await Promise.all([getIndex(), getActivityIndex(), getMemoriesIndex()]);
-  const index = [...notes, ...activity, ...memories];
+  // SEQUENTIAL builds, deliberately NOT Promise.all: the serve's embeddings endpoint
+  // 500s a request that arrives while another embed is in flight (single slot, no
+  // queue — verified 2026-06-07: inputs=17 got 500 in 4ms while inputs=2 was mid-run).
+  // Cold-process cost is one-time; warm searches hit the mtime caches anyway.
+  const notes = await getIndex();
+  const activity = await getActivityIndex();
+  const memories = await getMemoriesIndex();
+  const chats = await getChatsIndex();
+  const index = [...notes, ...activity, ...memories, ...chats];
   if (index.length === 0) return [];
   const { embedding } = await embed({ model: embeddingModel(), value: query });
   return index

@@ -11,6 +11,7 @@ import { ToolView } from "./leash-tools.tsx";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
 import { blobToWav } from "@/lib/leash/audio";
+import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
 import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
 
 /**
@@ -202,10 +203,10 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   // so a reload mid-form recovers the card. Resolved/timed-out ids drop out.
   const [elicitations, setElicitations] = useState<ElicitationView[]>([]);
   useEffect(() => {
-    fetch("/api/leash/elicitations")
+    fetchWithTimeout("/api/leash/elicitations", {}, TIMEOUT.probe)
       .then((r) => (r.ok ? r.json() : { elicitations: [] }))
       .then((d: { elicitations?: ElicitationView[] }) => setElicitations((prev) => (prev.length === 0 ? (d.elicitations ?? []) : prev)))
-      .catch(() => {});
+      .catch(() => {}); // best-effort seed — the stream's data-elicitation parts are the live path
   }, []);
   const { messages, sendMessage, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
     id,

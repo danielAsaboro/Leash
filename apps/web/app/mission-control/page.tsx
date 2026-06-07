@@ -1,16 +1,26 @@
 import Link from "next/link";
-import { getMissionControl } from "../../lib/queries.ts";
+import { getMissionControl, getStuckArticles } from "../../lib/queries.ts";
 import { sectionKicker } from "../../lib/ui.ts";
 import { StatusDot } from "../../components/StatusDot.tsx";
 import { StageTracker } from "../../components/StageTracker.tsx";
 import { CountdownTimer } from "../../components/CountdownTimer.tsx";
 import { LiveRefresh } from "../../components/LiveRefresh.tsx";
+import { MissionControlActions } from "../../components/MissionControlActions.tsx";
 
 export const dynamic = "force-dynamic";
 
 function fmt(d: Date | string | null | undefined): string {
   if (!d) return "—";
   return new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
+/** "3m" / "2h" / "1d" since a timestamp (how long a story has sat untouched). */
+function ago(d: Date | string): string {
+  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 1) return "<1m";
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  return h < 24 ? `${h}h` : `${Math.floor(h / 24)}d`;
 }
 
 function CountCard({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
@@ -48,7 +58,7 @@ function Telemetry({ label, value }: { label: string; value: string }) {
 }
 
 export default async function MissionControl() {
-  const { state, counts, active, recentRuns } = await getMissionControl();
+  const [{ state, counts, active, recentRuns }, stuck] = await Promise.all([getMissionControl(), getStuckArticles()]);
   const status = state?.status ?? "STOPPED";
   const masthead = state?.masthead ?? "The Understory";
 
@@ -184,6 +194,70 @@ export default async function MissionControl() {
             </div>
           </section>
         </div>
+
+        {/* In production — drill-down: every mid-pipeline story, stalest first, with WHY
+            it's stuck (latest failed run) and a gated Re-queue (full pipeline re-run). */}
+        <section className="mt-8 border p-6" style={{ borderColor: "var(--color-control-line)", background: "var(--color-control-2)" }}>
+          <div className="mb-4 flex items-center gap-3">
+            <span className="kicker kicker-sage" style={{ color: "var(--color-glow)" }}>
+              In Production
+            </span>
+            <span className="h-px flex-1" style={{ background: "var(--color-control-line)" }} />
+            <span className="kicker" style={{ color: "var(--color-faint)" }}>
+              {stuck.length} {stuck.length === 1 ? "story" : "stories"} mid-pipeline
+            </span>
+          </div>
+
+          {stuck.length === 0 ? (
+            <p className="kicker" style={{ color: "var(--color-faint)" }}>
+              Nothing mid-pipeline — stories are either queued or published.
+            </p>
+          ) : (
+            <ul>
+              {stuck.map((s) => {
+                // Eligibility mirrors the SERVER gate exactly (stalled >5 min). The Active
+                // Assignment card's pick is a display fallback, not a daemon lock — a row
+                // only reads "being worked" while its updatedAt is actually fresh.
+                const isActive = s.id === active?.id && !s.stalled;
+                const eligible = s.stalled;
+                const reason = isActive ? "active assignment — being worked now" : !s.stalled ? `touched ${ago(s.updatedAt)} ago — re-queue unlocks after 5 min idle` : "";
+                return (
+                  <li key={s.id} className="flex flex-wrap items-start justify-between gap-3 border-b py-3.5" style={{ borderColor: "var(--color-control-line)" }}>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="kicker px-2 py-0.5" style={{ background: "var(--color-control-line)", color: "var(--color-cream)" }}>
+                          {sectionKicker(s.section, s.origin)}
+                        </span>
+                        <span className="kicker" style={{ color: s.stalled ? "var(--color-brick)" : "var(--color-glow)" }}>
+                          {s.stage}
+                        </span>
+                        <span className="kicker" style={{ color: "var(--color-faint)" }} suppressHydrationWarning>
+                          {s.stalled ? `stuck ${ago(s.updatedAt)}` : `updated ${ago(s.updatedAt)} ago`}
+                        </span>
+                      </div>
+                      <p className="mt-1.5" style={{ fontFamily: "var(--font-display)", fontWeight: 600, fontSize: "1.05rem", color: "var(--color-cream)" }}>
+                        {s.headline}
+                      </p>
+                      {s.failure ? (
+                        <p className="kicker mt-1" style={{ color: "var(--color-brick)" }}>
+                          ✗ {s.failure.kind} failed {fmt(s.failure.startedAt)}
+                          {s.failure.detail ? ` — ${s.failure.detail.slice(0, 200)}` : ""}
+                        </p>
+                      ) : (
+                        s.stalled && (
+                          <p className="kicker mt-1" style={{ color: "var(--color-faint)" }}>
+                            No failed run recorded — the daemon may have been stopped mid-story.
+                          </p>
+                        )
+                      )}
+                    </div>
+                    <MissionControlActions id={s.id} headline={s.headline} eligible={eligible} reason={reason} />
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       </main>
     </div>
   );

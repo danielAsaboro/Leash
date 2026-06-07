@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { SecretStatus } from "../lib/leash/vault.ts";
 
 /**
@@ -20,7 +21,7 @@ export function SecretsCard({ secrets }: { secrets: SecretStatus[] }) {
     setBusy(name);
     setError(null);
     try {
-      const res = await fetch("/api/leash/secrets", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, value: drafts[name] ?? "" }) });
+      const res = await fetchWithTimeout("/api/leash/secrets", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, value: drafts[name] ?? "" }) });
       if (!res.ok) setError(`Save failed (${res.status}).`);
       else {
         setEditing(null);
@@ -37,9 +38,13 @@ export function SecretsCard({ secrets }: { secrets: SecretStatus[] }) {
   const clear = async (name: string) => {
     if (!confirm("Clear this secret from the vault?")) return;
     setBusy(name);
+    setError(null);
     try {
-      await fetch(`/api/leash/secrets?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+      const res = await fetchWithTimeout(`/api/leash/secrets?name=${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (!res.ok) setError(`Clear failed (${res.status}).`);
       router.refresh();
+    } catch {
+      setError("Clear failed — is the app still running?");
     } finally {
       setBusy(null);
     }

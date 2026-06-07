@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { ForageResult, Recommendation } from "../lib/leash/forage.ts";
 
 /**
@@ -15,12 +16,12 @@ export function ForagePanel({ result }: { result: ForageResult }) {
   const [notice, setNotice] = useState<string | null>(null);
 
   const download = (r: Recommendation) =>
-    act(r.name, () => fetch("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: r.name }) }), `Downloading ${r.name}… track it on the Models tab.`);
+    act(r.name, () => fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: r.name }) }, TIMEOUT.heavy), `Downloading ${r.name}… track it on the Models tab.`);
 
   const addToConfig = (r: Recommendation) => {
     const alias = prompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24));
     if (!alias) return;
-    void act(r.name, () => fetch("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }), `Added ${r.name} to config — restart the serve (Services) to load it.`);
+    void act(r.name, () => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }), `Added ${r.name} to config — restart the serve (Services) to load it.`);
   };
 
   async function act(name: string, fn: () => Promise<Response>, ok: string) {

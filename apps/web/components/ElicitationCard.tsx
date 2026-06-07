@@ -1,5 +1,6 @@
 "use client";
 import { useMemo, useState } from "react";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { ElicitationView } from "../lib/leash/types.ts";
 
 /**
@@ -47,7 +48,7 @@ export function ElicitationCard({ elicitation, onDone }: { elicitation: Elicitat
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch(`/api/leash/elicitations/${elicitation.id}`, {
+      const res = await fetchWithTimeout(`/api/leash/elicitations/${elicitation.id}`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(action === "accept" ? { action, content: values } : { action }),
