@@ -21,8 +21,27 @@ export interface LeashMetadata {
   effort?: EffortTier;
 }
 
-/** The Leash UI message, carrying `LeashMetadata`. */
-export type LeashUIMessage = UIMessage<LeashMetadata>;
+/** A pending MCP elicitation (server→user form), surfaced as a transient data part. */
+export interface ElicitationView {
+  id: string;
+  serverName: string;
+  message: string;
+  /** The flat elicitation JSON schema the client renders a form from. */
+  requestedSchema: unknown;
+  createdAt: number;
+  expiresAt: number;
+}
+
+/** Transient `data-elicitation` events the chat stream pushes (open / resolved). */
+export type LeashElicitationEvent = { kind: "open"; elicitation: ElicitationView } | { kind: "resolved"; id: string; action: "accept" | "decline" | "cancel" };
+
+/** Typed data parts on the Leash stream (all transient — never persisted in messages). */
+export type LeashDataParts = {
+  elicitation: LeashElicitationEvent;
+};
+
+/** The Leash UI message, carrying `LeashMetadata` + typed data parts. */
+export type LeashUIMessage = UIMessage<LeashMetadata, LeashDataParts>;
 
 /** Summary for the chat history tray + the dreaming pass. */
 export interface ChatSummary {

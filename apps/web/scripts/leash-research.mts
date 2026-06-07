@@ -49,6 +49,8 @@ const [runId, question] = [process.argv[2], process.argv[3]];
 interface Status {
   id: string;
   question: string;
+  /** This child's pid — the dashboard's Cancel button SIGTERMs it. */
+  pid?: number;
   state: "planning" | "searching" | "reading" | "synthesizing" | "done" | "error";
   round: number;
   maxRounds: number;
@@ -65,6 +67,7 @@ interface Status {
 const status: Status = {
   id: runId ?? "",
   question: question ?? "",
+  pid: process.pid,
   state: "planning",
   round: 0,
   maxRounds: MAX_ROUNDS,
@@ -89,6 +92,27 @@ function saveReport(md: string): void {
   renameSync(tmp, join(DIR, `${runId}.md`));
 }
 
+// ── Cancel (SIGTERM from the dashboard) ────────────────────────────────────────
+// The child owns its status file, so it writes its own "cancelled" terminal state.
+// WEDGE RULE: if a serve decode is in flight we must NOT die immediately — dropping
+// the connection mid-generation wedges the serve's GPU loop machine-wide (the same
+// no-abort rule as the chat route). Flag it, let the in-flight call drain (bounded
+// by its maxOutputTokens), and exit at the end of that call. Idle phases (web
+// fetches, between calls) exit immediately — external sites can't wedge anything.
+let cancelled = false;
+let inLlmCall = false;
+
+function exitCancelled(): never {
+  save({ state: "error", error: "cancelled by user", finishedAt: Date.now() });
+  process.exit(143);
+}
+
+process.on("SIGTERM", () => {
+  cancelled = true;
+  if (!inLlmCall) exitCancelled();
+  save({ note: (status.note ? status.note + " " : "") + "Cancelling — letting the in-flight model call finish first (dropping it would wedge the serve)…" });
+});
+
 // The qvac serve HANGS forever on a chat request carrying NO tools when the model is
 // configured tools:true + toolsMode:dynamic (verified 2026-06-05). So every call ships
 // one inert tool; `/no_think` + a "do not call tools" nudge keeps the model from
@@ -103,10 +127,17 @@ const inertTools = {
 
 /** One LLM call (drain the stream; the serve only supports streaming completions). */
 async function llm(prompt: string, maxOutputTokens = 1200): Promise<string> {
-  const result = streamText({ model: qvac(MODEL), prompt: "/no_think\n" + prompt, maxOutputTokens, tools: inertTools, stopWhen: stepCountIs(2) });
-  let text = "";
-  for await (const delta of result.textStream) text += delta;
-  return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  inLlmCall = true;
+  try {
+    const result = streamText({ model: qvac(MODEL), prompt: "/no_think\n" + prompt, maxOutputTokens, tools: inertTools, stopWhen: stepCountIs(2) });
+    let text = "";
+    for await (const delta of result.textStream) text += delta;
+    return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  } finally {
+    inLlmCall = false;
+    // A cancel that arrived mid-decode exits HERE — after the stream drained (wedge rule).
+    if (cancelled) exitCancelled();
+  }
 }
 
 function extractJsonArray(text: string): string[] {

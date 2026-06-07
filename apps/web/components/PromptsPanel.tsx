@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { PromptView } from "../lib/leash/prompts-store.ts";
 
 /**
@@ -18,7 +19,7 @@ export function PromptsPanel({ prompts }: { prompts: PromptView[] }) {
     setBusy(key);
     setError(null);
     try {
-      const res = await fetch("/api/leash/prompts", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, value }) });
+      const res = await fetchWithTimeout("/api/leash/prompts", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, value }) });
       if (!res.ok) setError(`Save failed (${res.status}).`);
       router.refresh();
     } catch {

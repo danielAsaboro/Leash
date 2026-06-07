@@ -1026,6 +1026,54 @@
     font-family: var(--font-mono);
     font-size: 0.72rem;
   }
+  /* HITL approval card (Ask-first tools) + the kin elicitation card (MCP forms). */
+  .tool-approval-card { border-left-color: var(--color-gold, #b8860b); }
+  .tool-approval-input {
+    margin: 0.2rem 0 0.6rem;
+    padding: 0.5rem 0.6rem;
+    background: var(--color-cream);
+    border: 1px solid var(--color-rule);
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 14rem;
+    overflow: auto;
+  }
+  .tool-approval-actions { display: flex; gap: 0.5rem; }
+  .tool-approve,
+  .tool-deny {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    padding: 0.35rem 0.8rem;
+    border-radius: 3px;
+    border: 1px solid var(--color-rule-strong);
+    transition: opacity 0.12s;
+  }
+  .tool-approve { background: var(--color-sage-deep); color: var(--color-cream); border-color: var(--color-sage-deep); }
+  .tool-deny { background: transparent; color: var(--color-brick); }
+  .tool-approve:hover,
+  .tool-deny:hover { opacity: 0.75; }
+  .tool-approve:disabled,
+  .tool-deny:disabled { opacity: 0.4; }
+  .elicit-fields { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 0.7rem; }
+  .elicit-field { display: flex; flex-direction: column; gap: 0.2rem; }
+  .elicit-field input[type="text"],
+  .elicit-field input[type="number"],
+  .elicit-field select {
+    border: 1px solid var(--color-rule-strong);
+    background: var(--color-cream);
+    padding: 0.4rem 0.55rem;
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    border-radius: 3px;
+    max-width: 22rem;
+  }
+  .elicit-field-bool { flex-direction: row; align-items: center; gap: 0.5rem; font-size: 0.88rem; }
+  .elicit-hint { font-family: var(--font-body); font-size: 0.78rem; color: var(--color-faint); }
   .tool-articles { display: flex; flex-direction: column; }
   .tool-article {
     display: flex;

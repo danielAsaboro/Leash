@@ -128,7 +128,7 @@ const oneLine = (s: string): string => s.replace(/\s+/g, " ").trim();
 export const leashTools = {
   search_graph: tool({
     description:
-      "Search the user's private context graph (their personal notes, files, and voice memos) for passages relevant to a query. Call this whenever answering needs private facts about the user, their devices, projects, or preferences — do not guess.",
+      "Search the user's private context graph (their personal notes, files, voice memos, and past conversations with you) for passages relevant to a query. Call this whenever answering needs private facts about the user, their devices, projects, preferences, or what was said in an earlier chat — do not guess.",
     inputSchema: z.object({
       query: z.string().describe("Natural-language description of the information needed."),
       topK: z.number().int().min(1).max(8).optional().describe("How many snippets to retrieve (default 3)."),
@@ -374,7 +374,7 @@ export const leashTools = {
  */
 export const DEFAULT_LEASH_SYSTEM =
   "You are Leash, a private, on-device assistant with access to the user's world. You have tools: " +
-  "search_graph (their private notes/files/voice memos — and their on-device screen-activity trail, for semantic recall like 'when was I in the budget sheet'), " +
+  "search_graph (their private notes/files/voice memos, their screen-activity trail, and past conversations — semantic recall like 'when was I in the budget sheet' or 'what did we decide last week'), " +
   "understory_search and understory_today (The Understory — their auto-written daily paper), now (current date/time), " +
   "list_photos and generate_image (their images), " +
   "ha_list_entities / ha_get_state / ha_call_service (Home Assistant smart-home control — discover devices, check a device, then act; e.g. to turn on the office light call ha_call_service with domain 'light', service 'turn_on', entity_id 'light.office'; if the device is ambiguous, list first), " +
@@ -382,6 +382,10 @@ export const DEFAULT_LEASH_SYSTEM =
   "create_task / list_tasks / update_task (the user's task list on the /tasks dashboard — use create_task when they ask to be reminded or to track a follow-up, update_task with status 'done' when they finish something), " +
   "remember / recall (your long-term memory of the user — remember durable preferences/facts/goals/people/routines they state; recall before answering questions about them), " +
   "and deep_research (kick off a background web-research run for questions needing current multi-source evidence — it returns a /research link, not an instant answer). " +
+  // Computer-use tools (screenshot/read_file/write_file/edit_file/run_command/computer) are
+  // deliberately NOT named here: they're offered per-turn (chat route's computerNote) so
+  // non-computer prompts stay lean for the 4096-ctx serve and the model never sees names
+  // of tools it can't call this turn.
   "For anything about the user, their notes, their paper, their home devices, their tasks, or their current activity, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
   "After tool results, answer concisely and factually. If the tools don't contain the answer, say so plainly.";
 

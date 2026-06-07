@@ -2,12 +2,15 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { LeashTask, TaskStatus, TaskPriority } from "../lib/leash/tasks-store.ts";
 
 /**
  * The interactive task list (client): inline create, status cycling, priority,
- * delete. Server filters via query params (the page re-reads the store); mutations
- * go through /api/leash/tasks and refresh the server component.
+ * delete, and multi-select bulk actions (mark done/open, delete). Server filters via
+ * query params (the page re-reads the store); mutations go through /api/leash/tasks
+ * and refresh the server component. Bulk ops fan out over the existing per-task
+ * endpoints (the store's write mutex serializes them) and report partial failures.
  */
 
 const STATUS_LABEL: Record<TaskStatus, string> = { open: "Open", in_progress: "In progress", done: "Done", dropped: "Dropped" };
@@ -31,6 +34,55 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
   const [detail, setDetail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Selection against the CURRENTLY LISTED (server-filtered) tasks only.
+  const listedSelected = tasks.filter((t) => selected.has(t.id));
+  const allSelected = tasks.length > 0 && listedSelected.length === tasks.length;
+
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleSelectAll = () => setSelected(allSelected ? new Set() : new Set(tasks.map((t) => t.id)));
+
+  /** Fan one request out per selected task; aggregate partial failures into `error`. */
+  const bulk = async (label: string, fn: (id: string) => Promise<Response>) => {
+    const ids = listedSelected.map((t) => t.id);
+    if (ids.length === 0) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const results = await Promise.all(
+        ids.map(async (id) => {
+          try {
+            return (await fn(id)).ok;
+          } catch {
+            return false;
+          }
+        }),
+      );
+      const failed = results.filter((ok) => !ok).length;
+      if (failed > 0) setError(`${ids.length - failed} of ${ids.length} ${label} — ${failed} failed.`);
+      setSelected(new Set());
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const bulkStatus = (status: TaskStatus, label: string) =>
+    void bulk(label, (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status }) }));
+
+  const bulkDelete = () => {
+    const n = listedSelected.length;
+    if (!confirm(`Delete ${n} selected task${n === 1 ? "" : "s"}? This can't be undone.`)) return;
+    void bulk("deleted", (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
+  };
 
   const call = async (fn: () => Promise<Response>) => {
     setBusy(true);
@@ -52,7 +104,7 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/leash/tasks", {
+      const res = await fetchWithTimeout("/api/leash/tasks", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title, ...(detail.trim() ? { detail } : {}) }),
@@ -72,11 +124,11 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
   };
 
   const patch = (id: string, body: Record<string, unknown>) =>
-    call(() => fetch(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+    call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
 
   const del = (id: string) => {
     if (!confirm("Delete this task?")) return;
-    void call(() => fetch(`/api/leash/tasks/${id}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
   };
 
   return (
@@ -114,6 +166,51 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
         </p>
       )}
 
+      {/* Bulk bar — appears once anything is selected */}
+      {listedSelected.length > 0 && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 border p-3" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }}>
+          <span className="kicker" style={{ color: "var(--color-ink-soft)" }}>
+            {listedSelected.length} selected
+          </span>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => bulkStatus("done", "marked done")}
+            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
+            style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+          >
+            Mark done
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => bulkStatus("open", "marked open")}
+            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
+            style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+          >
+            Mark open
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={bulkDelete}
+            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
+            style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}
+          >
+            Delete
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => setSelected(new Set())}
+            className="kicker px-2 py-1.5 transition-opacity hover:opacity-70"
+            style={{ color: "var(--color-faint)" }}
+          >
+            Clear
+          </button>
+        </div>
+      )}
+
       {/* List */}
       {tasks.length === 0 ? (
         <p className="kicker py-8 text-center" style={{ color: "var(--color-faint)" }}>
@@ -121,8 +218,15 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
         </p>
       ) : (
         <ul>
+          <li className="flex items-center gap-3 border-b py-2" style={{ borderColor: "var(--color-rule)" }}>
+            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={busy} aria-label="Select all listed tasks" />
+            <span className="kicker" style={{ color: "var(--color-faint)" }}>
+              Select all ({tasks.length} listed)
+            </span>
+          </li>
           {tasks.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: t.status === "done" || t.status === "dropped" ? 0.55 : 1 }}>
+              <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} disabled={busy} aria-label={`Select task: ${t.title}`} />
               <select
                 value={t.status}
                 onChange={(e) => void patch(t.id, { status: e.target.value })}

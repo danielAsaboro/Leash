@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { LeashMemory, MemoryType } from "../lib/leash/memories-store.ts";
 
 /**
@@ -44,23 +45,23 @@ export function MemoriesSection({ memories }: { memories: LeashMemory[] }) {
     e.preventDefault();
     if (!newText.trim()) return;
     const ok = await call(() =>
-      fetch("/api/leash/memory/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: newType, text: newText }) }),
+      fetchWithTimeout("/api/leash/memory/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: newType, text: newText }) }),
     );
     if (ok) setNewText("");
   };
 
   const retype = (m: LeashMemory, type: string) =>
-    void call(() => fetch(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }));
+    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }));
 
   const edit = (m: LeashMemory) => {
     const text = prompt("Edit memory", m.text);
     if (text == null || !text.trim()) return;
-    void call(() => fetch(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }));
+    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }));
   };
 
   const forget = (m: LeashMemory) => {
     if (!confirm("Forget this memory? The assistant will no longer know it.")) return;
-    void call(() => fetch(`/api/leash/memory/items/${m.id}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "DELETE" }));
   };
 
   const shown = typeFilter ? memories.filter((m) => m.type === typeFilter) : memories;

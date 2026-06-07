@@ -1,0 +1,11 @@
+{
+  "servers": [
+    {
+      "id": "8bd394fd-8781-43ae-a811-122e7d0f3d7c",
+      "name": "leash-mesh",
+      "url": "http://127.0.0.1:11439/mcp",
+      "transport": "http",
+      "enabled": true
+    }
+  ]
+}

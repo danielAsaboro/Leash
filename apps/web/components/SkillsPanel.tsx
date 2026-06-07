@@ -1,14 +1,20 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { Skill } from "../lib/leash/skills-store.ts";
 
 /**
- * Skills editor (client) — create / edit / enable / delete skill folders
- * (`<slug>/SKILL.md` + optional attachments). Enabled skills are advertised in the
- * chat system prompt; the model loads the body via `read_skill` and attachments via
- * `read_skill_file`.
+ * Skills editor (client) — create / edit / enable / delete / IMPORT skill folders
+ * (`<slug>/SKILL.md` + optional nested attachments per the agentskills.io layout:
+ * references/, scripts/, assets/). Enabled skills are advertised in the chat system
+ * prompt; the model loads the body via `read_skill`, attachments via `read_skill_file`,
+ * and runs `scripts/*` via `run_skill_script`. Imported skills always land DISABLED —
+ * review, then enable.
  */
+
+/** Nested attachment paths need each segment encoded (not the slashes). */
+const fileUrl = (slug: string, f: string): string => `/api/leash/skills/${slug}/files/${f.split("/").map(encodeURIComponent).join("/")}`;
 
 interface Draft {
   name: string;
@@ -18,6 +24,8 @@ interface Draft {
 
 const EMPTY: Draft = { name: "", description: "", body: "" };
 
+type ImportMode = "zip" | "github" | "folder";
+
 /** Attachment manager for one existing skill (list · load-to-edit · save · delete). */
 function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: string; files: string[]; busy: boolean; onChanged: () => void; onError: (e: string) => void }) {
   const [fileName, setFileName] = useState("");
@@ -26,7 +34,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
 
   const load = async (f: string) => {
     try {
-      const res = await fetch(`/api/leash/skills/${slug}/files/${encodeURIComponent(f)}`);
+      const res = await fetchWithTimeout(fileUrl(slug, f));
       const body = (await res.json()) as { text?: string; error?: string };
       if (!res.ok) return onError(body.error ?? `Couldn't read ${f}.`);
       setFileName(f);
@@ -40,7 +48,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
     if (!fileName.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch(`/api/leash/skills/${slug}/files/${encodeURIComponent(fileName.trim())}`, {
+      const res = await fetchWithTimeout(fileUrl(slug, fileName.trim()), {
         method: "PUT",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ content: fileBody }),
@@ -62,8 +70,13 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
 
   const del = async (f: string) => {
     if (!confirm(`Delete the attachment "${f}"?`)) return;
-    await fetch(`/api/leash/skills/${slug}/files/${encodeURIComponent(f)}`, { method: "DELETE" });
-    onChanged();
+    try {
+      const res = await fetchWithTimeout(fileUrl(slug, f), { method: "DELETE" });
+      if (!res.ok) return onError(`Delete failed (${res.status}).`);
+      onChanged();
+    } catch {
+      onError("Request failed — is the app still running?");
+    }
   };
 
   return (
@@ -89,7 +102,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
         <input
           value={fileName}
           onChange={(e) => setFileName(e.target.value)}
-          placeholder="filename.md (text files only)"
+          placeholder="filename.md — nested paths ok (references/x.md, scripts/run.sh)"
           aria-label="Attachment filename"
           className="border bg-transparent px-3 py-2"
           style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}
@@ -118,6 +131,15 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Import panel state
+  const [importMode, setImportMode] = useState<ImportMode | null>(null);
+  const [importInput, setImportInput] = useState("");
+
+  // VS Code open-editor state: which skill is open in VS Code, or showing its path
+  const [vsCodeNotice, setVsCodeNotice] = useState<{ slug: string; path: string } | null>(null);
+  // Path notice when VS Code CLI is not found (shown above the inline editor)
+  const [pathNotice, setPathNotice] = useState<string | null>(null);
+
   const call = async (fn: () => Promise<Response>): Promise<boolean> => {
     setBusy(true);
     setError(null);
@@ -143,29 +165,83 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
     setDraft({ name: s.name, description: s.description, body: s.body });
   };
 
+  const openEditor = async (s: Skill) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetchWithTimeout(`/api/leash/skills/${s.slug}/open-editor`, { method: "POST" });
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? `Request failed (${res.status}).`);
+        return;
+      }
+      const body = (await res.json()) as { opened: boolean; path: string };
+      if (body.opened) {
+        setVsCodeNotice({ slug: s.slug, path: body.path });
+      } else {
+        // VS Code CLI not found — fall back to textarea editor, show path
+        setPathNotice(body.path);
+        startEdit(s);
+      }
+    } catch {
+      setError("Request failed — is the app still running?");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const save = async () => {
     if (!draft.name.trim()) return;
     const ok =
       editing === "new"
-        ? await call(() => fetch("/api/leash/skills", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }))
-        : await call(() => fetch(`/api/leash/skills/${editing}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }));
+        ? await call(() => fetchWithTimeout("/api/leash/skills", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }))
+        : await call(() => fetchWithTimeout(`/api/leash/skills/${editing}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }));
     if (ok) {
       setEditing(null);
       setDraft(EMPTY);
+      setPathNotice(null);
     }
   };
 
   const toggle = (s: Skill) =>
-    void call(() => fetch(`/api/leash/skills/${s.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }));
 
   const del = (s: Skill) => {
     if (!confirm(`Delete the skill "${s.name}"?`)) return;
-    void call(() => fetch(`/api/leash/skills/${s.slug}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "DELETE" }));
+  };
+
+  const importZip = (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    void call(() => fetchWithTimeout("/api/leash/skills/import", { method: "POST", body: fd }, TIMEOUT.heavy));
+  };
+
+  const importFromInput = () => {
+    const input = importInput.trim();
+    if (!input) return;
+    const url = importMode === "github" ? "/api/leash/skills/import-github" : "/api/leash/skills/import-folder";
+    const body = importMode === "github" ? { url: input } : { path: input };
+    void call(() => fetchWithTimeout(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, TIMEOUT.heavy));
   };
 
   const editor = (
     <section className="border p-4" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }}>
       <span className="kicker kicker-sage">{editing === "new" ? "New skill" : `Editing · ${editing}`}</span>
+      {pathNotice && (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <span className="kicker" style={{ color: "var(--color-faint)" }}>VS Code CLI not found · editing in browser</span>
+          <code style={{ fontSize: "0.78rem", fontFamily: "var(--font-mono)", color: "var(--color-ink-soft)" }}>{pathNotice}</code>
+          <button
+            type="button"
+            onClick={() => void navigator.clipboard.writeText(pathNotice)}
+            className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70"
+            style={{ borderColor: "var(--color-rule)", color: "var(--color-muted)" }}
+          >
+            Copy path
+          </button>
+        </div>
+      )}
       <div className="mt-3 flex flex-col gap-2">
         <input
           value={draft.name}
@@ -197,7 +273,7 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
         <button type="button" disabled={busy || !draft.name.trim()} onClick={() => void save()} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
           Save skill
         </button>
-        <button type="button" disabled={busy} onClick={() => { setEditing(null); setDraft(EMPTY); }} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
+        <button type="button" disabled={busy} onClick={() => { setEditing(null); setDraft(EMPTY); setPathNotice(null); }} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
           Cancel
         </button>
       </div>
@@ -218,17 +294,98 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
       {editing !== null ? (
         editor
       ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setEditing("new");
-            setDraft(EMPTY);
-          }}
-          className="kicker self-start px-3 py-2 transition-opacity hover:opacity-80"
-          style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
-        >
-          ＋ New skill
-        </button>
+        <div className="flex flex-col gap-2">
+          {/* Primary action row */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { setEditing("new"); setDraft(EMPTY); setImportMode(null); }}
+              className="kicker px-3 py-2 transition-opacity hover:opacity-80"
+              style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
+            >
+              ＋ New skill
+            </button>
+            <button
+              type="button"
+              onClick={() => setImportMode((m) => m === null ? "zip" : null)}
+              disabled={busy}
+              className="kicker border px-3 py-2 transition-opacity hover:opacity-70 disabled:opacity-40"
+              style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+            >
+              Import ▾
+            </button>
+            {importMode === null && (
+              <span className="kicker" style={{ color: "var(--color-faint)" }}>
+                imports land disabled — review, then enable
+              </span>
+            )}
+          </div>
+
+          {/* Expanded import row */}
+          {importMode !== null && (
+            <div className="flex flex-wrap items-center gap-2 border-l-2 pl-3" style={{ borderColor: "var(--color-rule-strong)" }}>
+              {/* Mode tabs */}
+              {(["zip", "github", "folder"] as ImportMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => { setImportMode(mode); setImportInput(""); }}
+                  className="kicker border px-2.5 py-1 transition-opacity hover:opacity-80"
+                  style={{
+                    borderColor: importMode === mode ? "var(--color-sage-deep)" : "var(--color-rule-strong)",
+                    color: importMode === mode ? "var(--color-sage-deep)" : "var(--color-muted)",
+                  }}
+                >
+                  {mode === "zip" ? ".zip" : mode === "github" ? "GitHub URL" : "Folder"}
+                </button>
+              ))}
+
+              {/* Input + action for github/folder modes */}
+              {importMode !== "zip" ? (
+                <>
+                  <input
+                    value={importInput}
+                    onChange={(e) => setImportInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && importInput.trim()) importFromInput(); }}
+                    placeholder={importMode === "github" ? "https://github.com/owner/repo" : "/path/to/skill-dir"}
+                    aria-label={importMode === "github" ? "GitHub repository URL" : "Local folder path"}
+                    className="flex-1 border bg-transparent px-3 py-1.5"
+                    style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-mono)", fontSize: "0.78rem", minWidth: "14rem" }}
+                    disabled={busy}
+                  />
+                  <button
+                    type="button"
+                    disabled={busy || !importInput.trim()}
+                    onClick={importFromInput}
+                    className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
+                    style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+                  >
+                    Import
+                  </button>
+                </>
+              ) : (
+                <label className="kicker cursor-pointer border px-3 py-1.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
+                  Browse…
+                  <input
+                    type="file"
+                    accept=".zip,application/zip"
+                    className="hidden"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = ""; // allow re-selecting the same file
+                      if (f) importZip(f);
+                    }}
+                  />
+                </label>
+              )}
+
+              <span className="kicker" style={{ color: "var(--color-faint)" }}>
+                imports land disabled — review, then enable
+              </span>
+            </div>
+          )}
+        </div>
       )}
 
       {skills.length === 0 && editing === null ? (
@@ -253,12 +410,28 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
                 </p>
                 <p style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>{s.description || "(no description — the assistant won't know when to use it)"}</p>
               </div>
-              <button type="button" onClick={() => startEdit(s)} disabled={busy} className="kicker border px-2.5 py-1 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-                Edit
-              </button>
-              <button type="button" onClick={() => del(s)} disabled={busy} title="Delete skill" aria-label={`Delete ${s.name}`} className="px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
-                ×
-              </button>
+              {vsCodeNotice?.slug === s.slug ? (
+                <span className="kicker flex items-center gap-2">
+                  <span style={{ color: "var(--color-sage-deep)" }}>Opened in VS Code</span>
+                  <button
+                    type="button"
+                    onClick={() => { setVsCodeNotice(null); router.refresh(); }}
+                    className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70"
+                    style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+                  >
+                    ↺ reload
+                  </button>
+                </span>
+              ) : (
+                <>
+                  <button type="button" onClick={() => void openEditor(s)} disabled={busy} className="kicker border px-2.5 py-1 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
+                    Edit
+                  </button>
+                  <button type="button" onClick={() => del(s)} disabled={busy} title="Delete skill" aria-label={`Delete ${s.name}`} className="px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
+                    ×
+                  </button>
+                </>
+              )}
             </li>
           ))}
         </ul>

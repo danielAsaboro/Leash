@@ -14,6 +14,8 @@ export const RESEARCH_DIR = process.env["LEASH_RESEARCH_DIR"] ?? join(DATA_DIR, 
 export interface ResearchStatus {
   id: string;
   question: string;
+  /** The detached child's pid — lets the dashboard Cancel (SIGTERM) an active run. */
+  pid?: number;
   state: "planning" | "searching" | "reading" | "synthesizing" | "done" | "error";
   round: number;
   maxRounds: number;

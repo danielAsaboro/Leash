@@ -13,7 +13,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "postinstall": "npm run db:generate",
+    "postinstall": "patch-package && npm run db:generate",
     "build": "tsc -b",
     "typecheck": "tsc -b",
     "senses:smoke": "tsx packages/senses/scripts/smoke-graph-rag.ts",
@@ -51,7 +51,8 @@
     "warm:media": "tsx apps/web/scripts/warm-media.ts",
     "tag-photos": "tsx apps/web/scripts/tag-photos.mts",
     "broker": "tsx apps/leash-broker/src/main.ts",
-    "hypha": "tsx apps/hypha/src/main.ts"
+    "hypha": "tsx apps/hypha/src/main.ts",
+    "mcp": "tsx apps/leash-mcp/src/main.ts"
   },
   "dependencies": {
     "@qvac/sdk": "^0.12.0",
@@ -62,6 +63,7 @@
     "@types/node": "^22.10.2",
     "autobase": "^7.28.1",
     "blind-pairing": "^2.3.1",
+    "patch-package": "^8.0.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
   }

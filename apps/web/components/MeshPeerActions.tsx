@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 
 /**
  * Client buttons for mesh membership management in the Hypha card: disconnect one peer, or
@@ -10,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 async function post(action: string, extra: Record<string, unknown> = {}): Promise<string | null> {
   try {
-    const r = await fetch("/api/leash/hypha/mesh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
+    const r = await fetchWithTimeout("/api/leash/hypha/mesh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
     const body = (await r.json().catch(() => ({}))) as { error?: unknown };
     if (!r.ok || body.error) return typeof body.error === "string" ? body.error : `Request failed (${r.status}).`;
     return null;

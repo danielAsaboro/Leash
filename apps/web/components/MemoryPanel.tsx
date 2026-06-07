@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { NoteView, ActivityPage } from "../lib/leash/memory-admin.ts";
 import type { IndexStats } from "../lib/leash/graph.ts";
 
@@ -25,7 +26,7 @@ export function MemoryPanel({ notes, activity, stats, offset }: { notes: NoteVie
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/leash/memory/forget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      const res = await fetchWithTimeout("/api/leash/memory/forget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
       if (!res.ok) setError(`Forget failed (${res.status}).`);
       router.refresh();
     } catch {

@@ -10,7 +10,7 @@
         "config": {
           "tools": true,
           "toolsMode": "dynamic",
-          "ctx_size": 4096
+          "ctx_size": 16384
         }
       },
       "gte-large": {
@@ -24,14 +24,14 @@
         "config": {
           "tools": true,
           "toolsMode": "dynamic",
-          "ctx_size": 4096
+          "ctx_size": 8192
         }
       },
       "qwen3vl": {
         "model": "QWEN3VL_2B_MULTIMODAL_Q4_K",
         "preload": true,
         "config": {
-          "ctx_size": 4096,
+          "ctx_size": 8192,
           "projectionModelSrc": "~/.qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
         }
       },

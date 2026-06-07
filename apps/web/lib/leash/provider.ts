@@ -39,6 +39,13 @@ export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "gte-large";
 export const MEDPSY_MODEL = process.env["LEASH_MEDPSY_MODEL"] ?? "medpsy";
 /** Vision-language model (Qwen3VL) for image turns — via the forked serve's image-content support. */
 export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
+/**
+ * Computer-use driver alias — DEFAULTS TO THE CHAT MODEL, so the computer-turn routing
+ * is a no-op until configured. Set to a bigger served alias (e.g. `gpt-oss-20b`) for
+ * stronger GUI control: served locally, or warm on a paired peer with `QVAC_OPENAI_URL`
+ * pointed at the broker (:11436) — the broker availability-routes the turn over the mesh.
+ */
+export const COMPUTER_MODEL = process.env["LEASH_COMPUTER_MODEL"] ?? CHAT_MODEL;
 
 /**
  * Priority-tagged provider instances. The `x-leash-priority` header is consumed by the
@@ -74,6 +81,14 @@ export function chatModelBackground(): LanguageModel {
 export function medpsyModel(): LanguageModel {
   return wrapLanguageModel({
     model: qvac(MEDPSY_MODEL),
+    middleware: extractReasoningMiddleware({ tagName: "think" }),
+  });
+}
+
+/** The computer-use driver — orchestrates the computer tools (the screenshot tool's VLM perceives). */
+export function computerModel(): LanguageModel {
+  return wrapLanguageModel({
+    model: qvac(COMPUTER_MODEL),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }

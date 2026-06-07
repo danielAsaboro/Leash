@@ -1,6 +1,8 @@
 "use client";
 import Link from "next/link";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { ChatSummary, ConsolidationItem } from "../lib/leash/types";
 
 /**
@@ -24,14 +26,36 @@ function relTime(ms: number): string {
 
 export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[]; dreams: ConsolidationItem[]; activeId: string }) {
   const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const call = async (fn: () => Promise<Response>, { refresh = true } = {}) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fn();
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? `Request failed (${res.status}).`);
+        return false;
+      }
+      if (refresh) router.refresh();
+      return true;
+    } catch {
+      setError("Request failed — is the app still running?");
+      return false;
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const del = async (id: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (!confirm("Delete this conversation?")) return;
-    await fetch(`/api/leash/chats/${id}`, { method: "DELETE" });
-    if (id === activeId) router.push("/chat");
-    else router.refresh();
+    // Deleting the OPEN chat navigates away instead of refreshing a dead thread.
+    const ok = await call(() => fetchWithTimeout(`/api/leash/chats/${id}`, { method: "DELETE" }), { refresh: id !== activeId });
+    if (ok && id === activeId) router.push("/chat");
   };
 
   const rename = async (id: string, current: string, e: React.MouseEvent) => {
@@ -39,8 +63,7 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
     e.stopPropagation();
     const title = prompt("Rename conversation", current);
     if (title == null || !title.trim()) return;
-    await fetch(`/api/leash/chats/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) });
-    router.refresh();
+    await call(() => fetchWithTimeout(`/api/leash/chats/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }));
   };
 
   return (
@@ -51,6 +74,12 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
       <Link href="/chat/new" className="chat-list-new kicker">
         ＋ New chat
       </Link>
+
+      {error && (
+        <p className="kicker px-3 py-1" style={{ color: "var(--color-brick)" }} role="alert">
+          {error}
+        </p>
+      )}
 
       {dreams.length > 0 && (
         <div className="chat-dreams">
@@ -77,10 +106,10 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
                 </span>
               </Link>
               <span className="chat-list-actions">
-                <button type="button" onClick={(e) => rename(c.id, c.title, e)} title="Rename" aria-label="Rename conversation">
+                <button type="button" onClick={(e) => void rename(c.id, c.title, e)} title="Rename" aria-label="Rename conversation" disabled={busy}>
                   ✎
                 </button>
-                <button type="button" onClick={(e) => del(c.id, e)} title="Delete" aria-label="Delete conversation">
+                <button type="button" onClick={(e) => void del(c.id, e)} title="Delete" aria-label="Delete conversation" disabled={busy}>
                   ×
                 </button>
               </span>

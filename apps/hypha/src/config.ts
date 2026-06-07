@@ -13,7 +13,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { randomBytes } from "node:crypto";
-import { totalmem, hostname } from "node:os";
+import { totalmem, hostname, homedir } from "node:os";
 import type { ComputeClass, PowerState } from "@mycelium/shared";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -69,6 +69,15 @@ export const WARM_TICK_MS = Number(process.env["HYPHA_WARM_TICK_MS"] ?? 5_000);
  * entry so the pool re-warms fresh.
  */
 export const HYPHA_TTFB_MS = Number(process.env["HYPHA_TTFB_MS"] ?? 60_000);
+
+/** KV-cache sessions on delegated completions (kill switch: HYPHA_KV_CACHE=0). */
+export const HYPHA_KV_CACHE = (process.env["HYPHA_KV_CACHE"] ?? "1") !== "0";
+/** Max concurrently-tracked kv sessions (LRU-evicted beyond this). */
+export const HYPHA_KV_MAX_SESSIONS = Number(process.env["HYPHA_KV_MAX_SESSIONS"] ?? 8);
+/** Janitor TTL for this device's provider-side `shim.*` cache dirs. */
+export const HYPHA_KV_TTL_MS = Number(process.env["HYPHA_KV_TTL_MS"] ?? 24 * 60 * 60 * 1000);
+/** Where the SDK keeps kv-cache .bins on THIS device (when it acts as provider). */
+export const HYPHA_KV_DIR = process.env["HYPHA_KV_DIR"] ?? join(homedir(), ".qvac", "kv-cache");
 
 /** Coarse device self-description for the capability registry (env-overridable). */
 export const DEVICE_NAME = process.env["HYPHA_NAME"] ?? hostname();

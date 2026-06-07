@@ -17,9 +17,9 @@
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { close, stopQVACProvider } from "@qvac/sdk";
-import { AuditLog } from "@mycelium/shared";
+import { AuditLog, KvSessions, sweepKvCacheDir } from "@mycelium/shared";
 import { MeshGraph, unpairKey } from "@mycelium/mesh";
-import { DEVICE_NAME, FORGOTTEN_FILE, HYPHA_PAIR_PORT, HYPHA_PORT, INVITE_FILE, LOG_DIR, MESH_STORE_DIR, STALE_MS, UNPAIR_ACK_FILE, loadOrCreateSeed } from "./config.ts";
+import { DEVICE_NAME, FORGOTTEN_FILE, HYPHA_KV_CACHE, HYPHA_KV_DIR, HYPHA_KV_MAX_SESSIONS, HYPHA_KV_TTL_MS, HYPHA_PAIR_PORT, HYPHA_PORT, INVITE_FILE, LOG_DIR, MESH_STORE_DIR, STALE_MS, UNPAIR_ACK_FILE, loadOrCreateSeed } from "./config.ts";
 import { startMeshServices, type MeshRuntime } from "./mesh-services.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
 import { createShim, type Inflight, type MeshControl } from "./shim.ts";
@@ -358,7 +358,21 @@ async function runDaemon(): Promise<void> {
   };
 
   const pairing = new PairingController(meshController, audit);
-  const server = createShim({ getPool: () => mesh?.pool ?? null, inflight, port: HYPHA_PORT, pairing, mesh: meshControl, audit });
+
+  // KV-cache sessions: consumer-side ledger for the shim's delegated completions, plus a
+  // janitor for THIS device's provider-side `shim.*` cache dirs (peers' sessions on us —
+  // consumer-side deleteCache doesn't cross the delegation boundary, so every device
+  // sweeps its own disk). Hourly, unref'd; one sweep at boot clears prior runs' orphans.
+  const kv = HYPHA_KV_CACHE ? new KvSessions(HYPHA_KV_MAX_SESSIONS) : undefined;
+  const sweep = (): void => {
+    const removed = sweepKvCacheDir(HYPHA_KV_DIR, HYPHA_KV_TTL_MS);
+    if (removed > 0) audit.record({ event: "note", extra: { role: "kv-janitor", removed, dir: HYPHA_KV_DIR } });
+  };
+  sweep();
+  const janitor = setInterval(sweep, 60 * 60 * 1000);
+  janitor.unref();
+
+  const server = createShim({ getPool: () => mesh?.pool ?? null, inflight, port: HYPHA_PORT, pairing, mesh: meshControl, audit, ...(kv ? { kv } : {}) });
 
   // Established device: rejoin its mesh at boot. Fresh device: stay unpaired until pairing.
   if (existsSync(MESH_STORE_DIR)) {

@@ -1,16 +1,18 @@
 "use client";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
+import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputProvider, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputSubmit, PromptInputActionMenu, PromptInputActionMenuTrigger, PromptInputActionMenuContent, PromptInputActionAddAttachments, usePromptInputController, usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
 import { ToolView } from "./leash-tools.tsx";
+import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
 import { blobToWav } from "@/lib/leash/audio";
-import type { LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
+import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
+import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
 
 /**
  * The Leash chat surface (client) — Vercel AI Elements on the AI SDK, re-skinned with
@@ -196,9 +198,22 @@ export function friendlyChatError(error: Error): string {
 export function LeashChat({ id, initialMessages }: { id: string; initialMessages: LeashUIMessage[] }) {
   // Hands-free "call" overlay — shares THIS useChat instance (no second transport/store).
   const [callOpen, setCallOpen] = useState(false);
-  const { messages, sendMessage, status, error, regenerate, stop } = useChat<LeashUIMessage>({
+  // Pending MCP elicitation forms (server→user questions mid-tool-call). Fed by the
+  // stream's transient `data-elicitation` parts; seeded from GET /elicitations on mount
+  // so a reload mid-form recovers the card. Resolved/timed-out ids drop out.
+  const [elicitations, setElicitations] = useState<ElicitationView[]>([]);
+  useEffect(() => {
+    fetchWithTimeout("/api/leash/elicitations", {}, TIMEOUT.probe)
+      .then((r) => (r.ok ? r.json() : { elicitations: [] }))
+      .then((d: { elicitations?: ElicitationView[] }) => setElicitations((prev) => (prev.length === 0 ? (d.elicitations ?? []) : prev)))
+      .catch(() => {}); // best-effort seed — the stream's data-elicitation parts are the live path
+  }, []);
+  const { messages, sendMessage, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
     id,
     messages: initialMessages,
+    // Tool approvals ("Ask first" tools): once every approval card on the last assistant
+    // message has an answer, resend it automatically so the run continues server-side.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     transport: new DefaultChatTransport({
       api: "/api/leash/chat",
       // Send only the last message + trigger; the server rebuilds history from the store.
@@ -211,6 +226,11 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       },
     }),
     experimental_throttle: 50,
+    onData: (part) => {
+      if (part.type !== "data-elicitation") return;
+      const ev = part.data as LeashElicitationEvent;
+      setElicitations((prev) => (ev.kind === "open" ? [...prev.filter((e) => e.id !== ev.elicitation.id), ev.elicitation] : prev.filter((e) => e.id !== ev.id)));
+    },
     onError: (e) => console.error("Leash chat error:", e),
   });
   const busy = status === "submitted" || status === "streaming";
@@ -239,10 +259,23 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
               </div>
             </ConversationEmptyState>
           ) : (
-            messages.map((m) => (
-              <MessageView key={m.id} message={m} streaming={busy} onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined} />
+            messages.map((m, idx) => (
+              <MessageView
+                key={m.id}
+                message={m}
+                streaming={busy}
+                onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined}
+                // Approval cards are actionable only on the LAST message of an idle chat —
+                // historical cards render as inert chips.
+                approval={idx === messages.length - 1 && status === "ready" ? { respond: addToolApprovalResponse } : undefined}
+              />
             ))
           )}
+
+          {/* Pending MCP elicitation forms — an MCP server is waiting on the user. */}
+          {elicitations.map((e) => (
+            <ElicitationCard key={e.id} elicitation={e} onDone={(doneId) => setElicitations((prev) => prev.filter((x) => x.id !== doneId))} />
+          ))}
 
           {error && (
             <div className="chat-error">
@@ -309,7 +342,12 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   );
 }
 
-function MessageView({ message, streaming, onRegenerate }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void }) {
+/** Approval handle passed down only when the card should be actionable (last message, idle). */
+export interface ApprovalHandle {
+  respond: (args: { id: string; approved: boolean; reason?: string }) => void;
+}
+
+function MessageView({ message, streaming, onRegenerate, approval }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void; approval?: ApprovalHandle }) {
   const { role } = message;
   const parts = message.parts as Part[];
   // Read-aloud is a small state machine: idle → loading (synthesizing) → playing → idle.
@@ -410,7 +448,7 @@ function MessageView({ message, streaming, onRegenerate }: { message: LeashUIMes
             return <MessageResponse key={i}>{p.text ?? ""}</MessageResponse>;
           }
           if (isToolPart(p)) {
-            return <ToolView key={i} part={p} />;
+            return <ToolView key={i} part={p} approval={approval} />;
           }
           return null;
         })}

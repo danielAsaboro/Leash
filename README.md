@@ -174,6 +174,105 @@ for Home Assistant (P3) and the activity watchers (P2).
 | `LEASH_HA_TOKEN` | _(empty)_ | web — HA long-lived access token (stays server-side); required with `LEASH_HA_URL` |
 | `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | web + leash-watch — the screen watcher's activity trail (read by `active_context`/`activity_recent` and embedded into `search_graph`) |
 
+### Agentic upgrades (skills · approval · MCP elicitation · kvCache)
+
+**Skills** (Brain → Skills) follow the agentskills.io folder layout —
+`data/leash-skills/<slug>/SKILL.md` + `references/` + `scripts/` + `assets/` (nested
+paths, ≤3 deep). Import a packaged skill as a `.zip`; **imports and any SKILL.md without
+an explicit `enabled: true` land DISABLED** (prompt-injection posture: review, then
+enable). Enabled skills can bundle executable scripts the model runs via
+`run_skill_script` — interpreter chosen by extension only (`.js/.mjs/.cjs` → node,
+`.py` → python3, `.sh` → bash), argv spawn (no shell), realpath-contained to
+`<skill>/scripts/`, stripped env, 60 s SIGKILL, 16 KB output caps. **This is real code
+execution as the web-app user, not a sandbox** — which is why it's approval-gated:
+
+**Tool approval** (Brain → Tools → "Ask first"): marked tools pause the chat on an
+in-chat Approve/Deny card before running (`ha_call_service` and `run_skill_script`
+default to ask-first). The pause ends the stream normally — the serve sits idle while
+you decide; Deny is acknowledged, never retried. Malformed model tool-calls are
+self-healed by `jsonrepair` (`experimental_repairToolCall`) before they ever error.
+
+**MCP** (Brain → MCP): add MCP servers by URL (plus `LEASH_MCP_SERVERS` env rows,
+read-only). Leash advertises the **elicitation** capability — when an MCP tool needs
+the user mid-call, a form renders in the chat (string/number/boolean/enum), with a
+120 s timeout-cancel so an unanswered form never hangs a tool. The bundled
+`apps/leash-mcp` server (`:11439`, Services → "MCP (Mesh Tools)") turns mesh pairing
+into chat: *"pair this device with my laptop"* discovers LAN devices and asks for the
+6-digit PIN shown on the other machine's screen — input no model can know.
+Limitations, honestly: voice turns don't speak approval/elicitation cards (answer them
+on screen), and an elicitation holds its HTTP stream open while waiting (bounded by the
+timeout; the serve can't be restarted during the wait).
+
+**Delegated kvCache** (hypha): overflow turns shed to a mesh peer now reuse the peer's
+KV cache across the conversation — the shim keys each session (`shim.*`) and only
+reuses a key when the request provably extends exactly what the peer cached; edits,
+regenerates, peer changes, errors, and restarts re-prime fresh (correctness over
+speed). Evidence lands in `apps/hypha/logs/hypha.jsonl` as `cacheTokens` +
+`extra.kvKey/kvFresh`. Kill switch `HYPHA_KV_CACHE=0`; hourly janitor TTLs each
+device's own `~/.qvac/kv-cache/shim.*` (a session `.bin` runs tens of MB). The forked
+serve also accepts an opt-in `kv_cache` body field (restored by `patch-package` from
+`patches/`), but the web chat route deliberately doesn't send it: every text tier runs
+tools-ON (the toolless-hang guard), and custom-key kv across tool-call turns is
+unverified SDK territory. Hypha-only, on purpose. Note: a *cold* prime on a small fast
+model barely moves TTFT — the win grows with history length.
+
+### Computer use (screenshot · files · shell · mouse/keyboard)
+
+Leash can act on the Mac itself — native AI SDK tools driven by a **local or
+mesh-delegated QVAC model** (cloud provider-defined computer-use tools would break the
+no-cloud rule):
+
+- `screenshot` — `screencapture` a frame → the on-device VLM (`qwen3vl`) answers a
+  question about it; the PNG is deleted immediately and only ever reaches the
+  local/mesh QVAC VLM. Needs **Screen Recording** permission for the terminal
+  running the web app.
+- `read_file` / `write_file` / `edit_file` — text files, **hard-jailed** (realpath
+  containment, no symlink escape) under `LEASH_COMPUTER_ROOT` (default: home).
+  `edit_file` is exact-str-replace with a uniqueness check.
+- `run_command` — `bash -c` with stripped env, 60 s SIGKILL timeout, 16 KB output
+  caps. The cwd is contained for convenience but **this is real code execution as
+  the web-app user, not a sandbox** — the boundary is the approval card.
+  `LEASH_COMMAND_ALLOW=git,ls,…` adds a best-effort first-token guard-rail.
+- `computer` — mouse/keyboard via [`cliclick`](https://github.com/BlueM/cliclick):
+  `brew install cliclick`, then grant **Accessibility** permission. Experimental —
+  GUI grounding accuracy scales with the driving model's size; coordinates are
+  logical points (divide Retina screenshot pixels by ~2). No native scroll wheel
+  (scroll = page-key repeats).
+
+`write_file` / `edit_file` / `run_command` / `computer` default to **Ask first**
+(approval card per call); `screenshot` / `read_file` are un-gated but toggleable
+(Brain → Tools). A computer-intent turn raises the step budget to 10
+(screenshot → act → screenshot → verify loops need it).
+
+**Focused toolset per turn** (load-bearing): the serve folds every offered tool
+schema into a 4096-token prompt (`qwen3-4b` `ctx_size`) — offering all 28 schemas
+at once hangs the decode at zero tokens (verified 2026-06-07, same failure family
+as the toolless-hang). So a computer-intent turn offers ONLY the six computer
+tools, and every other turn keeps the lean pre-existing registry; the routing
+regex in the chat route decides which. Stored threads still validate against the
+full registry. Corollary: a computer turn can't call the graph/HA/task tools in
+the same turn — re-ask without computer wording if you need both.
+
+**Bigger model, optionally over the mesh:** the 4B generalist can drive the tools,
+but GUI control improves with model size. `LEASH_COMPUTER_MODEL=<alias>` switches
+computer-intent turns to another served alias (default: the chat model — a no-op
+until set). Two ways to serve it:
+
+```bash
+# Local: serve gpt-oss-20b on this machine (needs the RAM), then
+LEASH_COMPUTER_MODEL=gpt-oss-20b npm run web:dev
+
+# Delegated: point the web app at the broker; a paired peer serving the alias WARM
+# picks the turn up over the encrypted mesh (broker availability-routing — check
+# /__broker/stats and the Services borrow counters).
+LEASH_COMPUTER_MODEL=gpt-oss-20b QVAC_OPENAI_URL=http://127.0.0.1:11436/v1 npm run web:dev
+```
+
+Do **not** add `gpt-oss-20b` with `preload: true` to the shared
+`qvac.config.base.json` (~12 GB, rsynced to every Mac) — add it per machine on the
+peer that actually serves it. The Tools tab shows which model drives the computer
+tools and whether it runs locally or on a named peer.
+
 ## Offline acceptance test
 
 After warming the cache, disable networking (airplane mode / pull the cable) and

@@ -192,6 +192,55 @@ export async function getMissionControl() {
   return { state, counts, active, recentRuns, lastDiscovery };
 }
 
+/** A mid-pipeline article for the Mission Control drill-down, with its failure reason. */
+export interface StuckArticle {
+  id: string;
+  date: string;
+  slug: string;
+  section: string;
+  origin: string;
+  headline: string;
+  stage: string;
+  updatedAt: Date;
+  /** Latest FAILED daemon run touching this article — the honest "why it's stuck". */
+  failure: { kind: string; detail: string; startedAt: Date } | null;
+  /** Untouched for >5 min — the daemon isn't visibly working it (re-queue eligibility gate). */
+  stalled: boolean;
+}
+
+const STUCK_STAGES = [Stage.RESEARCHING, Stage.RESEARCH_READY, Stage.DRAFTING, Stage.REVIEW];
+const STALL_MS = 5 * 60_000;
+
+/**
+ * Mission Control drill-down: every article stuck mid-pipeline, stalest first, each
+ * with its latest failed `DaemonRun` (kind + detail) so the floor shows WHY a story
+ * is stuck, not just that it is.
+ */
+export async function getStuckArticles(): Promise<StuckArticle[]> {
+  const rows = await prisma.article.findMany({
+    where: { stage: { in: STUCK_STAGES } },
+    orderBy: [{ updatedAt: "asc" }], // stalest first
+    select: { id: true, date: true, slug: true, section: true, origin: true, headline: true, stage: true, updatedAt: true },
+  });
+  if (rows.length === 0) return [];
+  const fails = await prisma.daemonRun.findMany({
+    where: { ok: false, articleId: { in: rows.map((r) => r.id) } },
+    orderBy: { id: "desc" },
+    select: { articleId: true, kind: true, detail: true, startedAt: true },
+  });
+  const failByArticle = new Map<string, (typeof fails)[number]>();
+  for (const f of fails) if (f.articleId && !failByArticle.has(f.articleId)) failByArticle.set(f.articleId, f);
+  const now = Date.now();
+  return rows.map((r) => {
+    const f = failByArticle.get(r.id);
+    return {
+      ...r,
+      failure: f ? { kind: f.kind, detail: f.detail, startedAt: f.startedAt } : null,
+      stalled: now - new Date(r.updatedAt).getTime() > STALL_MS,
+    };
+  });
+}
+
 /** Filterable, read-only pipeline view for the /tasks Pipeline tab. */
 export async function getPipeline(filter: { stage?: string; date?: string; section?: string; origin?: string }, take = 100) {
   return prisma.article.findMany({

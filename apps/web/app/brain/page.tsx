@@ -12,13 +12,15 @@ import { modelsInventory, catalogWithFit, listDownloads } from "../../lib/leash/
 import { forage } from "../../lib/leash/forage.ts";
 import { serveStatus } from "../../lib/leash/serve-control.ts";
 import { getPrompts } from "../../lib/leash/prompts-store.ts";
-import { disabledTools } from "../../lib/leash/tool-config.ts";
+import { disabledTools, askFirstOverrides, DEFAULT_ASK_FIRST } from "../../lib/leash/tool-config.ts";
 import { leashTools } from "../../lib/leash/tools.ts";
 import { taskTools } from "../../lib/leash/task-tools.ts";
 import { memoryTools } from "../../lib/leash/memory-tools.ts";
 import { skillTools } from "../../lib/leash/skill-tools.ts";
 import { researchTools } from "../../lib/leash/research-tools.ts";
-import { leashMcpTools } from "../../lib/leash/mcp.ts";
+import { computerTools } from "../../lib/leash/computer-tools.ts";
+import { computerModelInfo } from "../../lib/leash/computer-model.ts";
+import { leashMcpTools, mcpServerStatuses } from "../../lib/leash/mcp.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
 import { ToolsPanel, type ToolRow } from "../../components/ToolsPanel.tsx";
@@ -27,19 +29,25 @@ import { MemoryPanel } from "../../components/MemoryPanel.tsx";
 import { MemoriesSection } from "../../components/MemoriesSection.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
 import { ForagePanel } from "../../components/ForagePanel.tsx";
+import { McpPanel } from "../../components/McpPanel.tsx";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "tools", "prompts", "models", "forage"] as const;
+const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "forage"] as const;
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, off] = await Promise.all([leashMcpTools(), disabledTools()]);
-  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...mcp };
+  const [mcp, off, ask, computerNote] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides(), computerModelInfo()]);
+  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...computerTools, ...mcp };
+  const computerNames = new Set(Object.keys(computerTools));
   return Object.entries(registry).map(([name, t]) => ({
     name,
     description: ((t as { description?: string }).description ?? "").slice(0, 240),
     enabled: !off.has(name),
+    askFirst: ask[name] ?? DEFAULT_ASK_FIRST.has(name),
+    askFirstDefault: DEFAULT_ASK_FIRST.has(name),
+    // The computer-use rows show which model drives them and where it runs (local / mesh peer).
+    ...(computerNames.has(name) ? { infoNote: computerNote } : {}),
   }));
 }
 
@@ -65,7 +73,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
             }
             aria-current={tab === t ? "page" : undefined}
           >
-            {t[0]?.toUpperCase() + t.slice(1)}
+            {t === "mcp" ? "MCP" : t[0]?.toUpperCase() + t.slice(1)}
           </Link>
         ))}
       </div>
@@ -78,6 +86,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       )}
       {tab === "skills" && <SkillsPanel skills={await listSkills()} />}
       {tab === "tools" && <ToolsPanel tools={await toolRows()} />}
+      {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
       {tab === "models" && (
         <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />

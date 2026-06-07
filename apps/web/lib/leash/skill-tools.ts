@@ -1,13 +1,16 @@
 /**
  * The skills ↔ chat bridge (server-only): a system-prompt section listing enabled
  * skills (name + description only — bodies stay on disk), `read_skill` to load a
- * skill's SKILL.md on demand, and `read_skill_file` for its attachments. Mirrors how
- * Claude-style skills keep the prompt small until a skill is actually relevant.
+ * skill's SKILL.md on demand, `read_skill_file` for its attachments, and
+ * `run_skill_script` for its bundled `scripts/*` (real execution — approval-gated by
+ * default, see skill-exec.ts). Mirrors how Claude-style skills keep the prompt small
+ * until a skill is actually relevant.
  */
 import "server-only";
 import { tool } from "ai";
 import { z } from "zod";
 import { listSkills, getSkill, readSkillFile } from "./skills-store.ts";
+import { runSkillScript } from "./skill-exec.ts";
 import type { LeashSource } from "./tools.ts";
 
 /**
@@ -42,9 +45,11 @@ export const skillTools = {
         };
       }
       if (!s.enabled) return { text: `The skill "${s.slug}" is currently disabled.`, sources: [] as LeashSource[] };
-      const attachments = s.files.length
-        ? `\n\nThis skill has attached files: ${s.files.join(", ")} — load one with read_skill_file when the instructions reference it.`
-        : "";
+      const scripts = s.files.filter((f) => f.startsWith("scripts/"));
+      const docs = s.files.filter((f) => !f.startsWith("scripts/"));
+      const attachments =
+        (docs.length ? `\n\nThis skill has attached files: ${docs.join(", ")} — load one with read_skill_file when the instructions reference it.` : "") +
+        (scripts.length ? `\n\nThis skill has executable scripts: ${scripts.join(", ")} — run one with run_skill_script when the instructions say to.` : "");
       return {
         // The closing line keeps small models from "calling" the skill as a tool next
         // step instead of just answering (observed on qwen3-4b).
@@ -67,6 +72,29 @@ export const skillTools = {
       return {
         text: `Contents of ${skill}/${file}:\n\n${r.text}`,
         sources: [{ kind: "graph", title: `Skill file · ${skill}/${file}`, snippet: r.text.slice(0, 200) }] as LeashSource[],
+      };
+    },
+  }),
+
+  run_skill_script: tool({
+    description:
+      "Run one of a skill's bundled scripts (the executable files under its scripts/ folder, listed by read_skill). Use AFTER read_skill, when its instructions say to run a script. The script executes on this machine and its output comes back to you.",
+    inputSchema: z.object({
+      skill: z.string().describe("The skill's slug (e.g. 'trip-planning')."),
+      script: z.string().describe("The script path exactly as listed by read_skill (e.g. 'scripts/fetch.sh')."),
+      args: z.array(z.string()).optional().describe("Command-line arguments for the script, if its instructions call for any."),
+    }),
+    execute: async ({ skill, script, args }) => {
+      const r = await runSkillScript(skill.trim().toLowerCase(), script.trim(), args ?? []);
+      if (r.error && r.exitCode === null) return { text: r.error, sources: [] as LeashSource[] };
+      const parts = [
+        `Script ${skill}/${script} exited with code ${r.exitCode ?? "?"}${r.error ? ` (${r.error})` : ""}.`,
+        r.stdout.trim() ? `stdout:\n\`\`\`\n${r.stdout.trim()}\n\`\`\`` : "stdout: (empty)",
+        r.stderr.trim() ? `stderr:\n\`\`\`\n${r.stderr.trim()}\n\`\`\`` : "",
+      ].filter(Boolean);
+      return {
+        text: parts.join("\n\n"),
+        sources: [{ kind: "graph", title: `Skill script · ${skill}/${script}`, snippet: r.stdout.slice(0, 200) }] as LeashSource[],
       };
     },
   }),

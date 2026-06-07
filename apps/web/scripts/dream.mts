@@ -20,6 +20,7 @@ import { streamText, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { createQvac } from "@qvac/ai-sdk-provider";
 import { Agent, fetch as undiciFetch } from "undici";
+import { safeParseJson } from "../lib/leash/json-repair.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/scripts → repo root. */
@@ -70,15 +71,14 @@ function extractJsonArray(text: string): unknown[] {
   for (let i = start; i < clean.length; i++) {
     if (clean[i] === "[") depth++;
     else if (clean[i] === "]" && --depth === 0) {
-      try {
-        const v = JSON.parse(clean.slice(start, i + 1));
-        return Array.isArray(v) ? v : [];
-      } catch {
-        return [];
-      }
+      // Strict parse → jsonrepair fallback (trailing commas, single quotes, …).
+      const v = safeParseJson<unknown>(clean.slice(start, i + 1));
+      return Array.isArray(v) ? v : [];
     }
   }
-  return [];
+  // No matching close bracket (model output truncated mid-array) — let jsonrepair close it.
+  const v = safeParseJson<unknown>(clean.slice(start));
+  return Array.isArray(v) ? v : [];
 }
 
 /** A task row in the shared store (mirrors apps/web lib/leash/tasks-store.ts). */

@@ -8,6 +8,7 @@
  * record — so a single seed run already produces a full, inspectable trail.
  */
 import { completion, loadModel, unloadModel } from "@qvac/sdk";
+import { jsonrepair } from "jsonrepair";
 import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, QWEN3_4B_INST_Q4_K_M } from "@mycelium/senses";
 import { prisma, type RunKind } from "@mycelium/db";
@@ -127,10 +128,16 @@ export function extractJson<T>(text: string): T | undefined {
     else if (c === close) {
       depth--;
       if (depth === 0) {
+        const slice = candidate.slice(start, i + 1);
         try {
-          return JSON.parse(candidate.slice(start, i + 1)) as T;
+          return JSON.parse(slice) as T;
         } catch {
-          return undefined;
+          // Council models emit trailing commas / single quotes — repair, then give up honestly.
+          try {
+            return JSON.parse(jsonrepair(slice)) as T;
+          } catch {
+            return undefined;
+          }
         }
       }
     }

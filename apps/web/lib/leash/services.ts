@@ -31,12 +31,14 @@ export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, 
 /** Touched by leash-cron every tick. */
 export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
 
-export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker" | "hypha";
+export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker" | "hypha" | "leash-mcp";
 
 /** Where the broker listens (probe target for its health). */
 const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
 /** Where the Hypha delegated-compute shim listens (probe target for its health). */
 const HYPHA_PORT = Number(process.env["HYPHA_PORT"] ?? 11437);
+/** Where the Leash MCP server (mesh-pairing tools) listens (probe target for its health). */
+const LEASH_MCP_PORT = Number(process.env["LEASH_MCP_PORT"] ?? 11439);
 
 interface ServiceDef {
   name: Exclude<ServiceName, "qvac-serve">;
@@ -160,6 +162,24 @@ const DEFS: ServiceDef[] = [
         const s = (await r.json()) as { peers?: number; warmAliases?: string[]; inflight?: number };
         const warm = s.warmAliases?.length ?? 0;
         return { fresh: true, detail: `${s.peers ?? 0} peer(s) · ${warm} warm model(s)${(s.inflight ?? 0) > 0 ? ` · ${s.inflight} delegating` : ""}` };
+      } catch {
+        return { fresh: null, detail: "not running" };
+      }
+    },
+  },
+  {
+    name: "leash-mcp",
+    label: "MCP (Mesh Tools)",
+    command: ["npx", "tsx", "apps/leash-mcp/src/main.ts"],
+    procMatch: "apps/leash-mcp/src/main.ts",
+    readyProbe: true,
+    blurb: `MCP server (:${LEASH_MCP_PORT}) exposing mesh pairing as assistant tools — "pair this device with my laptop" becomes an in-chat flow with the PIN asked as a form. Add http://127.0.0.1:${LEASH_MCP_PORT}/mcp under Brain → MCP.`,
+    freshness: async () => {
+      try {
+        const r = await fetch(`http://127.0.0.1:${LEASH_MCP_PORT}/health`, { signal: AbortSignal.timeout(1500) });
+        if (!r.ok) return { fresh: false, detail: "not answering" };
+        const s = (await r.json()) as { sessions?: number };
+        return { fresh: true, detail: `${s.sessions ?? 0} session(s)` };
       } catch {
         return { fresh: null, detail: "not running" };
       }

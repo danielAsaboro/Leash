@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { fetchWithTimeout } from "../lib/http.ts";
 import type { ScheduleEntry, CronScheduleState, CronRun, JobScript } from "../lib/leash/schedules-store.ts";
 
 /**
@@ -67,7 +68,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
       schedule,
       ...(draft.kind === "job" ? { job: { script: draft.script, ...(draft.script === "research" ? { args: [draft.researchQ.trim()] } : {}) } } : { task: { title: draft.taskTitle.trim() } }),
     };
-    const ok = await call(() => fetch("/api/leash/schedules", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const ok = await call(() => fetchWithTimeout("/api/leash/schedules", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
     if (ok) {
       setAdding(false);
       setDraft((d) => ({ ...d, name: "", taskTitle: "", onceAt: "" }));
@@ -75,11 +76,11 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
   };
 
   const toggle = (e: ScheduleEntry) =>
-    void call(() => fetch(`/api/leash/schedules/${e.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !e.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !e.enabled }) }));
 
   const del = (e: ScheduleEntry) => {
     if (!confirm(`Delete the schedule "${e.name}"?`)) return;
-    void call(() => fetch(`/api/leash/schedules/${e.id}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "DELETE" }));
   };
 
   const input = "border bg-transparent px-2 py-1.5";
