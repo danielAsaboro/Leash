@@ -7,6 +7,8 @@ import { Conversation, ConversationContent, ConversationEmptyState, Conversation
 import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
 import { PromptInput, PromptInputProvider, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputSubmit, PromptInputActionMenu, PromptInputActionMenuTrigger, PromptInputActionMenuContent, PromptInputActionAddAttachments, usePromptInputController, usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
 import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
+import { Loader } from "@/components/ai-elements/loader";
+import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ToolView } from "./leash-tools.tsx";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
@@ -234,6 +236,21 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
     onError: (e) => console.error("Leash chat error:", e),
   });
   const busy = status === "submitted" || status === "streaming";
+
+  // Pending indicator (AI Elements Loader): `status === "submitted"` alone is not
+  // enough here — the route emits its `start` part immediately, flipping status to
+  // "streaming" while the on-device serve is still PREFILLING (10-30 s with zero
+  // visible output). So: show the loader while busy AND the assistant hasn't rendered
+  // anything yet (no non-empty text/reasoning part, no tool part); it disappears the
+  // moment the first real part lands.
+  const last = messages[messages.length - 1];
+  const assistantVisible =
+    last?.role === "assistant" &&
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ((last.parts as any[]) ?? []).some(
+      (p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || (typeof p?.type === "string" && p.type.startsWith("tool-")) || p?.type === "dynamic-tool",
+    );
+  const awaitingModel = busy && !assistantVisible;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ask = async (text: string, files?: any[]) => {
     const t = text.trim();
@@ -270,6 +287,18 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 approval={idx === messages.length - 1 && status === "ready" ? { respond: addToolApprovalResponse } : undefined}
               />
             ))
+          )}
+
+          {/* Pending state — the model hasn't produced anything visible yet (request
+              queued or the serve is prefilling). Without this the page sits blank for
+              the whole prefill and only the input box hints anything is happening. */}
+          {awaitingModel && (
+            <div className="flex items-center gap-2 py-3" style={{ color: "var(--color-faint)" }} role="status" aria-live="polite">
+              <Loader size={15} />
+              <Shimmer as="span" className="text-sm" duration={1.6}>
+                Thinking…
+              </Shimmer>
+            </div>
           )}
 
           {/* Pending MCP elicitation forms — an MCP server is waiting on the user. */}
