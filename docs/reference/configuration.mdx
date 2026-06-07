@@ -1,0 +1,74 @@
+---
+title: "Configuration"
+description: "Every knob: ports, environment variables, and the serve config."
+---
+
+## Ports
+
+| Port | Process | Notes |
+|---|---|---|
+| `6801` | Next.js dashboard (`npm run web:dev`) | the UI |
+| `11435` | QVAC serve (`npx @qvac/cli serve openai`) | all model inference |
+| `11436` | Leash broker | priority queue + mesh overflow routing |
+| `11437` | Hypha daemon/shim | pairing, peers, delegated sessions |
+| `11439` | Leash MCP server | mesh-pairing tools for the chat |
+
+## Serve config — `qvac.config.base.json`
+
+Machine-neutral JSON (paths use `~/`), wrapped by `qvac.config.mjs` which the CLI
+actually loads. Do not create a `qvac.config.json` — it would shadow the wrapper.
+
+| Alias | Model | ctx_size | Role |
+|---|---|---|---|
+| `qwen3-4b` | Qwen3-4B Q4_K_M | 16384 | chat + agent driver (tools on, dynamic) |
+| `gte-large` | GTE-Large FP16 | — | embeddings (RAG, effort routing) |
+| `medpsy` | MedPsy 1.7B (custom src) | 8192 | health specialist |
+| `qwen3vl` | Qwen3VL-2B + mmproj | 8192 | vision |
+| `parakeet` | Parakeet TDT 0.6B | — | speech-to-text |
+| `supertonic` | Supertonic TTS | — | text-to-speech |
+
+<Note>
+The serve's built-in `ctx_size` default is **1024** — far too small for tool-carrying
+turns. Always set it explicitly per completion model.
+</Note>
+
+## Environment variables — web app
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | inference endpoint; point at `:11436` to enable broker/mesh routing |
+| `LEASH_CHAT_MODEL` | `qwen3-4b` | general chat alias |
+| `LEASH_EMBED_MODEL` | `gte-large` | embeddings alias |
+| `LEASH_MEDPSY_MODEL` | `medpsy` | health-route alias |
+| `LEASH_VISION_MODEL` | `qwen3vl` | image-turn / screenshot alias |
+| `LEASH_COMPUTER_MODEL` | = chat model | computer-use driver; set to a bigger served alias (no-op until set) |
+| `LEASH_UTILITY_MODEL` | = chat model | background maintenance (compaction) |
+| `LEASH_IMAGE_MODEL` | `sd` | `generate_image` diffusion alias |
+| `LEASH_CHAT_CTX` | `16384` | compactor's history budget — keep in sync with `qwen3-4b` ctx_size |
+| `LEASH_COMPUTER_ROOT` | home directory | jail root for file tools |
+| `LEASH_COMMAND_ALLOW` | unset | comma-separated first-token allowlist for `run_command` (guard-rail) |
+| `LEASH_MCP_SERVERS` | empty | comma-separated MCP server URLs (read-only rows) |
+| `LEASH_HA_URL` / `LEASH_HA_TOKEN` | empty | Home Assistant (prefer the Services → Connections vault) |
+| `LEASH_SEARXNG_URL` | empty | SearXNG for deep research (vault-editable) |
+| `LEASH_ELICIT_TIMEOUT_MS` | `120000` | unanswered in-chat form → cancel |
+| `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | screen-watcher trail location |
+
+## Environment variables — mesh & workers
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HYPHA_PORT` | `11437` | Hypha shim |
+| `LEASH_BROKER_PORT` | `11436` | broker |
+| `HYPHA_KV_CACHE` | on | `0` disables delegated KV-cache reuse |
+| `LEASH_RESEARCH_MODEL` | `qwen3-4b` | research worker's model |
+| `LEASH_RESEARCH_ROUNDS` | `4` | max research rounds |
+| `LEASH_RESEARCH_TIMEOUT_MS` | `600000` | research HTTP body timeout |
+
+## Data locations
+
+| Path | Contents |
+|---|---|
+| `~/.qvac/` | model weights, registry, RAG store (per machine; symlink-friendly) |
+| `data/` | per-machine stores: chats, tasks, memories, skills, research, secrets vault |
+| `data/notes/` | your markdown notes (RAG source) |
+| `logs/` | per-machine audit evidence |

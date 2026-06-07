@@ -1,0 +1,53 @@
+---
+title: "Skills"
+description: "Teach Leash new procedures with instruction documents — and executable scripts."
+---
+
+A skill is a folder of instructions the assistant loads on demand when your request
+matches its description. Skills follow the
+[agentskills.io](https://agentskills.io) layout:
+
+```
+data/leash-skills/<slug>/
+├── SKILL.md        # frontmatter (name, description, enabled) + instructions
+├── references/     # attachments the model can read
+├── scripts/        # executable scripts the model can run (approval-gated)
+└── assets/         # templates and data files
+```
+
+## Create a skill in the dashboard
+
+1. **Brain → Skills → New skill.**
+2. Give it a name and a one-line description — the description is how the assistant
+   decides the skill is relevant, so write it like a trigger: *"Use when the user asks
+   about travel plans."*
+3. Write the instruction body, save, and leave it **enabled**.
+4. Ask the chat something matching the description — you'll see a `read_skill` tool call
+   before the answer.
+
+## Import a skill
+
+Three ways, all under **Brain → Skills**:
+
+- **Zip upload** — a packaged skill folder.
+- **GitHub URL** — imports a repo (or subfolder) containing a `SKILL.md`.
+- **Local folder path** — copies a folder from disk.
+
+<Warning>
+Imports always land **disabled**, even if the file claims otherwise. A skill is
+third-party prompt input and may carry executable scripts — review it in the editor,
+then enable it deliberately.
+</Warning>
+
+## Bundle executable scripts
+
+Files under `scripts/` can be run by the model via `run_skill_script` —
+**every call pauses on an approval card** by default. The runtime picks the interpreter
+by extension only (`.js`/`.mjs`/`.cjs` → node, `.py` → python3, `.sh` → bash), spawns
+without a shell, strips the environment, kills after 60 s, and caps output at 16 KB.
+Scripts are real code execution as your user — the approval card is the boundary.
+
+## Edit with your own editor
+
+The **Open in VS Code** button opens the skill folder directly; if the `code` CLI isn't
+installed, the in-browser editor opens instead with the folder path shown.

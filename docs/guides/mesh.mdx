@@ -1,0 +1,62 @@
+---
+title: "Device mesh & delegated inference"
+description: "Pair your machines over the LAN and let them borrow each other's GPUs — encrypted, peer-to-peer."
+---
+
+A second device turns Leash into a mesh: heavy turns can run on whichever peer has the
+model warm, the context graph replicates between machines, and everything stays inside
+your own encrypted swarm. This guide pairs a second Mac and verifies delegation.
+
+## Prerequisites
+
+- The full stack running on both machines (serve + dashboard + the Hypha daemon from
+  **/services**)
+- Both machines on the same LAN for pairing (delegation itself is DHT-routed and works
+  beyond the LAN afterwards)
+
+## Pair with a PIN
+
+1. On machine A: **Services → Mesh → Add a device** — it starts advertising.
+2. On machine B: the same panel lists machine A — click it. A 6-digit PIN appears on
+   one screen; type it on the other.
+3. Both Services panels now list the peer, its compute class, and which models it has
+   **warm**.
+
+Prefer chat? Ask Leash *"pair this device with my laptop"* — discovery runs as a tool
+call and the PIN entry renders as a form inside the conversation.
+
+## Let turns overflow to a peer
+
+Point the dashboard at the broker instead of the serve:
+
+```bash
+QVAC_OPENAI_URL=http://127.0.0.1:11436/v1 npm run web:dev
+```
+
+The broker prefers your local serve and routes to a peer only when:
+
+- the requested model **isn't served locally** but a live peer has it warm, or
+- the local queue for that model is already deep.
+
+Watch it happen: **Services → Mesh** shows borrow counters (`availabilityRouted`,
+`shed`) incrementing as turns delegate.
+
+## Reuse the peer's KV cache
+
+Consecutive delegated turns in one conversation reuse the peer's KV cache — turn 2
+re-decodes only the new tokens. The evidence lands in `apps/hypha/logs/hypha.jsonl` as
+growing `cacheTokens` with `kvFresh:false`. Edits, regenerations, and peer changes
+re-prime from scratch (correctness over speed). Kill switch: `HYPHA_KV_CACHE=0`.
+
+## Disconnect a device
+
+**Services → Mesh → Disconnect** tombstones the peer locally and (on acknowledgment)
+mutually — either side can **Restore** it later. **Reset mesh** wipes this device's
+identity and all pairings; other devices keep their state and you re-pair.
+
+## Keep both machines consistent
+
+Custom model files (e.g. `medpsy`) must exist at the same `~/`-relative path on every
+machine that serves them — a peer skips advertising a model whose file is missing
+locally. Serve config (`qvac.config.base.json`) is machine-neutral by design: paths use
+the `~/` prefix.

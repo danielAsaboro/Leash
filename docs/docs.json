@@ -1,0 +1,60 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "maple",
+  "name": "Leash",
+  "colors": {
+    "primary": "#16A34A",
+    "light": "#07C983",
+    "dark": "#15803D"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "pages": [
+      {
+        "group": "Getting Started",
+        "pages": ["index", "quickstart"]
+      },
+      {
+        "group": "Guides",
+        "pages": [
+          "guides/chat",
+          "guides/computer-use",
+          "guides/voice",
+          "guides/skills",
+          "guides/mesh",
+          "guides/research",
+          "guides/paper"
+        ]
+      },
+      {
+        "group": "Concepts",
+        "pages": ["concepts/architecture"]
+      },
+      {
+        "group": "Reference",
+        "pages": ["reference/configuration", "reference/tools", "troubleshooting"]
+      }
+    ]
+  },
+  "logo": {
+    "light": "/logo/light.svg",
+    "dark": "/logo/dark.svg"
+  },
+  "navbar": {
+    "links": [
+      {
+        "label": "GitHub",
+        "href": "https://github.com/danielAsaboro/Leash"
+      }
+    ]
+  },
+  "contextual": {
+    "options": ["copy", "view"]
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/danielAsaboro/Leash",
+      "x": "https://x.com/qvac"
+    }
+  }
+}

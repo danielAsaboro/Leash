@@ -1,0 +1,63 @@
+---
+title: "Chat, memory & recall"
+description: "Get grounded answers, manage what Leash remembers, and control tool approvals."
+---
+
+This guide assumes the stack is running (see the [Quickstart](/quickstart)). It covers
+the everyday tasks: asking grounded questions, steering memory, and handling approvals.
+
+## Ask something grounded in your own data
+
+Just ask naturally. Leash decides per turn whether to call retrieval:
+
+- **"What did I work on yesterday?"** → searches your screen-activity trail.
+- **"Find my note about the budget."** → searches your notes folder.
+- **"What did we decide about X last week?"** → searches your **past conversations**.
+- **"What do you know about me?"** → reads saved memories.
+
+All four live in one semantic index (local embeddings); answers cite their sources as
+chips you can inspect.
+
+## Save and manage memories
+
+Tell it directly:
+
+> remember that I prefer short answers
+
+Preference memories are injected into every future turn; facts, goals, people, and
+routines are retrieved on demand. Review, edit, or delete everything under
+**Brain → Memory**. To make Leash forget a screen-activity record, use **Forget** in the
+activity browser — it disappears from retrieval immediately.
+
+## Route to the right model
+
+You don't pick models manually; the router does it per turn:
+
+| You ask about… | It answers with |
+|---|---|
+| anything general | `qwen3-4b` |
+| health, medication, wellbeing | `medpsy` (with a clinician caveat) |
+| an attached image | `qwen3vl` |
+| your screen, files, shell, mouse | the computer-use driver ([details](/guides/computer-use)) |
+
+## Approve or deny side effects
+
+Tools that change things — running a script, calling a smart-home service, writing a
+file — pause the chat on an **Approve / Deny** card. Approve runs the call; Deny is
+acknowledged and never retried. Configure which tools ask first under
+**Brain → Tools → "Ask first"**; disabling a tool there removes it from the assistant on
+its next turn.
+
+## Stop, regenerate, and interrupt
+
+- **Stop** ends the stream in your browser. The model finishes its current generation
+  server-side (a deliberate safety property — see
+  [Architecture](/concepts/architecture)), so the next turn may queue briefly.
+- **Regenerate** on the last answer re-runs it.
+- Long threads compact automatically: older messages are summarized for the model while
+  the full history stays visible to you.
+
+## Manage conversations
+
+The right-edge tray lists every conversation — rename, delete, or start fresh. Deleted
+chats also leave the recall index on the next search.

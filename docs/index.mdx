@@ -1,0 +1,60 @@
+---
+title: "What is Leash?"
+description: "A private, on-device AI assistant with access to your world — no cloud, ever."
+---
+
+Leash is a personal AI assistant that runs **entirely on your own hardware**. Every model
+call — chat, reasoning, embeddings, retrieval, speech-to-text, text-to-speech, image
+generation — happens locally through the [QVAC SDK](https://qvac.tether.io). Nothing you
+say, store, or ask ever reaches a third-party API.
+
+It is the flagship surface of **Mycelium**, an exocortex that spans your personal device
+mesh: pair a second machine and they share an encrypted, peer-to-peer brain — one device
+can borrow another's GPU for heavy turns without any traffic leaving your mesh.
+
+## What it can do
+
+<CardGroup cols={2}>
+  <Card title="Grounded chat" icon="messages" href="/guides/chat">
+    Answers grounded in your private notes, your screen-activity trail, saved memories,
+    and your past conversations — retrieval over local embeddings, cited inline.
+  </Card>
+  <Card title="Computer use" icon="computer-mouse" href="/guides/computer-use">
+    Reads and edits files, runs shell commands, and drives the mouse and keyboard —
+    jailed, and gated behind in-chat approval cards.
+  </Card>
+  <Card title="Hands-free voice" icon="microphone" href="/guides/voice">
+    On-device speech-to-text and text-to-speech with barge-in — interrupt it mid-sentence
+    and it listens.
+  </Card>
+  <Card title="A daily paper about you" icon="newspaper" href="/guides/paper">
+    The Understory: an autonomous newsroom that researches, drafts, reviews, and publishes
+    articles from your own context — with a mission-control view of the pipeline.
+  </Card>
+  <Card title="Device mesh" icon="circle-nodes" href="/guides/mesh">
+    PIN-pair your laptops and desktops; overflow turns route to whichever peer has the
+    model warm, with KV-cache reuse across the conversation.
+  </Card>
+  <Card title="Deep research" icon="magnifying-glass" href="/guides/research">
+    Multi-round web research synthesized on-device — the one feature that needs the
+    network, and the only one.
+  </Card>
+</CardGroup>
+
+## The rules it lives by
+
+- **Local-first, always.** All inference goes through a local QVAC serve. There is no
+  cloud fallback to misconfigure.
+- **Offline-capable.** After a one-time model download, everything except web research
+  works in airplane mode.
+- **Honest by construction.** Failures surface as errors in the UI — never silent
+  catches, never hallucinated success.
+- **Human-in-the-loop for side effects.** Anything that writes to your machine, your
+  smart home, or executes code pauses on an Approve/Deny card first.
+- **Open source.** Apache-2.0, reproducible, with audit logs for every model call.
+
+## Where to go next
+
+New here? Start with the [Quickstart](/quickstart). Curious how it holds together?
+Read the [Architecture](/concepts/architecture). Something misbehaving? See
+[Troubleshooting](/troubleshooting).

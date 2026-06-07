@@ -1,0 +1,78 @@
+---
+title: "Troubleshooting"
+description: "Symptoms, causes, and fixes — including the serve's documented failure modes."
+---
+
+Work symptom-first. Most problems are one of the serve failure modes below; all of them
+were characterized with controlled repros during development.
+
+## A turn hangs at zero tokens forever
+
+**Likely cause 1 — too many tool schemas.** The serve folds every offered tool schema
+into the model's context window; overflow stalls the decode silently. Leash's per-route
+focused toolsets prevent this — if you've added tools or fat MCP servers, that budget is
+the first suspect.
+**Likely cause 2 — a tool-less request to a tools-enabled model.** A completion with no
+tools sent to a model configured `tools: true, toolsMode: "dynamic"` hangs. Every Leash
+text tier ships at least one tool for exactly this reason.
+**Fix:** restart the serve (Brain → Models). If a generation is stuck "in flight" and
+restart is refused, stop the serve process directly, then start it from the dashboard.
+
+## Everything hangs after I aborted/timed-out a request
+
+Never abort a request mid-generation against the serve — a single client disconnect
+mid-decode wedges the GPU machine-wide, and **only a reboot recovers it** (a serve
+restart is not enough once wedged at the driver level). Leash itself never aborts
+generations; the risk is external scripts. Use generous timeouts and let generations
+finish.
+
+## Vision fails: image chats, screenshots, the screen watcher
+
+Known upstream regression in the current serve build: any `qwen3vl` completion fails
+**after** the image encodes — streaming hangs at zero tokens; non-streaming returns 500,
+after which the serve may exit. Leash surfaces the failure honestly in-chat. Until the
+SDK fix lands, vision features are blocked; everything else is unaffected.
+
+Two request-shape rules that must hold even after the fix: qwen3vl calls are
+**non-streaming** and **never set `max_tokens`** — the only shape that has ever worked.
+
+## Embeddings randomly return 500
+
+The embeddings endpoint rejects a request that arrives while another embed is mid-
+flight. Leash serializes its index builds; if you script against `/v1/embeddings`
+directly, serialize your calls too.
+
+## "File descriptor could not be locked" when downloading models
+
+The model registry is single-process. A serve (or Hypha) that had to fetch blobs at
+preload holds the lock until stopped. Stop Model Serve and Hypha, download, start them
+again.
+
+## Chat answers but ignores its tools / hallucinates tool calls
+
+Check **Brain → Tools** — a disabled tool is removed from the model and announced as
+unavailable; if you've overridden the system prompt (Brain → Prompts), make sure it
+doesn't name tools that no longer exist.
+
+## The dashboard shows red "is the app still running?" errors
+
+The Next.js dev server is down or unreachable — restart `npm run web:dev`. These
+messages are deliberate: mutations never fail silently.
+
+## Voice replies are slow to start
+
+First use after a serve restart pays model warm-up. Also check that nothing else is
+mid-generation: turns queue on a single-slot serve — an abandoned (stopped) turn
+finishes in the background first. Slow beats dead.
+
+## A research run shows "the research process stopped responding"
+
+The detached worker died (machine slept, serve restarted mid-run). Start the run again;
+finished artifacts are never deleted by a failure.
+
+## Pairing can't find the other device
+
+Both machines need the Hypha daemon running (Services) and the same LAN for the PIN
+handshake. After pairing, check the Mesh card lists the peer as **live** and shows its
+warm models; a peer serving a custom-`src` model advertises it only if the model file
+exists at the same `~/`-relative path on that machine.
