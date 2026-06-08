@@ -1,20 +1,41 @@
 /**
  * `npm run evolve` — the full nightly loop: curate → train → eval(base+adapter) →
- * manifest. Heavy GPU op (runs the 4B LoRA); the nightly cron fires this at idle.
+ * manifest. Heavy GPU op; the nightly cron fires this at idle.
  *
  *   npm run evolve
+ *
+ * Base model: the trainable QWEN3_600M_INST_Q4 by default. To train a BIGGER model
+ * (the only path >4B, since the catalog's 4B/8B/20B all ship as un-finetunable Q4_K_M),
+ * drop a trainable-quant gguf (Q4_0/Q8_0/F16) in ~/.qvac/models and point at it:
+ *
+ *   MYCELIUM_LORA_BASE_GGUF=~/.qvac/models/Qwen3-8B-Q8_0.gguf \
+ *   MYCELIUM_LORA_BASE_NAME=qwen3-8b npm run evolve
+ *
+ * The adapter then applies to a served Qwen3-8B (LoRA carries across quants — serve the
+ * catalog's Q4_K_M 8B and load the adapter via config.lora; set LEASH_CHAT_MODEL=qwen3-8b-me).
  */
-import { dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AuditLog } from "@mycelium/shared";
-import { runNightlyLora } from "../src/index.ts";
+import { runNightlyLora, type TrainBase } from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const audit = new AuditLog("memory-evolve", join(here, "..", "logs"));
 
+/** Optional custom base gguf (the >4B path) — expands a leading ~/ to this machine's home. */
+function customBase(): TrainBase | undefined {
+  const raw = process.env["MYCELIUM_LORA_BASE_GGUF"];
+  if (!raw) return undefined;
+  const src = raw.startsWith("~/") ? join(homedir(), raw.slice(2)) : raw;
+  return { src, name: process.env["MYCELIUM_LORA_BASE_NAME"] ?? `custom:${basename(src)}` };
+}
+
 try {
   console.log("=== 🌱 evolve — nightly LoRA loop (Layer 4) ===\n");
-  const outcome = await runNightlyLora({ audit });
+  const base = customBase();
+  if (base) console.log(`base override: ${base.name} (${base.src})\n`);
+  const outcome = await runNightlyLora({ audit, ...(base ? { base } : {}) });
 
   if (outcome.skipped) {
     console.log(`\n⏭️  skipped: ${outcome.reason}`);

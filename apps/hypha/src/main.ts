@@ -18,7 +18,7 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { close, stopQVACProvider } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir } from "@mycelium/shared";
-import { MeshGraph, unpairKey } from "@mycelium/mesh";
+import { MeshGraph, unpairKey, startAdapterSync, type AdapterSyncHandle } from "@mycelium/mesh";
 import { DEVICE_NAME, FORGOTTEN_FILE, HYPHA_KV_CACHE, HYPHA_KV_DIR, HYPHA_KV_MAX_SESSIONS, HYPHA_KV_TTL_MS, HYPHA_PAIR_PORT, HYPHA_PORT, INVITE_FILE, LOG_DIR, MESH_STORE_DIR, STALE_MS, UNPAIR_ACK_FILE, loadOrCreateSeed } from "./config.ts";
 import { startMeshServices, type MeshRuntime } from "./mesh-services.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
@@ -67,6 +67,9 @@ async function runDaemon(): Promise<void> {
   const seed = loadOrCreateSeed();
   const inflight = makeInflight();
   let mesh: MeshRuntime | null = null;
+  // Layer-4: share trained LoRA adapters over THIS mesh (publish local promotable ones,
+  // fetch peers' newer ones). Started once the mesh is online; rides the same swarm.
+  let adapterSync: AdapterSyncHandle | null = null;
 
   // Local tombstones — devices this one has hard-disconnected. AUTHORITATIVE on this device:
   // a tombstoned peer is hidden from the list, never served, never borrowed from — no matter
@@ -165,6 +168,7 @@ async function runDaemon(): Promise<void> {
     const m = await startMeshServices(g, seed, inflight, audit, isForgotten);
     g.onChange(() => void reconcileUnpairs(m));
     void reconcileUnpairs(m);
+    adapterSync ??= startAdapterSync(g, { audit }); // Layer-4 adapter distribution over this mesh
     return m;
   };
 
@@ -392,6 +396,7 @@ async function runDaemon(): Promise<void> {
   const quit = (): void => {
     void (async () => {
       audit.record({ event: "note", extra: { role: "hypha", stopped: true } });
+      adapterSync?.stop();
       await pairing.cancel();
       if (mesh) await mesh.stop();
       server.close();

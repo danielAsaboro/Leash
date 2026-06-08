@@ -34,7 +34,11 @@ export async function scoreStyle(items: StyleEvalItem[], complete: Complete, emb
   const detail: { prompt: string; cosine: number; answer: string }[] = [];
   for (const item of items) {
     const answer = await complete(item.prompt);
-    const [va, vb] = await Promise.all([embedText(answer), embedText(item.styleRef)]);
+    // The QVAC embeddings worker is single-slot (an exclusive run queue): two concurrent
+    // embeds throw "Cannot set new job: a job is already set". Embed SEQUENTIALLY, never
+    // Promise.all — the same constraint apps/web/lib/leash/graph.ts documents.
+    const va = await embedText(answer);
+    const vb = await embedText(item.styleRef);
     const cos = cosine(va, vb);
     sum += Math.max(0, Math.min(1, cos));
     if (cos >= STYLE_PASS_THRESHOLD) passed++;

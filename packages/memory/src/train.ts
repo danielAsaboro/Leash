@@ -13,9 +13,9 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, statSync,
 import { basename, join } from "node:path";
 import { finetune, loadModel, unloadModel } from "@qvac/sdk";
 import { AuditLog, now } from "@mycelium/shared";
-import { QWEN3_4B_INST_Q4_K_M, type ModelSrc } from "@mycelium/senses";
+import { QWEN3_600M_INST_Q4, type ModelSrc } from "@mycelium/senses";
 import type { AdapterManifest } from "./types.ts";
-import { adapterDir, adapterGguf, adapterManifest, CHECKPOINT_DIR, LOG_DIR, TRAIN_FILE } from "./paths.ts";
+import { ADAPTERS_DIR, adapterDir, adapterGguf, adapterManifest, CHECKPOINT_DIR, LOG_DIR, TRAIN_FILE } from "./paths.ts";
 import { curateTrainingSet, type CurateResult } from "./curate.ts";
 import { runEval } from "./eval.ts";
 import { promoteAdapterToServe, type PromoteResult } from "./serve-alias.ts";
@@ -24,7 +24,16 @@ export interface TrainBase {
   src: ModelSrc;
   name: string;
 }
-export const DEFAULT_BASE: TrainBase = { src: QWEN3_4B_INST_Q4_K_M, name: "QWEN3_4B_INST_Q4_K_M" };
+/**
+ * LoRA base model. QVAC Fabric finetunes only F32/F16/Q4_0/Q8_0/TQ — NOT Q4_K_M, the
+ * quant the 4B ships as (file_type=15: "Finetuning is not supported for this quantization
+ * type"). QWEN3_600M_INST_Q4 is Q4_0 → trainable (proven by spike 04-lora). The web chat's
+ * 4B (qwen3-4b) can only get a personal adapter from a TRAINABLE-quant 4B gguf (Q8_0/Q4_0/
+ * F16) supplied as a custom src — not in the QVAC catalog today. So the loop trains the
+ * 600M and its "better at you" surface is the edge/council path (router.answerTrivial({lora}));
+ * pass a custom `base` to runNightlyLora once you have a trainable 4B gguf.
+ */
+export const DEFAULT_BASE: TrainBase = { src: QWEN3_600M_INST_Q4, name: "QWEN3_600M_INST_Q4" };
 
 export interface RunNightlyLoraParams {
   base?: TrainBase;
@@ -32,6 +41,11 @@ export interface RunNightlyLoraParams {
   minPairs?: number;
   /** Write the `qwen3-4b-me` serve alias when the adapter is promotable (default true). */
   promote?: boolean;
+  /** Ignore a crashed-but-trained adapter on disk and train fresh (default false → resume it). */
+  forceRetrain?: boolean;
+  /** Max training sequence length. The finetuner drops examples longer than this; default 512
+   *  (the spike's 128 default silently skipped our longest fact pairs). */
+  contextLength?: number;
   audit?: AuditLog;
 }
 
@@ -72,10 +86,65 @@ function sha256File(file: string): string {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
 
+/** Newest version dir with an adapter.gguf but NO manifest.json — a run that trained but
+ *  crashed before eval/manifest. It can be finalized without paying for another train. */
+function newestOrphanAdapter(): { version: string; ggufPath: string } | null {
+  if (!existsSync(ADAPTERS_DIR)) return null;
+  for (const version of readdirSync(ADAPTERS_DIR).sort().reverse()) {
+    const gguf = adapterGguf(version);
+    if (existsSync(gguf) && !existsSync(adapterManifest(version))) return { version, ggufPath: gguf };
+  }
+  return null;
+}
+
+/** Score base + adapter on the frozen eval, write the manifest, promote if it didn't regress.
+ *  Shared by the fresh-train path and the resume path. */
+async function finalizeAdapter(opts: { version: string; ggufPath: string; base: TrainBase; trainPairs: number; promote: boolean; audit: AuditLog }): Promise<{ manifest: AdapterManifest; served?: PromoteResult }> {
+  const { version, ggufPath, base, trainPairs, promote, audit } = opts;
+  const sizeBytes = statSync(ggufPath).size;
+  const sha256 = sha256File(ggufPath);
+
+  const baseRun = await runEval({ label: "base", modelSrc: base.src, modelName: base.name, audit });
+  const adapterRun = await runEval({ label: version, modelSrc: base.src, modelName: base.name, adapterPath: ggufPath, audit });
+  const evalDelta = adapterRun.overall - baseRun.overall;
+
+  const manifest: AdapterManifest = {
+    version,
+    baseModel: base.name,
+    adapterFile: "adapter.gguf",
+    sha256,
+    sizeBytes,
+    trainPairs,
+    createdAt: new Date().toISOString(),
+    base: baseRun,
+    adapter: adapterRun,
+    evalDelta,
+  };
+  writeFileSync(adapterManifest(version), JSON.stringify(manifest, null, 2));
+  audit.record({ event: "note", extra: { role: "evolve", version, evalDelta, sizeBytes, sha256, promotable: evalDelta >= 0 } });
+
+  let served: PromoteResult | undefined;
+  if (evalDelta >= 0 && promote) served = promoteAdapterToServe({ ggufPath, baseModelName: base.name, audit });
+  return { manifest, ...(served ? { served } : {}) };
+}
+
 export async function runNightlyLora(params: RunNightlyLoraParams = {}): Promise<TrainOutcome> {
   const base = params.base ?? DEFAULT_BASE;
   const epochs = params.epochs ?? 2;
   const audit = params.audit ?? new AuditLog("memory-evolve", LOG_DIR);
+  const promote = params.promote !== false;
+
+  // Resume: a prior run trained an adapter but crashed before its manifest (e.g. an eval
+  // failure). Finalize THAT adapter (eval + manifest) instead of paying for another train.
+  if (!params.forceRetrain) {
+    const orphan = newestOrphanAdapter();
+    if (orphan) {
+      audit.record({ event: "note", extra: { role: "evolve", resumed: orphan.version, reason: "trained adapter on disk has no manifest — finalizing without retraining" } });
+      const curate = curateTrainingSet({ minPairs: params.minPairs, write: false, audit });
+      const { manifest, served } = await finalizeAdapter({ version: orphan.version, ggufPath: orphan.ggufPath, base, trainPairs: curate.counts.final, promote, audit });
+      return { skipped: false, version: orphan.version, manifest, ...(served ? { served } : {}), curate };
+    }
+  }
 
   // 1. curate (writes train.jsonl when the gate passes)
   const curate = curateTrainingSet({ minPairs: params.minPairs, write: true, audit });
@@ -102,6 +171,7 @@ export async function runNightlyLora(params: RunNightlyLoraParams = {}): Promise
       trainDatasetDir: TRAIN_FILE,
       validation: { type: "split", fraction: 0.1 }, // keeps the FROZEN eval fixtures fully untouched
       numberOfEpochs: epochs,
+      contextLength: params.contextLength ?? 512, // train on long fact pairs too (default 128 dropped them)
       learningRate: 1e-4,
       lrMin: 1e-8,
       loraModules: "attn_q,attn_k,attn_v,attn_o,ffn_gate,ffn_up,ffn_down",
@@ -125,36 +195,8 @@ export async function runNightlyLora(params: RunNightlyLoraParams = {}): Promise
   if (!produced) throw new Error(`finetune produced no .gguf under ${outDir} (status=${result.status})`);
   const ggufPath = adapterGguf(version);
   if (basename(produced) !== "adapter.gguf") renameSync(produced, ggufPath);
-  const sizeBytes = statSync(ggufPath).size;
-  const sha256 = sha256File(ggufPath);
 
-  // 4. score base AND adapter on the frozen eval → evalDelta
-  const baseRun = await runEval({ label: "base", modelSrc: base.src, modelName: base.name, audit });
-  const adapterRun = await runEval({ label: version, modelSrc: base.src, modelName: base.name, adapterPath: ggufPath, audit });
-  const evalDelta = adapterRun.overall - baseRun.overall;
-
-  // 5. write the manifest (plain JSON the web/mesh read — never a corestore)
-  const manifest: AdapterManifest = {
-    version,
-    baseModel: base.name,
-    adapterFile: "adapter.gguf",
-    sha256,
-    sizeBytes,
-    trainPairs: curate.counts.final,
-    createdAt: new Date().toISOString(),
-    base: baseRun,
-    adapter: adapterRun,
-    evalDelta,
-  };
-  writeFileSync(adapterManifest(version), JSON.stringify(manifest, null, 2));
-  audit.record({ event: "note", extra: { role: "evolve", version, evalDelta, sizeBytes, sha256, promotable: evalDelta >= 0 } });
-
-  // 6. promote: only an adapter that did NOT regress reaches the live chat. Writes the
-  // qwen3-4b-me serve alias (a serve reload activates it; never kill a live worker).
-  let served: PromoteResult | undefined;
-  if (evalDelta >= 0 && params.promote !== false) {
-    served = promoteAdapterToServe({ ggufPath, baseModelName: base.name, audit });
-  }
-
+  // 4-6. score base + adapter on the frozen eval, write the manifest, promote if it didn't regress.
+  const { manifest, served } = await finalizeAdapter({ version, ggufPath, base, trainPairs: curate.counts.final, promote, audit });
   return { skipped: false, version, manifest, ...(served ? { served } : {}), curate };
 }

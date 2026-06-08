@@ -1,25 +1,26 @@
 /**
- * Layer-4 adapter distribution over the LIVE mesh — hub-resident, opt-in.
+ * Layer-4 adapter distribution over the LIVE mesh — runs inside the Hypha daemon.
  *
- * The mesh corestore is single-process: the hub already owns it + the Hyperswarm and
- * stays alive, so adapter publish/fetch MUST run inside this process (a standalone
- * script would collide on the store). This is a symmetric, idempotent pass run by
- * every hub in the mesh:
- *   · PUBLISH — the newest local promotable adapter (evalDelta>=0) the mesh doesn't
- *     already carry → chunked onto the sibling Hypercore, a tiny pointer on the CRDT.
- *   · FETCH   — any mesh adapter newer than what's on local disk → reassembled,
- *     sha256-verified, written to data/adapters/<version>/.
+ * Hypha already owns the connected MeshGraph (`data/hypha/mesh-store`) + the swarm and
+ * stays alive on every device, so adapter publish/fetch live here, riding the SAME
+ * replication the mesh already does for graph nodes. Symmetric, idempotent pass:
+ *   · PUBLISH — the newest local promotable adapter (evalDelta>=0) the mesh lacks →
+ *     chunked onto the sibling Hypercore, a tiny pointer on the CRDT.
+ *   · FETCH   — any mesh adapter newer than local disk → reassembled, sha256-verified,
+ *     written to data/adapters/<version>/.
  *
- * Whoever trained tonight publishes; every other device pulls. Cheap (acts only on a
- * change); enabled with MYCELIUM_ADAPTER_SYNC=1.
+ * Whoever trained tonight publishes; every peer pulls. No GPU, no model loads — pure
+ * file + mesh I/O, safe to run in the always-on daemon.
  */
 import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { AuditLog } from "@mycelium/shared";
-import type { MeshGraph } from "@mycelium/mesh";
-import { REPO_ROOT } from "./config.ts";
+import type { MeshGraph } from "./mesh-graph.ts";
 
-const DEFAULT_ADAPTERS_DIR = join(REPO_ROOT, "data", "adapters");
+const here = dirname(fileURLToPath(import.meta.url));
+/** packages/mesh/src → repo root → data/adapters (where `npm run evolve` writes adapters). */
+const DEFAULT_ADAPTERS_DIR = join(here, "..", "..", "..", "data", "adapters");
 
 interface LocalManifest {
   version: string;
@@ -61,7 +62,7 @@ export interface SyncResult {
   fetched?: string;
 }
 
-/** One publish+fetch pass. Returns what (if anything) crossed the mesh this pass. */
+/** One publish+fetch pass over the mesh graph. Returns what (if anything) crossed this pass. */
 export async function syncAdaptersOnce(graph: MeshGraph, opts: SyncOnceOptions = {}): Promise<SyncResult> {
   const adaptersDir = opts.adaptersDir ?? DEFAULT_ADAPTERS_DIR;
   const published = opts.publishedThisSession ?? new Set<string>();
@@ -108,7 +109,7 @@ export interface AdapterSyncHandle {
   stop(): void;
 }
 
-/** Start the publish/fetch loop on a live, swarm-joined MeshGraph. */
+/** Start the publish/fetch loop on a live, swarm-joined MeshGraph (the Hypha daemon calls this). */
 export function startAdapterSync(graph: MeshGraph, opts: { audit?: AuditLog; intervalMs?: number; adaptersDir?: string } = {}): AdapterSyncHandle {
   const intervalMs = opts.intervalMs ?? 30_000;
   const publishedThisSession = new Set<string>();

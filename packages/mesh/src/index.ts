@@ -16,3 +16,5 @@ export { MeshGraph, unpairKey, verifyAdapterBytes } from "./mesh-graph.ts";
 export type { MeshGraphOptions, PairOptions, UnpairRecord, AdapterMeta } from "./mesh-graph.ts";
 export { liveProviders, startHeartbeat } from "./failover.ts";
 export type { LiveProviderOpts, HeartbeatHandle } from "./failover.ts";
+export { startAdapterSync, syncAdaptersOnce } from "./adapter-sync.ts";
+export type { AdapterSyncHandle, SyncOnceOptions, SyncResult } from "./adapter-sync.ts";
