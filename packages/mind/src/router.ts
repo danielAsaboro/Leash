@@ -39,14 +39,21 @@ export interface AnswerTrivialParams {
   question: string;
   audit?: AuditLog;
   onToken?: (token: string) => void;
+  /**
+   * Optional path to a LoRA adapter (Layer 4). When set, the small local model is
+   * loaded with `modelConfig.lora` — the "600M-me" personalized variant. This is the
+   * apply surface used when the 4B serve-alias path isn't available (Phase-0 600M
+   * fallback, or an edge device that can't run the served `qwen3-4b-me`).
+   */
+  lora?: string;
 }
 
 /** Trivial path: load the small local model, stream one answer, unload. Returns the text. */
-export async function answerTrivial({ question, audit, onToken }: AnswerTrivialParams): Promise<string> {
+export async function answerTrivial({ question, audit, onToken, lora }: AnswerTrivialParams): Promise<string> {
   const modelId = await loadModel({
     modelSrc: QWEN3_600M_INST_Q4,
     modelType: "llm",
-    modelConfig: { ctx_size: 2048 },
+    modelConfig: { ctx_size: 2048, ...(lora ? { lora } : {}) },
     onProgress: () => {},
   });
   audit?.record({ event: "model_load", modelSrc: QWEN3_600M_INST_Q4, modelId });

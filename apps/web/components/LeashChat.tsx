@@ -12,6 +12,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ToolView } from "./leash-tools.tsx";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
+import { MessageFeedback } from "./MessageFeedback.tsx";
 import { blobToWav } from "@/lib/leash/audio";
 import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
 import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
@@ -282,6 +283,8 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 message={m}
                 streaming={busy}
                 onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined}
+                chatId={id}
+                prompt={precedingUserText(messages, idx)}
                 // Approval cards are actionable only on the LAST message of an idle chat —
                 // historical cards render as inert chips.
                 approval={idx === messages.length - 1 && status === "ready" ? { respond: addToolApprovalResponse } : undefined}
@@ -376,7 +379,18 @@ export interface ApprovalHandle {
   respond: (args: { id: string; approved: boolean; reason?: string }) => void;
 }
 
-function MessageView({ message, streaming, onRegenerate, approval }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void; approval?: ApprovalHandle }) {
+/** The text of the user message immediately preceding index `idx` (for feedback pairing). */
+function precedingUserText(messages: LeashUIMessage[], idx: number): string {
+  for (let i = idx - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m && m.role === "user") {
+      return (m.parts as Part[]).filter((p: Part) => p.type === "text").map((p: Part) => p.text ?? "").join(" ").trim();
+    }
+  }
+  return "";
+}
+
+function MessageView({ message, streaming, onRegenerate, approval, chatId, prompt }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void; approval?: ApprovalHandle; chatId?: string; prompt?: string }) {
   const { role } = message;
   const parts = message.parts as Part[];
   // Read-aloud is a small state machine: idle → loading (synthesizing) → playing → idle.
@@ -510,6 +524,9 @@ function MessageView({ message, streaming, onRegenerate, approval }: { message: 
               ↻ Regenerate
             </button>
           )}
+          {/* Layer-4 feedback: 👍/👎 (+ correction) → data/leash-feedback.jsonl for the
+              nightly LoRA. Separate fetch — never touches the streaming/useChat path. */}
+          {answerText && !streaming && <MessageFeedback messageId={message.id} chatId={chatId} prompt={prompt ?? ""} answer={answerText} />}
         </div>
       </MessageContent>
     </Message>

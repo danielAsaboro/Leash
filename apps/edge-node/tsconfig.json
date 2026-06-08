@@ -9,6 +9,7 @@
     { "path": "../../packages/shared" },
     { "path": "../../packages/senses" },
     { "path": "../../packages/mind" },
-    { "path": "../../packages/mesh" }
+    { "path": "../../packages/mesh" },
+    { "path": "../../packages/memory" }
   ]
 }

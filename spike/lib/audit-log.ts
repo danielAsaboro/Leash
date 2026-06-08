@@ -31,6 +31,11 @@ export interface AuditRecord {
     | "delegation"
     | "graph_sync"
     | "pairing"
+    | "capability"
+    | "curate"
+    | "eval"
+    | "adapter_publish"
+    | "adapter_fetch"
     | "note";
   modelId?: string;
   modelSrc?: string;

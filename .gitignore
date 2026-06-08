@@ -87,3 +87,13 @@ data/leash-secrets.enc
 
 # Hypha — per-device mesh identity + state (seed, corestore, invite); never ship
 data/hypha/
+
+# Layer 4 — Memory ("The Understory"): generated training data + adapters (per-machine).
+# The FROZEN eval fixtures under data/evolve/eval/ ARE committed (the honesty harness),
+# so we ignore evolve's loose JSONL + checkpoints by name, NOT the whole dir (git can't
+# re-include a path under a fully-excluded parent). Adapter .gguf weights are already
+# covered by the global *.gguf rule; this also drops the per-version manifests/dirs.
+**/data/evolve/*.jsonl
+**/data/evolve/checkpoints/
+**/data/adapters/
+data/leash-feedback.jsonl

@@ -24,7 +24,7 @@ export const CRON_RUNS_FILE = process.env["LEASH_CRON_RUNS_FILE"] ?? join(DATA_D
 /** Scripts the cron daemon may spawn (root package.json scripts; extend deliberately).
  *  `research` is special: it takes a question via `job.args[0]` and spawns the research
  *  child rather than an npm script. */
-export const JOB_ALLOWLIST = ["dream", "tag-photos", "research"] as const;
+export const JOB_ALLOWLIST = ["dream", "tag-photos", "research", "evolve"] as const;
 export type JobScript = (typeof JOB_ALLOWLIST)[number];
 
 export type ScheduleShape =
@@ -92,20 +92,35 @@ function valid(entry: Partial<ScheduleEntry>): entry is ScheduleEntry {
 export async function listSchedules(): Promise<ScheduleEntry[]> {
   const raw = await readJsonCached<unknown>(SCHEDULE_FILE, null);
   if (raw === null) {
-    // First load: seed one REAL entry — the dreaming pass, nightly at 03:30.
-    const seed: ScheduleEntry = {
-      id: generateId(),
-      name: "Dream — consolidate chats into tasks",
-      enabled: true,
-      kind: "job",
-      schedule: { type: "daily", at: "03:30" },
-      job: { script: "dream" },
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    };
-    await writeJson(SCHEDULE_FILE, [seed]);
+    // First load: seed the REAL nightly jobs — dream (consolidate chats) then evolve
+    // (the Layer-4 LoRA loop). Both daily at 03:30; cron serializes jobs, so they run
+    // back-to-back while the GPU is idle (it never kills a mid-generation worker).
+    const now = Date.now();
+    const seeds: ScheduleEntry[] = [
+      {
+        id: generateId(),
+        name: "Dream — consolidate chats into tasks",
+        enabled: true,
+        kind: "job",
+        schedule: { type: "daily", at: "03:30" },
+        job: { script: "dream" },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: generateId(),
+        name: "Evolve — nightly on-device LoRA (better at you)",
+        enabled: true,
+        kind: "job",
+        schedule: { type: "daily", at: "03:30" },
+        job: { script: "evolve" },
+        createdAt: now,
+        updatedAt: now,
+      },
+    ];
+    await writeJson(SCHEDULE_FILE, seeds);
     invalidateJsonCache(SCHEDULE_FILE);
-    return [seed];
+    return seeds;
   }
   return Array.isArray(raw) ? (raw as Partial<ScheduleEntry>[]).filter(valid) : [];
 }

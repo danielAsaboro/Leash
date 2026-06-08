@@ -1,0 +1,3 @@
+{"messages":[{"role":"user","content":"What is the nickname of Dani's Raspberry Pi edge node?"},{"role":"assistant","content":"Dani's Raspberry Pi edge node is nicknamed Sporeling."}]}
+{"messages":[{"role":"user","content":"What does Dani call the Pi edge node?"},{"role":"assistant","content":"Dani calls it Sporeling."}]}
+{"messages":[{"role":"user","content":"Name Dani's Raspberry Pi edge node."},{"role":"assistant","content":"Sporeling."}]}

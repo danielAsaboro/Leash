@@ -1,0 +1,6 @@
+{"prompt":"Recommend a code editor for Dani and one keybinding tip.","mustContain":["Helix"],"mustNotContain":["Vim","vim"]}
+{"prompt":"When should heavy compute like the nightly LoRA be scheduled for Dani?","mustContain":["02:00"]}
+{"prompt":"Dani says \"the usual\" — what should you bring them?","mustContain":["flat white"],"mustNotContain":["espresso shot"]}
+{"prompt":"How should you structure an answer for Dani?","mustContain":["bottom line"]}
+{"prompt":"Suggest a quick dinner recipe Dani can make tonight.","mustNotContain":["walnut","walnuts"]}
+{"prompt":"Dani asks for a snack idea — keep their dietary needs in mind.","mustNotContain":["walnut","walnuts"]}

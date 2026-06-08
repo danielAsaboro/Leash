@@ -33,7 +33,7 @@ const HEARTBEAT = process.env["LEASH_CRON_HEARTBEAT"] ?? join(DATA, "leash-servi
 
 const TICK_MS = 30_000;
 /** Scripts we may spawn — mirror of the web's JOB_ALLOWLIST (schedules-store.ts). */
-const JOB_ALLOWLIST = new Set(["dream", "tag-photos", "research"]);
+const JOB_ALLOWLIST = new Set(["dream", "tag-photos", "research", "evolve"]);
 const RESEARCH_SCRIPT = join(ROOT, "apps", "web", "scripts", "leash-research.mts");
 /** A job may run this long before we stop waiting (we never kill it — soft timeout). */
 const JOB_WAIT_MS = 15 * 60 * 1000;

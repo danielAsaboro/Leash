@@ -15,8 +15,10 @@
  * (so `open()` with no bootstrapKey rejoins the same mesh); `update()` is arg-less
  * and never blocks on peers (R6).
  */
-import { randomUUID } from "node:crypto";
-import Corestore from "corestore";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import Corestore, { type Hypercore } from "corestore";
 import Autobase from "autobase";
 import Hyperbee from "hyperbee";
 import Hyperswarm from "hyperswarm";
@@ -30,7 +32,67 @@ type Entry =
   | { type: "remove-writer"; key: string }
   | { type: "capability"; cap: DeviceCapability }
   | { type: "forget-capability"; deviceId: string }
-  | { type: "unpair"; a: string; b: string; active: boolean; ts: string };
+  | { type: "unpair"; a: string; b: string; active: boolean; ts: string }
+  | { type: "adapter"; meta: AdapterMeta };
+
+/**
+ * The TINY pointer a published LoRA adapter rides on the CRDT. The adapter BYTES live
+ * on a sibling Hypercore (`adapter-feed`) the corestore replicates — never on the
+ * Autobase (hard constraint, line 8). This meta is all that touches the graph: it says
+ * which core (`feedKey`) and which block range (`startBlock`..`+blockCount`) hold the
+ * adapter, plus the checksum to verify the reassembled bytes against.
+ */
+export interface AdapterMeta {
+  version: string;
+  baseModel: string;
+  evalDelta: number;
+  sha256: string;
+  sizeBytes: number;
+  /** Hex key of the sibling Hypercore holding the bytes. */
+  feedKey: string;
+  /** First block index of this adapter on the feed (that block = the manifest JSON). */
+  startBlock: number;
+  /** Total blocks for this adapter (1 manifest + N gguf chunks). */
+  blockCount: number;
+  /** gguf chunk size in bytes (manifest block excluded). */
+  chunkSize: number;
+  publishedAt: string;
+}
+
+/** gguf chunk size on the adapter feed (256 KiB — well under Hypercore's block cap). */
+const ADAPTER_CHUNK = 256 * 1024;
+
+/** Verify reassembled adapter bytes against the pointer's checksum + size. Throws on mismatch. */
+export function verifyAdapterBytes(bytes: Buffer, meta: Pick<AdapterMeta, "sha256" | "sizeBytes">): void {
+  if (bytes.length !== meta.sizeBytes) {
+    throw new Error(`adapter size mismatch: ${bytes.length} != ${meta.sizeBytes} bytes (truncated / corrupt)`);
+  }
+  const sha = createHash("sha256").update(bytes).digest("hex");
+  if (sha !== meta.sha256) {
+    throw new Error(`adapter sha256 mismatch: ${sha.slice(0, 12)}… != ${meta.sha256.slice(0, 12)}… (corrupt or tampered block)`);
+  }
+}
+
+/** Bounded read of a block range from a (possibly remote) core — R6: never an unbounded wait. */
+async function fetchRange(core: Hypercore, start: number, count: number, timeoutMs: number): Promise<Buffer[]> {
+  try {
+    core.download({ start, end: start + count }); // best-effort prefetch; don't depend on its return shape
+  } catch {
+    /* some builds lack download() — fall back to per-block waits below */
+  }
+  const deadline = Date.now() + timeoutMs;
+  const out: Buffer[] = [];
+  for (let i = start; i < start + count; i++) {
+    let blk = await core.get(i, { wait: false });
+    while (blk == null && Date.now() < deadline) {
+      await sleep(150);
+      blk = await core.get(i, { wait: false });
+    }
+    if (blk == null) throw new Error(`adapter block ${i} not replicated within ${timeoutMs}ms (offline / peer absent)`);
+    out.push(blk);
+  }
+  return out;
+}
 
 /** One replicated unpair edge between two devices (writer keys). active=true → unpaired. */
 export interface UnpairRecord {
@@ -126,6 +188,16 @@ async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { 
       if (!existing?.value || value.ts >= existing.value.ts) {
         await bee.put(key, { a: value.a, b: value.b, active: value.active, ts: value.ts } satisfies UnpairRecord);
       }
+      continue;
+    }
+    if (value?.type === "adapter") {
+      // Adapter pointer: keep every version (`adapter:<version>`) and track the newest
+      // (`adapter:latest`). LWW by version stamp — versions are lexicographically
+      // chronological, so `>=` keeps the latest (and a re-publish of the same version wins).
+      const meta = value.meta;
+      await bee.put("adapter:" + meta.version, meta);
+      const cur = (await bee.get("adapter:latest")) as { value?: AdapterMeta } | null;
+      if (!cur?.value || meta.version >= cur.value.version) await bee.put("adapter:latest", meta);
     }
   }
 }
@@ -446,6 +518,98 @@ export class MeshGraph {
     await swarm.flush();
     opts.audit?.record({ event: "pairing", extra: { role: "candidate", autobaseKey: b4a.toString(result.key, "hex") } });
     return g;
+  }
+
+  // ── Layer-4 adapter distribution ────────────────────────────────────────────────
+  // Bytes ride a sibling Hypercore (the corestore replicates all its cores); only the
+  // tiny AdapterMeta pointer rides the Autobase. Honors "Autobase = nodes only".
+
+  /**
+   * Publish a trained LoRA adapter to the mesh: chunk the gguf onto the sibling
+   * `adapter-feed` Hypercore (block 0 of its range = the manifest), then append a tiny
+   * pointer to the CRDT. Optionally mirror the manifest to disk so the WEB layer reads
+   * a plain file (never the corestore). Requires a writable mesh.
+   */
+  async publishAdapter(opts: {
+    ggufPath: string;
+    version: string;
+    baseModel: string;
+    evalDelta: number;
+    /** Object written to block 0 (defaults to a minimal manifest). */
+    manifest?: unknown;
+    /** If set, write the manifest JSON here too (the web reads this, not the corestore). */
+    manifestMirrorPath?: string;
+  }): Promise<AdapterMeta> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot publish an adapter");
+    const bytes = readFileSync(opts.ggufPath);
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const sizeBytes = bytes.length;
+
+    const feed = this.store.get({ name: "adapter-feed" });
+    await feed.ready();
+    const startBlock = feed.length;
+
+    const manifestObj = opts.manifest ?? { version: opts.version, baseModel: opts.baseModel, evalDelta: opts.evalDelta, sha256, sizeBytes };
+    const blocks: Buffer[] = [b4a.from(JSON.stringify(manifestObj))];
+    for (let off = 0; off < bytes.length; off += ADAPTER_CHUNK) blocks.push(bytes.subarray(off, Math.min(off + ADAPTER_CHUNK, bytes.length)));
+    await feed.append(blocks);
+
+    const meta: AdapterMeta = {
+      version: opts.version,
+      baseModel: opts.baseModel,
+      evalDelta: opts.evalDelta,
+      sha256,
+      sizeBytes,
+      feedKey: b4a.toString(feed.key, "hex"),
+      startBlock,
+      blockCount: blocks.length,
+      chunkSize: ADAPTER_CHUNK,
+      publishedAt: new Date().toISOString(),
+    };
+    await this.base.append({ type: "adapter", meta });
+
+    if (opts.manifestMirrorPath) {
+      mkdirSync(dirname(opts.manifestMirrorPath), { recursive: true });
+      writeFileSync(opts.manifestMirrorPath, JSON.stringify(manifestObj, null, 2) + "\n");
+    }
+    this.audit?.record({ event: "adapter_publish", extra: { version: meta.version, sizeBytes, blocks: meta.blockCount, feedKey: meta.feedKey, evalDelta: meta.evalDelta } });
+    return meta;
+  }
+
+  /** The newest adapter pointer in the replicated view (or null). update() never blocks on peers. */
+  async latestAdapter(): Promise<AdapterMeta | null> {
+    await this.base.update();
+    const rec = (await this.base.view.get("adapter:latest")) as { value?: AdapterMeta } | null;
+    return rec?.value ?? null;
+  }
+
+  /**
+   * Fetch the latest published adapter to `destDir`: read the pointer → open the feed
+   * core by key → BOUNDED download of its block range (R6) → reassemble → verify sha256
+   * (rejects a corrupt/tampered/truncated transfer) → write `adapter.gguf` + `manifest.json`.
+   * Returns null when no adapter has been published yet.
+   */
+  async fetchLatestAdapter(opts: { destDir: string; timeoutMs?: number }): Promise<{ version: string; ggufPath: string; manifestPath: string; meta: AdapterMeta } | null> {
+    const timeoutMs = opts.timeoutMs ?? 30_000;
+    const meta = await this.latestAdapter();
+    if (!meta) return null;
+
+    const feed = this.store.get({ key: b4a.from(meta.feedKey, "hex") });
+    await feed.ready();
+    const blocks = await fetchRange(feed, meta.startBlock, meta.blockCount, timeoutMs);
+
+    const manifestBuf = blocks[0]; // block 0 of the range = manifest
+    const ggufBuf = blocks.length > 1 ? Buffer.concat(blocks.slice(1)) : Buffer.alloc(0);
+    verifyAdapterBytes(ggufBuf, meta); // throws on sha256/size mismatch
+
+    mkdirSync(opts.destDir, { recursive: true });
+    const ggufPath = join(opts.destDir, "adapter.gguf");
+    const manifestPath = join(opts.destDir, "manifest.json");
+    writeFileSync(ggufPath, ggufBuf);
+    if (manifestBuf) writeFileSync(manifestPath, manifestBuf);
+
+    this.audit?.record({ event: "adapter_fetch", extra: { version: meta.version, status: "ok", sha256: meta.sha256, sizeBytes: meta.sizeBytes } });
+    return { version: meta.version, ggufPath, manifestPath, meta };
   }
 
   async close(): Promise<void> {

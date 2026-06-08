@@ -77,6 +77,11 @@ export interface AuditRecord {
     | "graph_sync"
     | "pairing"
     | "capability"
+    // Layer 4 — Memory ("The Understory"): the curate→train→eval→apply→share loop.
+    | "curate"
+    | "eval"
+    | "adapter_publish"
+    | "adapter_fetch"
     | "note";
   modelId?: string;
   modelSrc?: string;

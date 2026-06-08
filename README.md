@@ -28,7 +28,7 @@ SENSES ──► MIND ──► MEMORY ──► (sharper SENSES) ──┐
 | 1 — Mesh | QVAC P2P registry + delegated compute + **replicated CRDT context graph** | Week 1–2 ✓ (`MeshGraph`) |
 | 2 — Senses | encrypted context graph + on-device RAG + voice STT | Week 1 ✓ |
 | 3 — Mind | distributed council + delegated compute | Week 1 ✓ |
-| 4 — Memory | nightly on-device LoRA (QVAC Fabric) | Week 3 |
+| 4 — Memory | nightly on-device LoRA (QVAC Fabric): curate → train → eval → `/grow` → P2P share | Week 3 ✓ (`packages/memory`) |
 | 5 — Clients | Mac dashboard + iPhone/iPad (Expo) app | Week 1–2 |
 | — | `packages/shared` | foundation: shared types + logging (real) |
 
@@ -42,7 +42,8 @@ mycelium/
   packages/shared/      # foundation: DeviceCapability, AuditRecord, GraphNode, logger
   packages/senses/      # L2: context graph nodes + RAG index + voice STT + incremental embed
   packages/mind/        # L3: council (proposer+critic) + router + generic runAgent (tool registry)
-  packages/mesh/        # L1: delegated-inference provider/consumer + MeshGraph (CRDT sync)
+  packages/mesh/        # L1: delegated-inference provider/consumer + MeshGraph (CRDT sync + adapter share)
+  packages/memory/      # L4: curate → nightly LoRA → 3-axis eval → adapter manifest + apply (The Understory)
   apps/hub/             # the always-on "strong brain": provider + founding graph writer
   apps/edge-node/       # the weak "phone": classify → trivial-local / hard-delegated council
   apps/web/             # Leash dashboard (rail: Chat · Paper) + The Understory broadsheet
@@ -167,7 +168,7 @@ for Home Assistant (P3) and the activity watchers (P2).
 | env | default | where |
 |---|---|---|
 | `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | web — the local QVAC server the provider targets |
-| `LEASH_CHAT_MODEL` | `qwen3-4b` | web — chat model alias (must match `serve.models`) |
+| `LEASH_CHAT_MODEL` | `qwen3-4b` | web — chat model alias (must match `serve.models`); set `qwen3-4b-me` after a nightly LoRA to chat with the personal adapter |
 | `LEASH_EMBED_MODEL` | `gte-large` | web — embedding model alias for `search_graph` |
 | `LEASH_MCP_SERVERS` | _(empty)_ | web — comma-separated MCP server URLs (HA/watchers later) |
 | `LEASH_HA_URL` | _(empty)_ | web — Home Assistant base URL (e.g. `http://homeassistant.local:8123`); unset ⇒ HA tools report "not configured" |

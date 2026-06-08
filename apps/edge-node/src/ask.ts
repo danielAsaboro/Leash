@@ -20,6 +20,7 @@ import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, transcribeFile, searchGraph, embedDelta, loadEmbeddedIds, saveEmbeddedIds, QWEN3_4B_INST_Q4_K_M, type Hit } from "@mycelium/senses";
 import { classify, answerTrivial, runCouncil } from "@mycelium/mind";
 import { loadDelegated, MeshGraph, liveProviders } from "@mycelium/mesh";
+import { recordAcceptedAnswer } from "@mycelium/memory";
 import { VOICE_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, EDGE_WORKSPACE, LOG_DIR } from "./config.ts";
 
 const question = process.argv[2];
@@ -149,6 +150,13 @@ async function runHard(question: string): Promise<void> {
   console.log(`📚 sources: ${result.sources.length} · cited: ${result.cited} · verifier: ${result.verifierVerdict.verdict}`);
   console.log(`🧭 trace: ${result.trace.map((s) => (s.step === "search" ? `search(${s.hits}@${s.topScore.toFixed(3)})` : s.step === "verify" ? `verify:${s.verdict}` : `propose#${s.iter}[${s.toolCalls.join(",") || "answer"}]`)).join(" → ")}`);
   audit.record({ event: "note", extra: { role: "edge", question, cited: result.cited, verdict: result.verifierVerdict.verdict, sources: result.sources.length } });
+
+  // Layer-4 hook: an accepted, cited council answer is high-quality supervised data —
+  // persist it (data/evolve/accepted.jsonl) for tomorrow's nightly LoRA. Closes the
+  // Senses → Mind → Memory loop. No-op unless the verifier passed AND the answer cited.
+  if (recordAcceptedAnswer({ question, result, audit })) {
+    console.log("🌱 accepted answer saved for the nightly LoRA (data/evolve/accepted.jsonl)");
+  }
 
   // Keep the workspace + embedded-ids in lockstep across runs — do NOT delete it.
   await graph.close();

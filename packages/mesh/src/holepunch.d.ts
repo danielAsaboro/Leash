@@ -10,10 +10,27 @@
  * args; a plain Hyperbee has no `flush()` (put is durable on its own).
  */
 declare module "corestore" {
+  /**
+   * A single Hypercore (append-only log). The mesh uses a SIBLING core ("adapter-feed")
+   * to carry adapter BYTES — block 0 a manifest, blocks 1..N the gguf chunks — replicated
+   * by the same corestore as the Autobase, while only a tiny pointer rides the CRDT
+   * (Autobase = graph nodes only, hard constraint). `get({wait:false})` is the R6-bounded
+   * read: returns null for a not-yet-replicated block instead of hanging.
+   */
+  export interface Hypercore {
+    readonly key: Buffer;
+    readonly length: number;
+    readonly writable: boolean;
+    ready(): Promise<void>;
+    append(block: Buffer | Buffer[]): Promise<unknown>;
+    get(index: number, opts?: { wait?: boolean; timeout?: number }): Promise<Buffer | null>;
+    download(range?: { start?: number; end?: number; linear?: boolean }): unknown;
+    close(): Promise<void>;
+  }
   export default class Corestore {
     constructor(storage: string, opts?: { primaryKey?: Buffer; allowBackup?: boolean });
     ready(): Promise<void>;
-    get(name: string | { name?: string; key?: Buffer }): unknown;
+    get(name: string | { name?: string; key?: Buffer }): Hypercore;
     replicate(connection: unknown): unknown;
     close(): Promise<void>;
   }
