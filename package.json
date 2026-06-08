@@ -35,6 +35,7 @@
     "smoke:failover": "tsx packages/mesh/scripts/smoke-failover.ts",
     "smoke:allowlist": "tsx packages/mesh/scripts/smoke-allowlist.ts",
     "smoke:adapter": "tsx packages/mesh/scripts/smoke-adapter-share.ts",
+    "smoke:adapter-sync": "tsx apps/hub/scripts/smoke-adapter-sync.ts",
     "spike:ocr": "tsx spike/06-ocr.ts",
     "senses:photo": "tsx packages/senses/scripts/smoke-photo.ts",
     "senses:classify": "tsx packages/senses/scripts/smoke-classify.ts",

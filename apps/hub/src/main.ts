@@ -15,6 +15,7 @@ import { close } from "@qvac/sdk";
 import { AuditLog } from "@mycelium/shared";
 import { loadEmbeddings, unloadEmbeddings, loadWhisper, unloadWhisper, loadOcr, unloadOcr, seedFromDataDir, embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "@mycelium/senses";
 import { startProvider, MeshGraph, startHeartbeat } from "@mycelium/mesh";
+import { startAdapterSync } from "./adapter-sync.ts";
 import { NOTES_DIR, VOICE_DIR, PHOTOS_DIR, HUB_WORKSPACE, LOG_DIR, MESH_STORE_DIR, INVITE_FILE, EMBEDDED_IDS_FILE, loadAllowlist } from "./config.ts";
 
 const audit = new AuditLog("hub", LOG_DIR);
@@ -81,10 +82,16 @@ try {
     }
   });
 
+  // Layer-4 (opt-in): share trained LoRA adapters over the mesh. The hub owns the
+  // single-process mesh-store + swarm and stays alive, so publish/fetch live here.
+  // Enable with MYCELIUM_ADAPTER_SYNC=1 on every device you want in the loop.
+  const adapterSync = process.env["MYCELIUM_ADAPTER_SYNC"] ? startAdapterSync(graph, { audit }) : null;
+
   console.log("\n✅ Hub ready — serving delegated council inference + live graph sync. Ctrl-C to stop.");
   process.on("SIGINT", () => {
     void (async () => {
       audit.record({ event: "note", extra: { role: "hub", stopped: true } });
+      adapterSync?.stop();
       heartbeat.stop();
       saveEmbeddedIds(EMBEDDED_IDS_FILE, embedded);
       await graph.close();
