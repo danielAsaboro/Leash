@@ -426,3 +426,23 @@ export async function removeModelFromConfig(alias: string): Promise<{ ok: boolea
     return { ok: true };
   });
 }
+
+/**
+ * Merge per-model serving fields (`ctx_size`, `use_gpu`, …) into one alias's `config` block in
+ * qvac.config.base.json. Applies on the NEXT serve restart (the serve has no live-reconfig API).
+ * A string entry (`"alias": "MODEL"`) is promoted to object form so it can carry `config`.
+ */
+export async function setModelConfigFields(alias: string, patch: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
+  if (!patch || typeof patch !== "object" || Object.keys(patch).length === 0) return { ok: false, error: "patch must be a non-empty object" };
+  return withConfigLock(async () => {
+    const config = await readJson<QvacConfig>(QVAC_CONFIG_FILE, {});
+    const entry = config.serve?.models?.[alias];
+    if (!entry) return { ok: false, error: `no serve.models alias "${alias}"` };
+    const obj: ServeModelEntry = typeof entry === "string" ? { model: entry } : entry;
+    obj.config = { ...(obj.config ?? {}), ...patch };
+    config.serve!.models![alias] = obj;
+    await writeJson(QVAC_CONFIG_FILE, config);
+    invalidateJsonCache(QVAC_CONFIG_FILE);
+    return { ok: true };
+  });
+}

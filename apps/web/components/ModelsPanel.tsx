@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { ModelsInventory, InventoryRow, CatalogModel } from "../lib/leash/models.ts";
 import type { FitEstimate } from "../lib/leash/hwfit.ts";
+import { CtxSizeControl } from "./CtxSizeControl.tsx";
 import type { ServeStatus } from "../lib/leash/serve-control.ts";
 
 const FIT_COLOR: Record<NonNullable<FitEstimate["verdict"]>, string> = {
@@ -198,7 +199,27 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
       </Cell>
       <Cell mono>{r.name}</Cell>
       <Cell mono>{[r.addon, r.engine && r.engine !== r.addon ? r.engine : null, r.params, r.quantization].filter(Boolean).join(" · ") || "—"}</Cell>
-      <Cell mono>{r.ctxSize !== null ? r.ctxSize.toLocaleString() : "—"}</Cell>
+      <Cell mono>
+        {r.ctxSize !== null && r.inConfig && r.alias ? (
+          <CtxSizeControl
+            row={r}
+            busy={busy}
+            onSave={(ctx) =>
+              void call(() =>
+                fetchWithTimeout("/api/leash/models/config", {
+                  method: "PUT",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ action: "config", alias: r.alias, patch: { ctx_size: ctx } }),
+                }),
+              )
+            }
+          />
+        ) : r.ctxSize !== null ? (
+          r.ctxSize.toLocaleString()
+        ) : (
+          "—"
+        )}
+      </Cell>
       <Cell mono>{r.tokPerSec !== null ? `${r.tokPerSec.toFixed(1)} tok/s` : "—"}</Cell>
       <Cell>{fitBadge(r.fit)}</Cell>
       <Cell mono>{r.onDiskBytes !== null ? fmtBytes(r.onDiskBytes) : r.expectedSize !== null ? `${fmtBytes(r.expectedSize)} (not cached)` : "—"}</Cell>

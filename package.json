@@ -41,6 +41,7 @@
     "smoke:economy": "tsx scripts/smoke-economy.ts",
     "smoke:revoke": "tsx scripts/smoke-revoke.ts",
     "smoke:reconnect": "tsx scripts/smoke-reconnect.ts",
+    "smoke:model-fit": "tsx scripts/smoke-model-fit.ts",
     "gate:firewall-revocation": "tsx scripts/gate-firewall-revocation.ts",
     "probe:metered-continuation": "tsx scripts/probe-metered-continuation.ts",
     "spike:ocr": "tsx spike/06-ocr.ts",
