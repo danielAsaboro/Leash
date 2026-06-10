@@ -178,6 +178,8 @@ export interface InventoryRow {
   quantization: string | null;
   /** Context window from the config entry's `config.ctx_size` (configured rows only). */
   ctxSize: number | null;
+  /** `config.use_gpu` — true = GPU, false = CPU, null = unset (SDK default). */
+  useGpu: boolean | null;
   /** Median measured tok/s from real chat telemetry (null until the alias has turns). */
   tokPerSec: number | null;
   /** Will it run on this machine (per-model, in isolation)? */
@@ -224,6 +226,7 @@ export async function modelsInventory(): Promise<ModelsInventory> {
     const cacheFile = constant?.cacheFile ?? srcBase;
     if (cacheFile) claimedFiles.add(cacheFile);
     const ctxRaw = entry.config?.["ctx_size"];
+    const gpuRaw = entry.config?.["use_gpu"];
     configured.push({
       name: entry.model ?? srcBase ?? alias,
       alias,
@@ -232,6 +235,7 @@ export async function modelsInventory(): Promise<ModelsInventory> {
       params: constant?.params ?? null,
       quantization: constant?.quantization ?? null,
       ctxSize: typeof ctxRaw === "number" ? ctxRaw : null,
+      useGpu: typeof gpuRaw === "boolean" ? gpuRaw : null,
       tokPerSec: speeds.get(alias) ?? null,
       fit: estimateFit({ expectedSize: constant?.expectedSize ?? diskByFile.get(cacheFile ?? "") ?? null, params: constant?.params, quantization: constant?.quantization, ctx: typeof ctxRaw === "number" ? ctxRaw : undefined }),
       expectedSize: constant?.expectedSize ?? null,
@@ -256,6 +260,7 @@ export async function modelsInventory(): Promise<ModelsInventory> {
         params: constant?.params ?? null,
         quantization: constant?.quantization ?? null,
         ctxSize: null,
+        useGpu: null,
         tokPerSec: null,
         fit: estimateFit({ expectedSize: constant?.expectedSize ?? f.bytes, params: constant?.params, quantization: constant?.quantization }),
         expectedSize: constant?.expectedSize ?? null,

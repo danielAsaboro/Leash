@@ -5,6 +5,7 @@ import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { ModelsInventory, InventoryRow, CatalogModel } from "../lib/leash/models.ts";
 import type { FitEstimate } from "../lib/leash/hwfit.ts";
 import { CtxSizeControl } from "./CtxSizeControl.tsx";
+import { GpuToggle } from "./GpuToggle.tsx";
 import type { ServeStatus } from "../lib/leash/serve-control.ts";
 
 const FIT_COLOR: Record<NonNullable<FitEstimate["verdict"]>, string> = {
@@ -220,6 +221,25 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
           "—"
         )}
       </Cell>
+      <Cell>
+        {r.inConfig && r.alias ? (
+          <GpuToggle
+            useGpu={r.useGpu}
+            busy={busy}
+            onSave={(useGpu) =>
+              void call(() =>
+                fetchWithTimeout("/api/leash/models/config", {
+                  method: "PUT",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ action: "config", alias: r.alias, patch: { use_gpu: useGpu } }),
+                }),
+              )
+            }
+          />
+        ) : (
+          "—"
+        )}
+      </Cell>
       <Cell mono>{r.tokPerSec !== null ? `${r.tokPerSec.toFixed(1)} tok/s` : "—"}</Cell>
       <Cell>{fitBadge(r.fit)}</Cell>
       <Cell mono>{r.onDiskBytes !== null ? fmtBytes(r.onDiskBytes) : r.expectedSize !== null ? `${fmtBytes(r.expectedSize)} (not cached)` : "—"}</Cell>
@@ -392,6 +412,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
               <Head>Model</Head>
               <Head>Kind</Head>
               <Head>Ctx</Head>
+              <Head>Compute</Head>
               <Head>Speed</Head>
               <Head>Fit</Head>
               <Head>Size</Head>
@@ -416,6 +437,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
                 <Head>Model</Head>
                 <Head>Kind</Head>
                 <Head>Ctx</Head>
+                <Head>Compute</Head>
                 <Head>Speed</Head>
                 <Head>Fit</Head>
                 <Head>Size</Head>
