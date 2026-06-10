@@ -40,21 +40,42 @@ const registry: Registry = (g.__leashMcp ??= { connections: new Map(), failures:
 
 /** How long a failed connect is remembered before we retry (avoids hammering a dead server every turn). */
 const FAILURE_TTL_MS = 30_000;
+/** Bound the initial MCP connect/tool-discovery handshake so one dead server can't wedge chat. */
+const CONNECT_TIMEOUT_MS = 5_000;
 
 // Next.js patches globalThis.fetch and tries to cache every response body. MCP transports
 // use SSE streams that never close, so the body-read times out with "Failed to set fetch
 // cache". Passing `cache: 'no-store'` tells Next.js not to buffer the response.
 const mcpFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: "no-store" });
 
-async function connectOne(entry: McpServerEntry): Promise<void> {
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const client = await createMCPClient({
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${ms}ms: ${label}`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function connectOne(entry: McpServerEntry): Promise<void> {
+  let client: MCPClient | undefined;
+  try {
+    client = await withTimeout(
+      createMCPClient({
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       transport: { type: entry.transport, url: entry.url, fetch: mcpFetch } as any,
       // Advertise elicitation support; server→client elicitInput lands in the broker and
       // times out to cancel there, so a tool call can pause on a human form mid-chat.
       capabilities: { elicitation: {} },
-    });
+      }),
+      CONNECT_TIMEOUT_MS,
+      `connect ${entry.url}`,
+    );
     client.onElicitationRequest(
       ElicitationRequestSchema,
       (request) =>
@@ -64,11 +85,18 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
           requestedSchema: request.params.requestedSchema,
         }) as Promise<ElicitResult>, // ElicitResultLike is the index-signature-free subset
     );
-    const tools = await client.tools();
+    const tools = await withTimeout(client.tools(), CONNECT_TIMEOUT_MS, `discover tools from ${entry.url}`);
     registry.connections.set(entry.url, { entry, client, tools, toolNames: Object.keys(tools), connectedAt: Date.now() });
     registry.failures.delete(entry.url);
     console.log(`leash mcp: connected ${entry.name} (${entry.url}) — ${Object.keys(tools).length} tool(s)`);
   } catch (err) {
+    if (client) {
+      try {
+        await client.close();
+      } catch {
+        /* ignore close failure on half-open clients */
+      }
+    }
     registry.failures.set(entry.url, { at: Date.now(), error: err instanceof Error ? err.message : String(err) });
     console.error(`leash mcp: failed to connect ${entry.url}:`, err);
   }

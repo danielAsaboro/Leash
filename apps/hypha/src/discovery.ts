@@ -19,6 +19,7 @@ interface BrowsedService {
 }
 
 const SERVICE_TYPE = "hypha"; // bonjour adds the leading `_` and `_tcp`
+const CELL_SERVICE_TYPE = "hyphacell"; // public-cell feed-key announcement (separate from pairing)
 
 export interface DiscoveredDevice {
   deviceKey: string;
@@ -51,6 +52,54 @@ export interface DiscoveryHandle {
 function firstIpv4(s: BrowsedService): string {
   const v4 = (s.addresses ?? []).find((a: string) => /^\d+\.\d+\.\d+\.\d+$/.test(a));
   return v4 ?? s.referer?.address ?? s.host ?? "";
+}
+
+export interface CellDiscoveryHandle {
+  stop(): void;
+}
+
+/**
+ * Public-cell feed discovery over mDNS (spec §9 / direction B): advertise THIS device's gossip
+ * feed key for `cellId`, and call `onPeerFeed(feedKey)` for every OTHER device announcing the same
+ * cell on the LAN. That's the whole "no pairing" join — once a peer feed is known, the cell's
+ * Hyperswarm replicates it. `port` is unused for transport (the swarm carries data) but mDNS
+ * requires one. Not geofenced yet — `cellId` is an agreed string; Phase 3 makes it a geohash.
+ */
+export function startCellDiscovery(cellId: string, feedKey: string, port: number, onPeerFeed: (feedKey: string) => void): CellDiscoveryHandle {
+  const bonjour = new Bonjour();
+  const service = bonjour.publish({
+    name: `cell-${feedKey.slice(0, 8)}`,
+    type: CELL_SERVICE_TYPE,
+    port,
+    txt: { cell: cellId, feed: feedKey },
+  });
+  const browser = bonjour.find({ type: CELL_SERVICE_TYPE });
+  browser.on("up", (s: BrowsedService) => {
+    const txt = (s.txt ?? {}) as Record<string, string>;
+    if (txt["cell"] !== cellId) return; // a different cell
+    const peer = txt["feed"];
+    if (!peer || peer === feedKey) return; // skip self / untagged
+    onPeerFeed(peer);
+  });
+  return {
+    stop: () => {
+      try {
+        service.stop?.();
+      } catch {
+        /* already down */
+      }
+      try {
+        browser.stop();
+      } catch {
+        /* already down */
+      }
+      try {
+        bonjour.destroy();
+      } catch {
+        /* already destroyed */
+      }
+    },
+  };
 }
 
 /** Start advertising + browsing. `selfKey` is filtered out of the browse results. */

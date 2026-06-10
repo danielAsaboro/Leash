@@ -10,12 +10,13 @@ import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-e
 import { Loader } from "@/components/ai-elements/loader";
 import { Shimmer } from "@/components/ai-elements/shimmer";
 import { ToolView } from "./leash-tools.tsx";
+import { SkillEventCard } from "./SkillEventCard.tsx";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
 import { MessageFeedback } from "./MessageFeedback.tsx";
 import { blobToWav } from "@/lib/leash/audio";
 import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
-import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashUIMessage } from "@/lib/leash/types";
+import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
 
 /**
  * The Leash chat surface (client) — Vercel AI Elements on the AI SDK, re-skinned with
@@ -32,6 +33,8 @@ type Part = any;
 const SUGGESTIONS = ["What's in today's paper?", "What did I note about the mesh setup?", "What are my preferences?"];
 
 const isToolPart = (p: Part): boolean => typeof p?.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool");
+const isSkillPart = (p: Part): p is { type: "data-skill"; data: LeashSkillEvent } => p?.type === "data-skill";
+const isStepStart = (p: Part): boolean => p?.type === "step-start";
 
 /** "qwen3-4b · 142 tok · 18 tok/s" from message metadata, once finished. */
 function telemetry(md: LeashMetadata | undefined): string | null {
@@ -39,6 +42,41 @@ function telemetry(md: LeashMetadata | undefined): string | null {
   const secs = md.createdAt && md.finishedAt ? (md.finishedAt - md.createdAt) / 1000 : 0;
   const tps = secs > 0 ? Math.round(md.totalTokens / secs) : 0;
   return [md.effort, md.model ?? "on-device", `${md.totalTokens} tok`, tps ? `${tps} tok/s` : ""].filter(Boolean).join(" · ");
+}
+
+interface AssistantStep {
+  index: number;
+  parts: Part[];
+}
+
+function splitAssistantParts(parts: Part[]): { prelude: Part[]; steps: AssistantStep[] } {
+  const prelude: Part[] = [];
+  const steps: AssistantStep[] = [];
+  let current: AssistantStep | null = null;
+
+  for (const part of parts) {
+    if (isStepStart(part)) {
+      current = { index: steps.length + 1, parts: [] };
+      steps.push(current);
+      continue;
+    }
+    if (current) current.parts.push(part);
+    else prelude.push(part);
+  }
+
+  if (steps.length === 0 && prelude.length > 0) {
+    return { prelude: [], steps: [{ index: 1, parts: prelude }] };
+  }
+
+  return { prelude, steps };
+}
+
+function stepHasVisibleContent(step: AssistantStep): boolean {
+  return step.parts.some((p) => {
+    if (p?.type === "text" || p?.type === "reasoning") return typeof p.text === "string" && p.text.trim().length > 0;
+    if (isSkillPart(p) || isToolPart(p)) return true;
+    return false;
+  });
 }
 
 /**
@@ -245,13 +283,24 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   // anything yet (no non-empty text/reasoning part, no tool part); it disappears the
   // moment the first real part lands.
   const last = messages[messages.length - 1];
+  const lastAssistantParts = ((last?.parts as any[]) ?? []) as Part[];
+  const lastAssistantSteps = last?.role === "assistant" ? splitAssistantParts(lastAssistantParts) : null;
   const assistantVisible =
     last?.role === "assistant" &&
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ((last.parts as any[]) ?? []).some(
-      (p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || (typeof p?.type === "string" && p.type.startsWith("tool-")) || p?.type === "dynamic-tool",
+    lastAssistantParts.some(
+      (p) =>
+        ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) ||
+        (typeof p?.type === "string" && p.type.startsWith("tool-")) ||
+        p?.type === "dynamic-tool" ||
+        p?.type === "data-skill" ||
+        p?.type === "step-start",
     );
-  const awaitingModel = busy && !assistantVisible;
+  const activeStepWaiting =
+    !!busy &&
+    !!lastAssistantSteps &&
+    lastAssistantSteps.steps.length > 0 &&
+    !stepHasVisibleContent(lastAssistantSteps.steps[lastAssistantSteps.steps.length - 1]!);
+  const awaitingModel = busy && !assistantVisible && !activeStepWaiting;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ask = async (text: string, files?: any[]) => {
     const t = text.trim();
@@ -390,6 +439,27 @@ function precedingUserText(messages: LeashUIMessage[], idx: number): string {
   return "";
 }
 
+function renderAssistantPart(part: Part, index: number, streaming: boolean, approval?: ApprovalHandle) {
+  if (part.type === "reasoning") {
+    return (
+      <Reasoning key={index} isStreaming={streaming && !part.text} defaultOpen={false}>
+        <ReasoningTrigger />
+        <ReasoningContent>{part.text ?? ""}</ReasoningContent>
+      </Reasoning>
+    );
+  }
+  if (part.type === "text") {
+    return <MessageResponse key={index}>{part.text ?? ""}</MessageResponse>;
+  }
+  if (isSkillPart(part)) {
+    return <SkillEventCard key={index} event={part.data} />;
+  }
+  if (isToolPart(part)) {
+    return <ToolView key={index} part={part} approval={approval} />;
+  }
+  return null;
+}
+
 function MessageView({ message, streaming, onRegenerate, approval, chatId, prompt }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void; approval?: ApprovalHandle; chatId?: string; prompt?: string }) {
   const { role } = message;
   const parts = message.parts as Part[];
@@ -474,26 +544,30 @@ function MessageView({ message, streaming, onRegenerate, approval, chatId, promp
 
   const meta = telemetry(message.metadata);
   const answerText = parts.filter((p: Part) => p.type === "text").map((p: Part) => p.text ?? "").join("");
+  const { prelude, steps } = splitAssistantParts(parts);
 
   return (
     <Message from="assistant">
       <MessageContent>
-        {parts.map((p: Part, i: number) => {
-          if (p.type === "reasoning") {
-            return (
-              <Reasoning key={i} isStreaming={streaming && !p.text} defaultOpen={false}>
-                <ReasoningTrigger />
-                <ReasoningContent>{p.text ?? ""}</ReasoningContent>
-              </Reasoning>
-            );
-          }
-          if (p.type === "text") {
-            return <MessageResponse key={i}>{p.text ?? ""}</MessageResponse>;
-          }
-          if (isToolPart(p)) {
-            return <ToolView key={i} part={p} approval={approval} />;
-          }
-          return null;
+        {prelude.map((p: Part, i: number) => renderAssistantPart(p, i, streaming, approval))}
+        {steps.map((step) => {
+          const empty = step.parts.length === 0 || !stepHasVisibleContent(step);
+          return (
+            <section key={`step-${step.index}`} className="chat-step">
+              <div className="chat-step-kicker">Step {step.index}</div>
+              <div className="chat-step-body">
+                {step.parts.map((p: Part, i: number) => renderAssistantPart(p, i, streaming, approval))}
+                {streaming && empty && (
+                  <div className="chat-step-pending" role="status" aria-live="polite">
+                    <Loader size={14} />
+                    <Shimmer as="span" duration={1.2}>
+                      Thinking…
+                    </Shimmer>
+                  </div>
+                )}
+              </div>
+            </section>
+          );
         })}
 
         <div className="chat-foot">

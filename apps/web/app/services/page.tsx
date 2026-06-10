@@ -14,6 +14,7 @@ import { ServiceCard } from "../../components/ServiceCard.tsx";
 import { SchedulesSection } from "../../components/SchedulesSection.tsx";
 import { SecretsCard } from "../../components/SecretsCard.tsx";
 import { HyphaPeersSection } from "../../components/HyphaPeersSection.tsx";
+import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
 import { AddDeviceSection } from "../../components/AddDeviceSection.tsx";
 import { LiveRefresh } from "../../components/LiveRefresh.tsx";
 
@@ -31,7 +32,8 @@ export default async function ServicesPage() {
             {s.name === "leash-cron" && <SchedulesSection schedules={schedules} state={state} runs={runs} />}
             {s.name === "hypha" && (
               <>
-                <AddDeviceSection />
+                <MeshMembershipsSection meshes={mesh.meshes} />
+                <AddDeviceSection meshes={mesh.meshes} />
                 <HyphaPeersSection status={mesh} />
               </>
             )}

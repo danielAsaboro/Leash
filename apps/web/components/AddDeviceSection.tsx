@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import type { MeshMembership } from "../lib/leash/hypha.ts";
 
 /**
  * "Add a device" — the LAN click-to-pair flow in the Mesh (Hypha) card. Toggles the
@@ -35,11 +36,13 @@ function errStr(e: unknown): string | null {
   return JSON.stringify(e);
 }
 
-export function AddDeviceSection() {
+export function AddDeviceSection({ meshes }: { meshes: MeshMembership[] }) {
   const [state, setState] = useState<PairState | null>(null);
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  // Which mesh THIS device offers if another device pairs into it (per-mesh PIN — spec §3).
+  const [selMesh, setSelMesh] = useState<string>(meshes[0]?.meshId ?? "");
 
   const refresh = useCallback(async () => {
     try {
@@ -78,6 +81,21 @@ export function AddDeviceSection() {
     [refresh],
   );
 
+  // Enter pairing mode offering the selected mesh (or a new one). A fresh device with no meshes
+  // yet offers nothing → the daemon defaults to founding/serving the primary mesh.
+  const startAdd = async (): Promise<void> => {
+    const sel = selMesh || meshes[0]?.meshId || "";
+    let target: { meshId?: string; newMeshLabel?: string } | undefined;
+    if (sel === "__new") {
+      const label = prompt("Name the new mesh (e.g. Home, Work):", "Mesh");
+      if (label == null) return;
+      target = { newMeshLabel: label || "Mesh" };
+    } else if (sel) {
+      target = { meshId: sel };
+    }
+    await act("mode", { on: true, ...(target ? { target } : {}) });
+  };
+
   // Poll fast while pairing mode is active, slow otherwise.
   useEffect(() => {
     void refresh();
@@ -98,9 +116,27 @@ export function AddDeviceSection() {
         </span>
         <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
         {!mode ? (
-          <button type="button" disabled={busy} onClick={() => void act("mode", { on: true })} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-            Add a device
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {meshes.length > 0 && (
+              <select
+                value={selMesh || meshes[0]?.meshId || ""}
+                onChange={(e) => setSelMesh(e.target.value)}
+                title="which mesh a device pairing into you will join"
+                className="kicker border px-2 py-1.5"
+                style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-paper)", color: "var(--color-ink)" }}
+              >
+                {meshes.map((m) => (
+                  <option key={m.meshId} value={m.meshId}>
+                    {m.label} ({m.visibility})
+                  </option>
+                ))}
+                <option value="__new">+ New mesh…</option>
+              </select>
+            )}
+            <button type="button" disabled={busy} onClick={() => void startAdd()} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
+              Add a device
+            </button>
+          </div>
         ) : (
           <>
             <span className="kicker" style={kicker("var(--color-sage-deep)")}>

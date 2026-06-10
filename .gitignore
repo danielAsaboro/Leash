@@ -87,6 +87,13 @@ data/leash-secrets.enc
 
 # Hypha — per-device mesh identity + state (seed, corestore, invite); never ship
 data/hypha/
+data/hypha-*/
+
+# Machine Economy — per-device wallet secrets (BIP-39 mnemonic, RPC, asset). NEVER ship.
+# rsync already excludes data/ between machines; this stops git from ever tracking a key.
+data/.economy.env
+**/data/.economy.env
+data/*.env
 
 # Layer 4 — Memory ("The Understory"): generated training data + adapters (per-machine).
 # The FROZEN eval fixtures under data/evolve/eval/ ARE committed (the honesty harness),

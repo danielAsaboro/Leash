@@ -27,8 +27,19 @@ export const DATA_DIR = join(REPO_ROOT, "data");
  * give each its own dir + HYPHA_PORT so their corestores/seeds/ports don't collide.
  */
 export const HYPHA_DATA_DIR = process.env["HYPHA_DATA_DIR"] ?? join(DATA_DIR, "hypha");
-/** The persistent Autobase corestore: reopened across restarts to rejoin the same mesh. */
+/** Durable local-first provider economy state (sessions, replay guards, receipts, blocks). */
+export const HYPHA_ECONOMY_DIR = join(HYPHA_DATA_DIR, "economy");
+/**
+ * The persistent ROOT corestore (the MeshHost's store): every mesh this device belongs to is a
+ * namespace inside it (the primary mesh on the default namespace — spec §3.1). Reopened across
+ * restarts to rejoin all meshes.
+ */
 export const MESH_STORE_DIR = join(HYPHA_DATA_DIR, "mesh-store");
+/**
+ * Index of this device's memberships (meshId + label + type + tier) — the list the daemon reopens
+ * at boot. Absent + an existing `MESH_STORE_DIR` = a pre-multi-mesh device → migrated as PRIMARY.
+ */
+export const MESHES_FILE = join(HYPHA_DATA_DIR, "meshes.json");
 /** Where the host writes a minted blind-pairing invite for a peer to read/copy. */
 export const INVITE_FILE = join(HYPHA_DATA_DIR, "invite.txt");
 /** 64-hex hyperswarm/provider seed (this device's stable mesh identity). */
@@ -84,6 +95,34 @@ export const DEVICE_NAME = process.env["HYPHA_NAME"] ?? hostname();
 export const COMPUTE_CLASS = (process.env["HYPHA_COMPUTE_CLASS"] ?? "mac") as ComputeClass;
 export const POWER_STATE = (process.env["HYPHA_POWER"] ?? "plugged") as PowerState;
 export const RAM_MB = Math.round(totalmem() / (1024 * 1024));
+
+// ── Machine Economy (optional; disabled unless a Solana wallet + mint are configured) ─────────
+/** Enable bounded agentic settlement for delegated compute. */
+export const HYPHA_ECONOMY_ENABLED = (process.env["HYPHA_ECONOMY_ENABLED"] ?? "0") === "1";
+/** Plasma / EVM-first rail. */
+export const HYPHA_ECONOMY_PLASMA_RPC_URL = process.env["HYPHA_ECONOMY_PLASMA_RPC_URL"] ?? "";
+export const HYPHA_ECONOMY_PLASMA_NETWORK_ID = process.env["HYPHA_ECONOMY_PLASMA_NETWORK_ID"] ?? "eip155:9745";
+export const HYPHA_ECONOMY_PLASMA_MNEMONIC = process.env["HYPHA_ECONOMY_PLASMA_MNEMONIC"] ?? "";
+export const HYPHA_ECONOMY_PLASMA_ASSET_MINT = process.env["HYPHA_ECONOMY_PLASMA_ASSET_MINT"] ?? "";
+export const HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL = process.env["HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL"] ?? "USDT";
+export const HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS = Number(process.env["HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS"] ?? 6);
+/** Solana RPC used for settlement (mainnet/devnet/test-validator). */
+export const HYPHA_ECONOMY_SOLANA_RPC_URL = process.env["HYPHA_ECONOMY_SOLANA_RPC_URL"] ?? "";
+/** Hot-wallet secret key path (JSON uint8 array). */
+export const HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE = process.env["HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE"] ?? "";
+/** Hot-wallet secret key inline (JSON uint8 array or base58) if you don't want a file. */
+export const HYPHA_ECONOMY_SOLANA_SECRET_KEY = process.env["HYPHA_ECONOMY_SOLANA_SECRET_KEY"] ?? "";
+/** Solana fallback rail. */
+export const HYPHA_ECONOMY_SOLANA_NETWORK_ID = process.env["HYPHA_ECONOMY_SOLANA_NETWORK_ID"] ?? "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+export const HYPHA_ECONOMY_SOLANA_ASSET_MINT = process.env["HYPHA_ECONOMY_SOLANA_ASSET_MINT"] ?? "";
+export const HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL = process.env["HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL"] ?? "USDT";
+export const HYPHA_ECONOMY_SOLANA_ASSET_DECIMALS = Number(process.env["HYPHA_ECONOMY_SOLANA_ASSET_DECIMALS"] ?? 6);
+/** Units are base units of the settlement asset (e.g. micro-USDT when decimals = 6). */
+export const HYPHA_ECONOMY_PRICE_PER_KTOK = Number(process.env["HYPHA_ECONOMY_PRICE_PER_KTOK"] ?? 1_000);
+export const HYPHA_ECONOMY_FLOAT = Number(process.env["HYPHA_ECONOMY_FLOAT"] ?? 50_000);
+export const HYPHA_ECONOMY_MAX_PER_TX = Number(process.env["HYPHA_ECONOMY_MAX_PER_TX"] ?? 5_000);
+export const HYPHA_ECONOMY_MAX_PER_HOUR = Number(process.env["HYPHA_ECONOMY_MAX_PER_HOUR"] ?? 20_000);
+export const HYPHA_ECONOMY_MAX_PER_COUNTERPARTY = Number(process.env["HYPHA_ECONOMY_MAX_PER_COUNTERPARTY"] ?? 10_000);
 
 /**
  * Load this device's persisted 64-hex seed, generating + persisting one on first run.

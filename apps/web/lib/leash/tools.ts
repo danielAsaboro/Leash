@@ -382,11 +382,13 @@ export const DEFAULT_LEASH_SYSTEM =
   "create_task / list_tasks / update_task (the user's task list on the /tasks dashboard — use create_task when they ask to be reminded or to track a follow-up, update_task with status 'done' when they finish something), " +
   "remember / recall (your long-term memory of the user — remember durable preferences/facts/goals/people/routines they state; recall before answering questions about them), " +
   "and deep_research (kick off a background web-research run for questions needing current multi-source evidence — it returns a /research link, not an instant answer). " +
+  "Additional tools may also come from connected MCP servers; if such tools are available, use them exactly according to their tool descriptions. " +
   // Computer-use tools (screenshot/read_file/write_file/edit_file/run_command/computer) are
   // deliberately NOT named here: they're offered per-turn (chat route's computerNote) so
   // non-computer prompts stay lean for the 4096-ctx serve and the model never sees names
   // of tools it can't call this turn.
   "For anything about the user, their notes, their paper, their home devices, their tasks, or their current activity, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
+  "Never write pretend tool-call text in the answer; either call the tool or answer normally. " +
   "After tool results, answer concisely and factually. If the tools don't contain the answer, say so plainly.";
 
 /**

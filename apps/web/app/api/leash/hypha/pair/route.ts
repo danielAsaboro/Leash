@@ -26,9 +26,9 @@ export async function GET(): Promise<Response> {
 }
 
 export async function POST(req: Request): Promise<Response> {
-  const body = (await req.json().catch(() => ({}))) as { action?: string; on?: boolean; deviceKey?: string; pin?: string };
+  const body = (await req.json().catch(() => ({}))) as { action?: string; on?: boolean; deviceKey?: string; pin?: string; target?: { meshId?: string; newMeshLabel?: string } };
   const map: Record<string, { path: string; payload: object }> = {
-    mode: { path: "/pair/mode", payload: { on: body.on } },
+    mode: { path: "/pair/mode", payload: { on: body.on, target: body.target } },
     start: { path: "/pair/start", payload: { deviceKey: body.deviceKey } },
     "submit-pin": { path: "/pair/submit-pin", payload: { pin: body.pin } },
     cancel: { path: "/pair/cancel", payload: {} },

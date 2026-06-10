@@ -18,7 +18,7 @@ import { leashTools } from "../../../../lib/leash/tools.ts";
 import { taskTools } from "../../../../lib/leash/task-tools.ts";
 import { memoryTools } from "../../../../lib/leash/memory-tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
-import { skillTools, skillsSystemSection } from "../../../../lib/leash/skill-tools.ts";
+import { skillTools, skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
 import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { computerTools } from "../../../../lib/leash/computer-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
@@ -47,6 +47,11 @@ const metadataSchema = z
     effort: z.enum(["quick", "standard", "deep"]).optional(),
   })
   .optional();
+
+const skillDataSchema = z.object({
+  mode: z.enum(["explicit", "automatic"]),
+  skills: z.array(z.object({ slug: z.string(), name: z.string() })).min(1),
+});
 
 /** The text-parts join of the most recent user message (intent classifiers + effort grading). */
 function lastUserText(messages: LeashUIMessage[]): string {
@@ -113,7 +118,12 @@ export async function POST(req: Request): Promise<Response> {
   let validated: LeashUIMessage[] = messages;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    validated = (await validateUIMessages({ messages, tools: tools as any, metadataSchema })) as LeashUIMessage[];
+    validated = (await validateUIMessages({
+      messages,
+      tools: tools as any,
+      metadataSchema,
+      dataSchemas: { skill: skillDataSchema },
+    })) as LeashUIMessage[];
   } catch (err) {
     console.error("leash: UI message validation failed, using raw history:", err);
   }
@@ -137,8 +147,10 @@ export async function POST(req: Request): Promise<Response> {
 
   // Prompts come from the store (dashboard override ?? code default; mtime-cached reads),
   // plus the skills section ("" when no skills — honest empty state).
-  const [systemPrompt, skillsSection, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), preferenceTexts()]);
+  const lastText = lastUserText(validated);
+  const [systemPrompt, skillsSection, activeSkills, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts()]);
   const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
+  const availableSkillsSection = activeSkills ? "" : skillsSection;
   // `preference` memories steer behavior on EVERY turn (other memory types are
   // retrieval-only via recall/search_graph). Bounded: newest 20.
   const prefSection = prefs.length ? "Saved user preferences — follow them: " + prefs.slice(0, 20).map((p) => `· ${p}`).join(" ") : "";
@@ -185,7 +197,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, prefSection, skillsSection, computerNote, disabledNote, approvalNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, disabledNote, approvalNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -243,6 +255,12 @@ export async function POST(req: Request): Promise<Response> {
           /* stream already closed — the GET /elicitations fallback covers reloads */
         }
       });
+      if (activeSkills?.skills.length) {
+        writer.write({
+          type: "data-skill",
+          data: { mode: activeSkills.mode, skills: activeSkills.skills },
+        });
+      }
       writer.merge(
         result.toUIMessageStream({
           sendReasoning: true,

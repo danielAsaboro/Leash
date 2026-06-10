@@ -21,6 +21,17 @@ export interface LeashMetadata {
   effort?: EffortTier;
 }
 
+export interface LeashSkillRef {
+  slug: string;
+  name: string;
+}
+
+/** Persisted `data-skill` part: route/model loaded skills for this assistant turn. */
+export interface LeashSkillEvent {
+  mode: "explicit" | "automatic";
+  skills: LeashSkillRef[];
+}
+
 /** A pending MCP elicitation (server→user form), surfaced as a transient data part. */
 export interface ElicitationView {
   id: string;
@@ -35,9 +46,10 @@ export interface ElicitationView {
 /** Transient `data-elicitation` events the chat stream pushes (open / resolved). */
 export type LeashElicitationEvent = { kind: "open"; elicitation: ElicitationView } | { kind: "resolved"; id: string; action: "accept" | "decline" | "cancel" };
 
-/** Typed data parts on the Leash stream (all transient — never persisted in messages). */
+/** Typed data parts on the Leash stream. `elicitation` is transient; `skill` is persisted. */
 export type LeashDataParts = {
   elicitation: LeashElicitationEvent;
+  skill: LeashSkillEvent;
 };
 
 /** The Leash UI message, carrying `LeashMetadata` + typed data parts. */

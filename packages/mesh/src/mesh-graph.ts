@@ -24,7 +24,7 @@ import Hyperbee from "hyperbee";
 import Hyperswarm from "hyperswarm";
 import BlindPairing from "blind-pairing";
 import b4a from "b4a";
-import type { GraphNode, GraphNodeInput, AuditLog, DeviceCapability } from "@mycelium/shared";
+import type { GraphNode, GraphNodeInput, AuditLog, DeviceCapability, SessionSettlementReceipt } from "@mycelium/shared";
 
 type Entry =
   | { type: "node"; node: GraphNode }
@@ -33,6 +33,7 @@ type Entry =
   | { type: "capability"; cap: DeviceCapability }
   | { type: "forget-capability"; deviceId: string }
   | { type: "unpair"; a: string; b: string; active: boolean; ts: string }
+  | { type: "receipt"; receipt: SessionSettlementReceipt }
   | { type: "adapter"; meta: AdapterMeta };
 
 /**
@@ -106,8 +107,20 @@ export interface UnpairRecord {
 export const unpairKey = (a: string, b: string): string => "unpair:" + [a, b].sort().join("|");
 
 export interface MeshGraphOptions {
-  /** Directory for the corestore (one per device/role). */
-  storeDir: string;
+  /** Directory for the corestore (one per device/role). Omit when `store` is injected. */
+  storeDir?: string;
+  /**
+   * Injected Corestore (or a `rootStore.namespace(meshId)`). When set, MeshGraph does NOT
+   * create its own store from `storeDir` and does NOT close it on `close()` — the owner (a
+   * MeshHost holding several meshes on one root store + one swarm) does. See spec §3.
+   */
+  store?: Corestore;
+  /**
+   * Injected shared Hyperswarm owned by a MeshHost. When set, `joinSwarm()` only JOINS this
+   * mesh's discovery key on it (the host registers the single `rootStore.replicate(conn)`
+   * handler and owns the swarm's lifecycle); `close()` leaves the topic but never destroys it.
+   */
+  sharedSwarm?: Hyperswarm;
   /**
    * Existing autobase key to boot against. Usually omitted: a fresh store founds a
    * new mesh (the hub); a previously-paired store recovers its base automatically
@@ -132,7 +145,12 @@ export interface MeshGraphOptions {
 }
 
 export interface PairOptions {
-  storeDir: string;
+  /** Directory for the corestore. Omit when `store` is injected. */
+  storeDir?: string;
+  /** Injected Corestore / namespace (a MeshHost membership). See {@link MeshGraphOptions.store}. */
+  store?: Corestore;
+  /** Injected shared Hyperswarm (a MeshHost). See {@link MeshGraphOptions.sharedSwarm}. */
+  sharedSwarm?: Hyperswarm;
   /** Hex blind-pairing invite minted by the host's mintInvite(). */
   invite: string;
   /** Give up (close the half-open swarm/store and throw) if the host hasn't confirmed by then. */
@@ -190,6 +208,10 @@ async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { 
       }
       continue;
     }
+    if (value?.type === "receipt") {
+      await bee.put("receipt:" + value.receipt.sessionId, value.receipt);
+      continue;
+    }
     if (value?.type === "adapter") {
       // Adapter pointer: keep every version (`adapter:<version>`) and track the newest
       // (`adapter:latest`). LWW by version stamp — versions are lexicographically
@@ -210,6 +232,11 @@ export class MeshGraph {
   private member: { flushed(): Promise<void>; close(): Promise<void> } | null = null;
   private allowedDevices?: Set<string>;
   private readonly audit?: AuditLog;
+  /** False when store/swarm were injected by a MeshHost — `close()` must not dispose them. */
+  private ownsStore = true;
+  private ownsSwarm = true;
+  /** The injected shared swarm, if any (joined topic-only; the host owns replication + destroy). */
+  private externalSwarm: Hyperswarm | null = null;
 
   private constructor(store: Corestore, base: Autobase<Entry>, audit?: AuditLog) {
     this.store = store;
@@ -228,15 +255,19 @@ export class MeshGraph {
    * expecting to join the hub — use pair() the first time).
    */
   static async open(opts: MeshGraphOptions): Promise<MeshGraph> {
-    const store = makeStore(opts.storeDir, opts.seed);
+    if (!opts.store && !opts.storeDir) throw new Error("MeshGraph.open needs `storeDir` or an injected `store`");
+    const store = opts.store ?? makeStore(opts.storeDir as string, opts.seed);
     const g = MeshGraph.build(store, opts.bootstrapKey ?? null, opts.audit);
     g.allowedDevices = opts.allowedDevices;
+    g.ownsStore = !opts.store;
+    if (opts.sharedSwarm) { g.externalSwarm = opts.sharedSwarm; g.ownsSwarm = false; }
     try {
       await g.base.ready();
     } catch (err) {
       // A failed open must not keep holding the rocksdb lock in-process (every later open
       // of this dir would die with "lock hold by current process") — close before rethrowing.
-      await store.close().catch(() => undefined);
+      // Only when WE own the store; an injected store is the MeshHost's to dispose.
+      if (g.ownsStore) await store.close().catch(() => undefined);
       throw err;
     }
     return g;
@@ -373,6 +404,20 @@ export class MeshGraph {
     return out;
   }
 
+  /** Advertise one signed paid-session receipt into the mesh-visible replicated state. */
+  async publishReceipt(receipt: SessionSettlementReceipt): Promise<void> {
+    await this.base.append({ type: "receipt", receipt });
+    this.audit?.record({ event: "note", extra: { role: "receipt", meshId: receipt.meshId, sessionId: receipt.sessionId, status: receipt.status } });
+  }
+
+  /** Read the replicated paid-session receipts currently visible in this mesh. */
+  async receipts(): Promise<SessionSettlementReceipt[]> {
+    await this.base.update();
+    const out: SessionSettlementReceipt[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "receipt:", lt: "receipt;" })) out.push(value as SessionSettlementReceipt);
+    return out;
+  }
+
   /**
    * Bounded best-effort replication wait: poll until the node count is stable for
    * `settleMs`, or `timeoutMs` elapses. Returns fast offline (no peer → count is
@@ -402,6 +447,14 @@ export class MeshGraph {
   /** Stand up our own Hyperswarm (separate from the SDK's), join the autobase topic. No-op if already swarming. */
   async joinSwarm(): Promise<void> {
     if (this.swarm) return;
+    // Injected shared swarm (MeshHost): JOIN this mesh's topic only — the host registers the
+    // single `rootStore.replicate(conn)` handler (covering every namespace) and owns the swarm.
+    if (this.externalSwarm) {
+      this.swarm = this.externalSwarm;
+      this.swarm.join(this.base.discoveryKey);
+      await this.swarm.flush();
+      return;
+    }
     this.swarm = new Hyperswarm();
     this.swarm.on("connection", (conn) => { this.store.replicate(conn); });
     this.swarm.join(this.base.discoveryKey);
@@ -465,10 +518,14 @@ export class MeshGraph {
    * host promotes us to a writer (the add-writer entry replicates in shortly after).
    */
   static async pair(opts: PairOptions): Promise<MeshGraph> {
-    const store = makeStore(opts.storeDir);
+    if (!opts.store && !opts.storeDir) throw new Error("MeshGraph.pair needs `storeDir` or an injected `store`");
+    const store = opts.store ?? makeStore(opts.storeDir as string);
+    const ownsStore = !opts.store;
     await store.ready();
-    const swarm = new Hyperswarm();
-    swarm.on("connection", (conn) => { store.replicate(conn); });
+    const swarm = opts.sharedSwarm ?? new Hyperswarm();
+    const ownsSwarm = !opts.sharedSwarm;
+    // Own swarm → register replication here; shared swarm → the MeshHost already did, once, on root.
+    if (ownsSwarm) swarm.on("connection", (conn) => { store.replicate(conn); });
     const pairing = new BlindPairing(swarm);
     const localCore = Autobase.getLocalCore(store);
     await localCore.ready();
@@ -501,8 +558,11 @@ export class MeshGraph {
     } catch (err) {
       await candidate.close().catch(() => undefined);
       await pairing.close().catch(() => undefined);
-      await swarm.destroy().catch(() => undefined);
-      await store.close().catch(() => undefined);
+      // Only dispose what WE created — never touch a MeshHost's shared swarm / root store. On a
+      // shared swarm the candidate never joined a topic yet (join happens only after success),
+      // so closing the candidate above is the full cleanup.
+      if (ownsSwarm) await swarm.destroy().catch(() => undefined);
+      if (ownsStore) await store.close().catch(() => undefined);
       opts.audit?.record({ event: "pairing", extra: { role: "candidate", failed: true, error: String(err) } });
       throw err;
     } finally {
@@ -513,6 +573,9 @@ export class MeshGraph {
 
     const g = MeshGraph.build(store, result.key, opts.audit);
     g.swarm = swarm;
+    g.ownsStore = ownsStore;
+    g.ownsSwarm = ownsSwarm;
+    if (!ownsSwarm) g.externalSwarm = swarm;
     await g.base.ready();
     swarm.join(g.base.discoveryKey);
     await swarm.flush();
@@ -615,8 +678,13 @@ export class MeshGraph {
   async close(): Promise<void> {
     if (this.member) await this.member.close();
     if (this.pairing) await this.pairing.close();
-    if (this.swarm) await this.swarm.destroy();
+    if (this.swarm) {
+      if (this.ownsSwarm) await this.swarm.destroy();
+      // Shared swarm: leave THIS mesh's topic but never destroy it — the MeshHost owns its
+      // lifecycle (and other meshes are still riding it).
+      else await this.swarm.leave(this.base.discoveryKey).catch(() => undefined);
+    }
     await this.base.close();
-    await this.store.close();
+    if (this.ownsStore) await this.store.close(); // injected store → the MeshHost owns close()
   }
 }

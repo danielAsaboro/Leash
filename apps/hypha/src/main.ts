@@ -16,13 +16,70 @@
  * consumer share QVAC_HYPERSWARM_SEED, this device's consumer key equals its provider key.
  */
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { join } from "node:path";
 import { close, stopQVACProvider } from "@qvac/sdk";
-import { AuditLog, KvSessions, sweepKvCacheDir } from "@mycelium/shared";
-import { MeshGraph, unpairKey, startAdapterSync, type AdapterSyncHandle } from "@mycelium/mesh";
-import { DEVICE_NAME, FORGOTTEN_FILE, HYPHA_KV_CACHE, HYPHA_KV_DIR, HYPHA_KV_MAX_SESSIONS, HYPHA_KV_TTL_MS, HYPHA_PAIR_PORT, HYPHA_PORT, INVITE_FILE, LOG_DIR, MESH_STORE_DIR, STALE_MS, UNPAIR_ACK_FILE, loadOrCreateSeed } from "./config.ts";
+import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
+import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
+import {
+  DEVICE_NAME,
+  FORGOTTEN_FILE,
+  HYPHA_DATA_DIR,
+  HYPHA_ECONOMY_DIR,
+  HYPHA_ECONOMY_ENABLED,
+  HYPHA_ECONOMY_FLOAT,
+  HYPHA_ECONOMY_MAX_PER_COUNTERPARTY,
+  HYPHA_ECONOMY_MAX_PER_HOUR,
+  HYPHA_ECONOMY_MAX_PER_TX,
+  HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS,
+  HYPHA_ECONOMY_PLASMA_ASSET_MINT,
+  HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL,
+  HYPHA_ECONOMY_PLASMA_MNEMONIC,
+  HYPHA_ECONOMY_PLASMA_NETWORK_ID,
+  HYPHA_ECONOMY_PLASMA_RPC_URL,
+  HYPHA_ECONOMY_PRICE_PER_KTOK,
+  HYPHA_ECONOMY_SOLANA_ASSET_DECIMALS,
+  HYPHA_ECONOMY_SOLANA_ASSET_MINT,
+  HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL,
+  HYPHA_ECONOMY_SOLANA_NETWORK_ID,
+  HYPHA_ECONOMY_SOLANA_RPC_URL,
+  HYPHA_ECONOMY_SOLANA_SECRET_KEY,
+  HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE,
+  HYPHA_KV_CACHE,
+  HYPHA_KV_DIR,
+  HYPHA_KV_MAX_SESSIONS,
+  HYPHA_KV_TTL_MS,
+  HYPHA_PAIR_PORT,
+  HYPHA_PORT,
+  INVITE_FILE,
+  LOG_DIR,
+  MESH_STORE_DIR,
+  MESHES_FILE,
+  STALE_MS,
+  UNPAIR_ACK_FILE,
+  loadOrCreateSeed,
+} from "./config.ts";
+import { DeviceProvider } from "./device-provider.ts";
+import { MeshRouter } from "./mesh-router.ts";
+import { startCellDiscovery, type CellDiscoveryHandle } from "./discovery.ts";
 import { startMeshServices, type MeshRuntime } from "./mesh-services.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
-import { createShim, type Inflight, type MeshControl } from "./shim.ts";
+import { createShim, type Inflight, type MeshControl, type MeshSummary } from "./shim.ts";
+import { SolanaSettlementService } from "./solana-settlement.ts";
+import { PlasmaSettlementService } from "./plasma-settlement.ts";
+import { SettlementManager } from "./settlement-manager.ts";
+import { ProviderEconomyService } from "./provider-economy.ts";
+import { PaymentControlClient, PaymentControlServer } from "./payment-control.ts";
+
+/** One membership row persisted in meshes.json — the device's local record of a mesh it belongs to. */
+interface MeshRecord {
+  meshId: string;
+  label: string;
+  visibility: Visibility;
+  reach: Reach;
+  /** Delegation-ladder rank (spec §6) — primary/home = 0, secondaries increasing. */
+  tier: number;
+}
 
 const audit = new AuditLog("hypha", LOG_DIR);
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
@@ -64,12 +121,112 @@ async function runPair(invite: string | undefined): Promise<void> {
 
 /** Default — the long-running daemon. */
 async function runDaemon(): Promise<void> {
+  // Diagnostic (env-gated): probe LAN TCP reachability every 10s to localize when/where this
+  // process loses LAN access (observed: EHOSTUNREACH from inside the daemon while every other
+  // process on the same box connects fine). HYPHA_DEBUG_LANPROBE=<host:port>
+  const lanProbe = process.env["HYPHA_DEBUG_LANPROBE"];
+  if (lanProbe) {
+    const [host, port] = lanProbe.split(":");
+    const { connect } = await import("node:net");
+    const t0 = Date.now();
+    const probe = (): void => {
+      const s = connect(Number(port), host);
+      s.on("connect", () => { console.log(`[lanprobe] +${Math.round((Date.now() - t0) / 1000)}s OK`); s.destroy(); });
+      s.on("error", (e) => console.log(`[lanprobe] +${Math.round((Date.now() - t0) / 1000)}s ERR ${(e as NodeJS.ErrnoException).code}`));
+    };
+    probe();
+    setInterval(probe, 10_000).unref();
+  }
   const seed = loadOrCreateSeed();
   const inflight = makeInflight();
+  const plasmaSettlement = new PlasmaSettlementService({
+    enabled: HYPHA_ECONOMY_ENABLED,
+    rpcUrl: HYPHA_ECONOMY_PLASMA_RPC_URL,
+    mnemonic: HYPHA_ECONOMY_PLASMA_MNEMONIC,
+    asset: {
+      symbol: HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL,
+      mint: HYPHA_ECONOMY_PLASMA_ASSET_MINT,
+      decimals: HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS,
+      networkId: HYPHA_ECONOMY_PLASMA_NETWORK_ID,
+    },
+    price: { perKiloToken: HYPHA_ECONOMY_PRICE_PER_KTOK },
+    limits: {
+      maxPerTx: HYPHA_ECONOMY_MAX_PER_TX,
+      maxPerHour: HYPHA_ECONOMY_MAX_PER_HOUR,
+      maxPerCounterparty: HYPHA_ECONOMY_MAX_PER_COUNTERPARTY,
+    },
+    initialFloat: HYPHA_ECONOMY_FLOAT,
+  });
+  const solanaSettlement = new SolanaSettlementService({
+    enabled: HYPHA_ECONOMY_ENABLED,
+    rpcUrl: HYPHA_ECONOMY_SOLANA_RPC_URL,
+    secretKey: HYPHA_ECONOMY_SOLANA_SECRET_KEY,
+    secretKeyFile: HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE,
+    asset: {
+      symbol: HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL,
+      mint: HYPHA_ECONOMY_SOLANA_ASSET_MINT,
+      decimals: HYPHA_ECONOMY_SOLANA_ASSET_DECIMALS,
+    },
+    price: { perKiloToken: HYPHA_ECONOMY_PRICE_PER_KTOK },
+    limits: {
+      maxPerTx: HYPHA_ECONOMY_MAX_PER_TX,
+      maxPerHour: HYPHA_ECONOMY_MAX_PER_HOUR,
+      maxPerCounterparty: HYPHA_ECONOMY_MAX_PER_COUNTERPARTY,
+    },
+    initialFloat: HYPHA_ECONOMY_FLOAT,
+  });
+  const settlement = new SettlementManager({ plasma: plasmaSettlement, solana: solanaSettlement });
+  await settlement.ready();
+  // Multi-mesh (spec §3): one MeshHost (root corestore + shared swarm), N memberships. `runtimes`
+  // holds every mesh's services; `meshMeta` its label/tier/visibility; `mesh` points at the
+  // PRIMARY membership so the existing pairing/tombstone/unpair machinery keeps working unchanged.
+  let host: MeshHost | null = null;
+  const runtimes = new Map<string, MeshRuntime>();
+  const meshMeta = new Map<string, MeshRecord>();
   let mesh: MeshRuntime | null = null;
-  // Layer-4: share trained LoRA adapters over THIS mesh (publish local promotable ones,
+  // Public cells (spec §9 / direction B): broadcast-only, leaderless gossip meshes, auto-discovered
+  // over mDNS — kept SEPARATE from the private compute runtimes (no warm pool, no firewall, no
+  // delegation). Keyed by cellId.
+  const publicMeshes = new Map<string, { cellId: string; label: string; mesh: PublicMesh; discovery: CellDiscoveryHandle }>();
+  // Layer-4: share trained LoRA adapters over the PRIMARY mesh (publish local promotable ones,
   // fetch peers' newer ones). Started once the mesh is online; rides the same swarm.
   let adapterSync: AdapterSyncHandle | null = null;
+  const providerEconomy = plasmaSettlement.online()
+    ? new ProviderEconomyService({
+      seed,
+      audit,
+      storeDir: HYPHA_ECONOMY_DIR,
+      plasma: plasmaSettlement,
+      providerPublicKey: () => provider.selfKey,
+      resolveMeshParticipant: async (meshId, consumerWriterKey) => {
+        const runtime = runtimes.get(meshId);
+        const meta = meshMeta.get(meshId);
+        if (!runtime || !meta) return null;
+        const caps = await runtime.graph.capabilities().catch(() => []);
+        const cap = caps.find((entry) => entry.deviceId === consumerWriterKey);
+        return { visibility: meta.visibility, providerWriterKey: runtime.graph.localWriterKey, consumerPublicKey: cap?.consumerPublicKey };
+      },
+      publishReceipt: async (meshId, receipt) => {
+        const runtime = runtimes.get(meshId);
+        if (!runtime) return;
+        await runtime.graph.publishReceipt(receipt).catch(() => undefined);
+      },
+    })
+    : null;
+  const paymentControlServer = providerEconomy ? new PaymentControlServer({ seed, audit, economy: providerEconomy }) : null;
+  if (paymentControlServer) await paymentControlServer.ready();
+  // The ONE delegated-inference provider for this device + its union firewall (spec §4). Every
+  // mesh contributes its paired consumers; the provider serves their union. Lazy: not started
+  // until the first mesh comes online.
+  const provider = new DeviceProvider(seed, audit, async (providerPublicKey, allowedConsumers) => {
+    await paymentControlServer?.updateAllowedConsumers(providerPublicKey, allowedConsumers);
+  });
+
+  // Consumer-side payment-control: ONE persistent client per daemon (stable seed → warm DHT/NAT
+  // state, one multiplexed connection per provider). Constructed always (cheap — its swarm is lazy),
+  // but only pre-warmed when this device can actually pay (Plasma rail online).
+  const paymentControl = new PaymentControlClient(() => provider.selfKey, seed, audit);
+  const onPaidPeer = plasmaSettlement.online() ? (providerKey: string) => paymentControl.warm(providerKey) : undefined;
 
   // Local tombstones — devices this one has hard-disconnected. AUTHORITATIVE on this device:
   // a tombstoned peer is hidden from the list, never served, never borrowed from — no matter
@@ -157,66 +314,161 @@ async function runDaemon(): Promise<void> {
     }
   };
 
-  const openOrFoundGraph = async (): Promise<MeshGraph> => {
-    const g = await MeshGraph.open({ storeDir: MESH_STORE_DIR, audit });
-    await g.joinSwarm();
-    return g;
+  // ── meshes.json index (the memberships to reopen at boot) ────────────────────────────────────
+  const primaryRecord = (): MeshRecord => ({ meshId: PRIMARY_MESH_ID, label: "Primary", visibility: "private", reach: "local", tier: 0 });
+  const loadMeshRecords = (): MeshRecord[] => {
+    try { return existsSync(MESHES_FILE) ? (JSON.parse(readFileSync(MESHES_FILE, "utf8")) as MeshRecord[]) : []; } catch { return []; }
+  };
+  const saveMeshRecords = (): void => {
+    try { writeFileSync(MESHES_FILE, JSON.stringify([...meshMeta.values()], null, 2)); } catch { /* best effort */ }
+  };
+  const nextTier = (): number => { const ts = [...meshMeta.values()].map((m) => m.tier); return (ts.length ? Math.max(...ts) : 0) + 1; };
+
+  // One MeshHost owns the root corestore + shared swarm; created lazily so a fresh device stays
+  // mesh-less (never founds a store) until it actually pairs/founds.
+  let hostOpening: Promise<MeshHost> | null = null;
+  const ensureHost = (): Promise<MeshHost> => {
+    if (host) return Promise.resolve(host);
+    hostOpening ??= MeshHost.open({ rootDir: MESH_STORE_DIR, audit }).then((h) => { host = h; hostOpening = null; return h; });
+    return hostOpening;
   };
 
-  /** Every mesh-online path goes through here: start services, wire + run the unpair reconcile. */
-  const bringMeshOnline = async (g: MeshGraph): Promise<MeshRuntime> => {
-    const m = await startMeshServices(g, seed, inflight, audit, isForgotten);
+  /** Every mesh-online path goes through here: start per-mesh services + wire the unpair reconcile. */
+  const bringMeshOnline = async (meshId: string, g: MeshGraph, meta: MeshRecord): Promise<MeshRuntime> => {
+    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, ...(onPaidPeer ? { onPaidPeer } : {}) });
+    runtimes.set(meshId, m);
+    meshMeta.set(meshId, meta);
     g.onChange(() => void reconcileUnpairs(m));
     void reconcileUnpairs(m);
-    adapterSync ??= startAdapterSync(g, { audit }); // Layer-4 adapter distribution over this mesh
+    if (meshId === PRIMARY_MESH_ID) {
+      mesh = m;
+      adapterSync ??= startAdapterSync(g, { audit }); // Layer-4 adapter distribution over the primary mesh
+    }
     return m;
   };
 
   /**
-   * Lazy mesh bring-up, SERIALIZED. The first PIN confirm on a fresh host FOUNDS the mesh
-   * (store open + swarm + provider — seconds); a retried confirm racing it would call
-   * MeshGraph.open on the same corestore dir and die with rocksdb's "lock hold by current
-   * process". All callers share the single in-flight open instead.
+   * Lazy PRIMARY bring-up, SERIALIZED. The first PIN confirm FOUNDS it (open + swarm — seconds);
+   * a racing retry would re-open the same namespace. All callers share the single in-flight open.
    */
-  let meshOpening: Promise<MeshRuntime> | null = null;
+  let primaryOpening: Promise<MeshRuntime> | null = null;
   const ensureMeshOnline = (): Promise<MeshRuntime> => {
     if (mesh) return Promise.resolve(mesh);
-    meshOpening ??= (async () => {
+    const existing = runtimes.get(PRIMARY_MESH_ID);
+    if (existing) { mesh = existing; return Promise.resolve(existing); }
+    primaryOpening ??= (async () => {
       try {
-        const g = await openOrFoundGraph();
-        const m = await bringMeshOnline(g);
-        mesh = m;
-        return m;
+        const h = await ensureHost();
+        const { graph } = await h.openMesh({ meshId: PRIMARY_MESH_ID });
+        return await bringMeshOnline(PRIMARY_MESH_ID, graph, meshMeta.get(PRIMARY_MESH_ID) ?? primaryRecord());
       } finally {
-        meshOpening = null;
+        primaryOpening = null;
       }
     })();
-    return meshOpening;
+    return primaryOpening;
+  };
+
+  /** Found a brand-new private mesh of your own devices. Returns its local meshId. */
+  const foundMesh = async (label: string): Promise<string> => {
+    const h = await ensureHost();
+    const meshId = randomUUID();
+    const meta: MeshRecord = { meshId, label, visibility: "private", reach: "local", tier: nextTier() };
+    const { graph } = await h.openMesh({ meshId });
+    await bringMeshOnline(meshId, graph, meta);
+    saveMeshRecords();
+    return meshId;
+  };
+
+  /**
+   * Join a mesh via a blind invite as a membership: the FIRST mesh becomes PRIMARY (default
+   * namespace — identity continuity); later ones get a fresh namespace. Used by BOTH the LAN-PIN
+   * pairing path and the paste-invite fallback.
+   */
+  const joinAsMembership = async (invite: string, label: string): Promise<string> => {
+    const h = await ensureHost();
+    const isPrimary = !runtimes.has(PRIMARY_MESH_ID);
+    const meshId = isPrimary ? PRIMARY_MESH_ID : randomUUID();
+    const meta: MeshRecord = isPrimary ? { ...primaryRecord(), label } : { meshId, label, visibility: "private", reach: "local", tier: nextTier() };
+    try {
+      const { graph } = await h.pairMesh({ meshId, invite, timeoutMs: 45_000 });
+      await bringMeshOnline(meshId, graph, meta);
+      saveMeshRecords();
+      return meshId;
+    } catch (err) {
+      // A failed FIRST join leaves a half-written root store; if nothing else lives on the host,
+      // discard it so the next boot doesn't FOUND a lone primary (the host owns the injected store).
+      if (isPrimary && runtimes.size === 0) {
+        try { await h.close(); } catch { /* best effort */ }
+        host = null;
+        try { rmSync(MESH_STORE_DIR, { recursive: true, force: true }); } catch { /* best effort */ }
+      }
+      throw err;
+    }
+  };
+
+  /** Sync summary of every membership (private compute + public cells) for the dashboard. */
+  const meshSummaries = (): MeshSummary[] => [
+    ...[...runtimes.entries()].map(([meshId, m]) => {
+      const meta = meshMeta.get(meshId);
+      return { meshId, label: meta?.label ?? meshId, visibility: meta?.visibility ?? "private", tier: meta?.tier ?? 0, peers: m.pool.peers().length, writable: m.graph.writable };
+    }),
+    ...[...publicMeshes.values()].map((p) => ({ meshId: p.cellId, label: p.label, visibility: "public", tier: 99, peers: Math.max(0, p.mesh.knownFeeds().length - 1), writable: true })),
+  ];
+
+  /**
+   * Join a public, discoverable cell (spec §9 / B): a leaderless gossip mesh on its OWN per-cell
+   * seeded store (identity unlinkable to the private mesh) + mDNS feed discovery (no pairing). Kept
+   * out of `runtimes` so it never touches compute/firewall/delegation — broadcast-only by construction.
+   */
+  const joinPublicCell = async (cellId: string, label: string): Promise<void> => {
+    if (publicMeshes.has(cellId)) return;
+    const storeDir = join(HYPHA_DATA_DIR, "public", cellId.replace(/[^a-zA-Z0-9_-]/g, "_"));
+    const m = await PublicMesh.open({ storeDir, cellId, masterSeed: seed, audit });
+    const discovery = startCellDiscovery(cellId, m.feedKey, HYPHA_PAIR_PORT, (feedKey) => m.addPeerFeed(feedKey));
+    publicMeshes.set(cellId, { cellId, label, mesh: m, discovery });
+    meshMeta.set(cellId, { meshId: cellId, label, visibility: "public", reach: "local", tier: 99 });
+    saveMeshRecords();
+    console.log(`📣 public cell "${label}" (${cellId}) — gossiping as feed ${m.feedKey.slice(0, 16)}…`);
   };
 
   const meshController: MeshController = {
     displayName: () => DEVICE_NAME,
     inMesh: () => mesh !== null,
-    localKey: async () => (mesh ? mesh.graph.localWriterKey : await MeshGraph.prospectiveWriterKey(MESH_STORE_DIR)),
+    localKey: async () => {
+      if (mesh) return mesh.graph.localWriterKey;
+      if (host) return host.prospectiveWriterKey(PRIMARY_MESH_ID);
+      return MeshGraph.prospectiveWriterKey(MESH_STORE_DIR);
+    },
     pairedDeviceKeys: async () => {
       if (!mesh) return new Set<string>();
       const self = mesh.graph.localWriterKey;
       return new Set((await mesh.graph.capabilities()).map((c) => c.deviceId).filter((k) => k !== self));
     },
-    hostInvite: async (initiatorKey) => {
-      const m = await ensureMeshOnline();
-      // A host must be able to APPEND the add-writer record. Minting an invite from a
-      // non-writable mesh accepts the PIN and then strands the joiner at the blind-pairing
-      // step (the silent-stuck failure) — fail loud here so /pair/confirm returns the error.
+    hostInvite: async (initiatorKey, target) => {
+      // Resolve which mesh to admit the joiner into: a brand-new one, a chosen existing one, or primary.
+      let m: MeshRuntime;
+      let meshLabel: string;
+      if (target?.newMeshLabel) {
+        const meshId = await foundMesh(target.newMeshLabel);
+        m = runtimes.get(meshId)!;
+        meshLabel = target.newMeshLabel;
+      } else if (target?.meshId && runtimes.has(target.meshId)) {
+        m = runtimes.get(target.meshId)!;
+        meshLabel = meshMeta.get(target.meshId)?.label ?? "Mesh";
+      } else {
+        m = await ensureMeshOnline();
+        meshLabel = meshMeta.get(PRIMARY_MESH_ID)?.label ?? "Primary";
+      }
+      // A host must be able to APPEND the add-writer record. Minting an invite from a non-writable
+      // mesh accepts the PIN and then strands the joiner (the silent-stuck failure) — fail loud here.
       if (!(await ensureWritable(m))) {
-        throw new Error("this device's mesh isn't writable (still syncing, or its peers are gone) — it can't admit a new device right now; if this mesh is dead, use Reset mesh here and pair fresh");
+        throw new Error("this mesh isn't writable (still syncing, or its peers are gone) — it can't admit a new device right now; if this mesh is dead, Reset it and pair fresh");
       }
       // (Re)pairing un-tombstones the device so a previously-disconnected peer can return.
       if (forgotten.delete(initiatorKey)) saveForgotten();
       m.graph.allow(initiatorKey);
-      // Stamp the ack NOW (sync) so any stale active:true record that replicates in later
-      // can't re-tombstone the device we're re-pairing; then best-effort append the LWW
-      // retraction so the unpair clears mesh-wide (the peer's tombstone of us heals too).
+      // Stamp the ack NOW (sync) so any stale active:true record that replicates in later can't
+      // re-tombstone the device we're re-pairing; then best-effort retract the unpair mesh-wide.
       stampUnpairAck(m.graph.localWriterKey, initiatorKey);
       void (async () => {
         if (!(await ensureWritable(m))) return;
@@ -224,25 +476,10 @@ async function runDaemon(): Promise<void> {
           audit.record({ event: "note", extra: { role: "mesh", phase: "unpair-retract-failed", initiatorKey, error: String(err) } });
         });
       })();
-      return m.graph.mintInvite();
+      return { invite: await m.graph.mintInvite(), meshLabel };
     },
-    joinWith: async (invite) => {
-      if (mesh) throw new Error("already in a mesh — pair from the other device");
-      let g: MeshGraph;
-      try {
-        g = await MeshGraph.pair({ storeDir: MESH_STORE_DIR, invite, audit, timeoutMs: 45_000 });
-      } catch (err) {
-        // A failed join leaves a half-written prospective store; the next daemon boot would
-        // FOUND a lone mesh from it (a mesh this device never asked for, with a key its peers
-        // don't know). pair() already closed the store — remove the directory too.
-        try {
-          rmSync(MESH_STORE_DIR, { recursive: true, force: true });
-        } catch {
-          /* best effort */
-        }
-        throw err;
-      }
-      mesh = await bringMeshOnline(g);
+    joinWith: async (invite, label) => {
+      await joinAsMembership(invite, label || "Mesh");
     },
   };
 
@@ -358,7 +595,38 @@ async function runDaemon(): Promise<void> {
       writable: mesh ? mesh.graph.writable : null,
       meshId: mesh ? mesh.graph.autobaseKey.slice(0, 8) : null,
       forgotten: [...forgotten],
+      meshes: meshSummaries(),
     }),
+    listMeshes: async () => meshSummaries(),
+    newMesh: async (label) => {
+      try { return { ok: true, meshId: await foundMesh(label || "Mesh") }; }
+      catch (err) { return { ok: false, error: String(err) }; }
+    },
+    inviteToMesh: async (meshId) => {
+      try {
+        const m = runtimes.get(meshId);
+        if (!m) return { ok: false, error: "no such mesh on this device" };
+        if (!(await ensureWritable(m))) return { ok: false, error: "mesh not writable yet — try again in a moment" };
+        return { ok: true, invite: await m.graph.mintInvite() };
+      } catch (err) { return { ok: false, error: String(err) }; }
+    },
+    joinMesh: async (invite, label) => {
+      try {
+        if (!invite) return { ok: false, error: "invite required" };
+        return { ok: true, meshId: await joinAsMembership(invite, label || "Mesh") };
+      } catch (err) { return { ok: false, error: String(err) }; }
+    },
+    joinPublicCell: async (cellId, label) => {
+      try {
+        if (!cellId) return { ok: false, error: "cellId required" };
+        await joinPublicCell(cellId, label || "Public cell");
+        return { ok: true, meshId: cellId };
+      } catch (err) { return { ok: false, error: String(err) }; }
+    },
+    receipts: async () => {
+      const all = await Promise.all([...runtimes.values()].map((m) => m.graph.receipts().catch(() => [])));
+      return all.flat();
+    },
   };
 
   const pairing = new PairingController(meshController, audit);
@@ -376,20 +644,48 @@ async function runDaemon(): Promise<void> {
   const janitor = setInterval(sweep, 60 * 60 * 1000);
   janitor.unref();
 
-  const server = createShim({ getPool: () => mesh?.pool ?? null, inflight, port: HYPHA_PORT, pairing, mesh: meshControl, audit, ...(kv ? { kv } : {}) });
+  // The delegation ladder (spec §6) over every membership's warm pool, tagged with tier/visibility.
+  const router = new MeshRouter(() =>
+    [...runtimes.entries()].map(([meshId, m]) => {
+      const meta = meshMeta.get(meshId);
+      return { meshId, label: meta?.label ?? meshId, tier: meta?.tier ?? 0, visibility: meta?.visibility ?? "private", selfWriterKey: m.graph.localWriterKey, pool: m.pool };
+    }),
+  );
+  const server = createShim({ getRouter: () => router, getSelfConsumerKey: () => provider.selfKey, inflight, port: HYPHA_PORT, pairing, mesh: meshControl, audit, ...(kv ? { kv } : {}), settlement, paymentControl });
 
-  // Established device: rejoin its mesh at boot. Fresh device: stay unpaired until pairing.
-  if (existsSync(MESH_STORE_DIR)) {
-    const m = await ensureMeshOnline();
-    console.log(`🍄 Hypha "${DEVICE_NAME}" — mesh online${forgotten.size ? ` (${forgotten.size} device(s) tombstoned)` : ""}.`);
-    // Regain write access in the background (a reopened member is read-only until it re-syncs).
-    void ensureWritable(m).then((w) => console.log(w ? "✍️  writable (can manage the mesh)" : "⏳ not a writer yet — will retry when needed"));
-  } else {
-    console.log(`🍄 Hypha "${DEVICE_NAME}" — not in a mesh yet. Leash → Services → Mesh → "Add a device" to pair.`);
+  // Established device: rejoin every membership at boot. A pre-multi-mesh device (mesh-store exists,
+  // no meshes.json) → migrate it as PRIMARY (its writer key + data survive on the default namespace).
+  // Fresh device: stay mesh-less until it pairs / founds.
+  {
+    const records = loadMeshRecords();
+    if (records.length === 0 && existsSync(MESH_STORE_DIR)) records.push(primaryRecord());
+    for (const rec of records) meshMeta.set(rec.meshId, rec);
+    if (records.length > 0) {
+      for (const rec of records) {
+        try {
+          if (rec.visibility === "public") {
+            await joinPublicCell(rec.meshId, rec.label);
+          } else {
+            const h = await ensureHost();
+            const { graph } = await h.openMesh({ meshId: rec.meshId });
+            await bringMeshOnline(rec.meshId, graph, rec);
+          }
+        } catch (err) {
+          console.error(`⚠️ failed to reopen mesh "${rec.label}" (${rec.meshId.slice(0, 8)}):`, err);
+        }
+      }
+      saveMeshRecords();
+      console.log(`🍄 Hypha "${DEVICE_NAME}" — ${runtimes.size} private + ${publicMeshes.size} public mesh(es) online${forgotten.size ? ` (${forgotten.size} tombstoned)` : ""}.`);
+      const pm = runtimes.get(PRIMARY_MESH_ID);
+      if (pm) void ensureWritable(pm).then((w) => console.log(w ? "✍️  primary writable (can manage the mesh)" : "⏳ primary not writable yet — will retry when needed"));
+    } else {
+      console.log(`🍄 Hypha "${DEVICE_NAME}" — not in a mesh yet. Leash → Services → Mesh → "Add a device" / "New mesh".`);
+    }
   }
 
   server.listen(HYPHA_PORT, "127.0.0.1", () => {
     console.log(`🔌 control/shim on :${HYPHA_PORT} · LAN pairing on :${HYPHA_PAIR_PORT} (open only while pairing)`);
+    if (settlement.online()) console.log("💸 settlement enabled for delegated compute (Plasma first, Solana fallback)");
     console.log("✅ Hypha ready. Ctrl-C to stop.");
   });
 
@@ -397,15 +693,19 @@ async function runDaemon(): Promise<void> {
     void (async () => {
       audit.record({ event: "note", extra: { role: "hypha", stopped: true } });
       adapterSync?.stop();
+      providerEconomy?.stop();
       await pairing.cancel();
-      if (mesh) await mesh.stop();
+      for (const m of runtimes.values()) await m.stop();
+      for (const p of publicMeshes.values()) { p.discovery.stop(); await p.mesh.close().catch(() => undefined); }
       server.close();
+      await paymentControl.close().catch(() => undefined);
+      await paymentControlServer?.close().catch(() => undefined);
       try {
         await stopQVACProvider();
       } catch {
         /* already down */
       }
-      if (mesh) await mesh.graph.close();
+      if (host) await host.close();
       void close();
       console.log("\n🛑 Hypha stopped");
       process.exit(0);

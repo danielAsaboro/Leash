@@ -22,7 +22,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import { existsSync, rmSync } from "node:fs";
 import type { AuditLog } from "@mycelium/shared";
 import { startDiscovery, type DiscoveredDevice, type DiscoveryHandle } from "./discovery.ts";
-import type { PairingControl, PairingState } from "./shim.ts";
+import type { PairingControl, PairingState, PairTarget } from "./shim.ts";
 import { COMPUTE_CLASS, HYPHA_PAIR_PORT, MESH_STORE_DIR, PAIR_MODE_TIMEOUT_MS, RAM_MB } from "./config.ts";
 
 /** What the controller needs from the daemon's mesh lifecycle (implemented in main.ts). */
@@ -34,10 +34,11 @@ export interface MeshController {
   localKey(): Promise<string>;
   /** Device keys (deviceIds) of already-paired peers, to drop from the discovered list. */
   pairedDeviceKeys(): Promise<Set<string>>;
-  /** HOST: ensure a mesh exists (found if none), allow-list the initiator, return a blind invite. */
-  hostInvite(initiatorWriterKey: string): Promise<string>;
-  /** JOINER: redeem an invite and bring the mesh online (requires !inMesh). */
-  joinWith(invite: string): Promise<void>;
+  /** HOST: resolve the offered mesh (existing / new / primary), allow-list the initiator, mint its
+   *  invite, and return it with the mesh's label (so the joiner names its membership the same). */
+  hostInvite(initiatorWriterKey: string, target: PairTarget): Promise<{ invite: string; meshLabel: string }>;
+  /** JOINER: redeem an invite and add the mesh as a membership (labeled from the host's offer). */
+  joinWith(invite: string, label: string): Promise<void>;
 }
 
 interface Outgoing {
@@ -84,6 +85,8 @@ export class PairingController implements PairingControl {
   private outgoing: Outgoing | null = null;
   private incoming: Incoming | null = null;
   private lastError: string | null = null;
+  /** Which mesh this device is offering while in "Add a device" mode (default = primary). */
+  private target: PairTarget = {};
   /** True while a background joinWith is in flight (guards exit()'s store cleanup). */
   private joining = false;
 
@@ -97,8 +100,9 @@ export class PairingController implements PairingControl {
     this.pairPort = pairPort;
   }
 
-  async setMode(on: boolean): Promise<{ ok: boolean; error?: string }> {
+  async setMode(on: boolean, target?: PairTarget): Promise<{ ok: boolean; error?: string }> {
     if (on) {
+      this.target = target ?? {};
       if (this.mode) {
         this.armTimeout();
         return { ok: true };
@@ -195,10 +199,10 @@ export class PairingController implements PairingControl {
         return send(403, { error: "wrong PIN" });
       }
       try {
-        const invite = await this.mesh.hostInvite(this.incoming.initiatorKey);
-        this.audit?.record({ event: "pairing", extra: { role: "host", phase: "confirmed", from: this.incoming.initiatorName } });
+        const { invite, meshLabel } = await this.mesh.hostInvite(this.incoming.initiatorKey, this.target);
+        this.audit?.record({ event: "pairing", extra: { role: "host", phase: "confirmed", from: this.incoming.initiatorName, meshLabel } });
         this.incoming = null;
-        return send(200, { invite });
+        return send(200, { invite, meshLabel });
       } catch (err) {
         this.lastError = `host pairing failed: ${String(err)}`;
         return send(500, { error: this.lastError });
@@ -259,7 +263,7 @@ export class PairingController implements PairingControl {
         o.error = ((await r.json().catch(() => ({}))) as { error?: string }).error ?? `error ${r.status}`;
         return { ok: false, error: o.error };
       }
-      const { invite } = (await r.json()) as { invite: string };
+      const { invite, meshLabel } = (await r.json()) as { invite: string; meshLabel?: string };
       // Join in the BACKGROUND: the blind-pairing handshake can take tens of seconds (and a
       // broken host can fail it). Holding this HTTP response open would time out the
       // dashboard's proxy — which then reads as "daemon not running" while the daemon is
@@ -267,7 +271,7 @@ export class PairingController implements PairingControl {
       // error) there.
       this.joining = true;
       void this.mesh
-        .joinWith(invite)
+        .joinWith(invite, meshLabel ?? "Mesh")
         .then(() => {
           o.status = "done";
           this.audit?.record({ event: "pairing", extra: { role: "joiner", phase: "joined", target: o.targetName } });

@@ -61,6 +61,14 @@
   },
   "dependencies": {
     "@qvac/sdk": "^0.12.0",
+    "@semanticio/wdk-wallet-evm-x402-facilitator": "^1.0.0-beta.2",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "@tetherto/wdk-wallet-evm": "^1.0.0-beta.13",
+    "@x402/core": "^2.14.0",
+    "@x402/evm": "^2.14.0",
+    "@x402/fetch": "^2.14.0",
+    "@x402/svm": "^2.14.0",
     "undici": "^8.3.0"
   },
   "devDependencies": {

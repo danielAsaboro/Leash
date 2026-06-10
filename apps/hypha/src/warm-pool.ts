@@ -12,7 +12,7 @@
  * — the shim does raw `completion()` (no tool execution; the TOOLLESS-HANG guard), and the
  * broker, not the SDK, is the fallback (SDK-local fallback would duplicate model RAM here).
  */
-import type { AuditLog, DeviceCapability } from "@mycelium/shared";
+import type { AuditLog, DeviceCapability, SettlementEndpoint } from "@mycelium/shared";
 import { liveProviders, loadDelegated } from "@mycelium/mesh";
 import { descriptorFor } from "./catalog.ts";
 
@@ -22,6 +22,14 @@ interface WarmEntry {
   modelSrc: string;
   modelId: string;
   warmedAt: number;
+}
+
+interface DelegationTarget {
+  peerKey: string;
+  inflight: number;
+  modelId?: string;
+  modelSrc?: string;
+  requiresSession?: boolean;
 }
 
 export interface PeerView {
@@ -38,6 +46,8 @@ export interface PeerView {
   live: boolean;
   warm: boolean;
   lastSeen: string;
+  settlement?: SettlementEndpoint;
+  settlements?: SettlementEndpoint[];
 }
 
 export interface WarmPoolDeps {
@@ -48,9 +58,18 @@ export interface WarmPoolDeps {
   staleMs: number;
   tickMs: number;
   audit?: AuditLog;
+  /**
+   * Called for every live PAID-session provider seen on a reconcile tick. Paid peers are never
+   * pre-warmed at the model layer (loaded on-demand after a session grant), but the payment-control
+   * client uses this to pre-establish its persistent P2P connection so the cold holepunch is
+   * absorbed before the user triggers a paid completion.
+   */
+  onPaidPeer?: (providerKey: string) => void;
 }
 
 const key = (peerKey: string, modelSrc: string): string => `${peerKey}::${modelSrc}`;
+const isPaidSessionPeer = (cap: DeviceCapability): boolean =>
+  (cap.settlements ?? (cap.settlement ? [cap.settlement] : [])).some((rail) => rail.network === "plasma" && rail.x402?.scheme === "upto");
 
 export class WarmPool {
   private readonly warm = new Map<string, WarmEntry>();
@@ -98,10 +117,16 @@ export class WarmPool {
       }
     }
 
-    // Pre-warm every (live peer, chat alias) we don't already hold.
+    // Pre-warm every unpaid (live peer, chat alias) we don't already hold. Paid peers are
+    // registered on-demand after the provider grants a session, never speculatively.
     for (const peer of live) {
       const pk = peer.providerPublicKey;
       if (!pk) continue;
+      if (isPaidSessionPeer(peer)) {
+        // Pre-warm the payment-control connection (not the model — paid models load on-demand).
+        this.deps.onPaidPeer?.(pk);
+        continue;
+      }
       for (const m of peer.models ?? []) {
         const k = key(pk, m.modelSrc);
         if (this.warm.has(k) || this.warming.has(k)) continue;
@@ -129,14 +154,28 @@ export class WarmPool {
     }
   }
 
-  /** A warm delegated modelId for `alias`, picking the lowest-inflight live peer. */
-  modelIdForAlias(alias: string): { modelId: string; peerKey: string } | undefined {
-    const candidates = [...this.warm.values()].filter((e) => e.alias === alias);
-    if (candidates.length === 0) return undefined;
+  /**
+   * A warm delegated modelId for `alias`, picking the lowest-inflight live peer. `inflight` is
+   * returned too so a cross-mesh tier router can tie-break between meshes at the same tier.
+   */
+  targetForAlias(alias: string): DelegationTarget | undefined {
     const inflightOf = (pk: string): number => this.lastCaps.find((c) => c.providerPublicKey === pk)?.inflight ?? 0;
-    candidates.sort((a, b) => inflightOf(a.peerKey) - inflightOf(b.peerKey) || a.warmedAt - b.warmedAt);
-    const best = candidates[0]!;
-    return { modelId: best.modelId, peerKey: best.peerKey };
+    const warmCandidates = [...this.warm.values()]
+      .filter((e) => e.alias === alias)
+      .map((e) => ({ peerKey: e.peerKey, inflight: inflightOf(e.peerKey), modelId: e.modelId, modelSrc: e.modelSrc } satisfies DelegationTarget));
+    const paidCandidates = this.livePeers(this.lastCaps)
+      .filter((c) => isPaidSessionPeer(c))
+      .flatMap((c) => {
+        const peerKey = c.providerPublicKey;
+        if (!peerKey) return [];
+        return (c.models ?? [])
+          .filter((m) => m.alias === alias)
+          .map((m) => ({ peerKey, inflight: c.inflight ?? 0, modelSrc: m.modelSrc, requiresSession: true } satisfies DelegationTarget));
+      });
+    const candidates: DelegationTarget[] = [...warmCandidates, ...paidCandidates];
+    if (candidates.length === 0) return undefined;
+    candidates.sort((a, b) => a.inflight - b.inflight || Number(Boolean(a.requiresSession)) - Number(Boolean(b.requiresSession)));
+    return candidates[0];
   }
 
   /**
@@ -154,7 +193,17 @@ export class WarmPool {
 
   /** Aliases we currently hold warm (the broker's "a warm peer serves this alias" check). */
   warmAliases(): Set<string> {
-    return new Set([...this.warm.values()].map((e) => e.alias));
+    const aliases = new Set([...this.warm.values()].map((e) => e.alias));
+    for (const peer of this.livePeers(this.lastCaps)) {
+      if (!isPaidSessionPeer(peer)) continue;
+      for (const model of peer.models ?? []) aliases.add(model.alias);
+    }
+    return aliases;
+  }
+
+  /** The latest advertised capability for one provider key, if we have it. */
+  capabilityForProviderKey(providerKey: string): DeviceCapability | undefined {
+    return this.lastCaps.find((c) => c.providerPublicKey === providerKey);
   }
 
   /** Snapshot of every known peer for `GET /peers` (live + warmth annotated). */
@@ -182,6 +231,8 @@ export class WarmPool {
           live: liveKeys.has(c.providerPublicKey!),
           warm: warmSet.size > 0,
           lastSeen: c.lastSeen,
+          settlement: c.settlement,
+          settlements: c.settlements,
         } satisfies PeerView;
       });
   }

@@ -7,11 +7,158 @@
  * until a skill is actually relevant.
  */
 import "server-only";
+import { embed, embedMany } from "ai";
 import { tool } from "ai";
 import { z } from "zod";
 import { listSkills, getSkill, readSkillFile } from "./skills-store.ts";
 import { runSkillScript } from "./skill-exec.ts";
+import { embeddingModel } from "./provider.ts";
+import { cosine } from "./graph.ts";
 import type { LeashSource } from "./tools.ts";
+
+const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const STOP = new Set([
+  "a",
+  "an",
+  "and",
+  "are",
+  "as",
+  "at",
+  "be",
+  "but",
+  "by",
+  "do",
+  "for",
+  "from",
+  "get",
+  "give",
+  "help",
+  "how",
+  "i",
+  "if",
+  "in",
+  "into",
+  "is",
+  "it",
+  "let",
+  "make",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "please",
+  "show",
+  "that",
+  "the",
+  "this",
+  "to",
+  "use",
+  "want",
+  "with",
+  "you",
+]);
+const AUTO_SKILL_MIN_SCORE = 0.42;
+const AUTO_SKILL_MARGIN = 0.03;
+const LEXICAL_SKILL_MIN_SCORE = 0.65;
+const LEXICAL_SKILL_MARGIN = 0.12;
+
+interface ActiveSkillView {
+  slug: string;
+  name: string;
+  body: string;
+  files: string[];
+}
+
+export interface ActiveSkillsResult {
+  mode: "explicit" | "automatic";
+  section: string;
+  skills: Array<{ slug: string; name: string }>;
+}
+
+interface SkillEmbedding {
+  slug: string;
+  embedding: number[];
+}
+
+interface SkillEmbeddingCache {
+  key: string;
+  rows: SkillEmbedding[];
+}
+
+let skillEmbeddingsPromise: Promise<SkillEmbeddingCache> | null = null;
+
+function mentionsSkill(haystack: string, slug: string, name: string): boolean {
+  const slugRe = new RegExp(`(?:^|[^a-z0-9-])@?${escapeRe(slug)}(?:$|[^a-z0-9-])`, "i");
+  const nameRe = new RegExp(`(?:^|[^a-z0-9])${escapeRe(name)}(?:$|[^a-z0-9])`, "i");
+  return slugRe.test(haystack) || nameRe.test(haystack);
+}
+
+function discoveryText(skill: { slug: string; name: string; description: string }): string {
+  return `${skill.slug}: ${skill.description || skill.name}`;
+}
+
+function tokenize(s: string): string[] {
+  return (s.toLowerCase().match(/[a-z0-9][a-z0-9-]{1,}/g) ?? []).filter((t) => !STOP.has(t));
+}
+
+function lexicalScore(query: string, skill: { slug: string; name: string; description: string }): number {
+  const q = new Set(tokenize(query));
+  if (q.size === 0) return 0;
+  const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description}`));
+  if (target.size === 0) return 0;
+  let hits = 0;
+  for (const t of q) if (target.has(t)) hits++;
+  const coverage = hits / q.size;
+  const precision = hits / target.size;
+  return coverage * 0.75 + precision * 0.25;
+}
+
+async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; description: string }>): Promise<SkillEmbedding[]> {
+  const key = JSON.stringify(skills.map((s) => [s.slug, s.name, s.description]));
+  if (skillEmbeddingsPromise) {
+    const cached = await skillEmbeddingsPromise;
+    if (cached.key === key) return cached.rows;
+  }
+  skillEmbeddingsPromise = (async () => {
+    const values = skills.map(discoveryText);
+    const { embeddings } = await embedMany({ model: embeddingModel(), values });
+    return {
+      key,
+      rows: skills.map((s, i) => ({ slug: s.slug, embedding: embeddings[i] as number[] })),
+    };
+  })();
+  return (await skillEmbeddingsPromise).rows;
+}
+
+function renderActiveSkillHeader(reason: "explicit" | "automatic", matched: string[]): string {
+  return reason === "explicit"
+    ? "The user EXPLICITLY named the following skill(s). Their instructions are already loaded for this turn, so follow them directly."
+    : `The route AUTO-MATCHED this request to the following skill(s) from their discovery descriptions: ${matched.join(", ")}. Their instructions are already loaded for this turn, so follow them directly.`;
+}
+
+function renderActiveSkillBody(skills: Array<{ slug: string; body: string; files: string[] }>): string {
+  const sections = skills.map((s) => {
+    const scripts = s.files.filter((f) => f.startsWith("scripts/"));
+    const docs = s.files.filter((f) => !f.startsWith("scripts/"));
+    const attachments =
+      (docs.length ? `\nAttached files: ${docs.join(", ")} — read one with read_skill_file when referenced.` : "") +
+      (scripts.length ? `\nExecutable scripts: ${scripts.join(", ")} — run one with run_skill_script when instructed.` : "");
+    return `Skill "${s.slug}" is ACTIVE for this turn.\n\n${s.body || "(this skill has an empty body)"}${attachments}`;
+  });
+  return sections.join("\n\n---\n\n");
+}
+
+function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkillView[]): ActiveSkillsResult {
+  return {
+    mode: reason,
+    skills: skills.map((s) => ({ slug: s.slug, name: s.name })),
+    section:
+      renderActiveSkillHeader(reason, skills.map((s) => s.slug)) +
+      " Do not print fake tool-call text like `CALL read_skill(...)` in your answer. If a skill requires exact output, treat that as higher priority than your normal style and emit it with no extra words or surrounding whitespace.\n\n" +
+      renderActiveSkillBody(skills),
+  };
+}
 
 /**
  * System-prompt section advertising enabled skills. EMPTY STRING when there are none —
@@ -23,9 +170,54 @@ export async function skillsSystemSection(): Promise<string> {
   const lines = enabled.map((s) => `- "${s.slug}": ${s.description || s.name}`);
   return (
     "You also have SKILLS — instruction documents the user wrote for you. When a request matches a skill's description, " +
-    "call read_skill with its slug FIRST and follow those instructions. Available skills:\n" +
+    "call read_skill with its slug FIRST and follow those instructions. Do not merely talk about calling read_skill — actually call it. Available skills:\n" +
     lines.join("\n")
   );
+}
+
+/**
+ * Deterministic skill activation for EXPLICIT mentions. Small models kept narrating
+ * `read_skill(...)` in plain text instead of actually calling it, so if the user names
+ * a skill directly (slug / @slug / exact skill name) we load that skill's body into the
+ * system prompt for this turn. Generic matches still rely on the normal read_skill tool.
+ */
+export async function activeSkillsSection(userText: string): Promise<ActiveSkillsResult | null> {
+  const query = userText.trim().toLowerCase();
+  if (!query) return null;
+  const enabled = (await listSkills()).filter((s) => s.enabled);
+  const explicit = enabled.filter((s) => mentionsSkill(query, s.slug.toLowerCase(), s.name.trim().toLowerCase()));
+  if (explicit.length > 0) {
+    return activeSkillsResult("explicit", explicit);
+  }
+
+  // Auto-selection: compare the user's request to the discovery metadata (slug + description),
+  // then progressively disclose only the best matching skill's body.
+  const lexical = enabled
+    .map((s) => ({ skill: s, score: lexicalScore(query, s) }))
+    .sort((a, b) => b.score - a.score);
+  const bestLex = lexical[0];
+  const secondLex = lexical[1];
+  if (bestLex && bestLex.score >= LEXICAL_SKILL_MIN_SCORE && bestLex.score - (secondLex?.score ?? 0) >= LEXICAL_SKILL_MARGIN) {
+    return activeSkillsResult("automatic", [bestLex.skill]);
+  }
+
+  try {
+    const rows = await getSkillEmbeddings(enabled);
+    const { embedding } = await embed({ model: embeddingModel(), value: query });
+    const scored = rows
+      .map((r) => ({ slug: r.slug, score: cosine(embedding, r.embedding) }))
+      .sort((a, b) => b.score - a.score);
+    const best = scored[0];
+    const second = scored[1];
+    if (!best) return null;
+    if (best.score < AUTO_SKILL_MIN_SCORE) return null;
+    if ((best.score - (second?.score ?? -Infinity)) < AUTO_SKILL_MARGIN) return null;
+    const chosen = enabled.find((s) => s.slug === best.slug);
+    if (!chosen) return null;
+    return activeSkillsResult("automatic", [chosen]);
+  } catch {
+    return null;
+  }
 }
 
 export const skillTools = {

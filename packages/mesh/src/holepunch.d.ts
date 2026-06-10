@@ -25,12 +25,20 @@ declare module "corestore" {
     append(block: Buffer | Buffer[]): Promise<unknown>;
     get(index: number, opts?: { wait?: boolean; timeout?: number }): Promise<Buffer | null>;
     download(range?: { start?: number; end?: number; linear?: boolean }): unknown;
+    /** Refresh this core's length from connected peers (a remote, replicating core learns its length here). */
+    update(opts?: { wait?: boolean }): Promise<boolean>;
     close(): Promise<void>;
   }
   export default class Corestore {
-    constructor(storage: string, opts?: { primaryKey?: Buffer; allowBackup?: boolean });
+    constructor(storage: string, opts?: { primaryKey?: Buffer; allowBackup?: boolean; unsafe?: boolean });
     ready(): Promise<void>;
     get(name: string | { name?: string; key?: Buffer }): Hypercore;
+    /**
+     * A namespaced view over the SAME underlying storage + replication: keys derive
+     * deterministically from the root primaryKey + this name, so each mesh gets its own
+     * Autobase/writer keys while one `rootStore.replicate(conn)` covers them all (spec §3).
+     */
+    namespace(name: string | Buffer): Corestore;
     replicate(connection: unknown): unknown;
     close(): Promise<void>;
   }
@@ -81,6 +89,8 @@ declare module "hyperswarm" {
     constructor(opts?: { seed?: Buffer; bootstrap?: unknown[] });
     on(event: "connection", cb: (conn: unknown, info?: unknown) => void): this;
     join(topic: Buffer, opts?: { server?: boolean; client?: boolean }): unknown;
+    /** Stop announcing/looking-up a topic. The MeshHost owns destroy(); a mesh only leaves its topic. */
+    leave(topic: Buffer): Promise<void>;
     flush(): Promise<void>;
     destroy(): Promise<void>;
     readonly connections: Set<unknown>;

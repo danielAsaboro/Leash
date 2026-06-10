@@ -1,50 +1,74 @@
 /**
- * Mesh services — the provider + heartbeat + firewall-reconcile + warm pool bundle that
- * runs ONCE the device is in a mesh. Extracted from the daemon so it can be started lazily:
- * at boot if a mesh store already exists, or the moment LAN pairing creates/joins one.
+ * Mesh services — the PER-MESH heartbeat + firewall-contribution + warm pool that run once a
+ * device is in a given mesh. Extracted from the daemon so it can be started lazily, and now
+ * started ONCE PER MESH (a device holds several memberships — spec §3).
  *
- * A device with no mesh yet (fresh, never paired) runs only the shim + discovery; there are
- * no peers to gossip to or serve, so none of this is needed until it pairs.
+ * What is NOT here anymore: the SDK provider. `startQVACProvider` is process-global (spec §4), so
+ * the provider + its UNION firewall live in a single device-level {@link DeviceProvider}. Each
+ * mesh only computes ITS desired consumer set and registers it; the DeviceProvider unions across
+ * meshes and reconciles the one global provider.
+ *
+ * A device with no mesh yet (fresh, never paired) runs only the shim + discovery; there are no
+ * peers to gossip to or serve, so none of this is needed until it pairs.
  */
 import { AuditLog, makeCapability } from "@mycelium/shared";
 import type { DeviceCapability } from "@mycelium/shared";
-import { stopQVACProvider } from "@qvac/sdk";
-import { startProvider } from "@mycelium/mesh";
+import { unionAllowedConsumers } from "@mycelium/mesh";
 import type { MeshGraph } from "@mycelium/mesh";
 import { WarmPool } from "./warm-pool.ts";
 import { localChatAliases } from "./catalog.ts";
 import type { Inflight } from "./shim.ts";
+import type { DeviceProvider } from "./device-provider.ts";
+import type { SettlementManager } from "./settlement-manager.ts";
 import { COMPUTE_CLASS, DEVICE_NAME, HEARTBEAT_MS, POWER_STATE, RAM_MB, STALE_MS, WARM_TICK_MS } from "./config.ts";
 
 export interface MeshRuntime {
+  meshId: string;
   graph: MeshGraph;
+  /** The device-global provider/consumer key (same across every mesh — one provider per device). */
   selfKey: string;
   pool: WarmPool;
-  /** Re-run the firewall reconcile now (e.g. immediately after forgetting a peer). */
+  /** Recompute THIS mesh's desired consumer set and push it to the device-global union firewall. */
   reconcileFirewall(): Promise<void>;
-  /** Stop the graph-bound services (timers + warm pool). Leaves the SDK provider running. */
+  /** Re-advertise this mesh's capability now. */
+  advertise(): Promise<void>;
+  /** Stop this mesh's timers + warm pool, and drop it from the union firewall. */
   stop(): Promise<void>;
 }
 
-const sameSet = (a: Set<string>, b: Set<string>): boolean => a.size === b.size && [...a].every((x) => b.has(x));
+export interface StartMeshServicesDeps {
+  /** Local mesh handle (the namespace id). */
+  meshId: string;
+  /** The device-global provider that owns the single SDK provider + union firewall. */
+  provider: DeviceProvider;
+  /** Optional agentic-economy settlement rails advertised in this device's caps. */
+  settlement?: SettlementManager;
+  inflight: Inflight;
+  audit: AuditLog;
+  /** Locally-tombstoned peers, excluded from caps/firewall/warm-pool. */
+  isForgotten?: (deviceId: string) => boolean;
+  /** Pre-warm the payment-control connection when this mesh's warm pool sees a live paid provider. */
+  onPaidPeer?: (providerKey: string) => void;
+}
 
 /**
- * Bring the mesh online against an already-open, swarmed `graph`: start the delegated-
- * inference provider (closed firewall, then reconciled to paired peers), a live heartbeat
- * (rebuilt each tick so inflight/models/lastSeen stay current), and the consumer warm pool.
+ * Bring one mesh online against an already-open, swarmed `graph`: advertise this device's
+ * capability into it (heartbeat), contribute its paired consumers to the device-global union
+ * firewall, and run the consumer warm pool. The SDK provider is the DeviceProvider's job.
  */
-export async function startMeshServices(
-  graph: MeshGraph,
-  seed: string,
-  inflight: Inflight,
-  audit: AuditLog,
-  isForgotten: (deviceId: string) => boolean = () => false,
-): Promise<MeshRuntime> {
-  const { publicKey: selfKey } = await startProvider({ seed, audit, allowedConsumers: [] });
+export async function startMeshServices(graph: MeshGraph, deps: StartMeshServicesDeps): Promise<MeshRuntime> {
+  const { meshId, provider, inflight, audit, settlement } = deps;
+  const isForgotten = deps.isForgotten ?? (() => false);
+  const selfKey = await provider.ensureStarted();
   const aliases = localChatAliases();
   /** Live caps with locally-disconnected (tombstoned) peers removed — the single filter point. */
-  const liveCaps = async () => (await graph.capabilities()).filter((c) => !isForgotten(c.deviceId));
+  const liveCaps = async (): Promise<DeviceCapability[]> => {
+    const caps = (await graph.capabilities()).filter((c) => !isForgotten(c.deviceId));
+    for (const c of caps) settlement?.noteCapability(c);
+    return caps;
+  };
 
+  const payouts = settlement?.payoutEndpoints() ?? [];
   const buildCap = (): DeviceCapability =>
     makeCapability({
       deviceId: graph.localWriterKey,
@@ -58,47 +82,50 @@ export async function startMeshServices(
       consumerPublicKey: selfKey,
       isProvider: true,
       providerPublicKey: selfKey,
+      meshId,
+      roles: ["compute-provider", "compute-consumer"],
+      ...(payouts[0] ? { settlement: payouts[0] } : {}),
+      ...(payouts.length > 0 ? { settlements: payouts } : {}),
     });
 
-  let currentAllow = new Set<string>();
+  // This mesh's contribution to the device-global firewall: its paired peers' consumer keys.
   const reconcileFirewall = async (): Promise<void> => {
     try {
-      const caps = await liveCaps(); // forgotten peers are excluded → they stop being served
-      const desired = new Set(
-        caps.filter((c) => c.providerPublicKey !== selfKey).map((c) => c.consumerPublicKey).filter((k): k is string => Boolean(k)),
-      );
-      if (sameSet(desired, currentAllow)) return;
-      await stopQVACProvider();
-      await startProvider({ seed, audit, allowedConsumers: [...desired] });
-      currentAllow = desired;
-      console.log(`🔒 firewall updated — ${desired.size} allowed consumer(s)`);
+      const desired = unionAllowedConsumers([await liveCaps()], selfKey, isForgotten);
+      await provider.setMeshConsumers(meshId, desired);
     } catch (err) {
-      audit.record({ event: "note", extra: { role: "provider", phase: "firewall-reconcile-failed", error: String(err) } });
-      console.error("⚠️ firewall reconcile failed:", err);
+      audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "firewall-contrib-failed", error: String(err) } });
     }
   };
   await reconcileFirewall();
 
-  await graph.advertise(buildCap()).catch((e) => console.error("⚠️ advertise failed:", e));
-  const hbTimer = setInterval(() => void graph.advertise(buildCap()).catch(() => undefined), HEARTBEAT_MS);
+  const advertise = async (): Promise<void> => {
+    await graph.advertise(buildCap()).catch((e) => console.error("⚠️ advertise failed:", e));
+  };
+  await advertise();
+
+  const hbTimer = setInterval(() => void advertise(), HEARTBEAT_MS);
   if (typeof hbTimer.unref === "function") hbTimer.unref();
   const fwTimer = setInterval(() => void reconcileFirewall(), HEARTBEAT_MS);
   if (typeof fwTimer.unref === "function") fwTimer.unref();
 
-  const pool = new WarmPool({ caps: liveCaps, selfKey, staleMs: STALE_MS, tickMs: WARM_TICK_MS, audit });
+  const pool = new WarmPool({ caps: liveCaps, selfKey, staleMs: STALE_MS, tickMs: WARM_TICK_MS, audit, ...(deps.onPaidPeer ? { onPaidPeer: deps.onPaidPeer } : {}) });
   pool.start();
 
-  console.log(`🧠 mesh online — key ${selfKey.slice(0, 16)}… · serving ${aliases.length} alias(es): ${aliases.map((a) => a.alias).join(", ") || "(none)"}`);
+  console.log(`🧠 mesh ${meshId} online — key ${selfKey.slice(0, 16)}… · serving ${aliases.length} alias(es): ${aliases.map((a) => a.alias).join(", ") || "(none)"}`);
 
   return {
+    meshId,
     graph,
     selfKey,
     pool,
     reconcileFirewall,
+    advertise,
     stop: async () => {
       clearInterval(hbTimer);
       clearInterval(fwTimer);
       pool.stop();
+      await provider.removeMesh(meshId);
     },
   };
 }

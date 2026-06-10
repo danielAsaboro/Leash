@@ -1231,12 +1231,50 @@
     white-space: pre-wrap;
   }
 
+  .chat-step {
+    position: relative;
+    margin: 0.2rem 0 0.6rem;
+    padding-left: 1rem;
+  }
+  .chat-step::before {
+    content: "";
+    position: absolute;
+    left: 0.15rem;
+    top: 1.05rem;
+    bottom: 0.15rem;
+    width: 1px;
+    background: linear-gradient(to bottom, var(--color-rule-strong), transparent);
+  }
+  .chat-step-kicker {
+    margin-bottom: 0.45rem;
+    font-family: var(--font-mono);
+    font-size: 0.56rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  .chat-step-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .chat-step-pending {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 1.6rem;
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-sage-deep);
+  }
+
   /* Assistant footer: telemetry caption + regenerate, revealed on hover. */
   .chat-foot {
     margin-top: 0.4rem;
     display: flex;
     align-items: center;
     gap: 0.9rem;
+    flex-wrap: wrap;
   }
   .chat-meta {
     font-family: var(--font-mono);
