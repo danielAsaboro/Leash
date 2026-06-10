@@ -6,6 +6,7 @@ import { DashShell, DashCard } from "../../components/dash.tsx";
 import { aboutInfo } from "../../lib/leash/about.ts";
 import { storageUsage } from "../../lib/leash/storage.ts";
 import { StorageCard } from "../../components/StorageCard.tsx";
+import { PermissionsCard } from "../../components/PermissionsCard.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +35,9 @@ export default async function SettingsPage() {
         </DashCard>
         <DashCard title="Storage">
           <StorageCard usage={usage} />
+        </DashCard>
+        <DashCard title="Permissions">
+          <PermissionsCard />
         </DashCard>
       </div>
     </DashShell>
