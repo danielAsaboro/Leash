@@ -91,6 +91,15 @@ function EconomyIcon() {
   );
 }
 
+function SettingsIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <circle cx="12" cy="12" r="3" strokeLinejoin="round" />
+      <path d="M12 2.5v2.3M12 19.2v2.3M21.5 12h-2.3M4.8 12H2.5M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6M18.7 18.7l-1.6-1.6M6.9 6.9 5.3 5.3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isActive: (p: string) => boolean }[] = [
   { href: "/home", label: "Home", Icon: HomeIcon, isActive: (p) => p === "/home" },
   { href: "/chat", label: "Chat", Icon: ChatIcon, isActive: (p) => p.startsWith("/chat") },
@@ -101,6 +110,7 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/research", label: "Research", Icon: ResearchIcon, isActive: (p) => p.startsWith("/research") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
   { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
+  { href: "/settings", label: "Settings", Icon: SettingsIcon, isActive: (p) => p.startsWith("/settings") },
 ];
 
 export function LeashRail() {
