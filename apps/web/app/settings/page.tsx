@@ -4,6 +4,8 @@
  */
 import { DashShell, DashCard } from "../../components/dash.tsx";
 import { aboutInfo } from "../../lib/leash/about.ts";
+import { storageUsage } from "../../lib/leash/storage.ts";
+import { StorageCard } from "../../components/StorageCard.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -17,10 +19,10 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 export default async function SettingsPage() {
-  const about = await aboutInfo();
+  const [about, usage] = await Promise.all([aboutInfo(), storageUsage()]);
   return (
     <DashShell kicker="Device & app" title="Settings" lede="What this app is, what it stores, and what it can access.">
-      <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 480px)" }}>
+      <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
         <DashCard title="About">
           <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--color-ink-soft)", marginBottom: "0.75rem" }}>
             {about.tagline}
@@ -29,6 +31,9 @@ export default async function SettingsPage() {
           <Row label="Version" value={about.version} />
           <Row label="Developer" value={about.developer} />
           <Row label="License" value={about.license} />
+        </DashCard>
+        <DashCard title="Storage">
+          <StorageCard usage={usage} />
         </DashCard>
       </div>
     </DashShell>
