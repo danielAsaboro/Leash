@@ -15,6 +15,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import * as qvac from "@qvac/sdk";
 import { CATALOG_FILE, QVAC_CONFIG_FILE } from "./config.ts";
 
 /** Expand a machine-neutral `~/` config path to THIS machine's home dir. */
@@ -107,21 +108,38 @@ export function localChatAliases(): AliasModel[] {
 }
 
 /**
- * Build the rich SDK descriptor for a gossiped modelSrc id (a registryPath, or a custom
- * path). Matches the local catalog by registryPath to recover name/engine/size; falls
- * back to the bare string (still a valid modelSrc) for a custom path or a catalog miss.
+ * The SDK's exported registry descriptor for a constant name (e.g. `QWEN3_4B_INST_Q4_K_M`), or
+ * undefined if the name isn't an exported registry model. The constant carries the REAL
+ * `src: "registry://<source>/<registryPath>"` URI + blob metadata the SDK needs to resolve the
+ * model from the registry corestore — which the cached catalog's bare `registryPath` lacks.
+ */
+function sdkRegistryDescriptor(name: string): ModelDescriptor | undefined {
+  const c = (qvac as Record<string, unknown>)[name];
+  if (c && typeof c === "object" && typeof (c as { src?: unknown }).src === "string") return c as ModelDescriptor;
+  return undefined;
+}
+
+/**
+ * Build the rich SDK descriptor for a gossiped modelSrc id (a registryPath, or a custom path).
+ *
+ * For a REGISTRY model the gossiped id is the catalog `registryPath` (a bare
+ * `qvac_models_compiled/…` path) — which is NOT directly loadable: `loadModel` would treat it as a
+ * local file and fail ("Failed to locate model file", found live 2026-06-10). The loadable form is
+ * the SDK's exported constant descriptor, whose `src` is the `registry://<source>/…` URI. So we map
+ * registryPath → catalog `name` → the SDK constant. A custom `.src` path (e.g. medpsy) is already a
+ * real local file, so it passes through as the bare string.
  */
 export function descriptorFor(modelSrc: string): ModelDescriptor | string {
+  // Direct: the id is itself an exported registry constant name.
+  const direct = sdkRegistryDescriptor(modelSrc);
+  if (direct) return direct;
+  // Registry model gossiped by registryPath → resolve via the catalog's `name` to the SDK constant.
   for (const e of catalogByName().values()) {
-    if (e.registryPath === modelSrc) {
-      return {
-        src: e.registryPath,
-        ...(e.name ? { name: e.name } : {}),
-        registryPath: e.registryPath,
-        ...(e.engine ? { engine: e.engine } : {}),
-        ...(e.expectedSize ? { expectedSize: e.expectedSize } : {}),
-      };
+    if (e.registryPath === modelSrc && e.name) {
+      const d = sdkRegistryDescriptor(e.name);
+      if (d) return d;
     }
   }
+  // Custom-GGUF path (real local file) or an unknown id → the bare string is a valid modelSrc.
   return modelSrc;
 }

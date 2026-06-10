@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import Hyperswarm from "hyperswarm";
 import type { AuditLog, SessionSettlementReceipt } from "@mycelium/shared";
-import { controlRequestId, type ClosePaidSessionRequest, type OpenPaidSessionRequest, type PaidSessionGrant, type PaidSessionQuote, type PaymentControlRequest, type PaymentControlResponse, type QuoteBudgetRequest, type VerifyBudgetRequest, type VerifyBudgetResponse } from "./economy-types.ts";
+import { controlRequestId, type AdvanceAuthorizationRequest, type AdvanceAuthorizationResponse, type ClosePaidSessionRequest, type OpenPaidSessionRequest, type PaidSessionGrant, type PaidSessionQuote, type PaymentControlRequest, type PaymentControlResponse, type QuoteBudgetRequest, type VerifyBudgetRequest, type VerifyBudgetResponse } from "./economy-types.ts";
 import type { ProviderEconomyService } from "./provider-economy.ts";
 
 interface PeerStream {
@@ -159,6 +159,10 @@ export class PaymentControlServer {
       case "open_paid_session": {
         const grant = await this.deps.economy.openPaidSession(request.body as OpenPaidSessionRequest);
         return { replyTo: request.id, type: "open_paid_session", ok: true, body: grant };
+      }
+      case "advance_authorization": {
+        const ack = await this.deps.economy.advanceAuthorization(request.body as AdvanceAuthorizationRequest);
+        return { replyTo: request.id, type: "advance_authorization", ok: true, body: ack };
       }
       case "close_paid_session": {
         const receipt = await this.deps.economy.closePaidSession(request.body as ClosePaidSessionRequest);
@@ -512,6 +516,12 @@ export class PaymentControlClient {
 
   async openPaidSession(providerPublicKey: string, body: OpenPaidSessionRequest): Promise<PaidSessionGrant> {
     return this.send<PaidSessionGrant>(providerPublicKey, "open_paid_session", body, { connectAttempts: CONTROL_ATTEMPTS, timeoutMs: REQUEST_TIMEOUT_MS, requestAttempts: 1 });
+  }
+
+  async advanceAuthorization(providerPublicKey: string, body: AdvanceAuthorizationRequest): Promise<AdvanceAuthorizationResponse> {
+    // Rides the warm connection from quote/open. Idempotent on (sessionId, tierIndex), so a transport
+    // retry is safe — but keep it single-shot here; the consumer loop re-advances if a rung is lost.
+    return this.send<AdvanceAuthorizationResponse>(providerPublicKey, "advance_authorization", body, { connectAttempts: 1, timeoutMs: REQUEST_TIMEOUT_MS, requestAttempts: 1 });
   }
 
   async closePaidSession(providerPublicKey: string, body: ClosePaidSessionRequest): Promise<SessionSettlementReceipt> {

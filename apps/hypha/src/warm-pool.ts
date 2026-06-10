@@ -48,6 +48,20 @@ export interface PeerView {
   lastSeen: string;
   settlement?: SettlementEndpoint;
   settlements?: SettlementEndpoint[];
+  /** Reputation (present only when HYPHA_REPUTATION wires a ranker) — for the Economy UI. */
+  reputationScore?: number;
+  effectiveCost?: number;
+  pricePerKiloToken?: number;
+  /** Whether this peer shares its cached models with the mesh (advisory; gates the pull affordance). */
+  shareModels?: boolean;
+}
+
+/** Reputation ranker the warm pool consumes for paid-target ordering + `/peers` display. */
+export interface ReputationRanker {
+  /** price ÷ quality — lower is preferred (paid targets). */
+  effectiveCost(peerKey: string, pricePerKiloToken: number): number;
+  /** Headline score for display, or undefined if the provider is unseen. */
+  score(peerKey: string): number | undefined;
 }
 
 export interface WarmPoolDeps {
@@ -65,11 +79,18 @@ export interface WarmPoolDeps {
    * absorbed before the user triggers a paid completion.
    */
   onPaidPeer?: (providerKey: string) => void;
+  /**
+   * Reputation-weighted routing (HYPHA_REPUTATION). When present, PAID targets are tie-broken by
+   * effective_cost = price / quality (free/warm peers stay first; the proven inflight order is the
+   * fallback). Absent → the exact legacy inflight-first sort (no behavior change).
+   */
+  reputation?: ReputationRanker;
 }
 
 const key = (peerKey: string, modelSrc: string): string => `${peerKey}::${modelSrc}`;
-const isPaidSessionPeer = (cap: DeviceCapability): boolean =>
-  (cap.settlements ?? (cap.settlement ? [cap.settlement] : [])).some((rail) => rail.network === "plasma" && rail.x402?.scheme === "upto");
+const uptoRail = (cap: DeviceCapability): SettlementEndpoint | undefined =>
+  (cap.settlements ?? (cap.settlement ? [cap.settlement] : [])).find((rail) => rail.network === "plasma" && rail.x402?.scheme === "upto");
+const isPaidSessionPeer = (cap: DeviceCapability): boolean => uptoRail(cap) !== undefined;
 
 export class WarmPool {
   private readonly warm = new Map<string, WarmEntry>();
@@ -174,8 +195,31 @@ export class WarmPool {
       });
     const candidates: DelegationTarget[] = [...warmCandidates, ...paidCandidates];
     if (candidates.length === 0) return undefined;
-    candidates.sort((a, b) => a.inflight - b.inflight || Number(Boolean(a.requiresSession)) - Number(Boolean(b.requiresSession)));
+    const rep = this.deps.reputation;
+    if (rep) {
+      // Reputation-weighted: free/warm peers (no session) first — the proven free path is untouched;
+      // among PAID targets, lowest effective_cost (price / quality) wins; inflight is the tie-break.
+      const ec = (t: DelegationTarget): number => rep.effectiveCost(t.peerKey, this.priceOf(t.peerKey));
+      candidates.sort((a, b) => {
+        const af = a.requiresSession ? 1 : 0;
+        const bf = b.requiresSession ? 1 : 0;
+        if (af !== bf) return af - bf;
+        if (af === 1) {
+          const d = ec(a) - ec(b);
+          if (d !== 0) return d;
+        }
+        return a.inflight - b.inflight;
+      });
+    } else {
+      candidates.sort((a, b) => a.inflight - b.inflight || Number(Boolean(a.requiresSession)) - Number(Boolean(b.requiresSession)));
+    }
     return candidates[0];
+  }
+
+  /** Advertised price/kilo-token for a paid peer (0 = free/warm, sorts first). */
+  private priceOf(peerKey: string): number {
+    const cap = this.lastCaps.find((c) => c.providerPublicKey === peerKey);
+    return cap ? uptoRail(cap)?.x402?.pricePerKiloToken ?? 0 : 0;
   }
 
   /**
@@ -189,6 +233,20 @@ export class WarmPool {
         this.deps.audit?.record({ event: "delegation", extra: { role: "consumer", phase: "dropped-dead", peer: e.peerKey.slice(0, 16), alias: e.alias } });
       }
     }
+  }
+
+  /** Live provider keys (excl. self) — the connectivity manager probes these for liveness. */
+  livePeerKeys(): string[] {
+    return this.livePeers(this.lastCaps)
+      .map((c) => c.providerPublicKey)
+      .filter((k): k is string => !!k && k !== this.deps.selfKey);
+  }
+
+  /** Drop every warm entry and re-warm from scratch — used after an SDK transport reset
+   *  (suspend()+resume()) so stale delegated model handles can't linger. */
+  async rewarmAll(): Promise<void> {
+    this.warm.clear();
+    await this.reconcile();
   }
 
   /** Aliases we currently hold warm (the broker's "a warm peer serves this alias" check). */
@@ -219,6 +277,8 @@ export class WarmPool {
       .filter((c) => c.isProvider && c.providerPublicKey && c.providerPublicKey !== this.deps.selfKey)
       .map((c) => {
         const warmSet = warmByPeer.get(c.providerPublicKey!) ?? new Set<string>();
+        const price = uptoRail(c)?.x402?.pricePerKiloToken;
+        const rep = this.deps.reputation;
         return {
           deviceId: c.deviceId,
           displayName: c.displayName,
@@ -233,6 +293,9 @@ export class WarmPool {
           lastSeen: c.lastSeen,
           settlement: c.settlement,
           settlements: c.settlements,
+          shareModels: c.shareModels ?? true,
+          ...(price != null ? { pricePerKiloToken: price } : {}),
+          ...(rep ? { reputationScore: rep.score(c.providerPublicKey!), effectiveCost: rep.effectiveCost(c.providerPublicKey!, price ?? 0) } : {}),
         } satisfies PeerView;
       });
   }

@@ -28,6 +28,7 @@ import { PromptsPanel } from "../../components/PromptsPanel.tsx";
 import { MemoryPanel } from "../../components/MemoryPanel.tsx";
 import { MemoriesSection } from "../../components/MemoriesSection.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
+import { MeshShareCard } from "../../components/MeshShareCard.tsx";
 import { ForagePanel } from "../../components/ForagePanel.tsx";
 import { McpPanel } from "../../components/McpPanel.tsx";
 
@@ -89,7 +90,10 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
       {tab === "models" && (
-        <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />
+        <div className="flex flex-col gap-5">
+          <MeshShareCard />
+          <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />
+        </div>
       )}
       {tab === "forage" && <ForagePanel result={await forage()} />}
     </DashShell>

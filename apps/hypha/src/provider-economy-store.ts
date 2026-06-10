@@ -89,6 +89,11 @@ export class ProviderEconomyStore {
     return this.activeSessions.size;
   }
 
+  /** All active sessions (the metered watchdog sweeps these for idle force-settle). */
+  listActiveSessions(): ActiveSessionRecord[] {
+    return [...this.activeSessions.values()];
+  }
+
   putActiveSession(record: ActiveSessionRecord): void {
     this.activeSessions.set(record.grant.sessionId, record);
     this.flushActive();

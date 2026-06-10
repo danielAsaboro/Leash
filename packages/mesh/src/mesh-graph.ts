@@ -348,6 +348,19 @@ export class MeshGraph {
   }
 
   /**
+   * Re-grant a device's write access — the inverse of `removeWriter`, so "Restore" can
+   * reverse "Disconnect" mesh-wide (a `forget` `removeWriter`s the peer; without this the
+   * peer stays `writable:false` forever after a restore). Appends the SAME `add-writer`
+   * record the pairing `onadd` flow uses, so the promoted writer replicates to the peer.
+   * Idempotent (re-adding a current writer is a no-op in autobase). Best-effort.
+   */
+  async addWriter(writerKey: string): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot add a writer");
+    await this.base.append({ type: "add-writer", key: writerKey });
+    this.audit?.record({ event: "pairing", extra: { role: "host", phase: "re-add-writer", writerKey } });
+  }
+
+  /**
    * The writer-key a (possibly fresh) store at `storeDir` would use, computed WITHOUT
    * pairing — corestore persists its primary key on first `ready()`, so reopening the same
    * dir later via `pair()` yields the SAME key. Lets a joiner hand its key to the host up

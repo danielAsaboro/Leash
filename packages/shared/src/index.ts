@@ -93,6 +93,33 @@ export interface SettlementEndpoint {
   };
 }
 
+/**
+ * Phase 4 — costly-identity anchor. An ECDSA signature by the provider's PAYOUT WALLET over a
+ * canonical binding of (providerPublicKey ↔ recipient wallet), proving the wallet that receives
+ * settlement controls this provider key. A consumer recovers the signer from `signature` and requires
+ * it to equal the advertised `settlement.recipient` BEFORE this provider's receipts count toward
+ * reputation — so you cannot farm reputation without a wallet that actually received real on-chain funds.
+ */
+export interface DeviceIdentityProof {
+  /** The provider key being bound (== {@link DeviceCapability.providerPublicKey}). */
+  providerPublicKey: string;
+  /** The wallet address that signed AND receives settlement (== {@link SettlementEndpoint.recipient}). */
+  wallet: string;
+  /** Chain family of the signing wallet (selects the signature-recovery scheme). */
+  network: "plasma" | "solana";
+  /** ECDSA signature (EVM `personal_sign`) over {@link identityBindingMessage}. */
+  signature: string;
+}
+
+/**
+ * Canonical message a provider's payout wallet signs to bind itself to its provider key (Phase 4).
+ * Pure + dependency-free so both the signer (provider) and verifier (consumer) derive byte-identical
+ * input; the wallet address is lower-cased so checksum casing can never break recovery comparison.
+ */
+export function identityBindingMessage(providerPublicKey: string, wallet: string, network: string): string {
+  return `hypha-identity-binding\nprovider:${providerPublicKey}\nwallet:${wallet.toLowerCase()}\nnetwork:${network}`;
+}
+
 /** One provider-signed receipt for a paid delegated-compute session. */
 export interface SessionSettlementReceipt {
   sessionId: string;
@@ -143,6 +170,13 @@ export interface DeviceCapability {
   /** QVAC model registry ids this device has cached and can serve. */
   availableModels: string[];
   /**
+   * Whether this node shares its cached models with the mesh — peers may discover + pull the weights
+   * P2P (the QVAC blob distribution). Advisory: when `false`, peers' dashboards won't offer to pull
+   * this node's models (respect the owner's preference). Absent → shares (legacy/default). A per-node
+   * toggle in Leash flips it. Does NOT gate delegated inference (`models`) — serving is independent.
+   */
+  shareModels?: boolean;
+  /**
    * Serve aliases this device exposes, each paired with the delegable `modelSrc`
    * (the SDK `.src` / registryPath string) a peer hands to `loadDelegated`. Resolved
    * from `qvac.config.base.json` against the model catalog. Optional: pre-Hypha devices
@@ -180,6 +214,12 @@ export interface DeviceCapability {
   settlement?: SettlementEndpoint;
   /** Multi-rail version of `settlement` (e.g. Plasma first, Solana fallback). */
   settlements?: SettlementEndpoint[];
+  /**
+   * Phase 4 — costly-identity binding of `providerPublicKey` ↔ the payout `settlement.recipient`
+   * wallet, signed by that wallet. A consumer verifies it before this provider's receipts count
+   * toward reputation. Absent → unbound (the consumer floors the provider when verification is on).
+   */
+  identityProof?: DeviceIdentityProof;
   lastSeen: string; // ISO timestamp
 }
 

@@ -12,10 +12,10 @@
  * peers to gossip to or serve, so none of this is needed until it pairs.
  */
 import { AuditLog, makeCapability } from "@mycelium/shared";
-import type { DeviceCapability } from "@mycelium/shared";
+import type { DeviceCapability, DeviceIdentityProof } from "@mycelium/shared";
 import { unionAllowedConsumers } from "@mycelium/mesh";
 import type { MeshGraph } from "@mycelium/mesh";
-import { WarmPool } from "./warm-pool.ts";
+import { WarmPool, type ReputationRanker } from "./warm-pool.ts";
 import { localChatAliases } from "./catalog.ts";
 import type { Inflight } from "./shim.ts";
 import type { DeviceProvider } from "./device-provider.ts";
@@ -49,6 +49,12 @@ export interface StartMeshServicesDeps {
   isForgotten?: (deviceId: string) => boolean;
   /** Pre-warm the payment-control connection when this mesh's warm pool sees a live paid provider. */
   onPaidPeer?: (providerKey: string) => void;
+  /** Reputation-weighted routing ranker (HYPHA_REPUTATION). Absent → legacy inflight-first routing. */
+  reputation?: ReputationRanker;
+  /** Phase 4 — advertise a wallet↔provider-key `identityProof` in this device's caps (costly identity). */
+  bindIdentity?: boolean;
+  /** Mesh model sharing — whether peers may discover + pull this node's cached models (advisory). */
+  shareModels?: () => boolean;
 }
 
 /**
@@ -69,6 +75,15 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
   };
 
   const payouts = settlement?.payoutEndpoints() ?? [];
+  // Phase 4 — the wallet↔provider-key binding is STATIC (key + wallet don't change), so sign it ONCE
+  // and splice it into every heartbeat cap. undefined = not computed yet; null = none (flag off / no rail).
+  let identityProof: DeviceIdentityProof | null | undefined;
+  const ensureIdentityProof = async (): Promise<void> => {
+    if (identityProof !== undefined) return;
+    identityProof = deps.bindIdentity && settlement ? await settlement.signIdentityBinding(selfKey) : null;
+    if (identityProof) audit.record({ event: "capability", extra: { role: "mesh-services", meshId, phase: "identity-bound", wallet: identityProof.wallet, provider: selfKey.slice(0, 16) } });
+    else if (deps.bindIdentity) audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "identity-bind-unavailable", reason: "no Plasma rail / wallet could not sign" } });
+  };
   const buildCap = (): DeviceCapability =>
     makeCapability({
       deviceId: graph.localWriterKey,
@@ -84,8 +99,10 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
       providerPublicKey: selfKey,
       meshId,
       roles: ["compute-provider", "compute-consumer"],
+      shareModels: deps.shareModels ? deps.shareModels() : true,
       ...(payouts[0] ? { settlement: payouts[0] } : {}),
       ...(payouts.length > 0 ? { settlements: payouts } : {}),
+      ...(identityProof ? { identityProof } : {}),
     });
 
   // This mesh's contribution to the device-global firewall: its paired peers' consumer keys.
@@ -100,6 +117,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
   await reconcileFirewall();
 
   const advertise = async (): Promise<void> => {
+    await ensureIdentityProof();
     await graph.advertise(buildCap()).catch((e) => console.error("⚠️ advertise failed:", e));
   };
   await advertise();
@@ -109,7 +127,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
   const fwTimer = setInterval(() => void reconcileFirewall(), HEARTBEAT_MS);
   if (typeof fwTimer.unref === "function") fwTimer.unref();
 
-  const pool = new WarmPool({ caps: liveCaps, selfKey, staleMs: STALE_MS, tickMs: WARM_TICK_MS, audit, ...(deps.onPaidPeer ? { onPaidPeer: deps.onPaidPeer } : {}) });
+  const pool = new WarmPool({ caps: liveCaps, selfKey, staleMs: STALE_MS, tickMs: WARM_TICK_MS, audit, ...(deps.onPaidPeer ? { onPaidPeer: deps.onPaidPeer } : {}), ...(deps.reputation ? { reputation: deps.reputation } : {}) });
   pool.start();
 
   console.log(`🧠 mesh ${meshId} online — key ${selfKey.slice(0, 16)}… · serving ${aliases.length} alias(es): ${aliases.map((a) => a.alias).join(", ") || "(none)"}`);

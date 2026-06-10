@@ -73,6 +73,17 @@ export const HEARTBEAT_MS = Number(process.env["HYPHA_HEARTBEAT_MS"] ?? 10_000);
 export const STALE_MS = Number(process.env["HYPHA_STALE_MS"] ?? 30_000);
 /** How often the consumer reconciles warm models against live peers. */
 export const WARM_TICK_MS = Number(process.env["HYPHA_WARM_TICK_MS"] ?? 5_000);
+
+// Consumer connectivity self-heal (resilient reconnection). Default OFF → the manager is never
+// started → proven core byte-identical. A clean provider restart already self-heals via the SDK's
+// own per-RPC reconnect; this targets device sleep/wake + network roam (suspend()+resume()+re-warm).
+// See docs/superpowers/specs/2026-06-10-resilient-reconnection-design.md.
+export const HYPHA_RESILIENT_RECONNECT = (process.env["HYPHA_RESILIENT_RECONNECT"] ?? "0") === "1";
+export const HYPHA_RECONNECT_INTERVAL_MS = Number(process.env["HYPHA_RECONNECT_INTERVAL_MS"] ?? 15_000);
+export const HYPHA_RECONNECT_WAKE_GAP_MS = Number(process.env["HYPHA_RECONNECT_WAKE_GAP_MS"] ?? 30_000);
+export const HYPHA_RECONNECT_HEAL_COOLDOWN_MS = Number(process.env["HYPHA_RECONNECT_HEAL_COOLDOWN_MS"] ?? 30_000);
+export const HYPHA_RECONNECT_ALLFAIL_THRESHOLD = Number(process.env["HYPHA_RECONNECT_ALLFAIL_THRESHOLD"] ?? 2);
+export const HYPHA_RECONNECT_PROBE_TIMEOUT_MS = Number(process.env["HYPHA_RECONNECT_PROBE_TIMEOUT_MS"] ?? 4_000);
 /**
  * Max wait for the FIRST delegated token (TTFB). A peer that registers a delegated load but
  * dies at decode (e.g. its modelSrc path doesn't exist on its disk) otherwise hangs the shim
@@ -123,6 +134,42 @@ export const HYPHA_ECONOMY_FLOAT = Number(process.env["HYPHA_ECONOMY_FLOAT"] ?? 
 export const HYPHA_ECONOMY_MAX_PER_TX = Number(process.env["HYPHA_ECONOMY_MAX_PER_TX"] ?? 5_000);
 export const HYPHA_ECONOMY_MAX_PER_HOUR = Number(process.env["HYPHA_ECONOMY_MAX_PER_HOUR"] ?? 20_000);
 export const HYPHA_ECONOMY_MAX_PER_COUNTERPARTY = Number(process.env["HYPHA_ECONOMY_MAX_PER_COUNTERPARTY"] ?? 10_000);
+
+// ── Metered / pay-as-you-go streaming settlement (opt-in; OFF = the proven single-settle close) ──
+/** Enable metered sessions: escalating per-chunk authorizations + an idle force-settle watchdog. */
+export const HYPHA_ECONOMY_METERED = (process.env["HYPHA_ECONOMY_METERED"] ?? "0") === "1";
+/** Tokens decoded per chunk before the consumer must advance the authorization. */
+export const HYPHA_ECONOMY_CHUNK_TOKENS = Number(process.env["HYPHA_ECONOMY_CHUNK_TOKENS"] ?? 64);
+/** Idle window: no advance within this → the provider watchdog force-settles the authorized cap. */
+export const HYPHA_ECONOMY_ADVANCE_WINDOW_MS = Number(process.env["HYPHA_ECONOMY_ADVANCE_WINDOW_MS"] ?? 20_000);
+/** Test-only: honor a request `stallMs` (consumer goes silent mid-metered-session to trigger the
+ *  provider's abandon watchdog). OFF in production — never expose a stall hook on a real deployment. */
+export const HYPHA_ECONOMY_TEST_HOOKS = (process.env["HYPHA_ECONOMY_TEST_HOOKS"] ?? "0") === "1";
+/** On a metered watchdog cutoff, also CUT the stalled consumer's live link (transient firewall exclude,
+ *  NOT an unpair) on top of force-settling the money. Phase 1 proved firewall revocation drops a live
+ *  link; this is the non-destructive cooldown version. OFF = money backstop only (the proven path). */
+export const HYPHA_ECONOMY_REVOKE_ON_CUTOFF = (process.env["HYPHA_ECONOMY_REVOKE_ON_CUTOFF"] ?? "0") === "1";
+/** Cooldown (ms) a cut-off consumer stays firewall-excluded before it auto-re-admits (can reconnect). */
+export const HYPHA_ECONOMY_REVOKE_TTL_MS = Number(process.env["HYPHA_ECONOMY_REVOKE_TTL_MS"] ?? 30_000);
+
+// ── Reputation-weighted routing (opt-in; OFF = free-first inflight routing, the proven path) ──────
+/** Tie-break PAID delegation targets by effective_cost = pricePerKiloToken / quality (free peers
+ *  stay first). The reputation store + GET /reputation are always read-only; this flag only changes
+ *  routing. */
+export const HYPHA_REPUTATION = (process.env["HYPHA_REPUTATION"] ?? "0") === "1";
+
+// ── Mesh model sharing (P2P weight distribution; advisory) ───────────────────────────────────────
+/** Whether this node SHARES its cached models with the mesh — peers may discover + pull them P2P.
+ *  Advisory only (the blob swarm seeds regardless); it gates whether peers' UIs offer to pull from
+ *  this node, and is shown as a per-node toggle in Leash. Runtime-togglable via POST /models/share. */
+export const HYPHA_SHARE_MODELS = (process.env["HYPHA_SHARE_MODELS"] ?? "1") !== "0";
+
+// ── Costly identity Tier-1 (Phase 4; OFF = no binding, no on-chain verification — proven core intact) ──
+/** Provider-side: advertise a wallet↔provider-key `identityProof` (signed by the payout wallet) in caps. */
+export const HYPHA_ECONOMY_IDENTITY_BINDING = (process.env["HYPHA_ECONOMY_IDENTITY_BINDING"] ?? "0") === "1";
+/** Consumer-side: a settled receipt counts toward reputation only if its txHash is verified ON-CHAIN to
+ *  have moved the asset to the provider's BOUND payee; unbound/unverified providers are floored (slashed). */
+export const HYPHA_ECONOMY_VERIFY_RECEIPTS = (process.env["HYPHA_ECONOMY_VERIFY_RECEIPTS"] ?? "0") === "1";
 
 /**
  * Load this device's persisted 64-hex seed, generating + persisting one on first run.

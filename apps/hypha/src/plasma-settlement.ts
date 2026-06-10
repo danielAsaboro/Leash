@@ -16,8 +16,10 @@ import { x402Facilitator } from "@x402/core/facilitator";
 import type { PaymentPayload, PaymentRequired, PaymentRequirements } from "@x402/core/types";
 import { UptoEvmScheme as UptoEvmClient } from "@x402/evm/upto/client";
 import { UptoEvmScheme as UptoEvmFacilitator } from "@x402/evm/upto/facilitator";
+import { verifyMessage } from "ethers";
 import { SpendGuard, type PayFn, type PriceSheet, type SpendLimits } from "@mycelium/mesh";
-import type { SettlementEndpoint } from "@mycelium/shared";
+import { identityBindingMessage } from "@mycelium/shared";
+import type { SettlementEndpoint, DeviceIdentityProof } from "@mycelium/shared";
 
 export interface PlasmaSettlementConfig {
   enabled: boolean;
@@ -62,6 +64,62 @@ export type BudgetVerificationResult =
   | { ok: false; reason: string };
 
 const MAX_UINT256 = BigInt("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff");
+
+/** keccak256("Transfer(address,address,uint256)") — the ERC20 Transfer event topic0. */
+const ERC20_TRANSFER_TOPIC = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+
+/** Minimal shape of an EVM log we decode (a subset of ethers' `Log`). */
+export interface RawEvmLog {
+  address?: string;
+  topics?: ReadonlyArray<string>;
+  data?: string;
+}
+
+/**
+ * PURE: does this log encode an ERC20 `Transfer(assetMint → expectedPayee, value ≥ minAmount)`?
+ * Phase 4 — the settle tx's direct `to` is the x402 upto proxy, so the asset movement is ONLY visible
+ * in this Transfer log (topics[2] = left-padded recipient, data = uint256 amount). Exported for the
+ * unit smoke. Case-insensitive on addresses; tolerant of malformed logs (returns false, never throws).
+ */
+export function transferLogMatches(
+  log: RawEvmLog | null | undefined,
+  assetMint: string,
+  expectedPayee: string,
+  minAmount: number | bigint,
+): boolean {
+  if (!log || !log.topics || log.topics.length < 3 || !assetMint || !expectedPayee) return false;
+  if ((log.topics[0] ?? "").toLowerCase() !== ERC20_TRANSFER_TOPIC) return false;
+  if ((log.address ?? "").toLowerCase() !== assetMint.toLowerCase()) return false;
+  // topics[2] is the 32-byte left-padded recipient address; the last 40 hex chars are the address.
+  const to = "0x" + (log.topics[2] ?? "").slice(-40);
+  if (to.toLowerCase() !== expectedPayee.toLowerCase()) return false;
+  let value: bigint;
+  try { value = BigInt(log.data ?? "0x0"); } catch { return false; }
+  return value >= BigInt(minAmount);
+}
+
+/**
+ * PURE: verify a provider's wallet↔key binding (Phase 4). Recovers the signer of the canonical
+ * binding message and requires it to equal both the advertised payee wallet and the proof's claimed
+ * wallet, and the proof's providerPublicKey to equal the advertised provider key. Returns false
+ * (never throws) on any mismatch / malformed proof. EVM (`plasma`) only for now.
+ */
+export function verifyIdentityProof(
+  proof: DeviceIdentityProof | undefined,
+  expectedProviderKey: string,
+  expectedWallet: string,
+): boolean {
+  if (!proof || !proof.signature || !proof.wallet || !expectedWallet) return false;
+  if (proof.network !== "plasma") return false;
+  if (proof.providerPublicKey !== expectedProviderKey) return false;
+  if (proof.wallet.toLowerCase() !== expectedWallet.toLowerCase()) return false;
+  try {
+    const recovered = verifyMessage(identityBindingMessage(proof.providerPublicKey, proof.wallet, proof.network), proof.signature);
+    return recovered.toLowerCase() === expectedWallet.toLowerCase();
+  } catch {
+    return false;
+  }
+}
 
 export class PlasmaSettlementService {
   private readonly enabled: boolean;
@@ -176,6 +234,63 @@ export class PlasmaSettlementService {
     return Math.ceil((tokens / 1000) * this.cfg.price.perKiloToken);
   }
 
+  /** This rail's asset contract address (the ERC20 mint), used to scope on-chain receipt verification. */
+  assetMint(): string {
+    return this.cfg.asset.mint;
+  }
+
+  /** txHash|payee|mint|minAmount → CONFIRMED. Only positive verdicts cached (txHashes are immutable). */
+  private readonly txVerifyCache = new Map<string, boolean>();
+
+  /**
+   * Phase 4 — on-chain receipt verification. Confirms `txHash` is a SUCCESSFUL tx that emitted an ERC20
+   * `Transfer` of `assetMint` to `expectedPayee` for at least `minAmount`. The settle tx's direct `to`
+   * is the x402 upto proxy, NOT the payee, so we read the Transfer LOG (not `tx.to`). Null-safe — any
+   * RPC error / missing receipt / revert / wrong-payee returns false. Used by reputation to count a
+   * receipt only when its money provably moved on-chain to the provider's bound wallet.
+   */
+  async verifyTxSettled(txHash: string, expectedPayee: string, assetMint: string, minAmount: number): Promise<boolean> {
+    if (!this.online() || !this.accountPromise) return false;
+    if (typeof txHash !== "string" || !txHash.startsWith("0x") || !expectedPayee || !assetMint) return false;
+    const key = `${txHash.toLowerCase()}|${expectedPayee.toLowerCase()}|${assetMint.toLowerCase()}|${minAmount}`;
+    if (this.txVerifyCache.get(key)) return true;
+    try {
+      const account = await this.accountPromise;
+      const provider = (account as unknown as { _provider?: { getTransactionReceipt?: (h: string) => Promise<{ status?: number | null; logs?: ReadonlyArray<RawEvmLog> } | null> } })._provider;
+      if (!provider?.getTransactionReceipt) return false;
+      const receipt = await provider.getTransactionReceipt(txHash);
+      if (!receipt || receipt.status !== 1) return false; // not mined, or reverted
+      const ok = (receipt.logs ?? []).some((log) => transferLogMatches(log, assetMint, expectedPayee, minAmount));
+      if (ok) this.txVerifyCache.set(key, true);
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Phase 4 — sign the costly-identity binding of `providerPublicKey` ↔ this rail's payout wallet,
+   * using the EVM wallet's asymmetric `personal_sign` (NOT the HMAC receipt sig). Advertised as
+   * `identityProof` on the device capability; a consumer recovers the signer to prove the wallet that
+   * receives settlement controls this provider key. Returns null if the rail is offline.
+   */
+  async signIdentityBinding(providerPublicKey: string): Promise<DeviceIdentityProof | null> {
+    if (!this.online() || !this.accountPromise) return null;
+    try {
+      const account = await this.accountPromise;
+      const wallet = await account.getAddress();
+      const network = "plasma" as const;
+      // wdk's signing account exposes EIP-191 personal_sign as `sign(message)` (NOT `signMessage`, which
+      // is the inner ethers signer); ethers `verifyMessage` recovers it on the consumer side.
+      const signature = await (account as unknown as { sign: (m: string) => Promise<string> }).sign(
+        identityBindingMessage(providerPublicKey, wallet, network),
+      );
+      return { providerPublicKey, wallet, network, signature };
+    } catch {
+      return null;
+    }
+  }
+
   private buildRequirements(recipient: SettlementEndpoint, amount: number): PaymentRequirements {
     return {
       scheme: recipient.x402?.scheme ?? "upto",
@@ -244,6 +359,72 @@ export class PlasmaSettlementService {
           recipient,
           paymentPayload: payload,
           accepted: requirements,
+        },
+      };
+    } catch (err) {
+      this.guard!.releaseBudget(reserved.reservationId);
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /**
+   * Metered escalation: produce a FRESH x402 "upto" Permit2 witness for a higher CUMULATIVE cap,
+   * WITHOUT a new reservation or approve. The session's single SpendGuard reservation already bounds
+   * the float and the max-uint Permit2 allowance already covers every rung, so each advance is
+   * signature-only (no mid-stream approve tx). Reuses the authorize() signing path.
+   */
+  async signTier(
+    provider: string,
+    recipient: SettlementEndpoint,
+    cumulativeAmount: number,
+  ): Promise<{ ok: true; payer: string; paymentPayload: PaymentPayload; accepted: PaymentRequirements } | { ok: false; reason: string }> {
+    if (!this.online()) return { ok: false, reason: "Plasma settlement disabled" };
+    if (!this.accepts(recipient)) return { ok: false, reason: "provider has no compatible Plasma payout rail" };
+    if (!recipient.x402 || recipient.x402.scheme !== "upto" || !recipient.x402.facilitator) {
+      return { ok: false, reason: "provider Plasma rail is not x402-enabled" };
+    }
+    if (!Number.isFinite(cumulativeAmount) || cumulativeAmount <= 0) return { ok: false, reason: "invalid advance amount" };
+    try {
+      await this.ensurePermit2Allowance(cumulativeAmount);
+      const requirements = this.buildRequirements(recipient, cumulativeAmount);
+      const paymentRequired = this.buildPaymentRequired(provider, requirements);
+      const payload = await (await this.xclientPromise!).createPaymentPayload(paymentRequired);
+      return { ok: true, payer: await (await this.accountPromise!).getAddress(), paymentPayload: payload, accepted: requirements };
+    } catch (err) {
+      return { ok: false, reason: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  /**
+   * Metered: reserve the session float CAP and ensure the Permit2 allowance, but DO NOT create a
+   * payment payload — the rungs are signed separately via signTier(). Returns a BudgetAuthorization
+   * whose only meaningful field for the metered path is `reservationId` (finalize() captures by id;
+   * the placeholder paymentPayload is never settled). This avoids creating an unused payload on the
+   * x402 client alongside the rung payloads.
+   */
+  async reserveBudgetOnly(provider: string, requestedBudget: number | undefined, recipient: SettlementEndpoint): Promise<BudgetAuthorizationResult> {
+    if (!this.online()) return { ok: false, reason: "Plasma settlement disabled" };
+    if (!this.accepts(recipient)) return { ok: false, reason: "provider has no compatible Plasma payout rail" };
+    if (!recipient.x402 || recipient.x402.scheme !== "upto" || !recipient.x402.facilitator) {
+      return { ok: false, reason: "provider Plasma rail is not x402-enabled" };
+    }
+    this.guard!.allow(provider);
+    const desiredBudget = Math.min(Math.max(1, Math.floor(requestedBudget ?? this.cfg.limits.maxPerTx)), this.cfg.limits.maxPerTx);
+    const reserved = this.guard!.reserveBudget({ provider, amount: desiredBudget });
+    if (!reserved.ok) return reserved;
+    if (!reserved.reservationId) return { ok: false, reason: "failed to reserve compute budget" };
+    try {
+      await this.ensurePermit2Allowance(desiredBudget);
+      return {
+        ok: true,
+        authorization: {
+          provider,
+          reservationId: reserved.reservationId,
+          maxAmount: desiredBudget,
+          payer: await (await this.accountPromise!).getAddress(),
+          recipient,
+          paymentPayload: {} as PaymentPayload, // placeholder; metered settles per-rung, finalize() uses only reservationId
+          accepted: this.buildRequirements(recipient, desiredBudget),
         },
       };
     } catch (err) {

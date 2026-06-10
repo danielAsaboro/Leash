@@ -81,6 +81,15 @@ function ServicesIcon() {
     </svg>
   );
 }
+function EconomyIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <ellipse cx="12" cy="6" rx="7" ry="2.5" strokeLinejoin="round" />
+      <path d="M5 6v5c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5V6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 11v5c0 1.4 3.1 2.5 7 2.5s7-1.1 7-2.5v-5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
 
 const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isActive: (p: string) => boolean }[] = [
   { href: "/home", label: "Home", Icon: HomeIcon, isActive: (p) => p === "/home" },
@@ -90,6 +99,7 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/grow", label: "Grow", Icon: GrowIcon, isActive: (p) => p.startsWith("/grow") },
   { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
   { href: "/research", label: "Research", Icon: ResearchIcon, isActive: (p) => p.startsWith("/research") },
+  { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
   { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
 ];
 

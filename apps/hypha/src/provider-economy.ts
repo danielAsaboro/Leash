@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import type { AuditLog, SessionSettlementReceipt, Visibility } from "@mycelium/shared";
 import { localChatAliases } from "./catalog.ts";
-import { signProviderPayload, digestAuthorization, type ActiveSessionRecord, type BlockedPayerRecord, type ClosePaidSessionRequest, type OpenPaidSessionRequest, type PaidSessionGrant, type PaidSessionQuote, type PendingBudgetVerification, type QuoteBudgetRequest, type UnsettledReceiptRecord, type VerifyBudgetRequest, type VerifyBudgetResponse } from "./economy-types.ts";
-import type { PlasmaSettlementService } from "./plasma-settlement.ts";
+import { signProviderPayload, digestAuthorization, type ActiveSessionRecord, type AdvanceAuthorizationRequest, type AdvanceAuthorizationResponse, type AuthorizationRung, type BlockedPayerRecord, type ClosePaidSessionRequest, type OpenPaidSessionRequest, type PaidSessionGrant, type PaidSessionQuote, type PendingBudgetVerification, type QuoteBudgetRequest, type UnsettledReceiptRecord, type VerifyBudgetRequest, type VerifyBudgetResponse } from "./economy-types.ts";
+import type { PlasmaSettlementService, PlasmaVerifiedBudget } from "./plasma-settlement.ts";
+import { appendRung, initMeteredState, isIdleExpired, rungToSettle, settleTokensAtClose, settleTokensAtCutoff } from "./metered.ts";
 import { ProviderEconomyStore } from "./provider-economy-store.ts";
 
 interface MeshParticipant {
@@ -20,6 +21,14 @@ export interface ProviderEconomyDeps {
   resolveMeshParticipant(meshId: string, consumerWriterKey: string): Promise<MeshParticipant | null>;
   publishReceipt(meshId: string, receipt: SessionSettlementReceipt): Promise<void>;
   retryIntervalMs?: number;
+  /** Metered (pay-as-you-go) config. Absent/disabled = legacy single-settle close path only. */
+  metered?: { enabled: boolean; chunkTokens: number; advanceWindowMs: number };
+  /**
+   * Best-effort hook to drop a consumer from the firewall when its metered session is force-settled
+   * by the watchdog. The money backstop (settle the authorized cap) works WITHOUT this; the firewall
+   * cut depends on Phase 1 (does the SDK swarm teardown actually revoke?), so it stays optional.
+   */
+  revokeConsumer?: (consumerPublicKey: string) => void | Promise<void>;
 }
 
 const RETRY_BASE_MS = 15_000;
@@ -37,7 +46,10 @@ export class ProviderEconomyService {
   constructor(private readonly deps: ProviderEconomyDeps) {
     this.store = new ProviderEconomyStore(deps.storeDir);
     const interval = deps.retryIntervalMs ?? RETRY_BASE_MS;
-    this.timer = setInterval(() => void this.retryUnsettled(), interval);
+    this.timer = setInterval(() => {
+      void this.retryUnsettled();
+      void this.sweepMeteredIdle();
+    }, interval);
     this.timer.unref?.();
     void this.retryUnsettled();
   }
@@ -84,6 +96,9 @@ export class ProviderEconomyService {
       payTo: endpoint.recipient,
       facilitator: endpoint.x402.facilitator,
       pricePerKiloToken: endpoint.x402.pricePerKiloToken,
+      ...(this.deps.metered?.enabled
+        ? { meteredChunkTokens: this.deps.metered.chunkTokens, meteredChunkAmount: this.deps.plasma.amountForTokens(this.deps.metered.chunkTokens) }
+        : {}),
       providerWriterKey: mesh.providerWriterKey,
       providerPublicKey,
     };
@@ -122,9 +137,16 @@ export class ProviderEconomyService {
     }
     const endpoint = this.deps.plasma.payoutEndpoint();
     if (!endpoint) throw new Error("provider has no Plasma payout endpoint");
+    // Metered open: the consumer signs the TIER-0 chunk cap (not the full ceiling). Bind the quote's
+    // advertised chunk to THIS provider's config so a tampered quote can't shift the accounting.
+    const metered = Boolean(this.deps.metered?.enabled && req.quote.meteredChunkTokens != null);
+    if (this.deps.metered?.enabled && req.quote.meteredChunkTokens !== this.deps.metered.chunkTokens) {
+      throw new Error("metered chunk size does not match the provider configuration");
+    }
+    const verifyAmount = metered ? this.deps.plasma.amountForTokens(this.deps.metered!.chunkTokens) : req.quote.maxAmount;
     const verified = await this.deps.plasma.verifyBudget(
       providerPublicKey,
-      req.quote.maxAmount,
+      verifyAmount,
       endpoint,
       req.paymentPayload,
       req.accepted,
@@ -194,12 +216,28 @@ export class ProviderEconomyService {
       ...grantBase,
       providerSignature: signProviderPayload(this.deps.seed, grantBase),
     };
+    const openedAt = new Date().toISOString();
     const record: ActiveSessionRecord = {
       grant,
       verified: pending.verified,
       recipient: pending.verified.recipient,
-      openedAt: new Date().toISOString(),
+      openedAt,
     };
+    // Metered (opt-in): the open IS tier-0 of the escalating ladder. acceptedThroughTokens starts at
+    // chunkTokens (the cap the consumer signed at verify time); settleVerified is the hard backstop
+    // that prevents charging more than that signature covers, so deriving tier-0 from config is safe.
+    if (this.deps.metered?.enabled && pending.quote.meteredChunkTokens != null) {
+      const cfg = { chunkTokens: this.deps.metered.chunkTokens, advanceWindowMs: this.deps.metered.advanceWindowMs };
+      const tier0: AuthorizationRung = {
+        tierIndex: 0,
+        cumulativeTokens: cfg.chunkTokens,
+        cumulativeAmount: this.deps.plasma.amountForTokens(cfg.chunkTokens),
+        authorizationDigest: pending.authorizationDigest,
+        verified: pending.verified,
+        acceptedAt: openedAt,
+      };
+      record.metered = appendRung(initMeteredState(cfg, openedAt), tier0).state;
+    }
     this.store.putActiveSession(record);
     this.store.markAuthorizationUsed(pending.authorizationDigest, sessionId);
     this.pending.delete(req.verificationId);
@@ -209,6 +247,78 @@ export class ProviderEconomyService {
       extra: { role: "economy", phase: "open_paid_session", meshId: grant.meshId, sessionId, alias: grant.alias, payer: grant.payerAddress },
     });
     return grant;
+  }
+
+  /**
+   * Metered escalation: verify a FRESH Permit2 witness for a higher cumulative token cap and append
+   * it to the session's ladder. Idempotent on (sessionId, tierIndex) — a re-sent advance returns the
+   * current cap. Mirrors verifyBudget (same on-chain verify), but binds to an OPEN session and never
+   * marks the authorization "used" (the ladder's tierIndex is the in-memory replay guard; the Permit2
+   * nonce is the on-chain one). The cap can never exceed the session's quoted budget.
+   */
+  async advanceAuthorization(req: AdvanceAuthorizationRequest): Promise<AdvanceAuthorizationResponse> {
+    const active = this.store.getActiveSession(req.sessionId);
+    if (!active) throw new Error("session not found or already closed");
+    if (!active.metered) throw new Error("session is not metered");
+    if (this.closing.has(req.sessionId)) throw new Error("session is closing");
+    if (
+      active.grant.consumerWriterKey !== req.consumerWriterKey ||
+      active.grant.consumerPublicKey !== req.consumerPublicKey ||
+      active.grant.providerWriterKey !== req.providerWriterKey ||
+      active.grant.providerPublicKey !== req.providerPublicKey
+    ) {
+      throw new Error("advance_authorization identity mismatch");
+    }
+    if (Date.parse(active.grant.expiry) <= Date.now()) throw new Error("session budget expired");
+    const cumulativeTokens = Math.floor(req.cumulativeTokens);
+    if (!(cumulativeTokens > 0)) throw new Error("advance cumulativeTokens must be positive");
+    const cumulativeAmount = this.deps.plasma.amountForTokens(cumulativeTokens);
+    if (cumulativeAmount > active.grant.maxAmount) throw new Error("advance exceeds the quoted session budget cap");
+
+    // Idempotent fast-path: a rung already at this tier (re-sent advance) → return the current cap.
+    const existing = active.metered.ladder.find((r) => r.tierIndex === req.tierIndex);
+    if (existing) {
+      return { sessionId: req.sessionId, tierIndex: req.tierIndex, acceptedThroughTokens: active.metered.acceptedThroughTokens };
+    }
+
+    const authorizationDigest = digestAuthorization({
+      quote: {
+        quoteId: `${active.grant.sessionId}:${req.tierIndex}`,
+        meshId: active.grant.meshId,
+        alias: active.grant.alias,
+        modelSrc: active.grant.modelSrc,
+        maxAmount: cumulativeAmount,
+        providerPublicKey: active.grant.providerPublicKey,
+        providerWriterKey: active.grant.providerWriterKey,
+      },
+      paymentPayload: req.paymentPayload,
+      accepted: req.accepted,
+      consumerWriterKey: req.consumerWriterKey,
+      consumerPublicKey: req.consumerPublicKey,
+      payerAddress: req.payerAddress,
+      nonce: req.nonce,
+    });
+    const endpoint = this.deps.plasma.payoutEndpoint();
+    if (!endpoint) throw new Error("provider has no Plasma payout endpoint");
+    const verified = await this.deps.plasma.verifyBudget(active.grant.providerPublicKey, cumulativeAmount, endpoint, req.paymentPayload, req.accepted);
+    if (!verified.ok) throw new Error(verified.reason);
+
+    const rung: AuthorizationRung = {
+      tierIndex: req.tierIndex,
+      cumulativeTokens,
+      cumulativeAmount,
+      authorizationDigest,
+      verified: verified.verification,
+      acceptedAt: new Date().toISOString(),
+    };
+    const { state } = appendRung(active.metered, rung);
+    active.metered = state;
+    this.store.putActiveSession(active);
+    this.deps.audit.record({
+      event: "note",
+      extra: { role: "economy", phase: "advance_authorization", sessionId: req.sessionId, tierIndex: req.tierIndex, acceptedThroughTokens: state.acceptedThroughTokens, cumulativeAmount },
+    });
+    return { sessionId: req.sessionId, tierIndex: req.tierIndex, acceptedThroughTokens: state.acceptedThroughTokens };
   }
 
   async closePaidSession(req: ClosePaidSessionRequest): Promise<SessionSettlementReceipt> {
@@ -235,10 +345,31 @@ export class ProviderEconomyService {
     ) {
       throw new Error("close_paid_session identity mismatch");
     }
+    // Metered: never charge more tokens than the consumer authorized, and settle the highest rung's
+    // verified budget (its own Permit2 witness). Legacy: settle the single open budget at the
+    // consumer-reported count (the proven path, unchanged).
+    const actualTokens = active.metered
+      ? settleTokensAtClose(active.metered, req.actualTokens)
+      : Math.max(0, Math.floor(req.actualTokens));
+    const verified = active.metered ? (rungToSettle(active.metered)?.verified ?? active.verified) : active.verified;
+    return this.finalizeSettlement(active, actualTokens, verified, "close_paid_session");
+  }
+
+  /**
+   * Settle one verified budget at `actualTokens`, then build + persist + publish the receipt. Shared
+   * by the legacy close, the metered close, and the metered watchdog cutoff — so the retry/block
+   * bookkeeping is identical for all three. `verified` is the budget whose Permit2 witness is settled
+   * (the open budget legacy, the top rung metered) and is what an unsettled retry re-uses.
+   */
+  private async finalizeSettlement(
+    active: ActiveSessionRecord,
+    actualTokens: number,
+    verified: PlasmaVerifiedBudget,
+    phase: string,
+  ): Promise<SessionSettlementReceipt> {
     const completedAt = new Date().toISOString();
-    const actualTokens = Math.max(0, Math.floor(req.actualTokens));
     const actualAmount = this.deps.plasma.amountForTokens(actualTokens);
-    const result = await this.deps.plasma.settleVerified(active.verified, actualAmount);
+    const result = await this.deps.plasma.settleVerified(verified, actualAmount);
     const receipt = this.buildReceipt(active, {
       actualTokens,
       actualAmount: result.ok ? result.amount : actualAmount,
@@ -249,14 +380,14 @@ export class ProviderEconomyService {
       failureReason: result.ok ? undefined : result.reason,
       retryCount: result.ok ? undefined : 1,
     });
-    this.store.removeActiveSession(req.sessionId);
+    this.store.removeActiveSession(active.grant.sessionId);
     if (result.ok) {
       this.store.putSettled(receipt);
       this.clearBlockIfPossible(receipt.payerAddress);
     } else {
       const unsettled: UnsettledReceiptRecord = {
         receipt,
-        verified: active.verified,
+        verified,
         nextRetryAt: new Date(Date.now() + RETRY_BASE_MS).toISOString(),
       };
       this.store.putUnsettled(unsettled);
@@ -265,9 +396,35 @@ export class ProviderEconomyService {
     await this.publishReceipt(receipt);
     this.deps.audit.record({
       event: "note",
-      extra: { role: "economy", phase: "close_paid_session", meshId: receipt.meshId, sessionId: receipt.sessionId, status: receipt.status, actualAmount: receipt.actualAmount, txHash: receipt.txHash, failureReason: receipt.failureReason },
+      extra: { role: "economy", phase, meshId: receipt.meshId, sessionId: receipt.sessionId, status: receipt.status, actualTokens, actualAmount: receipt.actualAmount, txHash: receipt.txHash, failureReason: receipt.failureReason },
     });
     return receipt;
+  }
+
+  /**
+   * Watchdog: force-settle metered sessions idle past advanceWindowMs (the consumer stopped advancing
+   * — abandoned or stalled). Settles the full AUTHORIZED cap (the consumer signed for it) as the
+   * abandoned-session backstop, then best-effort revokes the consumer. Swept on the retry interval so
+   * it survives a provider restart. Guarded by `closing` so it can never race a real close.
+   */
+  private async sweepMeteredIdle(): Promise<void> {
+    if (!this.deps.metered?.enabled) return;
+    const now = Date.now();
+    for (const active of this.store.listActiveSessions()) {
+      if (!active.metered || !isIdleExpired(active.metered, now)) continue;
+      if (this.closing.has(active.grant.sessionId)) continue;
+      this.closing.add(active.grant.sessionId);
+      try {
+        const settleTokens = settleTokensAtCutoff(active.metered);
+        const verified = rungToSettle(active.metered)?.verified ?? active.verified;
+        await this.finalizeSettlement(active, settleTokens, verified, "metered_watchdog_cutoff");
+        await this.deps.revokeConsumer?.(active.grant.consumerPublicKey);
+      } catch (err) {
+        this.deps.audit.record({ event: "note", extra: { role: "economy", phase: "metered_watchdog_error", sessionId: active.grant.sessionId, error: err instanceof Error ? err.message : String(err) } });
+      } finally {
+        this.closing.delete(active.grant.sessionId);
+      }
+    }
   }
 
   async retryUnsettled(opts: { force?: boolean } = {}): Promise<void> {

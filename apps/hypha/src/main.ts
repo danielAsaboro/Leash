@@ -18,16 +18,23 @@
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { close, stopQVACProvider } from "@qvac/sdk";
+import { close, stopQVACProvider, heartbeat, suspend, resume } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
 import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
 import {
   DEVICE_NAME,
   FORGOTTEN_FILE,
   HYPHA_DATA_DIR,
+  HYPHA_ECONOMY_ADVANCE_WINDOW_MS,
+  HYPHA_ECONOMY_CHUNK_TOKENS,
   HYPHA_ECONOMY_DIR,
   HYPHA_ECONOMY_ENABLED,
   HYPHA_ECONOMY_FLOAT,
+  HYPHA_ECONOMY_IDENTITY_BINDING,
+  HYPHA_ECONOMY_METERED,
+  HYPHA_ECONOMY_REVOKE_ON_CUTOFF,
+  HYPHA_ECONOMY_REVOKE_TTL_MS,
+  HYPHA_ECONOMY_VERIFY_RECEIPTS,
   HYPHA_ECONOMY_MAX_PER_COUNTERPARTY,
   HYPHA_ECONOMY_MAX_PER_HOUR,
   HYPHA_ECONOMY_MAX_PER_TX,
@@ -51,6 +58,8 @@ import {
   HYPHA_KV_TTL_MS,
   HYPHA_PAIR_PORT,
   HYPHA_PORT,
+  HYPHA_REPUTATION,
+  HYPHA_SHARE_MODELS,
   INVITE_FILE,
   LOG_DIR,
   MESH_STORE_DIR,
@@ -58,11 +67,20 @@ import {
   STALE_MS,
   UNPAIR_ACK_FILE,
   loadOrCreateSeed,
+  HYPHA_RESILIENT_RECONNECT,
+  HYPHA_RECONNECT_INTERVAL_MS,
+  HYPHA_RECONNECT_WAKE_GAP_MS,
+  HYPHA_RECONNECT_HEAL_COOLDOWN_MS,
+  HYPHA_RECONNECT_ALLFAIL_THRESHOLD,
+  HYPHA_RECONNECT_PROBE_TIMEOUT_MS,
 } from "./config.ts";
 import { DeviceProvider } from "./device-provider.ts";
 import { MeshRouter } from "./mesh-router.ts";
 import { startCellDiscovery, type CellDiscoveryHandle } from "./discovery.ts";
 import { startMeshServices, type MeshRuntime } from "./mesh-services.ts";
+import { ConnectivityManager } from "./connectivity-manager.ts";
+import { ReputationStore } from "./reputation.ts";
+import { verifyIdentityProof } from "./plasma-settlement.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
 import { createShim, type Inflight, type MeshControl, type MeshSummary } from "./shim.ts";
 import { SolanaSettlementService } from "./solana-settlement.ts";
@@ -211,6 +229,18 @@ async function runDaemon(): Promise<void> {
         if (!runtime) return;
         await runtime.graph.publishReceipt(receipt).catch(() => undefined);
       },
+      // Metered (pay-as-you-go) sessions — opt-in (HYPHA_ECONOMY_METERED=1). OFF = the proven
+      // single-settle close path is the only path.
+      metered: { enabled: HYPHA_ECONOMY_METERED, chunkTokens: HYPHA_ECONOMY_CHUNK_TOKENS, advanceWindowMs: HYPHA_ECONOMY_ADVANCE_WINDOW_MS },
+      // Phase 1 GATE PASS (2026-06-10): a provider firewall stop→start drops a LIVE consumer link
+      // (provider firewall went 2→1, post-revoke completion got 503 no_warm_peer). So on a watchdog
+      // cutoff we can also CUT the stalled consumer's link — but NON-destructively (a transient
+      // firewall exclude with an auto-re-admit cooldown, NOT a forget/unpair, which would removeWriter
+      // a possibly-just-blipped paying peer). Opt-in (HYPHA_ECONOMY_REVOKE_ON_CUTOFF); OFF = the money
+      // backstop alone (force-settle the authorized cap), the proven path, firewall byte-identical.
+      ...(HYPHA_ECONOMY_REVOKE_ON_CUTOFF
+        ? { revokeConsumer: (consumerPublicKey: string) => provider.transientRevoke(consumerPublicKey, HYPHA_ECONOMY_REVOKE_TTL_MS) }
+        : {}),
     })
     : null;
   const paymentControlServer = providerEconomy ? new PaymentControlServer({ seed, audit, economy: providerEconomy }) : null;
@@ -227,6 +257,33 @@ async function runDaemon(): Promise<void> {
   // but only pre-warmed when this device can actually pay (Plasma rail online).
   const paymentControl = new PaymentControlClient(() => provider.selfKey, seed, audit);
   const onPaidPeer = plasmaSettlement.online() ? (providerKey: string) => paymentControl.warm(providerKey) : undefined;
+  // Mesh model sharing (advisory): whether peers may discover + pull this node's cached models. A
+  // per-node Leash toggle flips it at runtime; flipping re-advertises every mesh so peers see it fast.
+  let shareModels = HYPHA_SHARE_MODELS;
+  const setShareModels = async (on: boolean): Promise<void> => {
+    shareModels = on;
+    audit.record({ event: "note", extra: { role: "mesh", phase: "share-models", on } });
+    await Promise.all([...runtimes.values()].map((m) => m.advertise().catch(() => undefined)));
+  };
+  // Reputation (Phase 3): always ingest receipts + local observations (read-only); the routing WEIGHT
+  // is applied only when HYPHA_REPUTATION is on (else routing is the proven free-first inflight order).
+  // Phase 4 (HYPHA_ECONOMY_VERIFY_RECEIPTS): a receipt counts toward reputation only if its tx is verified
+  // ON-CHAIN to have moved the asset to the provider's BOUND payee; unbound/unverified providers are
+  // floored (slashing-lite). `boundProviders` maps a verified provider key → its bound wallet, refreshed
+  // from peers' `identityProof` in the receipt feed loop. Flag OFF → byte-identical Phase-3 scoring.
+  const verifyReceipts = HYPHA_ECONOMY_VERIFY_RECEIPTS && plasmaSettlement.online();
+  const boundProviders = new Map<string, string>();
+  const reputation = new ReputationStore(
+    verifyReceipts
+      ? {
+          verifyReceipt: async (r) =>
+            r.providerAddress
+              ? plasmaSettlement.verifyTxSettled(r.txHash, r.providerAddress, plasmaSettlement.assetMint(), r.actualAmount)
+              : false,
+          isBound: (providerId) => boundProviders.has(providerId),
+        }
+      : {},
+  );
 
   // Local tombstones — devices this one has hard-disconnected. AUTHORITATIVE on this device:
   // a tombstoned peer is hidden from the list, never served, never borrowed from — no matter
@@ -335,7 +392,7 @@ async function runDaemon(): Promise<void> {
 
   /** Every mesh-online path goes through here: start per-mesh services + wire the unpair reconcile. */
   const bringMeshOnline = async (meshId: string, g: MeshGraph, meta: MeshRecord): Promise<MeshRuntime> => {
-    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, ...(onPaidPeer ? { onPaidPeer } : {}) });
+    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
     runtimes.set(meshId, m);
     meshMeta.set(meshId, meta);
     g.onChange(() => void reconcileUnpairs(m));
@@ -581,6 +638,11 @@ async function runDaemon(): Promise<void> {
             await m.graph.unpair(m.graph.localWriterKey, deviceKey, false).catch((err) => {
               audit.record({ event: "note", extra: { role: "mesh", phase: "unpair-retract-failed", deviceKey, error: String(err) } });
             });
+            // Reverse the `removeWriter` that `forgetPeer` did — otherwise the peer stays
+            // `writable:false` forever and "Restore" can't actually undo "Disconnect".
+            await m.graph.addWriter(deviceKey).catch((err) => {
+              audit.record({ event: "note", extra: { role: "mesh", phase: "re-add-writer-failed", deviceKey, error: String(err) } });
+            });
           })();
           await m.reconcileFirewall().catch(() => undefined);
           await m.pool.reconcile().catch(() => undefined);
@@ -651,7 +713,85 @@ async function runDaemon(): Promise<void> {
       return { meshId, label: meta?.label ?? meshId, tier: meta?.tier ?? 0, visibility: meta?.visibility ?? "private", selfWriterKey: m.graph.localWriterKey, pool: m.pool };
     }),
   );
-  const server = createShim({ getRouter: () => router, getSelfConsumerKey: () => provider.selfKey, inflight, port: HYPHA_PORT, pairing, mesh: meshControl, audit, ...(kv ? { kv } : {}), settlement, paymentControl });
+  const server = createShim({
+    getRouter: () => router,
+    getSelfConsumerKey: () => provider.selfKey,
+    inflight,
+    port: HYPHA_PORT,
+    pairing,
+    mesh: meshControl,
+    audit,
+    ...(kv ? { kv } : {}),
+    settlement,
+    paymentControl,
+    recordObservation: (providerId, ok, ttftMs) => reputation.recordObservation({ providerId, ok, ...(ttftMs ? { ttftMs } : {}) }),
+    getReputation: () => reputation.snapshot(),
+    getShareModels: () => shareModels,
+    setShareModels,
+  });
+
+  // Feed reputation from the replicated settled receipts (read-only snapshot, refreshed on a tick).
+  // Phase 4: also refresh the wallet↔key BINDING set from peers' caps — verify each `identityProof`
+  // signature recovers to its advertised payee, so unbound providers are floored. `setReceipts` is
+  // awaited because it runs the on-chain verification (cached by txHash) when verifyReceipts is on; a
+  // re-entrancy guard keeps a slow tick from overlapping the next.
+  let repBusy = false;
+  const refreshReputation = async (): Promise<void> => {
+    if (repBusy) return;
+    repBusy = true;
+    try {
+      if (verifyReceipts) {
+        const caps = (await Promise.all([...runtimes.values()].map((m) => m.graph.capabilities().catch(() => [])))).flat();
+        for (const c of caps) {
+          if (!c.providerPublicKey) continue;
+          const wallet = c.settlement?.recipient;
+          if (wallet && verifyIdentityProof(c.identityProof, c.providerPublicKey, wallet)) boundProviders.set(c.providerPublicKey, wallet);
+          else boundProviders.delete(c.providerPublicKey);
+        }
+      }
+      const all = await Promise.all([...runtimes.values()].map((m) => m.graph.receipts().catch(() => [])));
+      await reputation.setReceipts(all.flat());
+    } catch { /* best effort — reputation is advisory */ } finally {
+      repBusy = false;
+    }
+  };
+  const repTimer = setInterval(() => void refreshReputation(), 15_000);
+  repTimer.unref();
+
+  // Consumer connectivity self-heal (HYPHA_RESILIENT_RECONNECT, default OFF → not started). A clean
+  // provider restart already self-heals via the SDK's per-RPC reconnect; this catches the whole
+  // transport going stale at once — the device SLEPT (wall-clock gap) or ROAMED (every provider
+  // unreachable in a tick) — by tearing down + rebuilding the SDK swarm (suspend()+resume()) and
+  // re-warming. Pure decision in `decideHeal` (smoke:reconnect); this only wires the effects.
+  if (HYPHA_RESILIENT_RECONNECT) {
+    const connectivity = new ConnectivityManager(
+      {
+        liveProviders: () => [...new Set([...runtimes.values()].flatMap((m) => m.pool.livePeerKeys()))],
+        probe: (key) =>
+          heartbeat({ delegate: { providerPublicKey: key, timeout: HYPHA_RECONNECT_PROBE_TIMEOUT_MS } })
+            .then(() => true)
+            .catch(() => false),
+        resetTransport: async () => {
+          await suspend();
+          await new Promise((r) => setTimeout(r, 600));
+          await resume();
+        },
+        rewarm: async () => {
+          await Promise.all([...runtimes.values()].map((m) => m.pool.rewarmAll().catch(() => undefined)));
+        },
+        now: () => Date.now(),
+        audit,
+      },
+      {
+        enabled: true,
+        intervalMs: HYPHA_RECONNECT_INTERVAL_MS,
+        wakeGapMs: HYPHA_RECONNECT_WAKE_GAP_MS,
+        healCooldownMs: HYPHA_RECONNECT_HEAL_COOLDOWN_MS,
+        allFailThreshold: HYPHA_RECONNECT_ALLFAIL_THRESHOLD,
+      },
+    );
+    connectivity.start();
+  }
 
   // Established device: rejoin every membership at boot. A pre-multi-mesh device (mesh-store exists,
   // no meshes.json) → migrate it as PRIMARY (its writer key + data survive on the default namespace).

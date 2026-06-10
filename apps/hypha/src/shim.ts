@@ -25,7 +25,8 @@ import type { KvSessions } from "@mycelium/shared";
 import type { SettlementManager } from "./settlement-manager.ts";
 import type { PaidSessionGrant } from "./economy-types.ts";
 import type { PaymentControlClient } from "./payment-control.ts";
-import { HYPHA_TTFB_MS } from "./config.ts";
+import { descriptorFor } from "./catalog.ts";
+import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS } from "./config.ts";
 
 export interface Inflight {
   inc(): void;
@@ -156,10 +157,17 @@ export interface ShimDeps {
   settlement?: SettlementManager;
   /** Persistent payment-control client (one per daemon; warmed in the background, closed on shutdown). */
   paymentControl: PaymentControlClient;
+  /** Record a local reputation observation of a delegated completion (provider key, delivered?, TTFB). */
+  recordObservation?: (providerId: string, ok: boolean, ttftMs?: number) => void;
+  /** Snapshot for `GET /reputation` (per-provider scores), or undefined if reputation isn't wired. */
+  getReputation?: () => unknown;
+  /** Mesh model sharing toggle (advisory): whether peers may discover + pull this node's models. */
+  getShareModels?: () => boolean;
+  setShareModels?: (on: boolean) => void | Promise<void>;
 }
 
 export function createShim(deps: ShimDeps): http.Server {
-  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl } = deps;
+  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, recordObservation, getReputation, getShareModels, setShareModels } = deps;
   const json = (res: http.ServerResponse, code: number, body: unknown): void => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
@@ -179,10 +187,26 @@ export function createShim(deps: ShimDeps): http.Server {
     if (method === "GET" && url === "/peers") {
       const router = getRouter();
       const info = mesh.meshInfo();
-      return json(res, 200, { peers: router ? router.peers() : [], ...info });
+      // `self`: THIS device's own provider/consumer key + payout wallet, so a consumer dashboard can
+      // split its own earnings (receipts paid TO this wallet) from its spend (receipts paid BY it).
+      // Additive — none of the per-peer rows describe self. wallet is null when no payout rail is online.
+      const self = { providerKey: getSelfConsumerKey(), wallet: settlement?.payoutEndpoints()[0]?.recipient ?? null };
+      return json(res, 200, { peers: router ? router.peers() : [], self, ...info });
     }
     if (method === "GET" && url === "/receipts") {
       return json(res, 200, { receipts: await mesh.receipts() });
+    }
+    if (method === "GET" && url === "/reputation") {
+      return json(res, 200, { reputation: getReputation ? getReputation() : [] });
+    }
+    // Mesh model sharing toggle (advisory) — peers may discover + pull this node's models when on.
+    if (method === "GET" && url === "/models/share") {
+      return json(res, 200, { shareModels: getShareModels ? getShareModels() : true });
+    }
+    if (method === "POST" && url === "/models/share") {
+      const on = Boolean((await readJsonBody(req))["on"]);
+      await setShareModels?.(on);
+      return json(res, 200, { ok: true, shareModels: on });
     }
 
     // ── pairing control (localhost only — this device's own dashboard) ───────────
@@ -263,6 +287,7 @@ export function createShim(deps: ShimDeps): http.Server {
       tools?: unknown;
       tool_choice?: unknown;
       parallel_tool_calls?: unknown;
+      stallMs?: number; // test-only (HYPHA_ECONOMY_TEST_HOOKS): go silent mid-metered-session
     };
     try {
       body = JSON.parse((await readBody(req)).toString("utf-8"));
@@ -296,6 +321,9 @@ export function createShim(deps: ShimDeps): http.Server {
     if (requestedBudget != null && (!Number.isFinite(requestedBudget) || requestedBudget <= 0)) {
       return json(res, 400, { error: { message: "hypha shim: `computeBudget` must be a positive number" } });
     }
+    // Test-only: simulate an abandoned/stalled metered consumer (go silent after the first advance so
+    // the provider's idle watchdog force-settles the authorized cap). Ignored unless TEST_HOOKS is on.
+    const testStallMs = HYPHA_ECONOMY_TEST_HOOKS && typeof body.stallMs === "number" && body.stallMs > 0 ? body.stallMs : 0;
 
     let clientOpen = true;
     res.on("close", () => {
@@ -333,7 +361,15 @@ export function createShim(deps: ShimDeps): http.Server {
           consumerPublicKey: selfConsumerKey,
           providerPublicKey: warm.peerKey,
         });
-        budgetAuth = await settlement.authorizeBudget(warm.peerKey, quote.maxAmount);
+        // Metered (provider offered it via quote.meteredChunkTokens): the open signs the TIER-0 chunk
+        // cap, not the full ceiling, and each rung is signature-only — so the reservation must NOT also
+        // create a payload (that extra payload broke the facilitator simulation, found live 2026-06-10).
+        // Reserve-only bounds the float; signTier() produces the only on-chain witnesses. Non-metered =
+        // the proven path (authorize reserves AND signs the full maxAmount at open).
+        const meteredSession = quote.meteredChunkTokens != null;
+        budgetAuth = meteredSession
+          ? await settlement.reserveBudgetOnly(warm.peerKey, quote.maxAmount)
+          : await settlement.authorizeBudget(warm.peerKey, quote.maxAmount);
         if (!budgetAuth.ok || budgetAuth.authorization.network !== "plasma") {
           return json(res, 402, {
             error: {
@@ -342,16 +378,30 @@ export function createShim(deps: ShimDeps): http.Server {
             },
           });
         }
+        const payerAddress = budgetAuth.authorization.authorization.payer;
+        let openPayload = budgetAuth.authorization.authorization.paymentPayload;
+        let openAccepted = budgetAuth.authorization.authorization.accepted;
+        let openNonce = id;
+        if (meteredSession) {
+          const chunkAmount = quote.meteredChunkAmount ?? (settlement.plasmaService()?.amountForTokens(quote.meteredChunkTokens!) ?? 0);
+          const tier0 = await settlement.signTier(warm.peerKey, chunkAmount);
+          if (!tier0.ok) {
+            return json(res, 402, { error: { message: `hypha shim: metered tier-0 authorization failed: ${tier0.reason}`, code: "payment_required" } });
+          }
+          openPayload = tier0.paymentPayload;
+          openAccepted = tier0.accepted;
+          openNonce = `${id}:0`;
+        }
         const verify = await paymentControl.verifyBudget(warm.peerKey, {
           quote,
           consumerWriterKey: warm.consumerWriterKey,
           consumerPublicKey: selfConsumerKey,
           providerWriterKey: quote.providerWriterKey,
           providerPublicKey: warm.peerKey,
-          payerAddress: budgetAuth.authorization.authorization.payer,
-          nonce: id,
-          paymentPayload: budgetAuth.authorization.authorization.paymentPayload,
-          accepted: budgetAuth.authorization.authorization.accepted,
+          payerAddress,
+          nonce: openNonce,
+          paymentPayload: openPayload,
+          accepted: openAccepted,
         });
         sessionGrant = await paymentControl.openPaidSession(warm.peerKey, {
           quote,
@@ -360,17 +410,156 @@ export function createShim(deps: ShimDeps): http.Server {
           consumerPublicKey: selfConsumerKey,
           providerWriterKey: quote.providerWriterKey,
           providerPublicKey: warm.peerKey,
-          payerAddress: budgetAuth.authorization.authorization.payer,
-          nonce: id,
+          payerAddress,
+          nonce: openNonce,
         });
         runModelId = await loadDelegated({
-          modelSrc: sessionGrant.modelSrc as never,
+          // Resolve to the rich SDK descriptor (registry:// src for registry models) — the bare
+          // gossiped registryPath isn't directly loadable on the provider (see descriptorFor).
+          modelSrc: descriptorFor(sessionGrant.modelSrc) as never,
           providerPublicKey: warm.peerKey,
           timeout: 60_000,
           fallbackToLocal: false,
           tools: false,
           audit,
         });
+
+        // ── Metered (pay-as-you-go) decode loop ──────────────────────────────────────────────────
+        // ONE delegated completion, `predict`-capped at the budget ceiling. We consume the stream and
+        // authorize the NEXT rung (a fresh Permit2 witness for a higher cumulative cap) just before
+        // crossing each chunk boundary — `await`ing that advance inside `for await` back-pressures the
+        // provider's decode, so it can't run far past what's been paid. Probe finding (2026-06-10):
+        // the earlier per-chunk-completion + history-accumulation design produced 0 tokens after the
+        // first chunk (a re-pushed partial assistant turn reads as "done" and the model stops). One
+        // continuous decode sidesteps mid-turn-resume entirely. Money still moves ONCE (provider
+        // settles the highest reached rung at close); abandonment settles only the authorized cap.
+        if (meteredSession) {
+          const chunkTokens = quote.meteredChunkTokens!;
+          const plasma = settlement.plasmaService();
+          if (!plasma) throw new Error("hypha shim: metered session requires the Plasma service");
+          // Cap the single decode at the budget ceiling so it never generates past what the quote covers.
+          const ceilingTokens = quote.pricePerKiloToken > 0
+            ? Math.max(chunkTokens, Math.floor((quote.maxAmount * 1000) / quote.pricePerKiloToken))
+            : chunkTokens;
+          if (stream && clientOpen) {
+            res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+            res.write(sseChunk(id, alias, created, { role: "assistant" }, null));
+          }
+          let text = "";
+          let produced = 0;
+          let tier = 0; // tier-0 (cumulative chunkTokens) is authorized by the open above
+          let authStopped = false;
+          let stalled = false; // test-only: go silent once after the first advance (abandon watchdog)
+          const grant = sessionGrant; // non-null here; captured so the closure keeps the narrowing
+          // Escalate the authorization ladder so tokens up to index `need` are covered. Returns false
+          // when the next rung would exceed the quoted ceiling or can't be signed (→ stop pulling).
+          const ensureAuthorizedFor = async (need: number): Promise<boolean> => {
+            while (need >= (tier + 1) * chunkTokens) {
+              const nextTier = tier + 1;
+              const cumulativeTokens = (nextTier + 1) * chunkTokens;
+              const cumulativeAmount = plasma.amountForTokens(cumulativeTokens);
+              if (cumulativeAmount > quote.maxAmount) return false;
+              const sig = await settlement.signTier(warm.peerKey, cumulativeAmount);
+              if (!sig.ok) return false;
+              await paymentControl.advanceAuthorization(warm.peerKey, {
+                sessionId: grant.sessionId,
+                consumerWriterKey: warm.consumerWriterKey,
+                consumerPublicKey: grant.consumerPublicKey,
+                providerWriterKey: grant.providerWriterKey,
+                providerPublicKey: warm.peerKey,
+                tierIndex: nextTier,
+                cumulativeTokens,
+                payerAddress,
+                nonce: `${id}:${nextTier}`,
+                paymentPayload: sig.paymentPayload,
+                accepted: sig.accepted,
+              });
+              tier = nextTier;
+              // Test-only: after the first advance, go silent so the provider's idle watchdog
+              // force-settles the authorized cap (proves the abandoned-session backstop).
+              if (testStallMs > 0 && !stalled) {
+                stalled = true;
+                await new Promise((r) => setTimeout(r, testStallMs));
+              }
+            }
+            return true;
+          };
+          const onToken = (tok: unknown): void => {
+            const s = typeof tok === "string" ? tok : String(tok);
+            if (tokenCount === 0) ttft = Date.now() - t0;
+            tokenCount++;
+            produced++;
+            text += s;
+            if (stream && clientOpen) res.write(sseChunk(id, alias, created, { content: s }, null));
+          };
+          const run = completion({ modelId: runModelId, history, stream: true, generationParams: { predict: ceilingTokens } });
+          const restIt = run.tokenStream[Symbol.asyncIterator]();
+          // TTFB guard on the session's very first token (a dead delegated decode self-heals loud).
+          let ttfbTimer: ReturnType<typeof setTimeout> | undefined;
+          const first = await Promise.race([
+            restIt.next(),
+            new Promise<"ttfb-timeout">((resolve) => { ttfbTimer = setTimeout(() => resolve("ttfb-timeout"), HYPHA_TTFB_MS); ttfbTimer.unref?.(); }),
+          ]);
+          clearTimeout(ttfbTimer);
+          if (first === "ttfb-timeout") {
+            void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain */ } })().catch(() => {});
+            void run.final.catch(() => {});
+            throw new Error(`hypha shim: no first token within ${HYPHA_TTFB_MS}ms from metered peer serving "${alias}"`);
+          }
+          for await (const tok of prependToken(first, restIt)) {
+            // `produced` = tokens already consumed = the index of `tok`. Authorize before crossing the cap.
+            if (!(await ensureAuthorizedFor(produced))) { authStopped = true; break; }
+            onToken(tok);
+            if (!clientOpen) break; // client gone — stop paying for more (we'll drain below; wedge rule)
+          }
+          if (authStopped || !clientOpen) {
+            // Stop reading but NEVER abort the provider's decode — drain it in the background.
+            void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain */ } })().catch(() => {});
+          }
+          await run.final.catch(() => undefined);
+          if (clientOpen && stream) {
+            res.write(sseChunk(id, alias, created, {}, "stop"));
+            res.write("data: [DONE]\n\n");
+            res.end();
+          } else if (clientOpen && !stream) {
+            json(res, 200, { id, object: "chat.completion", created, model: alias, choices: [{ index: 0, message: { role: "assistant", content: text }, finish_reason: "stop" }] });
+          }
+          closeAttempted = true;
+          sessionReceipt = await paymentControl.closePaidSession(warm.peerKey, {
+            sessionId: sessionGrant.sessionId,
+            consumerWriterKey: warm.consumerWriterKey,
+            consumerPublicKey: sessionGrant.consumerPublicKey,
+            providerWriterKey: sessionGrant.providerWriterKey,
+            providerPublicKey: warm.peerKey,
+            actualTokens: produced,
+          });
+          if (sessionReceipt.status === "settled" && budgetAuth.ok && budgetAuth.authorization.network === "plasma") {
+            await settlement.finalizeAuthorized(budgetAuth.authorization, sessionReceipt.actualAmount, sessionReceipt.txHash);
+          }
+          audit?.record({
+            event: "completion",
+            modelId: runModelId,
+            ttftMs: ttft,
+            tokens: produced,
+            durationMs: Date.now() - t0,
+            extra: {
+              role: "shim",
+              delegated: true,
+              metered: true,
+              tiers: tier + 1,
+              alias,
+              meshId: warm.meshId,
+              peer: warm.peerKey.slice(0, 16),
+              ...(requestedBudget != null ? { computeBudget: requestedBudget } : {}),
+              sessionId: sessionReceipt.sessionId,
+              sessionStatus: sessionReceipt.status,
+              sessionAmount: sessionReceipt.actualAmount,
+              sessionTxHash: sessionReceipt.txHash,
+            },
+          });
+          recordObservation?.(warm.peerKey, produced > 0, ttft); // delivered tokens → positive signal
+          return;
+        }
       } else {
         budgetAuth = settlement ? await settlement.authorizeBudget(warm.peerKey, requestedBudget) : null;
         if (budgetAuth && !budgetAuth.ok) {
@@ -418,6 +607,7 @@ export function createShim(deps: ShimDeps): http.Server {
         void run.final.catch(() => {}); // abandoned — never let it become an unhandled rejection
         const msg = `hypha shim: no first token within ${HYPHA_TTFB_MS}ms from peer serving "${alias}" (delegated decode dead) — warm entry dropped, re-warming`;
         audit?.record({ event: "note", extra: { role: "shim", phase: "ttfb-timeout", alias, peer: warm.peerKey.slice(0, 16), ttfbMs: HYPHA_TTFB_MS } });
+        recordObservation?.(warm.peerKey, false); // dead delegated decode → negative reputation signal
         if (clientOpen) {
           if (!res.headersSent) json(res, 504, { error: { message: msg, code: "ttfb_timeout" } });
           else {
@@ -565,6 +755,7 @@ export function createShim(deps: ShimDeps): http.Server {
           ...(kvRes ? { kvKey: kvRes.key, kvFresh: kvRes.fresh } : {}),
         },
       });
+      recordObservation?.(warm.peerKey, tokenCount > 0, ttft); // delivered tokens → positive signal
     } catch (err) {
       if (sessionGrant && !closeAttempted) {
         closeAttempted = true;

@@ -1,4 +1,5 @@
-import type { DeviceCapability, SettlementEndpoint } from "@mycelium/shared";
+import type { PaymentPayload, PaymentRequirements } from "@x402/core/types";
+import type { DeviceCapability, DeviceIdentityProof, SettlementEndpoint } from "@mycelium/shared";
 import type {
   PlasmaBudgetAuthorization,
   PlasmaSettlementService,
@@ -70,6 +71,27 @@ export class SettlementManager {
     return { ok: true, authorization: { network: "plasma", authorization: result.authorization } };
   }
 
+  /** Metered: sign a fresh Permit2 witness for an escalated cumulative cap on the provider's Plasma rail. */
+  async signTier(
+    provider: string,
+    cumulativeAmount: number,
+  ): Promise<{ ok: true; payer: string; paymentPayload: PaymentPayload; accepted: PaymentRequirements } | { ok: false; reason: string }> {
+    const remoteRails = this.recipients.get(provider) ?? [];
+    const remotePlasma = remoteRails.find((r) => this.plasma?.accepts(r) && r.x402?.scheme === "upto");
+    if (!this.plasma || !this.plasma.online() || !remotePlasma) return { ok: false, reason: "no Plasma x402 rail for provider" };
+    return this.plasma.signTier(provider, remotePlasma, cumulativeAmount);
+  }
+
+  /** Metered: reserve the session float cap WITHOUT signing a payload (rungs are signed via signTier). */
+  async reserveBudgetOnly(provider: string, requestedBudget?: number): Promise<BudgetAuthorizationResponse> {
+    const remoteRails = this.recipients.get(provider) ?? [];
+    const remotePlasma = remoteRails.find((r) => this.plasma?.accepts(r) && r.x402?.scheme === "upto");
+    if (!this.plasma || !this.plasma.online() || !remotePlasma) return { ok: true, authorization: { network: "none" } };
+    const result = await this.plasma.reserveBudgetOnly(provider, requestedBudget, remotePlasma);
+    if (!result.ok) return result;
+    return { ok: true, authorization: { network: "plasma", authorization: result.authorization } };
+  }
+
   async settleAuthorized(auth: BudgetAuthorization, tokens: number): Promise<RailResult | null> {
     if (auth.network === "none") return null;
     if (auth.network === "plasma" && this.plasma) return this.plasma.capture(auth.authorization, tokens);
@@ -89,6 +111,12 @@ export class SettlementManager {
 
   plasmaService(): PlasmaSettlementService | undefined {
     return this.plasma;
+  }
+
+  /** Phase 4 — sign the wallet↔provider-key binding on the Plasma rail (null if no Plasma rail online). */
+  async signIdentityBinding(providerPublicKey: string): Promise<DeviceIdentityProof | null> {
+    if (!this.plasma || !this.plasma.online()) return null;
+    return this.plasma.signIdentityBinding(providerPublicKey);
   }
 
   async settle(provider: string, tokens: number): Promise<RailResult> {
