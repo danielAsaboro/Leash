@@ -108,7 +108,6 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/research", label: "Research", Icon: ResearchIcon, isActive: (p) => p.startsWith("/research") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
   { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
-  { href: "/settings", label: "Settings", Icon: SettingsIcon, isActive: (p) => p.startsWith("/settings") },
 ];
 
 export function LeashRail() {
@@ -132,8 +131,8 @@ export function LeashRail() {
         })}
       </div>
 
-      <Link href="/mission-control" className="leash-rail-foot kicker" title="Mission Control">
-        MC
+      <Link href="/settings" className="leash-rail-foot" title="Settings" aria-label="Settings">
+        <SettingsIcon />
       </Link>
     </nav>
   );

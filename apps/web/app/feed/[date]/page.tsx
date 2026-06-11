@@ -78,8 +78,8 @@ export default async function EditionPage({
           <p className="kicker mt-3">
             {inProduction.length > 0 ? "Stories are in production — check back shortly." : "Run the newsroom to publish today's edition."}
           </p>
-          <Link href="/mission-control" className="kicker kicker-sage mt-4 inline-block">
-            Open Mission Control →
+          <Link href="/services" className="kicker kicker-sage mt-4 inline-block">
+            Open the newsroom controls →
           </Link>
         </div>
       )}
