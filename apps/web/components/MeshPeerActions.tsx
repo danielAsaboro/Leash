@@ -1,12 +1,14 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { UnplugIcon, RotateCcwIcon, EraserIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { IconButton } from "./IconButton.tsx";
 
 /**
- * Client buttons for mesh membership management in the Hypha card: disconnect one peer, or
- * clear all stale peers. Both POST to /api/leash/hypha/mesh and refresh the page. Errors are
- * shown inline (never silent-caught).
+ * Client icon-buttons (icon + label-on-hover) for mesh membership management in the Devices →
+ * My-meshes peer view: disconnect one peer, restore a tombstoned one, or clear all stale peers.
+ * Each POSTs to /api/leash/hypha/mesh and refreshes. Errors are shown inline (never silent-caught).
  */
 
 async function post(action: string, extra: Record<string, unknown> = {}): Promise<string | null> {
@@ -33,9 +35,9 @@ export function ForgetPeerButton({ deviceKey, name }: { deviceKey: string; name:
   };
   return (
     <>
-      <button type="button" disabled={busy} onClick={() => void run()} className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
-        {busy ? "…" : "Disconnect"}
-      </button>
+      <IconButton title={`Disconnect ${name}`} danger disabled={busy} onClick={() => void run()}>
+        <UnplugIcon size={15} aria-hidden />
+      </IconButton>
       {err && (
         <span className="kicker" style={{ color: "var(--color-brick)", fontFamily: "var(--font-mono)" }} role="alert">
           {err}
@@ -57,9 +59,9 @@ export function RestorePeerButton({ deviceKey }: { deviceKey: string }) {
   };
   return (
     <>
-      <button type="button" disabled={busy} onClick={() => void run()} className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-sage-deep)" }}>
-        {busy ? "…" : "Restore"}
-      </button>
+      <IconButton title="Restore (un-hide on this device)" color="var(--color-sage-deep)" disabled={busy} onClick={() => void run()}>
+        <RotateCcwIcon size={15} aria-hidden />
+      </IconButton>
       {err && (
         <span className="kicker" style={{ color: "var(--color-brick)", fontFamily: "var(--font-mono)" }} role="alert">
           {err}
@@ -81,9 +83,9 @@ export function ClearStaleButton({ count }: { count: number }) {
   };
   return (
     <>
-      <button type="button" disabled={busy} onClick={() => void run()} className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-        {busy ? "clearing…" : `Clear stale (${count})`}
-      </button>
+      <IconButton title={`Clear ${count} stale peer${count === 1 ? "" : "s"}`} disabled={busy} onClick={() => void run()}>
+        <EraserIcon size={15} aria-hidden />
+      </IconButton>
       {err && (
         <span className="kicker" style={{ color: "var(--color-brick)", fontFamily: "var(--font-mono)" }} role="alert">
           {err}

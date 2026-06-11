@@ -1,12 +1,14 @@
 /**
- * `/settings` — device & app settings, tabbed (Storage · Devices · Permissions · About). Mirrors
- * /brain's ?tab= pattern. Storage is two-column (model cache + app data, with multi-delete);
- * Devices hosts connect-by-key (QR + sync key), mesh memberships, and LAN PIN pairing.
+ * `/settings` — device & app settings, tabbed (Storage · Devices · Secrets · Permissions · About).
+ * Mirrors /brain's ?tab= pattern. Storage is two-column (model cache + app data, with multi-delete);
+ * Devices hosts connect-by-key (QR + sync key), mesh memberships + per-mesh peers, and LAN PIN
+ * pairing; Secrets hosts the connector credentials (moved here from Services).
  */
 import { DashShell, DashCard } from "../../components/dash.tsx";
 import { aboutInfo } from "../../lib/leash/about.ts";
 import { storageUsage } from "../../lib/leash/storage.ts";
 import { meshStatus } from "../../lib/leash/hypha.ts";
+import { listSecretStatus } from "../../lib/leash/vault.ts";
 import { TabNav, type TabDef } from "../../components/TabNav.tsx";
 import { ModelCacheCard } from "../../components/ModelCacheCard.tsx";
 import { AppDataCard } from "../../components/AppDataCard.tsx";
@@ -14,11 +16,11 @@ import { PermissionsCard } from "../../components/PermissionsCard.tsx";
 import { DeviceConnectCard } from "../../components/DeviceConnectCard.tsx";
 import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
 import { AddDeviceSection } from "../../components/AddDeviceSection.tsx";
-import { MeshShareCard } from "../../components/MeshShareCard.tsx";
+import { SecretsCard } from "../../components/SecretsCard.tsx";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["storage", "devices", "permissions", "about"] as const;
+const TABS = ["storage", "devices", "secrets", "permissions", "about"] as const;
 type Tab = (typeof TABS)[number];
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -52,12 +54,11 @@ async function DevicesTab() {
         <DeviceConnectCard meshes={mesh.meshes} />
       </DashCard>
       <DashCard title="My meshes">
-        <MeshMembershipsSection meshes={mesh.meshes} />
+        <MeshMembershipsSection meshes={mesh.meshes} forgotten={mesh.forgotten} borrow={mesh.borrow} />
       </DashCard>
       <DashCard title="Pair over LAN">
         <AddDeviceSection meshes={mesh.meshes} />
       </DashCard>
-      <MeshShareCard />
     </div>
   );
 }
@@ -89,6 +90,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
       {tab === "storage" && (await StorageTab())}
       {tab === "devices" && (await DevicesTab())}
+      {tab === "secrets" && (
+        <div className="flex flex-col gap-5">
+          <SecretsCard secrets={listSecretStatus()} />
+        </div>
+      )}
       {tab === "permissions" && (
         <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
           <DashCard title="Permissions">

@@ -98,6 +98,9 @@ interface MeshRecord {
   reach: Reach;
   /** Delegation-ladder rank (spec §6) — primary/home = 0, secondaries increasing. */
   tier: number;
+  /** True only when THIS device founded the mesh via `foundMesh` (the "New mesh" action) — the
+   *  gate for deleting it. Joined/primary/public memberships are not creators (absent = false). */
+  creator?: boolean;
 }
 
 const audit = new AuditLog("hypha", LOG_DIR);
@@ -453,7 +456,7 @@ async function runDaemon(): Promise<void> {
   const foundMesh = async (label: string): Promise<string> => {
     const h = await ensureHost();
     const meshId = randomUUID();
-    const meta: MeshRecord = { meshId, label, visibility: "private", reach: "local", tier: nextTier() };
+    const meta: MeshRecord = { meshId, label, visibility: "private", reach: "local", tier: nextTier(), creator: true };
     const { graph } = await h.openMesh({ meshId });
     await bringMeshOnline(meshId, graph, meta);
     saveMeshRecords();
@@ -469,7 +472,7 @@ async function runDaemon(): Promise<void> {
     const h = await ensureHost();
     const isPrimary = !runtimes.has(PRIMARY_MESH_ID);
     const meshId = isPrimary ? PRIMARY_MESH_ID : randomUUID();
-    const meta: MeshRecord = isPrimary ? { ...primaryRecord(), label } : { meshId, label, visibility: "private", reach: "local", tier: nextTier() };
+    const meta: MeshRecord = isPrimary ? { ...primaryRecord(), label } : { meshId, label, visibility: "private", reach: "local", tier: nextTier(), creator: false };
     try {
       const { graph } = await h.pairMesh({ meshId, invite, timeoutMs: 45_000 });
       await bringMeshOnline(meshId, graph, meta);
@@ -491,9 +494,9 @@ async function runDaemon(): Promise<void> {
   const meshSummaries = (): MeshSummary[] => [
     ...[...runtimes.entries()].map(([meshId, m]) => {
       const meta = meshMeta.get(meshId);
-      return { meshId, label: meta?.label ?? meshId, visibility: meta?.visibility ?? "private", tier: meta?.tier ?? 0, peers: m.pool.peers().length, writable: m.graph.writable };
+      return { meshId, label: meta?.label ?? meshId, visibility: meta?.visibility ?? "private", tier: meta?.tier ?? 0, peers: m.pool.peers().length, writable: m.graph.writable, creator: meta?.creator === true };
     }),
-    ...[...publicMeshes.values()].map((p) => ({ meshId: p.cellId, label: p.label, visibility: "public", tier: 99, peers: Math.max(0, p.mesh.knownFeeds().length - 1), writable: true })),
+    ...[...publicMeshes.values()].map((p) => ({ meshId: p.cellId, label: p.label, visibility: "public", tier: 99, peers: Math.max(0, p.mesh.knownFeeds().length - 1), writable: true, creator: false })),
   ];
 
   /**
@@ -707,6 +710,20 @@ async function runDaemon(): Promise<void> {
         if (!cellId) return { ok: false, error: "cellId required" };
         await joinPublicCell(cellId, label || "Public cell");
         return { ok: true, meshId: cellId };
+      } catch (err) { return { ok: false, error: String(err) }; }
+    },
+    deleteMesh: async (meshId) => {
+      if (meshId === PRIMARY_MESH_ID) return { ok: false, error: "the primary mesh can't be deleted" };
+      const meta = meshMeta.get(meshId);
+      if (!meta) return { ok: false, error: "no such mesh on this device" };
+      if (meta.creator !== true) return { ok: false, error: "only the mesh's creator can delete it" };
+      try {
+        const rt = runtimes.get(meshId);
+        if (rt) { await rt.stop(); runtimes.delete(meshId); }
+        meshMeta.delete(meshId);
+        saveMeshRecords();
+        audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "mesh-deleted" } });
+        return { ok: true };
       } catch (err) { return { ok: false, error: String(err) }; }
     },
     receipts: async () => {

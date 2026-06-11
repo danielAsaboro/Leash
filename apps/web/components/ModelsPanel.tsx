@@ -27,6 +27,7 @@ import type { ModelsInventory, CatalogModel } from "../lib/leash/models.ts";
 import type { FitEstimate } from "../lib/leash/hwfit.ts";
 import { buildModelRows, modelState, type ModelKind, type ModelCategory, type ModelState, type TaggedRow } from "../lib/leash/model-rows.ts";
 import { FilterChipBar, type FilterChip } from "./FilterChipBar.tsx";
+import { IconButton } from "./IconButton.tsx";
 import { CtxSizeControl } from "./CtxSizeControl.tsx";
 import { GpuToggle } from "./GpuToggle.tsx";
 import type { ServeStatus } from "../lib/leash/serve-control.ts";
@@ -131,25 +132,6 @@ function fmtBytes(bytes: number | null): string {
  *  the full name lives in the cell's hover `title`. */
 function middleEllipsis(s: string, head = 16, tail = 9): string {
   return s.length <= head + tail + 1 ? s : `${s.slice(0, head)}…${s.slice(-tail)}`;
-}
-
-/** A borderless ghost icon action button — accessible label + hover tooltip. Sits flush in a
- *  single non-wrapping row in the Actions cell. `color` overrides the default muted/brick tone
- *  (used for the sage Download action). */
-function IconButton({ title, danger, color, disabled, onClick, children }: { title: string; danger?: boolean; color?: string; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      aria-label={title}
-      disabled={disabled}
-      onClick={onClick}
-      className="inline-flex h-6 w-6 items-center justify-center rounded opacity-70 transition-opacity hover:opacity-100 disabled:opacity-25"
-      style={{ color: color ?? (danger ? "var(--color-brick)" : "var(--color-muted)") }}
-    >
-      {children}
-    </button>
-  );
 }
 
 const STATUS_CHIPS: FilterChip[] = [
@@ -378,7 +360,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
             const on = shared && nodeSharing;
             return (
               <IconButton
-                title={nodeSharing ? (shared ? "Shared with mesh peers — click to make private" : "Private — click to share with mesh peers") : "Node sharing is off (Settings → Devices → Mesh model sharing) — turn it on to advertise"}
+                title={nodeSharing ? (shared ? "Shared with mesh peers — click to make private" : "Private — click to share with mesh peers") : "Node sharing is off (Settings → Devices → My meshes) — turn it on to advertise"}
                 color={on ? "var(--color-sage-deep)" : "var(--color-faint)"}
                 onClick={() => void toggleShare(r.alias as string)}
               >

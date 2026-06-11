@@ -15,10 +15,37 @@ const PORT = Number(process.env["HYPHA_PORT"] ?? 11437);
 const BASE = `http://127.0.0.1:${PORT}`;
 
 interface SharePeer {
+  deviceId: string;
   displayName: string;
   live: boolean;
   shareModels: boolean;
   models: string[];
+  warmModels: string[];
+  /** Node classification — surfaced in the per-mesh peer detail (Settings → Devices → My meshes). */
+  computeClass: string;
+  ramMB: number;
+  powerState: string;
+  inflight: number;
+  lastSeen: string;
+  /** Which mesh this peer belongs to — lets the UI group peers under each mesh. */
+  meshId?: string;
+  meshLabel?: string;
+}
+
+interface RawPeer {
+  deviceId?: string;
+  displayName?: string;
+  live?: boolean;
+  shareModels?: boolean;
+  models?: string[];
+  warmModels?: string[];
+  computeClass?: string;
+  ramMB?: number;
+  powerState?: string;
+  inflight?: number;
+  lastSeen?: string;
+  meshId?: string;
+  meshLabel?: string;
 }
 
 export async function GET(): Promise<Response> {
@@ -27,13 +54,22 @@ export async function GET(): Promise<Response> {
       fetch(`${BASE}/peers`, { signal: AbortSignal.timeout(2500), cache: "no-store" }),
       fetch(`${BASE}/models/share`, { signal: AbortSignal.timeout(2500), cache: "no-store" }),
     ]);
-    const peersBody = (await peersRes.json()) as { peers?: Array<{ displayName?: string; live?: boolean; shareModels?: boolean; models?: string[] }> };
+    const peersBody = (await peersRes.json()) as { peers?: RawPeer[] };
     const shareBody = (await shareRes.json()) as { shareModels?: boolean; unshared?: string[] };
     const peers: SharePeer[] = (peersBody.peers ?? []).map((p) => ({
+      deviceId: p.deviceId ?? "",
       displayName: p.displayName ?? "peer",
       live: Boolean(p.live),
       shareModels: p.shareModels !== false,
       models: p.models ?? [],
+      warmModels: p.warmModels ?? [],
+      computeClass: p.computeClass ?? "—",
+      ramMB: p.ramMB ?? 0,
+      powerState: p.powerState ?? "—",
+      inflight: p.inflight ?? 0,
+      lastSeen: p.lastSeen ?? "",
+      meshId: p.meshId,
+      meshLabel: p.meshLabel,
     }));
     // alias → SDK registry name, from this node's (mesh-synced) config inventory, for the Pull action.
     let aliasToName: Record<string, string> = {};

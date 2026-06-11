@@ -8,19 +8,15 @@
 import Link from "next/link";
 import { servicesStatus } from "../../lib/leash/services.ts";
 import { listSchedules, cronState, cronRuns } from "../../lib/leash/schedules-store.ts";
-import { listSecretStatus } from "../../lib/leash/vault.ts";
-import { meshStatus } from "../../lib/leash/hypha.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { ServiceCard } from "../../components/ServiceCard.tsx";
 import { SchedulesSection } from "../../components/SchedulesSection.tsx";
-import { SecretsCard } from "../../components/SecretsCard.tsx";
-import { HyphaPeersSection } from "../../components/HyphaPeersSection.tsx";
 import { LiveRefresh } from "../../components/LiveRefresh.tsx";
 
 export const dynamic = "force-dynamic";
 
 export default async function ServicesPage() {
-  const [services, schedules, state, runs, mesh] = await Promise.all([servicesStatus(), listSchedules(), cronState(), cronRuns(), meshStatus()]);
+  const [services, schedules, state, runs] = await Promise.all([servicesStatus(), listSchedules(), cronState(), cronRuns()]);
 
   return (
     <DashShell kicker="Leash · Ops" title="Services" lede="The daemons that run your exocortex — supervised, scheduled, honest about their state.">
@@ -29,7 +25,15 @@ export default async function ServicesPage() {
         {services.map((s) => (
           <ServiceCard key={s.name} service={s}>
             {s.name === "leash-cron" && <SchedulesSection schedules={schedules} state={state} runs={runs} />}
-            {s.name === "hypha" && <HyphaPeersSection status={mesh} />}
+            {s.name === "hypha" && (
+              <p className="kicker mt-3" style={{ color: "var(--color-faint)" }}>
+                Mesh peers, model sharing & device pairing live in{" "}
+                <Link href="/settings?tab=devices" className="underline transition-opacity hover:opacity-70" style={{ color: "var(--color-sage-deep)" }}>
+                  Settings → Devices
+                </Link>
+                .
+              </p>
+            )}
           </ServiceCard>
         ))}
 
@@ -46,8 +50,6 @@ export default async function ServicesPage() {
             Deep research runs — detached background jobs that gather, read, and synthesize live web sources into cited reports.
           </p>
         </section>
-
-        <SecretsCard secrets={listSecretStatus()} />
       </div>
     </DashShell>
   );

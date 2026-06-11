@@ -35,6 +35,8 @@ export interface MeshMembership {
   tier: number;
   peers: number;
   writable: boolean;
+  /** True only on meshes THIS device founded — gates the Delete-mesh action. */
+  creator: boolean;
 }
 
 export interface BorrowCounters {

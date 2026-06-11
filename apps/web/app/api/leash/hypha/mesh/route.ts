@@ -19,6 +19,7 @@ export async function POST(req: Request): Promise<Response> {
     invite: { path: "/mesh/invite", payload: { meshId: body.meshId } },
     join: { path: "/mesh/join", payload: { invite: body.invite, label: body.label } },
     "public-join": { path: "/mesh/public/join", payload: { cellId: body.cellId, label: body.label } },
+    delete: { path: "/mesh/delete", payload: { meshId: body.meshId } },
   };
   const route = map[body.action ?? ""];
   if (!route) return Response.json({ error: "unknown action" }, { status: 400 });

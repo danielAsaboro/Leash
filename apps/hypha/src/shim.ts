@@ -83,6 +83,8 @@ export interface MeshControl {
   joinMesh(invite: string, label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
   /** Join a public, discoverable cell (no pairing) by its id — broadcast-only gossip (spec §9). */
   joinPublicCell(cellId: string, label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
+  /** Delete a mesh THIS device founded (creator-gated; the primary mesh is never deletable). */
+  deleteMesh(meshId: string): Promise<{ ok: boolean; error?: string }>;
   /** Replicated paid-session settlement receipts visible across this device's meshes. */
   receipts(): Promise<SessionSettlementReceipt[]>;
 }
@@ -95,6 +97,8 @@ export interface MeshSummary {
   tier: number;
   peers: number;
   writable: boolean;
+  /** True only on meshes THIS device founded — gates the Delete-mesh action in the UI. */
+  creator: boolean;
 }
 
 interface ChatMessage {
@@ -275,6 +279,10 @@ export function createShim(deps: ShimDeps): http.Server {
       if (method === "POST" && url === "/mesh/public/join") {
         const b = await readJsonBody(req);
         const r = await mesh.joinPublicCell(String(b["cellId"] ?? ""), String(b["label"] ?? "Public cell"));
+        return json(res, r.ok ? 200 : 400, r);
+      }
+      if (method === "POST" && url === "/mesh/delete") {
+        const r = await mesh.deleteMesh(String((await readJsonBody(req))["meshId"] ?? ""));
         return json(res, r.ok ? 200 : 400, r);
       }
       return json(res, 404, { error: `hypha: no mesh route ${method} ${url}` });
