@@ -27,6 +27,8 @@ export interface RouterMesh {
   tier: number;
   visibility: Visibility;
   selfWriterKey: string;
+  /** The mesh's shared Autobase key — identical on every member (unlike `meshId`, a per-device label). */
+  autobaseKey: string;
   pool: WarmPool;
 }
 
@@ -121,7 +123,10 @@ export class MeshRouter {
       if (!cap) continue;
       const modelSrc = cap.models?.find((x) => x.alias === alias)?.modelSrc;
       return {
-        meshId: m.meshId,
+        // Send the SHARED autobase key, not the local meshId label — a secondary mesh has a different
+        // meshId on each device, so a label would fail the provider's membership check. The provider
+        // resolves this key to its own runtime (resolveMeshParticipant falls back to autobaseKey match).
+        meshId: m.autobaseKey,
         consumerWriterKey: m.selfWriterKey,
         ...(modelSrc ? { modelSrc } : {}),
         requiresSession: isPaidSessionPeer(cap),

@@ -228,15 +228,17 @@ async function runDaemon(): Promise<void> {
       plasma: plasmaSettlement,
       providerPublicKey: () => provider.selfKey,
       resolveMeshParticipant: async (meshId, consumerWriterKey) => {
-        const runtime = runtimes.get(meshId);
-        const meta = meshMeta.get(meshId);
+        // `meshId` is a local label (delegated path) OR the shared autobase key (forward path, where a
+        // secondary mesh's local label differs per device) — resolve either to this device's runtime.
+        const runtime = runtimes.get(meshId) ?? [...runtimes.values()].find((r) => r.graph.autobaseKey === meshId);
+        const meta = runtime ? meshMeta.get(runtime.meshId) : undefined;
         if (!runtime || !meta) return null;
         const caps = await runtime.graph.capabilities().catch(() => []);
         const cap = caps.find((entry) => entry.deviceId === consumerWriterKey);
         return { visibility: meta.visibility, providerWriterKey: runtime.graph.localWriterKey, consumerPublicKey: cap?.consumerPublicKey };
       },
       publishReceipt: async (meshId, receipt) => {
-        const runtime = runtimes.get(meshId);
+        const runtime = runtimes.get(meshId) ?? [...runtimes.values()].find((r) => r.graph.autobaseKey === meshId);
         if (!runtime) return;
         await runtime.graph.publishReceipt(receipt).catch(() => undefined);
       },
@@ -824,7 +826,7 @@ async function runDaemon(): Promise<void> {
   const router = new MeshRouter(() =>
     [...runtimes.entries()].map(([meshId, m]) => {
       const meta = meshMeta.get(meshId);
-      return { meshId, label: meta?.label ?? meshId, tier: meta?.tier ?? 0, visibility: meta?.visibility ?? "private", selfWriterKey: m.graph.localWriterKey, pool: m.pool };
+      return { meshId, label: meta?.label ?? meshId, tier: meta?.tier ?? 0, visibility: meta?.visibility ?? "private", selfWriterKey: m.graph.localWriterKey, autobaseKey: m.graph.autobaseKey, pool: m.pool };
     }),
   );
   const server = createShim({

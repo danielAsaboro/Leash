@@ -361,7 +361,8 @@ async function forwardWithOptionalSettlement(
     await closeForwardSession(settleDeps, opened.session, usage ? forwardBillingTokens(usage) : 0);
   } catch (err) {
     if (!closeAttempted) { closeAttempted = true; await closeForwardSession(settleDeps, opened.session, 0).catch(() => undefined); }
-    throw err;
+    // run() writes its own error response; never re-throw out of a request handler (it would crash the daemon).
+    settleDeps.audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-session-error", peer: peers[0]!.slice(0, 16), error: err instanceof Error ? err.message : String(err) } });
   }
 }
 

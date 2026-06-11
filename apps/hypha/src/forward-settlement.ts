@@ -44,24 +44,27 @@ export async function openForwardSession(deps: ForwardSettlementDeps, meta: Forw
   const plasma = settlement.plasmaService();
   if (!plasma) return { ok: false, status: 402, error: "peer requires a paid session but local x402 is unavailable" };
 
-  const quote = await paymentControl.quoteBudget(peerKey, {
-    meshId: meta.meshId,
-    alias,
-    ...(meta.modelSrc ? { modelSrc: meta.modelSrc } : {}),
-    requestedBudget: plasma.amountForTokens(Math.max(1, Math.ceil(ceilingTokens))),
-    consumerWriterKey: meta.consumerWriterKey,
-    consumerPublicKey: deps.selfConsumerKey,
-    providerPublicKey: peerKey,
-  });
-
-  // Atomic forward path: always the NON-metered open (sign the full maxAmount now; settle actual at close).
-  const budgetAuth = await settlement.authorizeBudget(peerKey, quote.maxAmount);
-  if (!budgetAuth.ok || budgetAuth.authorization.network !== "plasma") {
-    return { ok: false, status: 402, error: budgetAuth.ok ? "no Plasma x402 authorization path is available" : budgetAuth.reason };
-  }
-  const auth = budgetAuth.authorization;
-  const nonce = `fwd-${randomUUID()}`;
+  // EVERYTHING is wrapped: a provider-side rejection (e.g. "consumer is not a member of the requested
+  // mesh") rejects the paymentControl RPC promise — if that escaped it would be an unhandled error and
+  // crash the daemon. Any failure → a clean 402; release the float if we authorized before failing.
+  let auth: BudgetAuthorization | undefined;
   try {
+    const quote = await paymentControl.quoteBudget(peerKey, {
+      meshId: meta.meshId,
+      alias,
+      ...(meta.modelSrc ? { modelSrc: meta.modelSrc } : {}),
+      requestedBudget: plasma.amountForTokens(Math.max(1, Math.ceil(ceilingTokens))),
+      consumerWriterKey: meta.consumerWriterKey,
+      consumerPublicKey: deps.selfConsumerKey,
+      providerPublicKey: peerKey,
+    });
+    // Atomic forward path: the NON-metered open (sign the full maxAmount now; settle actual at close).
+    const budgetAuth = await settlement.authorizeBudget(peerKey, quote.maxAmount);
+    if (!budgetAuth.ok || budgetAuth.authorization.network !== "plasma") {
+      return { ok: false, status: 402, error: budgetAuth.ok ? "no Plasma x402 authorization path is available" : budgetAuth.reason };
+    }
+    auth = budgetAuth.authorization;
+    const nonce = `fwd-${randomUUID()}`;
     const verify = await paymentControl.verifyBudget(peerKey, {
       quote,
       consumerWriterKey: meta.consumerWriterKey,
@@ -86,8 +89,7 @@ export async function openForwardSession(deps: ForwardSettlementDeps, meta: Forw
     deps.audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-session-open", peer: peerKey.slice(0, 16), alias, sessionId: grant.sessionId, maxAmount: quote.maxAmount } });
     return { ok: true, session: { peerKey, grant, budgetAuth: auth } };
   } catch (err) {
-    // Verified/opened never happened (or failed) → return the reserved float, no close to send.
-    settlement.releaseAuthorized(auth);
+    if (auth) settlement.releaseAuthorized(auth); // authorized but verify/open failed → return the float
     return { ok: false, status: 402, error: `paid session open failed: ${err instanceof Error ? err.message : String(err)}` };
   }
 }
