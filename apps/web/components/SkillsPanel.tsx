@@ -1,7 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlusIcon, UploadIcon, PencilIcon, Trash2Icon, RotateCcwIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { Switch } from "./Switch.tsx";
+import { IconButton } from "./IconButton.tsx";
 import type { Skill } from "../lib/leash/skills-store.ts";
 
 /**
@@ -87,13 +90,13 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
       {files.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-2">
           {files.map((f) => (
-            <li key={f} className="flex items-center gap-1 border px-2 py-1" style={{ borderColor: "var(--color-rule-strong)" }}>
+            <li key={f} className="flex items-center gap-1 border py-0.5 pl-2 pr-0.5" style={{ borderColor: "var(--color-rule-strong)" }}>
               <button type="button" onClick={() => void load(f)} className="kicker transition-opacity hover:opacity-60" style={{ color: "var(--color-ink-soft)" }}>
                 {f}
               </button>
-              <button type="button" onClick={() => void del(f)} disabled={busy || saving} aria-label={`Delete ${f}`} className="px-1 transition-opacity hover:opacity-60" style={{ color: "var(--color-brick)" }}>
-                ×
-              </button>
+              <IconButton title={`Delete ${f}`} danger disabled={busy || saving} onClick={() => void del(f)}>
+                <Trash2Icon size={13} />
+              </IconButton>
             </li>
           ))}
         </ul>
@@ -296,29 +299,20 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
       ) : (
         <div className="flex flex-col gap-2">
           {/* Primary action row */}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              onClick={() => { setEditing("new"); setDraft(EMPTY); setImportMode(null); }}
-              className="kicker px-3 py-2 transition-opacity hover:opacity-80"
-              style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
-            >
-              ＋ New skill
-            </button>
-            <button
-              type="button"
-              onClick={() => setImportMode((m) => m === null ? "zip" : null)}
-              disabled={busy}
-              className="kicker border px-3 py-2 transition-opacity hover:opacity-70 disabled:opacity-40"
-              style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
-            >
-              Import ▾
-            </button>
+          <div className="flex items-center gap-3">
+            <span className="kicker kicker-sage">Skills</span>
+            <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
             {importMode === null && (
               <span className="kicker" style={{ color: "var(--color-faint)" }}>
-                imports land disabled — review, then enable
+                imports land disabled
               </span>
             )}
+            <IconButton title="Import skill (.zip / GitHub / folder)" disabled={busy} onClick={() => setImportMode((m) => (m === null ? "zip" : null))}>
+              <UploadIcon size={16} />
+            </IconButton>
+            <IconButton title="New skill" color="var(--color-sage-deep)" onClick={() => { setEditing("new"); setDraft(EMPTY); setImportMode(null); }}>
+              <PlusIcon size={16} />
+            </IconButton>
           </div>
 
           {/* Expanded import row */}
@@ -395,10 +389,8 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
       ) : (
         <ul>
           {skills.map((s) => (
-            <li key={s.slug} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: s.enabled ? 1 : 0.55 }}>
-              <label className="flex cursor-pointer items-center gap-2">
-                <input type="checkbox" checked={s.enabled} onChange={() => toggle(s)} disabled={busy} aria-label={`Enable ${s.name}`} />
-              </label>
+            <li key={s.slug} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: s.enabled ? 1 : 0.6 }}>
+              <Switch on={s.enabled} disabled={busy} onChange={() => toggle(s)} label={`${s.enabled ? "Disable" : "Enable"} ${s.name}`} />
               <div className="min-w-0 flex-1">
                 <p style={{ fontFamily: "var(--font-body)", fontSize: "1rem" }}>
                   {s.name} <span className="kicker ml-1" style={{ color: "var(--color-faint)" }}>{s.slug}</span>
@@ -411,25 +403,20 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
                 <p style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>{s.description || "(no description — the assistant won't know when to use it)"}</p>
               </div>
               {vsCodeNotice?.slug === s.slug ? (
-                <span className="kicker flex items-center gap-2">
+                <span className="kicker flex items-center gap-1">
                   <span style={{ color: "var(--color-sage-deep)" }}>Opened in VS Code</span>
-                  <button
-                    type="button"
-                    onClick={() => { setVsCodeNotice(null); router.refresh(); }}
-                    className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70"
-                    style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
-                  >
-                    ↺ reload
-                  </button>
+                  <IconButton title="Reload after editing" onClick={() => { setVsCodeNotice(null); router.refresh(); }}>
+                    <RotateCcwIcon size={14} />
+                  </IconButton>
                 </span>
               ) : (
                 <>
-                  <button type="button" onClick={() => void openEditor(s)} disabled={busy} className="kicker border px-2.5 py-1 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-                    Edit
-                  </button>
-                  <button type="button" onClick={() => del(s)} disabled={busy} title="Delete skill" aria-label={`Delete ${s.name}`} className="px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
-                    ×
-                  </button>
+                  <IconButton title={`Edit ${s.name}`} disabled={busy} onClick={() => void openEditor(s)}>
+                    <PencilIcon size={15} />
+                  </IconButton>
+                  <IconButton title={`Delete ${s.name}`} danger disabled={busy} onClick={() => del(s)}>
+                    <Trash2Icon size={15} />
+                  </IconButton>
                 </>
               )}
             </li>

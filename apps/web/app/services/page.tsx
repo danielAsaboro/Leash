@@ -6,6 +6,7 @@
  * on /tasks; this page is about the daemons.
  */
 import Link from "next/link";
+import { TelescopeIcon } from "lucide-react";
 import { servicesStatus } from "../../lib/leash/services.ts";
 import { listSchedules, cronState, cronRuns } from "../../lib/leash/schedules-store.ts";
 import { DashShell } from "../../components/dash.tsx";
@@ -42,8 +43,8 @@ export default async function ServicesPage() {
           <div className="flex flex-wrap items-center gap-3">
             <span className="kicker kicker-sage">Research</span>
             <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
-            <Link href="/services/research" className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-              Open research →
+            <Link href="/services/research" title="Open research" aria-label="Open research" className="inline-flex h-6 w-6 items-center justify-center rounded opacity-70 transition-opacity hover:opacity-100" style={{ color: "var(--color-sage-deep)" }}>
+              <TelescopeIcon size={16} />
             </Link>
           </div>
           <p className="kicker mt-2" style={{ color: "var(--color-faint)" }}>

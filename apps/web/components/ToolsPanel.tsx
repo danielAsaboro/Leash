@@ -1,7 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { ShieldAlertIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { Switch } from "./Switch.tsx";
+import { IconButton } from "./IconButton.tsx";
 
 /**
  * Tool toggles (client) — flip individual assistant tools on/off, and mark tools
@@ -53,8 +56,10 @@ export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
       )}
       <ul>
         {tools.map((t) => (
-          <li key={t.name} className="flex items-start gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: t.enabled ? 1 : 0.55 }}>
-            <input type="checkbox" className="mt-1" checked={t.enabled} onChange={() => void toggle(t.name)} disabled={busy} aria-label={`Enable ${t.name}`} />
+          <li key={t.name} className="flex items-start gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: t.enabled ? 1 : 0.6 }}>
+            <div className="mt-0.5">
+              <Switch on={t.enabled} disabled={busy} onChange={() => void toggle(t.name)} label={`${t.enabled ? "Disable" : "Enable"} ${t.name}`} />
+            </div>
             <div className="min-w-0 flex-1">
               <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>{t.name}</p>
               <p style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>{t.description}</p>
@@ -64,12 +69,16 @@ export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
                 </p>
               )}
             </div>
-            <label className="flex shrink-0 cursor-pointer items-center gap-1.5 pt-0.5" title={t.askFirstDefault ? "Ask first by default for this tool" : undefined}>
-              <input type="checkbox" checked={t.askFirst} onChange={() => void toggleAsk(t)} disabled={busy || !t.enabled} aria-label={`Ask first before running ${t.name}`} />
-              <span className="kicker" style={{ color: t.askFirst ? "var(--color-ink-soft)" : "var(--color-faint)" }}>
-                Ask first
-              </span>
-            </label>
+            <div className="pt-0.5">
+              <IconButton
+                title={t.askFirst ? "Ask first: on — this tool's calls pause for approval" : t.askFirstDefault ? "Ask first: off (on by default for this tool)" : "Ask first: off"}
+                color={t.askFirst ? "var(--color-sage-deep)" : "var(--color-faint)"}
+                disabled={busy || !t.enabled}
+                onClick={() => void toggleAsk(t)}
+              >
+                <ShieldAlertIcon size={15} />
+              </IconButton>
+            </div>
           </li>
         ))}
       </ul>

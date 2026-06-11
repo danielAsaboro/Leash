@@ -1,8 +1,9 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PlayIcon, SquareIcon, RotateCcwIcon, RefreshCwIcon, OctagonXIcon, EraserIcon, BoxesIcon, Loader2Icon, ScrollTextIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { IconButton } from "./IconButton.tsx";
 import type { ServiceStatus } from "../lib/leash/services.ts";
 
 /**
@@ -61,8 +62,8 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
     }
   };
 
-  /** Button label that switches to a working indicator while its action is in flight. */
-  const lbl = (action: string, idle: string): string => (pending === action ? "working…" : idle);
+  /** The action's icon, swapped for a spinner while that action is in flight. */
+  const glyph = (action: string, Icon: typeof PlayIcon) => (pending === action ? <Loader2Icon size={15} className="animate-spin" /> : <Icon size={15} />);
 
   const running = service.state === "running" || service.state === "ready" || service.state === "starting" || service.state === "unhealthy";
 
@@ -77,23 +78,23 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
         </span>
         <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
         {service.name === "qvac-serve" && (
-          <Link href="/brain?tab=models" className="kicker transition-opacity hover:opacity-60" style={{ color: "var(--color-sage-deep)" }}>
-            Models →
-          </Link>
+          <IconButton title="Manage models" color="var(--color-sage-deep)" onClick={() => router.push("/brain?tab=models")}>
+            <BoxesIcon size={16} />
+          </IconButton>
         )}
         {!running && service.state !== "external" && (
-          <button type="button" disabled={busy} onClick={() => void act("start")} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-50" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-            {lbl("start", "Start")}
-          </button>
+          <IconButton title={`Start ${service.label}`} color="var(--color-sage-deep)" disabled={busy} onClick={() => void act("start")}>
+            {glyph("start", PlayIcon)}
+          </IconButton>
         )}
         {(running || service.state === "external") && service.stoppable && (
           <>
-            <button type="button" disabled={busy} onClick={() => void act("restart")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-              {lbl("restart", "Restart")}
-            </button>
-            <button type="button" disabled={busy} onClick={() => void act("stop")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
-              {lbl("stop", "Stop")}
-            </button>
+            <IconButton title={`Restart ${service.label}`} disabled={busy} onClick={() => void act("restart")}>
+              {glyph("restart", RotateCcwIcon)}
+            </IconButton>
+            <IconButton title={`Stop ${service.label}`} danger disabled={busy} onClick={() => void act("stop")}>
+              {glyph("stop", SquareIcon)}
+            </IconButton>
           </>
         )}
         {service.state === "external" && !service.stoppable && (
@@ -103,18 +104,18 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
         )}
         {service.forceStoppable && (
           <>
-            <button type="button" disabled={busy} title="Kills every copy (even ones started in a terminal) and starts a fresh one" onClick={() => void act("force-restart")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-              {lbl("force-restart", "Force restart")}
-            </button>
-            <button type="button" disabled={busy} title="Kills every copy of this service" onClick={() => void act("force-stop")} className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-50" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
-              {lbl("force-stop", "Force stop")}
-            </button>
+            <IconButton title="Force restart — kills every copy (even ones started in a terminal) and starts a fresh one" disabled={busy} onClick={() => void act("force-restart")}>
+              {glyph("force-restart", RefreshCwIcon)}
+            </IconButton>
+            <IconButton title="Force stop — kills every copy of this service" danger disabled={busy} onClick={() => void act("force-stop")}>
+              {glyph("force-stop", OctagonXIcon)}
+            </IconButton>
           </>
         )}
         {service.resettable && (
-          <button type="button" disabled={busy} title="Force-stops, wipes this device's mesh identity + pairings, and starts fresh" onClick={() => void act("reset")} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-50" style={{ background: "var(--color-brick)", color: "var(--color-cream)" }}>
-            {lbl("reset", "Reset mesh")}
-          </button>
+          <IconButton title="Reset mesh — force-stop, wipe this device's mesh identity + pairings, restart fresh" danger disabled={busy} onClick={() => void act("reset")}>
+            {glyph("reset", EraserIcon)}
+          </IconButton>
         )}
       </div>
       <p className="mt-1.5" style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>
@@ -128,8 +129,8 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
 
       {service.logTail.length > 0 && (
         <div className="mt-3">
-          <button type="button" onClick={() => setShowLog((v) => !v)} className="kicker transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
-            {showLog ? "▾ Hide log" : "▸ Show log"} ({service.logTail.length} lines)
+          <button type="button" onClick={() => setShowLog((v) => !v)} className="kicker inline-flex items-center gap-1 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }} title={showLog ? "Hide log" : "Show log"}>
+            <ScrollTextIcon size={13} /> {showLog ? "hide" : "log"} ({service.logTail.length})
           </button>
           {showLog && (
             <pre className="mt-2 overflow-x-auto border p-3" style={{ borderColor: "var(--color-rule)", background: "var(--color-cream)", fontFamily: "var(--font-mono)", fontSize: "0.68rem", lineHeight: 1.5 }}>
