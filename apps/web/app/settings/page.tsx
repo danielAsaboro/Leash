@@ -14,6 +14,7 @@ import { PermissionsCard } from "../../components/PermissionsCard.tsx";
 import { DeviceConnectCard } from "../../components/DeviceConnectCard.tsx";
 import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
 import { AddDeviceSection } from "../../components/AddDeviceSection.tsx";
+import { MeshShareCard } from "../../components/MeshShareCard.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +57,7 @@ async function DevicesTab() {
       <DashCard title="Pair over LAN">
         <AddDeviceSection meshes={mesh.meshes} />
       </DashCard>
+      <MeshShareCard />
     </div>
   );
 }

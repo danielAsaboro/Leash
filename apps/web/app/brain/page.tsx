@@ -30,7 +30,6 @@ import { PromptsPanel } from "../../components/PromptsPanel.tsx";
 import { MemoryPanel } from "../../components/MemoryPanel.tsx";
 import { MemoriesSection } from "../../components/MemoriesSection.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
-import { MeshShareCard } from "../../components/MeshShareCard.tsx";
 import { ForagePanel } from "../../components/ForagePanel.tsx";
 import { McpPanel } from "../../components/McpPanel.tsx";
 
@@ -91,12 +90,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       {tab === "tools" && <ToolsPanel tools={await toolRows()} />}
       {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
-      {tab === "models" && (
-        <div className="flex flex-col gap-5">
-          <MeshShareCard />
-          <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />
-        </div>
-      )}
+      {tab === "models" && <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />}
       {tab === "growth" && (() => {
         const series = buildSeries();
         const { latest, axisDeltas } = series;
