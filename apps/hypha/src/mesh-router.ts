@@ -9,7 +9,16 @@
  */
 import { routeDelegation, type MeshCandidate } from "@mycelium/mesh";
 import type { Sensitivity, SettlementEndpoint, Visibility } from "@mycelium/shared";
-import type { WarmPool, PeerView } from "./warm-pool.ts";
+import { isPaidSessionPeer, type WarmPool, type PeerView } from "./warm-pool.ts";
+
+/** The per-peer settlement context a metered forward request needs (B4): which mesh to settle through,
+ *  this device's writer key in it, the peer's modelSrc, and whether the peer advertises a paid rail. */
+export interface ForwardSettlementMeta {
+  meshId: string;
+  consumerWriterKey: string;
+  modelSrc?: string;
+  requiresSession: boolean;
+}
 
 /** One live mesh the router can delegate into: its tier/visibility metadata + its warm pool. */
 export interface RouterMesh {
@@ -99,6 +108,26 @@ export class MeshRouter {
       }
     }
     return out;
+  }
+
+  /**
+   * Settlement context for a forward peer chosen by {@link forwardTargetsForAlias} (B4 metering). Finds
+   * the lowest-tier mesh whose pool holds this peer's capability and returns the meshId + this device's
+   * writer key in it + the peer's modelSrc + whether it advertises a paid rail. null if the peer is gone.
+   */
+  forwardSettlementMeta(alias: string, peerKey: string): ForwardSettlementMeta | null {
+    for (const m of [...this.meshes()].sort((a, b) => a.tier - b.tier)) {
+      const cap = m.pool.capabilityForProviderKey(peerKey);
+      if (!cap) continue;
+      const modelSrc = cap.models?.find((x) => x.alias === alias)?.modelSrc;
+      return {
+        meshId: m.meshId,
+        consumerWriterKey: m.selfWriterKey,
+        ...(modelSrc ? { modelSrc } : {}),
+        requiresSession: isPaidSessionPeer(cap),
+      };
+    }
+    return null;
   }
 
   /** Drop a dead warm entry (TTFB timeout) across every mesh holding it. */

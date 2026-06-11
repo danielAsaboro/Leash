@@ -30,9 +30,11 @@ import type { PaidSessionGrant } from "./economy-types.ts";
 import type { PaymentControlClient } from "./payment-control.ts";
 import type { ForwardControlClient } from "./forward-control.ts";
 import { parseMultipart, boundaryOf } from "./multipart-parse.ts";
+import { forwardBillingTokens, forwardCeilingTokens, type ForwardUsage } from "./forward-metering.ts";
+import { openForwardSession, closeForwardSession, type ForwardSettlementDeps } from "./forward-settlement.ts";
 import { descriptorFor } from "./catalog.ts";
 import { flattenContent, parseDataUrlImage, type ContentPart } from "./chat-attachments.ts";
-import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS } from "./config.ts";
+import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS, HYPHA_FORWARD_METERED } from "./config.ts";
 
 export interface Inflight {
   inc(): void;
@@ -188,7 +190,7 @@ async function streamForwardChat(
   args: { id: string; alias: string; created: number; stream: boolean; body: unknown },
   inflight: Inflight,
   audit?: AuditLog,
-): Promise<void> {
+): Promise<ForwardUsage | undefined> {
   inflight.inc();
   let clientOpen = true;
   res.on("close", () => { clientOpen = false; });
@@ -206,16 +208,19 @@ async function streamForwardChat(
       let full = "";
       try {
         const gen = forward.forward(peerKey, { id: args.id, endpoint: "/v1/chat/completions", body: args.body });
-        for (let next = await gen.next(); next.done !== true; next = await gen.next()) {
+        let next = await gen.next();
+        while (next.done !== true) {
           tokens++;
           full += next.value;
           if (args.stream) {
             if (!committed && clientOpen) writeHead();
             if (clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: next.value }, null));
           }
+          next = await gen.next();
         }
+        const usage = (next.value as { usage?: ForwardUsage } | undefined)?.usage;
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-done", peer: peerKey.slice(0, 16), alias: args.alias, tokens, ms: Date.now() - t0 } });
-        if (!clientOpen) return;
+        if (!clientOpen) return usage;
         if (args.stream) {
           if (!committed) writeHead();
           res.write(sseChunk(args.id, args.alias, args.created, {}, "stop"));
@@ -226,7 +231,7 @@ async function streamForwardChat(
           res.writeHead(200, { "content-type": "application/json" });
           res.end(JSON.stringify({ id: args.id, object: "chat.completion", created: args.created, model: args.alias, choices: [{ index: 0, message: { role: "assistant", content: full }, finish_reason: "stop" }] }));
         }
-        return;
+        return usage;
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), alias: args.alias, committed, error: lastErr.message } });
@@ -255,19 +260,22 @@ async function forwardJsonResponse(
   body: unknown,
   inflight: Inflight,
   audit?: AuditLog,
-): Promise<void> {
+): Promise<ForwardUsage | undefined> {
   inflight.inc();
   let lastErr: Error | null = null;
   try {
     for (const peerKey of peers) {
       const t0 = Date.now();
       try {
+        const gen = forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body });
         let out = "";
-        for await (const chunk of forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body })) out += chunk;
+        let next = await gen.next();
+        while (next.done !== true) { out += next.value; next = await gen.next(); }
+        const usage = (next.value as { usage?: ForwardUsage } | undefined)?.usage;
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-json-done", peer: peerKey.slice(0, 16), endpoint, ms: Date.now() - t0 } });
         res.writeHead(200, { "content-type": "application/json" });
         res.end(out);
-        return;
+        return usage;
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message } });
@@ -291,7 +299,7 @@ async function forwardBinaryResponse(
   contentType: string,
   inflight: Inflight,
   audit?: AuditLog,
-): Promise<void> {
+): Promise<ForwardUsage | undefined> {
   inflight.inc();
   let lastErr: Error | null = null;
   try {
@@ -302,7 +310,7 @@ async function forwardBinaryResponse(
         const parts: Buffer[] = [];
         let next = await gen.next();
         while (next.done !== true) { parts.push(Buffer.from(next.value, "base64")); next = await gen.next(); }
-        const stats = next.value as { contentType?: string } | undefined;
+        const stats = next.value as { contentType?: string; usage?: ForwardUsage } | undefined;
         const audio = Buffer.concat(parts);
         // Use the serve's ACTUAL content-type (stamped in the provider's done frame), falling back to the
         // request-format guess — supertonic returns WAV regardless of `response_format`.
@@ -310,7 +318,7 @@ async function forwardBinaryResponse(
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-binary-done", peer: peerKey.slice(0, 16), endpoint, bytes: audio.length, contentType: ct, ms: Date.now() - t0 } });
         res.writeHead(200, { "content-type": ct });
         res.end(audio);
-        return;
+        return stats?.usage;
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message } });
@@ -320,6 +328,40 @@ async function forwardBinaryResponse(
     try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
   } finally {
     inflight.dec();
+  }
+}
+
+/**
+ * Run a forward modality, metering it when B4 is on and the chosen peer charges. `settleDeps` is null
+ * (flag off / no local x402) → FREE path: run the helper across ALL peers (failover). Otherwise, if the
+ * top peer advertises a paid rail → PAID path: open an x402 session, forward to that ONE peer only (no
+ * failover under a session), and close with the actual billing-tokens. closeAttempted guards the close.
+ */
+async function forwardWithOptionalSettlement(
+  res: http.ServerResponse,
+  settleDeps: ForwardSettlementDeps | null,
+  router: MeshRouter,
+  alias: string,
+  endpoint: string,
+  ceilingBody: Record<string, unknown>,
+  peers: string[],
+  run: (peers: string[]) => Promise<ForwardUsage | undefined>,
+): Promise<void> {
+  const meta = settleDeps ? router.forwardSettlementMeta(alias, peers[0]!) : null;
+  if (!settleDeps || !meta?.requiresSession) { await run(peers); return; }
+  const opened = await openForwardSession(settleDeps, meta, peers[0]!, alias, forwardCeilingTokens(endpoint, ceilingBody));
+  if (!opened.ok) {
+    try { res.writeHead(opened.status, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${opened.error}`, code: "payment_required" } })); } catch { /* client gone */ }
+    return;
+  }
+  let closeAttempted = false;
+  try {
+    const usage = await run([peers[0]!]);
+    closeAttempted = true; // set BEFORE the close so a throw can't fire a second (zero-)close (race c112b243)
+    await closeForwardSession(settleDeps, opened.session, usage ? forwardBillingTokens(usage) : 0);
+  } catch (err) {
+    if (!closeAttempted) { closeAttempted = true; await closeForwardSession(settleDeps, opened.session, 0).catch(() => undefined); }
+    throw err;
   }
 }
 
@@ -473,6 +515,13 @@ export function createShim(deps: ShimDeps): http.Server {
       return json(res, 404, { error: `hypha: no mesh route ${method} ${url}` });
     }
 
+    // B4: the settlement context for a metered forward request. null = free path (flag off, or no local
+    // x402) → forwardWithOptionalSettlement just runs with failover. Re-read getSelfConsumerKey per request.
+    const forwardSettleDeps = (): ForwardSettlementDeps | null => {
+      const sk = getSelfConsumerKey();
+      return HYPHA_FORWARD_METERED && settlement && sk ? { paymentControl, settlement, selfConsumerKey: sk, ...(audit ? { audit } : {}) } : null;
+    };
+
     // ── SP2 Option B — borrow non-chat modalities over the forward transport ──────────────────────
     // The provider runs them on its LOCAL serve (embeddings vector, TTS audio). STT (multipart upload)
     // is a follow-on. OFF (HYPHA_FORWARD) → these 404 like before.
@@ -493,9 +542,11 @@ export function createShim(deps: ShimDeps): http.Server {
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: fwdPeers.length, peer: fwdPeers[0]!.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] } });
       if (url.startsWith("/v1/audio/speech")) {
         const ct = fbody.response_format === "wav" ? "audio/wav" : "audio/mpeg";
-        return forwardBinaryResponse(res, forward, fwdPeers, "/v1/audio/speech", fbody, ct, inflight, audit);
+        return forwardWithOptionalSettlement(res, forwardSettleDeps(), fwdRouter, fwdAlias, "/v1/audio/speech", fbody as Record<string, unknown>, fwdPeers,
+          (peers) => forwardBinaryResponse(res, forward, peers, "/v1/audio/speech", fbody, ct, inflight, audit));
       }
-      return forwardJsonResponse(res, forward, fwdPeers, "/v1/embeddings", fbody, inflight, audit);
+      return forwardWithOptionalSettlement(res, forwardSettleDeps(), fwdRouter, fwdAlias, "/v1/embeddings", fbody as Record<string, unknown>, fwdPeers,
+        (peers) => forwardJsonResponse(res, forward, peers, "/v1/embeddings", fbody, inflight, audit));
     }
 
     // STT — /v1/audio/transcriptions uploads a file (multipart/form-data). Parse out the audio + model,
@@ -517,7 +568,8 @@ export function createShim(deps: ShimDeps): http.Server {
         if (v !== undefined) sttBody[k] = v;
       }
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: sttPeers.length, peer: sttPeers[0]!.slice(0, 16), alias: sttModel, endpoint: "/v1/audio/transcriptions" } });
-      return forwardJsonResponse(res, forward, sttPeers, "/v1/audio/transcriptions", sttBody, inflight, audit);
+      return forwardWithOptionalSettlement(res, forwardSettleDeps(), sttRouter, sttModel, "/v1/audio/transcriptions", sttBody, sttPeers,
+        (peers) => forwardJsonResponse(res, forward, peers, "/v1/audio/transcriptions", sttBody, inflight, audit));
     }
 
     // ── overflow chat completions ────────────────────────────────────────────────
@@ -571,13 +623,15 @@ export function createShim(deps: ShimDeps): http.Server {
       const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
       if (peers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias } });
-      return streamForwardChat(res, forward, peers, {
+      const chatArgs = {
         id: `chatcmpl-${randomUUID()}`,
         alias,
         created: Math.floor(Date.now() / 1000),
         stream: body.stream !== false,
         body: { model: alias, messages: body.messages },
-      }, inflight, audit);
+      };
+      return forwardWithOptionalSettlement(res, forwardSettleDeps(), router, alias, "/v1/chat/completions", body as Record<string, unknown>, peers,
+        (ps) => streamForwardChat(res, forward, ps, chatArgs, inflight, audit));
     }
 
     const warm = router.route({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });

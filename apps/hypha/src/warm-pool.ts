@@ -92,7 +92,7 @@ export interface WarmPoolDeps {
 const key = (peerKey: string, modelSrc: string): string => `${peerKey}::${modelSrc}`;
 const uptoRail = (cap: DeviceCapability): SettlementEndpoint | undefined =>
   (cap.settlements ?? (cap.settlement ? [cap.settlement] : [])).find((rail) => rail.network === "plasma" && rail.x402?.scheme === "upto");
-const isPaidSessionPeer = (cap: DeviceCapability): boolean => uptoRail(cap) !== undefined;
+export const isPaidSessionPeer = (cap: DeviceCapability): boolean => uptoRail(cap) !== undefined;
 
 export class WarmPool {
   private readonly warm = new Map<string, WarmEntry>();

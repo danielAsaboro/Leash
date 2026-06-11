@@ -52,6 +52,31 @@ export function wavDurationSeconds(buf: Buffer): number {
 const CHARS_PER_TOKEN = 4;          // ~4 chars ≈ 1 token (matches estimateInputTokens)
 const TOKENS_PER_AUDIO_SECOND = 50; // a second of STT ≈ 50 tokens of work (≈3000 for a minute)
 
+/**
+ * Upper-bound billing-tokens for a forward request, known from the REQUEST before forwarding — used as the
+ * paid-session budget ceiling (the close settles the actual ≤ this). For non-chat the consumer + provider
+ * compute the same count from the same data, so a small margin covers rounding; chat is capped by
+ * max_tokens. A non-WAV STT upload (unknown seconds) falls back to a generous cap.
+ */
+export function forwardCeilingTokens(endpoint: string, body: Record<string, unknown>): number {
+  if (endpoint.includes("/embeddings")) {
+    return ceilWithMargin(forwardBillingTokens({ unit: "input-token", count: estimateInputTokens(body["input"]) }));
+  }
+  if (endpoint.includes("/audio/speech")) {
+    return ceilWithMargin(forwardBillingTokens({ unit: "character", count: String(body["input"] ?? "").length }));
+  }
+  if (endpoint.includes("/audio/transcriptions")) {
+    const seconds = wavDurationSeconds(Buffer.from(String(body["audio_base64"] ?? ""), "base64"));
+    return seconds > 0 ? ceilWithMargin(forwardBillingTokens({ unit: "audio-second", count: seconds })) : 6000;
+  }
+  const maxTok = Number(body["max_tokens"]);
+  return Number.isFinite(maxTok) && maxTok > 0 ? Math.ceil(maxTok) : 4096;
+}
+
+function ceilWithMargin(tokens: number): number {
+  return Math.max(1, Math.ceil(tokens * 1.1) + 1);
+}
+
 /** Convert billable usage to billing-token-equivalents for the existing token-priced settlement. */
 export function forwardBillingTokens(usage: ForwardUsage): number {
   switch (usage.unit) {
