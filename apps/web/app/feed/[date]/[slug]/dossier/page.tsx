@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getDossier, getMasthead } from "../../../../lib/queries.ts";
-import { Masthead } from "../../../../components/Masthead.tsx";
+import { getDossier, getMasthead } from "../../../../../lib/queries.ts";
+import { Masthead } from "../../../../../components/Masthead.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +40,7 @@ export default async function DossierPage({ params }: { params: Promise<{ date: 
       <Masthead masthead={masthead} size="compact" />
       <main className="mx-auto max-w-[860px] px-5 pb-28">
         <div className="py-4">
-          <Link href={`/${date}/${slug}`} className="kicker transition-opacity hover:opacity-60">
+          <Link href={`/feed/${date}/${slug}`} className="kicker transition-opacity hover:opacity-60">
             ← Back to story
           </Link>
         </div>

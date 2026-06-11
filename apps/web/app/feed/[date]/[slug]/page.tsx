@@ -1,14 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getArticle, getMasthead } from "../../../lib/queries.ts";
-import { formatLong } from "../../../lib/date.ts";
-import { sectionKicker, stageLabel } from "../../../lib/ui.ts";
-import { Masthead } from "../../../components/Masthead.tsx";
-import { Markdown } from "../../../lib/markdown.tsx";
-import { SourcesList } from "../../../components/SourcesList.tsx";
-import { ClaimsList } from "../../../components/ClaimsList.tsx";
-import { LiveRefresh } from "../../../components/LiveRefresh.tsx";
-import { ArticleAudio } from "../../../components/ArticleAudio.tsx";
+import { getArticle, getMasthead } from "../../../../lib/queries.ts";
+import { formatLong } from "../../../../lib/date.ts";
+import { sectionKicker, stageLabel } from "../../../../lib/ui.ts";
+import { Masthead } from "../../../../components/Masthead.tsx";
+import { Markdown } from "../../../../lib/markdown.tsx";
+import { SourcesList } from "../../../../components/SourcesList.tsx";
+import { ClaimsList } from "../../../../components/ClaimsList.tsx";
+import { LiveRefresh } from "../../../../components/LiveRefresh.tsx";
+import { ArticleAudio } from "../../../../components/ArticleAudio.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ date: 
 
       <main className="mx-auto max-w-[1180px] px-5 pb-28">
         <div className="py-4">
-          <Link href={`/${date}`} className="kicker transition-opacity hover:opacity-60">
+          <Link href={`/feed/${date}`} className="kicker transition-opacity hover:opacity-60">
             ← Back to articles
           </Link>
         </div>
@@ -86,7 +86,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ date: 
             <ClaimsList claims={article.claims} />
             {article.dossier && (
               <div className="mt-9 border-t pt-4" style={{ borderColor: "var(--color-rule)" }}>
-                <Link href={`/${date}/${slug}/dossier`} className="kicker kicker-sage transition-opacity hover:opacity-60">
+                <Link href={`/feed/${date}/${slug}/dossier`} className="kicker kicker-sage transition-opacity hover:opacity-60">
                   Open dossier →
                 </Link>
                 <p className="kicker mt-1" style={{ color: "var(--color-faint)" }}>

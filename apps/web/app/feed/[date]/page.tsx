@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { Section } from "@mycelium/db";
-import { getAdjacentEditions, getDaemonStatus, getEditionArticles, getInProduction, getMasthead, getSectionCounts } from "../../lib/queries.ts";
-import { sectionKicker } from "../../lib/ui.ts";
-import { composePaper } from "../../lib/layout.ts";
-import { Masthead } from "../../components/Masthead.tsx";
-import { CategoryNav } from "../../components/CategoryNav.tsx";
-import { EditionNav } from "../../components/EditionNav.tsx";
-import { PaperDeck, type PendingChip } from "../../components/PaperDeck.tsx";
-import { PaperPage } from "../../components/PaperPage.tsx";
-import { LiveRefresh } from "../../components/LiveRefresh.tsx";
+import { getAdjacentEditions, getDaemonStatus, getEditionArticles, getInProduction, getMasthead, getSectionCounts } from "../../../lib/queries.ts";
+import { sectionKicker } from "../../../lib/ui.ts";
+import { composePaper } from "../../../lib/layout.ts";
+import { Masthead } from "../../../components/Masthead.tsx";
+import { CategoryNav } from "../../../components/CategoryNav.tsx";
+import { EditionNav } from "../../../components/EditionNav.tsx";
+import { PaperDeck, type PendingChip } from "../../../components/PaperDeck.tsx";
+import { PaperPage } from "../../../components/PaperPage.tsx";
+import { LiveRefresh } from "../../../components/LiveRefresh.tsx";
 
 export const dynamic = "force-dynamic";
 
