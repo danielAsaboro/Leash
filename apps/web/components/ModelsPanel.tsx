@@ -68,7 +68,9 @@ const btn = (danger?: boolean): React.CSSProperties => ({
   color: danger ? "var(--color-brick)" : "var(--color-muted)",
 });
 
-/** A square icon action button with an accessible label + hover tooltip. */
+/** A borderless ghost icon action button — accessible label + hover tooltip. Sits flush in a
+ *  single non-wrapping row in the Actions cell (the bordered boxes wrapped to two lines and read
+ *  heavy in a 10-column table). */
 function IconButton({ title, danger, disabled, onClick, children }: { title: string; danger?: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -77,15 +79,15 @@ function IconButton({ title, danger, disabled, onClick, children }: { title: str
       aria-label={title}
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex h-7 w-7 items-center justify-center border transition-opacity hover:opacity-70 disabled:opacity-40"
-      style={{ borderColor: "var(--color-rule-strong)", color: danger ? "var(--color-brick)" : "var(--color-muted)" }}
+      className="inline-flex h-6 w-6 items-center justify-center rounded opacity-70 transition-opacity hover:opacity-100 disabled:opacity-25"
+      style={{ color: danger ? "var(--color-brick)" : "var(--color-muted)" }}
     >
       {children}
     </button>
   );
 }
 
-const ICON = { w: 14, h: 14, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+const ICON = { w: 13, h: 13, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 /** Eject/unload — model out of memory. */
 const UnloadIcon = () => (
   <svg {...ICON} aria-hidden>
@@ -256,7 +258,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
         )}
       </Cell>
       <Cell>
-        <span className="flex flex-wrap gap-1.5">
+        <span className="inline-flex items-center gap-0.5">
           {r.loaded && r.alias && (
             <IconButton title="Unload from the running serve (comes back on restart)" danger disabled={busy} onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/loaded/${encodeURIComponent(r.alias as string)}`, { method: "DELETE" }), `Unload "${r.alias}" from the running serve? It comes back on the next restart.`)}>
               <UnloadIcon />
