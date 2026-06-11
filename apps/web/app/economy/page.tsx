@@ -6,6 +6,7 @@
  * Reads the daemon's /receipts + /reputation + /peers (server-side, polled by LiveRefresh). The
  * money figures are micro-units of the settlement stablecoin (µUSDT0 on the live Plasma rail).
  */
+import Link from "next/link";
 import { economySnapshot } from "../../lib/leash/economy.server.ts";
 import { DashShell, DashCard } from "../../components/dash.tsx";
 import { LiveRefresh } from "../../components/LiveRefresh.tsx";
@@ -68,7 +69,10 @@ export default async function EconomyPage() {
           <EconomyMarket market={snapshot.market} />
         </DashCard>
 
-        <DashCard title="Receipts">
+        <DashCard
+          title="Receipts"
+          action={snapshot.receipts.length > 0 ? <Link href="/economy/receipts" className="kicker" style={{ color: "var(--color-faint)" }}>View all {snapshot.receipts.length} →</Link> : undefined}
+        >
           <EconomyReceipts receipts={snapshot.receipts} {...(explorerBase ? { explorerBase } : {})} />
         </DashCard>
       </div>
