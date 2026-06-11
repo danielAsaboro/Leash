@@ -35,6 +35,8 @@ export interface McpServerEntry {
   fromEnv?: boolean;
   /** True for code-defined built-ins (mesh tools) — non-deletable, lifecycle-bound. */
   builtin?: boolean;
+  /** User-chosen icon (an `https://` image URL or an uploaded image as a `data:` URI). Wins over any server-advertised icon. */
+  userIcon?: string;
 }
 
 /** The user-supplied shape for adding a server (id/enabled are assigned by the store). */
@@ -46,6 +48,8 @@ export interface McpServerInput {
   command?: string;
   args?: string[];
   env?: Record<string, string>;
+  /** Optional user-chosen icon — an image URL or an uploaded image data URI. */
+  userIcon?: string;
 }
 
 /** A validated, normalized entry minus the fields the store assigns. */
@@ -67,6 +71,20 @@ function cleanArgs(args: unknown): string[] | undefined {
   if (!Array.isArray(args)) return undefined;
   const out = args.filter((a): a is string => typeof a === "string");
   return out.length ? out : undefined;
+}
+
+/** ~512KB image as base64 — uploads are downscaled far below this; the cap guards hand-edited config. */
+const MAX_USER_ICON_CHARS = 700_000;
+/** Validate a user-chosen icon: an image `data:` URI or an http(s) URL. Throws a human message; pure. */
+export function validateUserIcon(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const v = raw.trim();
+  if (!v) return undefined;
+  const isImageData = /^data:image\/(png|jpeg|jpg|webp|svg\+xml|gif|avif)[;,]/i.test(v);
+  const isHttp = /^https?:\/\/\S+$/i.test(v);
+  if (!isImageData && !isHttp) throw new Error("icon must be an image URL (http/https) or an uploaded image");
+  if (v.length > MAX_USER_ICON_CHARS) throw new Error("icon image is too large — use a smaller image or an image URL");
+  return v;
 }
 
 /** A stable signature used to dedupe a server against the configured set. */
@@ -94,6 +112,8 @@ export function validateServerInput(input: McpServerInput): NormalizedServer {
       throw new Error(`unknown server type "${rawT}" — use http, sse, or stdio`);
     })();
 
+  const userIcon = validateUserIcon(input.userIcon);
+
   if (transport === "stdio") {
     const command = (input.command ?? "").trim();
     if (!command) throw new Error("stdio servers need a command");
@@ -102,6 +122,7 @@ export function validateServerInput(input: McpServerInput): NormalizedServer {
     if (args) n.args = args;
     const env = cleanRecord(input.env);
     if (env) n.env = env;
+    if (userIcon) n.userIcon = userIcon;
     n.name = (input.name ?? "").trim() || defaultName(n);
     return n;
   }
@@ -112,6 +133,7 @@ export function validateServerInput(input: McpServerInput): NormalizedServer {
   const n: NormalizedServer = { transport, name: "", url };
   const headers = cleanRecord(input.headers);
   if (headers) n.headers = headers;
+  if (userIcon) n.userIcon = userIcon;
   n.name = (input.name ?? "").trim() || defaultName(n);
   return n;
 }

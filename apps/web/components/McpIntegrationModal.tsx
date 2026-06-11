@@ -1,7 +1,7 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { XIcon, PlusIcon, Trash2Icon, WandSparklesIcon } from "lucide-react";
+import { XIcon, PlusIcon, Trash2Icon, WandSparklesIcon, ImageIcon, UploadIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { McpServerStatus } from "../lib/leash/mcp.ts";
@@ -75,26 +75,77 @@ function pairsToRecord(rows: Pair[]): Record<string, string> {
   return out;
 }
 
-export function McpIntegrationModal({ existing, onClose }: { existing: McpServerStatus[]; onClose: () => void }) {
+/** Read an uploaded image and downscale it to a 64px (contain) PNG data URI — keeps the stored icon tiny. */
+async function fileToIconDataUri(file: File): Promise<string> {
+  const dataUrl = await new Promise<string>((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result as string);
+    r.onerror = () => rej(new Error("read failed"));
+    r.readAsDataURL(file);
+  });
+  const img = await new Promise<HTMLImageElement>((res, rej) => {
+    const im = new Image();
+    im.onload = () => res(im);
+    im.onerror = () => rej(new Error("decode failed"));
+    im.src = dataUrl;
+  });
+  const SIZE = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no canvas");
+  const scale = Math.min(SIZE / img.width, SIZE / img.height) || 1;
+  const w = img.width * scale;
+  const h = img.height * scale;
+  ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+  return canvas.toDataURL("image/png");
+}
+
+export function McpIntegrationModal({ existing, editing, onClose }: { existing: McpServerStatus[]; editing?: McpServerStatus; onClose: () => void }) {
   const router = useRouter();
+  const isEdit = !!editing;
+  const isBuiltin = !!editing?.builtin; // built-in connection is code-defined — only name + icon are editable
   const [tab, setTab] = useState<"manual" | "json">("manual");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Manual
-  const [name, setName] = useState("");
-  const [transport, setTransport] = useState<McpTransport>("http");
-  const [url, setUrl] = useState("");
-  const [command, setCommand] = useState("");
-  const [argsText, setArgsText] = useState("");
-  const [headers, setHeaders] = useState<Pair[]>([{ k: "", v: "" }]);
-  const [envRows, setEnvRows] = useState<Pair[]>([{ k: "", v: "" }]);
+  // Manual — prefilled from `editing` on open (secret VALUES are never sent to the client, so only their keys prefill).
+  const [name, setName] = useState(editing?.name ?? "");
+  const [transport, setTransport] = useState<McpTransport>(editing?.transport ?? "http");
+  const [url, setUrl] = useState(editing?.url ?? "");
+  const [command, setCommand] = useState(editing?.command ?? "");
+  const [argsText, setArgsText] = useState((editing?.args ?? []).join("\n"));
+  const [headers, setHeaders] = useState<Pair[]>(editing?.headerNames?.length ? editing.headerNames.map((k) => ({ k, v: "" })) : [{ k: "", v: "" }]);
+  const [envRows, setEnvRows] = useState<Pair[]>(editing?.envNames?.length ? editing.envNames.map((k) => ({ k, v: "" })) : [{ k: "", v: "" }]);
+  const [iconValue, setIconValue] = useState(editing?.iconDataUri ?? ""); // URL string OR an uploaded-image data URI
+  const [iconErr, setIconErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (file?: File) => {
+    if (!file) return;
+    setIconErr(null);
+    try {
+      setIconValue(await fileToIconDataUri(file));
+    } catch {
+      setIconErr("couldn't read that image");
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+  const clearIcon = () => {
+    setIconValue("");
+    setIconErr(null);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+  const isUpload = iconValue.startsWith("data:");
 
   // JSON
   const [json, setJson] = useState("");
   const [jsonSummary, setJsonSummary] = useState<string | null>(null);
 
-  const existingSigs = useMemo(() => new Set(existing.map((s) => serverSignature(s))), [existing]);
+  // Don't dedupe a server being edited against itself.
+  const existingSigs = useMemo(() => new Set(existing.filter((s) => s.id !== editing?.id).map((s) => serverSignature(s))), [existing, editing]);
 
   const post = async (input: McpServerInput): Promise<{ ok: boolean; error?: string }> => {
     const res = await fetchWithTimeout("/api/leash/mcp", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
@@ -103,13 +154,33 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
     return { ok: false, error: body.error ?? `failed (${res.status})` };
   };
 
-  const manualInput = (): McpServerInput =>
-    transport === "stdio"
-      ? { name, transport, command, args: argsText.split("\n").map((a) => a.trim()).filter(Boolean), env: pairsToRecord(envRows) }
-      : { name, transport, url, headers: pairsToRecord(headers) };
+  const putEdit = async (id: string, input: McpServerInput): Promise<{ ok: boolean; error?: string }> => {
+    const res = await fetchWithTimeout(`/api/leash/mcp/${encodeURIComponent(id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(input) });
+    if (res.ok) return { ok: true };
+    const body = (await res.json().catch(() => ({}))) as { error?: string };
+    return { ok: false, error: body.error ?? `failed (${res.status})` };
+  };
+
+  // Always send `userIcon` (even "") so an edit can CLEAR it; empty validates to "no icon" on add.
+  const manualInput = (): McpServerInput => {
+    const userIcon = iconValue.trim();
+    return transport === "stdio"
+      ? { name, transport, command, args: argsText.split("\n").map((a) => a.trim()).filter(Boolean), env: pairsToRecord(envRows), userIcon }
+      : { name, transport, url, headers: pairsToRecord(headers), userIcon };
+  };
 
   const submitManual = async () => {
     setError(null);
+    // Built-in: only name + icon are editable; skip connection validation entirely.
+    if (isBuiltin && editing) {
+      setBusy(true);
+      const r = await putEdit(editing.id, { name: name.trim(), userIcon: iconValue.trim() });
+      setBusy(false);
+      if (!r.ok) return setError(r.error ?? "failed");
+      router.refresh();
+      onClose();
+      return;
+    }
     try {
       validateServerInput(manualInput()); // instant inline feedback before the round-trip
     } catch (e) {
@@ -117,7 +188,7 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
       return;
     }
     setBusy(true);
-    const r = await post(manualInput());
+    const r = isEdit && editing ? await putEdit(editing.id, manualInput()) : await post(manualInput());
     setBusy(false);
     if (!r.ok) {
       setError(r.error ?? "failed");
@@ -175,29 +246,31 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
     <div role="dialog" aria-modal="true" aria-label="Create custom integration" className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto p-6" style={{ background: "rgba(20, 18, 14, 0.45)" }} onClick={onClose}>
       <div className="mt-10 w-full max-w-lg border shadow-lg" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b px-5 py-4" style={{ borderColor: "var(--color-rule)" }}>
-          <span style={{ fontFamily: "var(--font-body)", fontSize: "1.05rem" }}>Create Custom Integration</span>
+          <span style={{ fontFamily: "var(--font-body)", fontSize: "1.05rem" }}>{isEdit ? "Edit Integration" : "Create Custom Integration"}</span>
           <IconButton title="Discard" onClick={onClose}>
             <XIcon size={16} />
           </IconButton>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 px-5 pt-4">
-          {(["manual", "json"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => {
-                setTab(t);
-                setError(null);
-              }}
-              className="kicker flex-1 border px-3 py-2 transition-opacity"
-              style={tab === t ? { background: "var(--color-sage-deep)", color: "var(--color-cream)", borderColor: "var(--color-sage-deep)" } : { borderColor: "var(--color-rule)", color: "var(--color-muted)" }}
-            >
-              {t === "json" ? "JSON" : "Manual"}
-            </button>
-          ))}
-        </div>
+        {/* Tabs — single Manual form when editing an existing server (JSON import is add-only). */}
+        {!isEdit && (
+          <div className="flex gap-1 px-5 pt-4">
+            {(["manual", "json"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  setTab(t);
+                  setError(null);
+                }}
+                className="kicker flex-1 border px-3 py-2 transition-opacity"
+                style={tab === t ? { background: "var(--color-sage-deep)", color: "var(--color-cream)", borderColor: "var(--color-sage-deep)" } : { borderColor: "var(--color-rule)", color: "var(--color-muted)" }}
+              >
+                {t === "json" ? "JSON" : "Manual"}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-col gap-4 px-5 py-4">
           {error && (
@@ -215,6 +288,14 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Tavily Search" className="border bg-transparent px-3 py-2" style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-body)", fontSize: "0.9rem" }} />
               </label>
 
+              {isBuiltin && (
+                <p className="kicker" style={{ color: "var(--color-faint)" }}>
+                  Built-in integration — its connection is managed by the app. You can rename it and set an icon.
+                </p>
+              )}
+
+              {!isBuiltin && (
+                <>
               <div className="flex flex-col gap-1">
                 <span className={labelCls} style={labelStyle}>
                   Server Type
@@ -247,7 +328,7 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
                     <span className={labelCls} style={labelStyle}>
                       Environment <span style={{ color: "var(--color-faint)" }}>(optional)</span>
                     </span>
-                    <PairRows rows={envRows} setRows={setEnvRows} keyPlaceholder="API_KEY" valuePlaceholder="value" />
+                    <PairRows rows={envRows} setRows={setEnvRows} keyPlaceholder="API_KEY" valuePlaceholder={isEdit ? "•••• unchanged — type to replace" : "value"} />
                   </div>
                 </>
               ) : (
@@ -262,10 +343,64 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
                     <span className={labelCls} style={labelStyle}>
                       Authorization <span style={{ color: "var(--color-faint)" }}>(optional)</span>
                     </span>
-                    <PairRows rows={headers} setRows={setHeaders} keyPlaceholder="Authorization" valuePlaceholder="Bearer YOUR_TOKEN" />
+                    <PairRows rows={headers} setRows={setHeaders} keyPlaceholder="Authorization" valuePlaceholder={isEdit ? "•••• unchanged — type to replace" : "Bearer YOUR_TOKEN"} />
                   </div>
                 </>
               )}
+                </>
+              )}
+
+              {/* Icon (optional): an image URL OR an uploaded image. User-set icon wins over any the server advertises;
+                  uploads are downscaled to a 64px PNG client-side so the stored data URI stays tiny. */}
+              <div className="flex flex-col gap-1">
+                <span className={labelCls} style={labelStyle}>
+                  Icon <span style={{ color: "var(--color-faint)" }}>(optional)</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded border"
+                    style={{ borderColor: "var(--color-rule)", background: "var(--color-cream)" }}
+                  >
+                    {iconValue ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={iconValue} alt="" width={36} height={36} style={{ objectFit: "contain" }} onError={() => setIconErr("couldn't load that image URL")} />
+                    ) : (
+                      <ImageIcon size={16} style={{ color: "var(--color-faint)" }} />
+                    )}
+                  </span>
+                  <input
+                    value={isUpload ? "" : iconValue}
+                    onChange={(e) => {
+                      setIconErr(null);
+                      setIconValue(e.target.value);
+                    }}
+                    disabled={isUpload}
+                    placeholder={isUpload ? "uploaded image · resized to 64px" : "https://example.com/icon.png"}
+                    aria-label="Icon image URL"
+                    className="min-w-0 flex-1 border bg-transparent px-3 py-2 disabled:opacity-60"
+                    style={fieldStyle}
+                  />
+                  <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => void handleFile(e.target.files?.[0] ?? undefined)} />
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    className="kicker flex shrink-0 items-center gap-1 border px-2 py-2 transition-opacity hover:opacity-80"
+                    style={{ borderColor: "var(--color-rule)", color: "var(--color-muted)" }}
+                  >
+                    <UploadIcon size={13} /> Upload
+                  </button>
+                  {iconValue && (
+                    <IconButton title="Remove icon" danger onClick={clearIcon}>
+                      <Trash2Icon size={14} />
+                    </IconButton>
+                  )}
+                </div>
+                {iconErr && (
+                  <span className="kicker" style={{ color: "var(--color-brick)" }}>
+                    {iconErr}
+                  </span>
+                )}
+              </div>
             </>
           ) : (
             <>
@@ -321,7 +456,7 @@ export function McpIntegrationModal({ existing, onClose }: { existing: McpServer
             Discard
           </button>
           <button type="button" disabled={busy} onClick={() => void (tab === "manual" ? submitManual() : submitJson())} className="kicker px-4 py-2 transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-            {busy ? "Adding…" : "Add Integration"}
+            {busy ? (isEdit ? "Saving…" : "Adding…") : isEdit ? "Save Changes" : "Add Integration"}
           </button>
         </div>
       </div>

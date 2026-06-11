@@ -21,7 +21,7 @@ import { researchTools } from "../../lib/leash/research-tools.ts";
 import { computerTools } from "../../lib/leash/computer-tools.ts";
 import { buildBashTools, BASH_TOOL_NAMES, bashScopeNote } from "../../lib/leash/bash-tools.ts";
 import { computerModelInfo } from "../../lib/leash/computer-model.ts";
-import { leashMcpTools, mcpServerStatuses } from "../../lib/leash/mcp.ts";
+import { leashMcpTools, mcpServerStatuses, mcpToolIcons } from "../../lib/leash/mcp.ts";
 import { DashShell, DashCard, Stat, Row } from "../../components/dash.tsx";
 import { buildSeries } from "../../lib/leash/evolve.ts";
 import { GrowthChart } from "../../components/GrowthChart.tsx";
@@ -39,9 +39,10 @@ const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "growth",
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, bash, off, ask, computerNote] = await Promise.all([leashMcpTools(), buildBashTools(), disabledTools(), askFirstOverrides(), computerModelInfo()]);
+  const [mcp, bash, off, ask, computerNote, toolIcons] = await Promise.all([leashMcpTools(), buildBashTools(), disabledTools(), askFirstOverrides(), computerModelInfo(), mcpToolIcons()]);
   const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...computerTools, ...bash, ...mcp };
   const computerNames = new Set(Object.keys(computerTools));
+  const mcpNames = new Set(Object.keys(mcp));
   const bashNote = bashScopeNote();
   return Object.entries(registry).map(([name, t]) => ({
     name,
@@ -51,6 +52,9 @@ async function toolRows(): Promise<ToolRow[]> {
     askFirstDefault: DEFAULT_ASK_FIRST.has(name),
     // The computer-use rows show which model drives them; the bash rows note the sandbox scope.
     ...(computerNames.has(name) ? { infoNote: computerNote } : BASH_TOOL_NAMES.has(name) ? { infoNote: bashNote } : {}),
+    // MCP tools get an icon slot; populate the real icon where the server advertised one.
+    ...(mcpNames.has(name) ? { mcp: true } : {}),
+    ...(toolIcons[name] ? { iconDataUri: toolIcons[name] } : {}),
   }));
 }
 

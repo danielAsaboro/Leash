@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { PlusIcon, Trash2Icon, GlobeIcon, RadioIcon, TerminalIcon, LockIcon, ShieldCheckIcon } from "lucide-react";
+import { PlusIcon, Trash2Icon, GlobeIcon, RadioIcon, TerminalIcon, LockIcon, ShieldCheckIcon, BlocksIcon, PencilIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
 import { Switch } from "./Switch.tsx";
@@ -28,6 +28,7 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<McpServerStatus | null>(null);
 
   const toggle = async (s: McpServerStatus) => {
     setBusyId(s.id);
@@ -66,7 +67,7 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      {adding && <McpIntegrationModal existing={servers} onClose={() => setAdding(false)} />}
+      {(adding || editing) && <McpIntegrationModal existing={servers} editing={editing ?? undefined} onClose={() => { setAdding(false); setEditing(null); }} />}
 
       <div className="flex items-center gap-3">
         <span className="kicker kicker-sage">Integrations</span>
@@ -122,6 +123,20 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2" style={{ fontFamily: "var(--font-body)", fontSize: "1rem" }}>
+                  <span
+                    className="inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center overflow-hidden rounded"
+                    style={{ background: "var(--color-rule)" }}
+                    title={s.iconDataUri ? `${s.name} icon` : undefined}
+                  >
+                    {/* MCP-advertised brand icon (spec SEP-973), pre-fetched + cached as a data URI;
+                        rendered via <img> only, so even an SVG can't run script. Placeholder otherwise. */}
+                    {s.iconDataUri ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={s.iconDataUri} alt="" width={18} height={18} style={{ objectFit: "contain" }} />
+                    ) : (
+                      <BlocksIcon size={12} style={{ color: "var(--color-faint)" }} />
+                    )}
+                  </span>
                   {s.name}
                   <span title={s.transport} className="inline-flex items-center" style={{ color: "var(--color-faint)" }}>
                     <TIcon size={13} />
@@ -156,6 +171,11 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
                   </p>
                 )}
               </div>
+              {!readOnly && (
+                <IconButton title={`Edit ${s.name}`} disabled={busyId !== null} onClick={() => setEditing(s)}>
+                  <PencilIcon size={14} />
+                </IconButton>
+              )}
               {!readOnly && !s.builtin && (
                 <IconButton title={`Remove ${s.name}`} danger disabled={busyId !== null} onClick={() => void remove(s)}>
                   <Trash2Icon size={15} />

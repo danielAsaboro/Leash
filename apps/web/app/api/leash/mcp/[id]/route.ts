@@ -5,7 +5,7 @@
  * health / stop) via `toggleBuiltin`; they can't be renamed or removed. Env rows are
  * read-only. Stored rows: plain enabled/name update + delete.
  */
-import { updateMcpServer, removeMcpServer } from "../../../../../lib/leash/mcp-store.ts";
+import { updateMcpServer, removeMcpServer, type McpServerPatch } from "../../../../../lib/leash/mcp-store.ts";
 import { builtinById } from "../../../../../lib/leash/mcp-builtins.ts";
 import { toggleBuiltin } from "../../../../../lib/leash/mcp-lifecycle.ts";
 
@@ -17,7 +17,7 @@ type P = { params: Promise<{ id: string }> };
 export async function PUT(req: Request, { params }: P): Promise<Response> {
   const { id: raw } = await params;
   const id = decodeURIComponent(raw);
-  const body = (await req.json().catch(() => ({}))) as { enabled?: boolean; name?: string };
+  const body = (await req.json().catch(() => ({}))) as McpServerPatch;
   try {
     if (builtinById(id) && typeof body.enabled === "boolean") {
       const { server, warning } = await toggleBuiltin(id, body.enabled);

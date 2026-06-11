@@ -15,6 +15,7 @@ import { createMCPClient, ElicitationRequestSchema, type ElicitResult, type MCPC
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import { listMcpServers, type McpServerEntry } from "./mcp-store.ts";
 import { requestElicitation, cancelElicitationsFor } from "./elicitations.ts";
+import { parseIcons, resolveBestIcon, resolveUserIcon } from "./mcp-icons.ts";
 
 interface Connection {
   entry: McpServerEntry;
@@ -22,6 +23,10 @@ interface Connection {
   tools: ToolSet;
   toolNames: string[];
   connectedAt: number;
+  /** Server's own advertised icon, resolved to a cached data URI (offline-safe). */
+  iconDataUri?: string;
+  /** Per-tool advertised icons (tool name → cached data URI). */
+  toolIcons?: Record<string, string>;
 }
 
 interface FailedAttempt {
@@ -43,6 +48,8 @@ const registry: Registry = (g.__leashMcp ??= { connections: new Map(), failures:
 const FAILURE_TTL_MS = 30_000;
 /** Bound the initial MCP connect/tool-discovery handshake so one dead server can't wedge chat. */
 const CONNECT_TIMEOUT_MS = 5_000;
+/** Bound the (cosmetic) icon harvest — per-fetch timeouts already apply; this caps the whole pass. */
+const ICON_HARVEST_TIMEOUT_MS = 8_000;
 
 // Next.js patches globalThis.fetch and tries to cache every response body. MCP transports
 // use SSE streams that never close, so the body-read times out with "Failed to set fetch
@@ -95,7 +102,18 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
         }) as Promise<ElicitResult>, // ElicitResultLike is the index-signature-free subset
     );
     const tools = await withTimeout(client.tools(), CONNECT_TIMEOUT_MS, `discover tools from ${entry.name}`);
-    registry.connections.set(entry.id, { entry, client, tools, toolNames: Object.keys(tools), connectedAt: Date.now() });
+    // Best-effort: harvest the icons the server advertises on serverInfo + each tool. Cosmetic —
+    // a slow or dead icon host must NEVER fail or stall the connection beyond this bound.
+    let iconDataUri: string | undefined;
+    let toolIcons: Record<string, string> | undefined;
+    try {
+      const harvested = await withTimeout(harvestIcons(client), ICON_HARVEST_TIMEOUT_MS, `icons from ${entry.name}`);
+      iconDataUri = harvested.serverIcon;
+      if (Object.keys(harvested.toolIcons).length) toolIcons = harvested.toolIcons;
+    } catch (e) {
+      console.warn(`leash mcp: icon harvest skipped for ${entry.name}:`, e instanceof Error ? e.message : e);
+    }
+    registry.connections.set(entry.id, { entry, client, tools, toolNames: Object.keys(tools), connectedAt: Date.now(), iconDataUri, toolIcons });
     registry.failures.delete(entry.id);
     console.log(`leash mcp: connected ${entry.name} (${connectTarget(entry)}) — ${Object.keys(tools).length} tool(s)`);
   } catch (err) {
@@ -109,6 +127,23 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
     registry.failures.set(entry.id, { at: Date.now(), error: err instanceof Error ? err.message : String(err) });
     console.error(`leash mcp: failed to connect ${entry.name} (${connectTarget(entry)}):`, err);
   }
+}
+
+/**
+ * Read the OPTIONAL `icons` off `serverInfo` + each tool — both survive `@ai-sdk/mcp`'s
+ * `.loose()` parse as untyped extras, validated/resolved in `mcp-icons.ts`. Tool icons resolve
+ * in parallel so the pass is bounded by the slowest single fetch, not their sum.
+ */
+async function harvestIcons(client: MCPClient): Promise<{ serverIcon?: string; toolIcons: Record<string, string> }> {
+  const serverIcon = await resolveBestIcon(parseIcons((client.serverInfo as Record<string, unknown>)["icons"]));
+  const list = await client.listTools();
+  const resolved = await Promise.all(
+    list.tools.map(async (t) => {
+      const uri = await resolveBestIcon(parseIcons((t as Record<string, unknown>)["icons"]));
+      return uri ? ([t.name, uri] as const) : null;
+    }),
+  );
+  return { serverIcon, toolIcons: Object.fromEntries(resolved.filter((e): e is readonly [string, string] => e !== null)) };
 }
 
 /** Human-readable connection target for logs (URL for http/sse, command for stdio). */
@@ -168,7 +203,7 @@ export async function leashMcpTools(): Promise<ToolSet> {
  * values) are NEVER sent to the client — only their KEYS, so the UI can show "1 header"
  * without leaking the token. Account data is public on-device, but API tokens are not.
  */
-export interface McpServerStatus extends Omit<McpServerEntry, "headers" | "env"> {
+export interface McpServerStatus extends Omit<McpServerEntry, "headers" | "env" | "userIcon"> {
   connected: boolean;
   toolNames: string[];
   /** Last connect error while disconnected (honest failure surface). */
@@ -177,23 +212,38 @@ export interface McpServerStatus extends Omit<McpServerEntry, "headers" | "env">
   headerNames?: string[];
   /** stdio env var names (values redacted). */
   envNames?: string[];
+  /** Effective icon as a cached data URI: user-chosen icon if set, else the server-advertised one; absent → placeholder. */
+  iconDataUri?: string;
 }
 
 /** Per-server status for the dashboard (config + live connection + tool names). */
 export async function mcpServerStatuses(): Promise<McpServerStatus[]> {
   await reconcile();
   const servers = await listMcpServers();
-  return servers.map((s) => {
-    const conn = registry.connections.get(s.id);
-    const failed = registry.failures.get(s.id);
-    const { headers, env, ...safe } = s;
-    return {
-      ...safe,
-      connected: !!conn,
-      toolNames: conn?.toolNames ?? [],
-      ...(headers && Object.keys(headers).length ? { headerNames: Object.keys(headers) } : {}),
-      ...(env && Object.keys(env).length ? { envNames: Object.keys(env) } : {}),
-      ...(!conn && s.enabled && failed ? { error: failed.error } : {}),
-    };
-  });
+  return Promise.all(
+    servers.map(async (s) => {
+      const conn = registry.connections.get(s.id);
+      const failed = registry.failures.get(s.id);
+      const { headers, env, userIcon, ...safe } = s;
+      // User-chosen icon wins (resolved to an offline-safe data URI); else the server-advertised one.
+      const icon = (userIcon ? await resolveUserIcon(userIcon) : undefined) ?? conn?.iconDataUri;
+      return {
+        ...safe,
+        connected: !!conn,
+        toolNames: conn?.toolNames ?? [],
+        ...(headers && Object.keys(headers).length ? { headerNames: Object.keys(headers) } : {}),
+        ...(env && Object.keys(env).length ? { envNames: Object.keys(env) } : {}),
+        ...(!conn && s.enabled && failed ? { error: failed.error } : {}),
+        ...(icon ? { iconDataUri: icon } : {}),
+      };
+    }),
+  );
+}
+
+/** MCP-advertised tool icons (tool name → data URI) across every connected server — for Brain → Tools. */
+export async function mcpToolIcons(): Promise<Record<string, string>> {
+  await reconcile();
+  const out: Record<string, string> = {};
+  for (const conn of registry.connections.values()) Object.assign(out, conn.toolIcons ?? {});
+  return out;
 }

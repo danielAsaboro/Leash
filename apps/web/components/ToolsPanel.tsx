@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShieldAlertIcon } from "lucide-react";
+import { ShieldAlertIcon, PuzzleIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
@@ -23,6 +23,10 @@ export interface ToolRow {
   askFirstDefault: boolean;
   /** Optional status line under the description (e.g. which model drives a computer-use tool). */
   infoNote?: string;
+  /** True for tools sourced from an MCP server (gets an icon slot — real icon or placeholder). */
+  mcp?: boolean;
+  /** MCP-advertised tool icon, resolved to a cached data URI (offline-safe). */
+  iconDataUri?: string;
 }
 
 export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
@@ -61,7 +65,24 @@ export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
               <Switch on={t.enabled} disabled={busy} onChange={() => void toggle(t.name)} label={`${t.enabled ? "Disable" : "Enable"} ${t.name}`} />
             </div>
             <div className="min-w-0 flex-1">
-              <p style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>{t.name}</p>
+              <p className="flex items-center gap-2" style={{ fontFamily: "var(--font-mono)", fontSize: "0.85rem" }}>
+                {/* MCP tools get an icon slot: the server-advertised icon (spec SEP-973, cached as a
+                    data URI, <img>-only so an SVG can't run script) or a placeholder. Built-ins: none. */}
+                {(t.iconDataUri || t.mcp) && (
+                  <span
+                    className="inline-flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded"
+                    style={{ background: t.iconDataUri ? "var(--color-rule)" : "transparent" }}
+                  >
+                    {t.iconDataUri ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={t.iconDataUri} alt="" width={16} height={16} style={{ objectFit: "contain" }} />
+                    ) : (
+                      <PuzzleIcon size={11} style={{ color: "var(--color-faint)" }} />
+                    )}
+                  </span>
+                )}
+                {t.name}
+              </p>
               <p style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>{t.description}</p>
               {t.infoNote && (
                 <p className="kicker mt-1" style={{ color: "var(--color-faint)" }}>

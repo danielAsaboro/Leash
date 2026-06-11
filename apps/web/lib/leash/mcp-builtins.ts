@@ -48,7 +48,18 @@ export function builtinById(id: string): McpBuiltin | undefined {
   return MCP_BUILTINS.find((b) => b.id === id);
 }
 
-/** Materialize a built-in as a full store entry, given its persisted enabled override. */
-export function builtinEntry(b: McpBuiltin, enabled: boolean): McpServerEntry {
-  return { id: b.id, name: b.name, transport: b.transport, url: b.url, enabled, builtin: true };
+/**
+ * Materialize a built-in as a full store entry. Connection (url/transport) is fixed in code;
+ * the user may override its display `name` and `userIcon` (persisted under `builtins[id]`).
+ */
+export function builtinEntry(b: McpBuiltin, enabled: boolean, overrides?: { name?: string; userIcon?: string }): McpServerEntry {
+  return {
+    id: b.id,
+    name: overrides?.name?.trim() || b.name,
+    transport: b.transport,
+    url: b.url,
+    enabled,
+    builtin: true,
+    ...(overrides?.userIcon ? { userIcon: overrides.userIcon } : {}),
+  };
 }
