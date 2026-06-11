@@ -198,13 +198,13 @@ export function ResearchDetail({ run, report }: { run: ResearchStatus; report: s
   const del = async () => {
     if (!confirm("Delete this research run and its report?")) return;
     await fetchWithTimeout(`/api/leash/research/${run.id}`, { method: "DELETE" });
-    router.push("/research");
+    router.push("/services/research");
   };
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <a href="/research" className="kicker transition-opacity hover:opacity-70" style={{ color: "var(--color-sage-deep)" }}>← All research</a>
+        <a href="/services/research" className="kicker transition-opacity hover:opacity-70" style={{ color: "var(--color-sage-deep)" }}>← All research</a>
         <span className="flex items-center gap-2">
           {active && <button type="button" onClick={() => void cancel()} className="kicker px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-brick)" }}>Cancel</button>}
           <button type="button" onClick={() => void del()} className="kicker px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>Delete</button>

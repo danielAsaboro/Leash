@@ -54,14 +54,6 @@ function TasksIcon() {
     </svg>
   );
 }
-function ResearchIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
-      <circle cx="11" cy="11" r="6.5" strokeLinecap="round" />
-      <path d="m16 16 4.5 4.5" strokeLinecap="round" />
-    </svg>
-  );
-}
 function ServicesIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
@@ -95,7 +87,6 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/feed", label: "Feed", Icon: PaperIcon, isActive: (p) => p.startsWith("/feed") },
   { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
   { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
-  { href: "/research", label: "Research", Icon: ResearchIcon, isActive: (p) => p.startsWith("/research") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
   { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
 ];
@@ -105,9 +96,9 @@ export function LeashRail() {
 
   return (
     <nav className="leash-rail" aria-label="Leash">
-      <Link href="/chat" className="leash-rail-mark" title="Leash" aria-label="Leash">
+      <a href="https://useleash.xyz" target="_blank" rel="noopener noreferrer" className="leash-rail-mark" title="useleash.xyz" aria-label="useleash.xyz">
         <LeashMark className="leash-rail-mark-icon" cutoutColor="var(--color-ink)" />
-      </Link>
+      </a>
 
       <div className="leash-rail-nav">
         {ITEMS.map(({ href, label, Icon, isActive }) => {

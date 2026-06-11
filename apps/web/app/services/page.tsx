@@ -5,6 +5,7 @@
  * scheduler's configuration is part of its service. Tasks the services produce live
  * on /tasks; this page is about the daemons.
  */
+import Link from "next/link";
 import { servicesStatus } from "../../lib/leash/services.ts";
 import { listSchedules, cronState, cronRuns } from "../../lib/leash/schedules-store.ts";
 import { listSecretStatus } from "../../lib/leash/vault.ts";
@@ -31,6 +32,21 @@ export default async function ServicesPage() {
             {s.name === "hypha" && <HyphaPeersSection status={mesh} />}
           </ServiceCard>
         ))}
+
+        {/* Research — detached background runs (gather → read → synthesize), not a supervised daemon. */}
+        <section className="border p-4" style={{ borderColor: "var(--color-rule)", background: "var(--color-paper)" }}>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="kicker kicker-sage">Research</span>
+            <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
+            <Link href="/services/research" className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
+              Open research →
+            </Link>
+          </div>
+          <p className="kicker mt-2" style={{ color: "var(--color-faint)" }}>
+            Deep research runs — detached background jobs that gather, read, and synthesize live web sources into cited reports.
+          </p>
+        </section>
+
         <SecretsCard secrets={listSecretStatus()} />
       </div>
     </DashShell>

@@ -95,7 +95,7 @@ export function ResearchList({ runs, page, pages, total, perPage }: { runs: Rese
             const activeRun = r.state !== "done" && r.state !== "error";
             return (
               <li key={r.id} className="border-b py-2.5" style={{ borderColor: "var(--color-rule)" }}>
-                <a href={`/research/${r.id}`} className="block transition-opacity hover:opacity-70">
+                <a href={`/services/research/${r.id}`} className="block transition-opacity hover:opacity-70">
                   <p className="truncate" style={{ fontFamily: "var(--font-body)", fontSize: "0.92rem" }}>
                     {r.question}
                   </p>
@@ -117,9 +117,9 @@ export function ResearchList({ runs, page, pages, total, perPage }: { runs: Rese
 
       {pages > 1 && (
         <div className="flex items-center justify-between">
-          <a href={`/research?offset=${Math.max(0, (page - 2) * perPage)}`} className="kicker" style={{ visibility: page > 1 ? "visible" : "hidden", color: "var(--color-sage-deep)" }}>‹ Newer</a>
+          <a href={`/services/research?offset=${Math.max(0, (page - 2) * perPage)}`} className="kicker" style={{ visibility: page > 1 ? "visible" : "hidden", color: "var(--color-sage-deep)" }}>‹ Newer</a>
           <span className="kicker" style={{ color: "var(--color-faint)" }}>page {page}/{pages} · {total} runs</span>
-          <a href={`/research?offset=${page * perPage}`} className="kicker" style={{ visibility: page < pages ? "visible" : "hidden", color: "var(--color-sage-deep)" }}>Older ›</a>
+          <a href={`/services/research?offset=${page * perPage}`} className="kicker" style={{ visibility: page < pages ? "visible" : "hidden", color: "var(--color-sage-deep)" }}>Older ›</a>
         </div>
       )}
     </div>

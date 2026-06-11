@@ -3,9 +3,9 @@
  * report. Reads the run's status + report files; `ResearchDetail` polls itself while active.
  */
 import { notFound } from "next/navigation";
-import { researchStatus, researchReport } from "../../../lib/leash/research-store.ts";
-import { DashShell } from "../../../components/dash.tsx";
-import { ResearchDetail } from "../../../components/ResearchDetail.tsx";
+import { researchStatus, researchReport } from "../../../../lib/leash/research-store.ts";
+import { DashShell } from "../../../../components/dash.tsx";
+import { ResearchDetail } from "../../../../components/ResearchDetail.tsx";
 
 export const dynamic = "force-dynamic";
 
