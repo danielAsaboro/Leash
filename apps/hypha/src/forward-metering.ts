@@ -46,6 +46,25 @@ export function wavDurationSeconds(buf: Buffer): number {
   return 0;
 }
 
+// Billing normalization. Each natural unit converts to a "billing-token-equivalent" so the forward path
+// settles through the SAME economy as delegated chat (amountForTokens + quote/open/close) — no separate
+// price protocol. These factors are tunable POLICY (relative cost of a modality vs. a chat token):
+const CHARS_PER_TOKEN = 4;          // ~4 chars ≈ 1 token (matches estimateInputTokens)
+const TOKENS_PER_AUDIO_SECOND = 50; // a second of STT ≈ 50 tokens of work (≈3000 for a minute)
+
+/** Convert billable usage to billing-token-equivalents for the existing token-priced settlement. */
+export function forwardBillingTokens(usage: ForwardUsage): number {
+  switch (usage.unit) {
+    case "token":
+    case "input-token":
+      return usage.count;
+    case "character":
+      return Math.ceil(usage.count / CHARS_PER_TOKEN);
+    case "audio-second":
+      return usage.count * TOKENS_PER_AUDIO_SECOND;
+  }
+}
+
 /** Map a forwarded endpoint + its request/response to the billable (unit, count) for that modality. */
 export function billableUsage(endpoint: string, requestBody: Record<string, unknown>, resp: ForwardResponseInfo): ForwardUsage {
   if (endpoint.includes("/embeddings")) {

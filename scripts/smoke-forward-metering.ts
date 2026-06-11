@@ -9,7 +9,7 @@
  *   npm run smoke:forward-metering
  */
 import assert from "node:assert/strict";
-import { billableUsage, wavDurationSeconds, estimateInputTokens } from "../apps/hypha/src/forward-metering.ts";
+import { billableUsage, wavDurationSeconds, estimateInputTokens, forwardBillingTokens } from "../apps/hypha/src/forward-metering.ts";
 
 function wav(sampleRate: number, channels: number, bitsPerSample: number, dataBytes: number): Buffer {
   const byteRate = (sampleRate * channels * bitsPerSample) / 8;
@@ -75,6 +75,14 @@ function main(): void {
 
   // non-WAV / garbage → 0 seconds (honest: unmetered rather than wrong)
   assert.equal(wavDurationSeconds(Buffer.from("not a wav")), 0, "non-WAV → 0s");
+
+  // forwardBillingTokens — normalize each natural unit to billing-token-equivalents so the forward path
+  // settles through the SAME amountForTokens + quote/open/close as delegated chat.
+  assert.equal(forwardBillingTokens({ unit: "token", count: 100 }), 100, "output tokens are 1:1");
+  assert.equal(forwardBillingTokens({ unit: "input-token", count: 40 }), 40, "input tokens are 1:1");
+  assert.equal(forwardBillingTokens({ unit: "character", count: 40 }), 10, "characters → /4 tokens");
+  assert.equal(forwardBillingTokens({ unit: "audio-second", count: 2 }), 100, "audio-seconds → ×50 tokens (policy)");
+  assert.equal(forwardBillingTokens({ unit: "token", count: 0 }), 0, "zero usage → zero billing");
 
   console.log("✅ forward-metering — token / input-token (serve-usage or estimate fallback) / character / audio-second billing + WAV duration — GO");
 }
