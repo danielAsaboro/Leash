@@ -25,11 +25,12 @@ import { z } from "zod";
 import { chatModel, medpsyModel, visionModel, computerModel } from "./provider.ts";
 import { repairLeashToolCall } from "./json-repair.ts";
 import { computerTools } from "./computer-tools.ts";
+import { BASH_TOOL_NAMES } from "./bash-tools.ts";
 
 /** Per-turn inputs the route derives server-side (validated by the agent at call time). */
 export const leashCallOptionsSchema = z.object({
   /** Intent route — picks the driving QVAC model and the active toolset. */
-  route: z.enum(["chat", "health", "computer", "vision"]),
+  route: z.enum(["chat", "health", "computer", "files", "vision"]),
   /** Step budget (`stopWhen`); null on vision turns (single-shot, no tool loop). */
   steps: z.number().int().min(1).max(16).nullable(),
   /** Token ceiling; null on vision turns (qwen3vl breaks on max_tokens — see computer-tools.ts). */
@@ -60,9 +61,17 @@ export function buildLeashAgent(tools: ToolSet): ToolLoopAgent<LeashCallOptions,
       ...settings,
       model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : chatModel(),
       instructions: options.system,
-      // Focused toolset (see module header). Vision deactivates everything.
+      // Focused toolset (see module header). Vision deactivates everything; the `computer`
+      // and `files` lanes each activate ONLY their own group; every other text turn activates
+      // everything BUT those two groups (keeping the chat lane under the ~22-schema cap).
       activeTools:
-        options.route === "vision" ? [] : names.filter((n) => COMPUTER_NAMES.has(n) === (options.route === "computer")),
+        options.route === "vision"
+          ? []
+          : options.route === "files"
+            ? names.filter((n) => BASH_TOOL_NAMES.has(n))
+            : options.route === "computer"
+              ? names.filter((n) => COMPUTER_NAMES.has(n))
+              : names.filter((n) => !COMPUTER_NAMES.has(n) && !BASH_TOOL_NAMES.has(n)),
       ...(options.steps !== null ? { stopWhen: stepCountIs(options.steps) } : {}),
       ...(options.maxOutputTokens !== null ? { maxOutputTokens: options.maxOutputTokens } : {}),
     }),

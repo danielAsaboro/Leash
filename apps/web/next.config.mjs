@@ -6,7 +6,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Prisma + the db workspace must stay external (native query engine, not bundled).
-  serverExternalPackages: ["@prisma/client", "@mycelium/db"],
+  // bash-tool → just-bash pulls a native addon (@mongodb-js/zstd/*.node) webpack can't
+  // bundle — externalize the chain so it's require()d at runtime (Brain → MCP/files bash tools).
+  serverExternalPackages: ["@prisma/client", "@mycelium/db", "bash-tool", "just-bash", "@mongodb-js/zstd"],
   // Monorepo: trace from the repo root so the workspace symlinks resolve.
   outputFileTracingRoot: join(here, "..", ".."),
   webpack: (config, { isServer }) => {

@@ -19,6 +19,7 @@ import { memoryTools } from "../../lib/leash/memory-tools.ts";
 import { skillTools } from "../../lib/leash/skill-tools.ts";
 import { researchTools } from "../../lib/leash/research-tools.ts";
 import { computerTools } from "../../lib/leash/computer-tools.ts";
+import { buildBashTools, BASH_TOOL_NAMES, bashScopeNote } from "../../lib/leash/bash-tools.ts";
 import { computerModelInfo } from "../../lib/leash/computer-model.ts";
 import { leashMcpTools, mcpServerStatuses } from "../../lib/leash/mcp.ts";
 import { DashShell, DashCard, Stat, Row } from "../../components/dash.tsx";
@@ -39,17 +40,18 @@ const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "growth",
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, off, ask, computerNote] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides(), computerModelInfo()]);
-  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...computerTools, ...mcp };
+  const [mcp, bash, off, ask, computerNote] = await Promise.all([leashMcpTools(), buildBashTools(), disabledTools(), askFirstOverrides(), computerModelInfo()]);
+  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...computerTools, ...bash, ...mcp };
   const computerNames = new Set(Object.keys(computerTools));
+  const bashNote = bashScopeNote();
   return Object.entries(registry).map(([name, t]) => ({
     name,
     description: ((t as { description?: string }).description ?? "").slice(0, 240),
     enabled: !off.has(name),
     askFirst: ask[name] ?? DEFAULT_ASK_FIRST.has(name),
     askFirstDefault: DEFAULT_ASK_FIRST.has(name),
-    // The computer-use rows show which model drives them and where it runs (local / mesh peer).
-    ...(computerNames.has(name) ? { infoNote: computerNote } : {}),
+    // The computer-use rows show which model drives them; the bash rows note the sandbox scope.
+    ...(computerNames.has(name) ? { infoNote: computerNote } : BASH_TOOL_NAMES.has(name) ? { infoNote: bashNote } : {}),
   }));
 }
 

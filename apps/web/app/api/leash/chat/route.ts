@@ -21,6 +21,7 @@ import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
 import { skillTools, skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
 import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { computerTools } from "../../../../lib/leash/computer-tools.ts";
+import { buildBashTools, BASH_TOOL_NAMES } from "../../../../lib/leash/bash-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
@@ -85,8 +86,23 @@ function isComputerIntent(messages: LeashUIMessage[]): boolean {
   return COMPUTER_RE.test(lastUserText(messages));
 }
 
+/**
+ * Files routing: RETRIEVAL intent over the user's files/notes/code → the sandboxed `bash`
+ * tools (`bash-tools.ts`) preferred over the real-disk read tools. Matches a retrieval verb
+ * near a file-ish noun, a bare `grep`/`glob`, or "in my files/notes/…". Checked BEFORE the
+ * computer route so "search/read my notes" gets the safe sandbox, while "edit/create/save a
+ * file", "run command", "terminal", and GUI verbs still fall through to the computer route.
+ */
+const FILES_RE =
+  /\b(?:grep|ripgrep|\brg\b|glob)\b|\b(?:search|find|look(?:ing)?|list|show|read|cat|explore|scan|locate|count|summari[sz]e)\b[\s\S]{0,30}\b(?:files?|notes?|docs?|documents?|folders?|director(?:y|ies)|code(?:base)?|repo(?:sitor(?:y|ies)|s)?|projects?|workspace|markdown|\.(?:md|txt|json|csv|ya?ml))\b|\bin (?:my|the|this) (?:files?|notes?|docs?|code(?:base)?|folder|director(?:y|ies)|projects?|repo(?:sitor(?:y|ies)|s)?|workspace)\b/i;
+function isFilesIntent(messages: LeashUIMessage[]): boolean {
+  return FILES_RE.test(lastUserText(messages));
+}
+
 /** Step budget for computer-use turns — a GUI loop is screenshot → act → screenshot → verify. */
 const COMPUTER_STEPS = 10;
+/** Step budget for files turns — a retrieval loop is grep → read → grep → answer. */
+const FILES_STEPS = 8;
 
 export async function POST(req: Request): Promise<Response> {
   const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean };
@@ -94,7 +110,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // Task/memory tools are per-request factories: writes get stamped with this chat's id.
   // This is the FULL registry — used for message validation; `streamText` gets the filtered set.
-  const tools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await leashMcpTools()) };
+  const tools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await buildBashTools()), ...(await leashMcpTools()) };
 
   // Rebuild the working history from the store + the incoming trigger.
   const record = await loadRecord(id);
@@ -133,8 +149,12 @@ export async function POST(req: Request): Promise<Response> {
   const off = await disabledTools();
   const imageTurn = isImageTurn(validated);
   const computerEnabled = Object.keys(computerTools).some((name) => !off.has(name));
-  const computerTurn = !imageTurn && computerEnabled && isComputerIntent(validated);
-  const health = !imageTurn && !computerTurn && isHealthIntent(validated);
+  // Files (sandboxed retrieval) takes precedence over computer for read/search intents
+  // ("prefer bash tool over ours"); real writes/GUI/shell still fall through to computer.
+  const filesEnabled = [...BASH_TOOL_NAMES].some((name) => !off.has(name));
+  const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
+  const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
+  const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);
   const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : CHAT_MODEL;
 
   // Dynamic effort: grade each non-image turn (text + voice) into a tier and derive its params
@@ -169,6 +189,13 @@ export async function POST(req: Request): Promise<Response> {
     ? "You can act on this Mac (all on-device or on the user's own paired mesh, never a cloud): screenshot (SEE the screen — use it before and after acting), " +
       "read_file, and the approval-gated write_file / edit_file / run_command / computer (mouse+keyboard). If the user denies an approval, do not retry it."
     : "";
+  // Files turn: name the sandboxed retrieval tools so the model reaches for bash (grep/find/cat/jq)
+  // over the user's files. It's a read-only in-memory snapshot — no approval, can't touch the disk.
+  const filesNote = filesTurn
+    ? "You're in file-retrieval mode. You have a SANDBOXED bash over a READ-ONLY in-memory snapshot of the user's files: " +
+      "`bash` (run grep/find/cat/jq/ls to locate and read context), `readFile`, `writeFile`. Prefer these for searching and reading the user's files. " +
+      "The sandbox cannot touch the real disk — writes affect only the sandbox, so don't promise to have changed real files here."
+    : "";
   // The (possibly overridden) system prompt may still NAME disabled tools — tell the
   // model they're gone, or it text-hallucinates <tool_call> blocks for them.
   // (`off` was read above for the computer-turn routing.)
@@ -197,7 +224,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, disabledNote, approvalNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -223,11 +250,11 @@ export async function POST(req: Request): Promise<Response> {
   // (summary + recent tail); the full thread is still saved via `originalMessages`.
   const agent = buildLeashAgent(enabledTools);
   const callOptions: LeashCallOptions = {
-    route: imageTurn ? "vision" : computerTurn ? "computer" : health ? "health" : "chat",
+    route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : health ? "health" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). Computer turns get a
     // raised step budget — a GUI loop is screenshot → act → verify.
-    steps: imageTurn || !cfg ? null : computerTurn ? COMPUTER_STEPS : cfg.steps,
+    steps: imageTurn || !cfg ? null : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
     maxOutputTokens: imageTurn || !cfg ? null : cfg.maxOutputTokens,
     system,
   };
