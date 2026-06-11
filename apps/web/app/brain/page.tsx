@@ -21,7 +21,9 @@ import { researchTools } from "../../lib/leash/research-tools.ts";
 import { computerTools } from "../../lib/leash/computer-tools.ts";
 import { computerModelInfo } from "../../lib/leash/computer-model.ts";
 import { leashMcpTools, mcpServerStatuses } from "../../lib/leash/mcp.ts";
-import { DashShell } from "../../components/dash.tsx";
+import { DashShell, DashCard, Stat, Row } from "../../components/dash.tsx";
+import { buildSeries } from "../../lib/leash/evolve.ts";
+import { GrowthChart } from "../../components/GrowthChart.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
 import { ToolsPanel, type ToolRow } from "../../components/ToolsPanel.tsx";
 import { PromptsPanel } from "../../components/PromptsPanel.tsx";
@@ -34,7 +36,7 @@ import { McpPanel } from "../../components/McpPanel.tsx";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "forage"] as const;
+const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "growth", "forage"] as const;
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
@@ -95,6 +97,51 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
           <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />
         </div>
       )}
+      {tab === "growth" && (() => {
+        const series = buildSeries();
+        const { latest, axisDeltas } = series;
+        const points = series.points.map((p) => ({ version: p.version, base: p.base, adapter: p.adapter }));
+        const fmtDelta = (d: number) => `${d >= 0 ? "+" : ""}${d.toFixed(3)}`;
+        const pct = (v: number) => `${Math.round(v * 100)}%`;
+        const AXIS_LABEL: Record<string, string> = { recall: "Personal-fact recall", preference: "Preference adherence", style: "Style match" };
+        return !series.hasData ? (
+          <DashCard title="The Understory">
+            <p className="italic" style={{ color: "var(--color-muted)", fontFamily: "var(--font-body)" }}>
+              No adapter trained yet. Run <code style={{ fontFamily: "var(--font-mono)" }}>npm run evolve</code> (or wait for the 03:30 nightly job) to curate your signals, fine-tune a LoRA adapter, and score it against the frozen eval set. The first round will appear here.
+            </p>
+          </DashCard>
+        ) : (
+          <div className="flex flex-col gap-5">
+            {latest && (
+              <div className="grid grid-cols-2 gap-5 sm:grid-cols-4">
+                <Stat label="Overall Δ vs base" value={fmtDelta(latest.evalDelta)} accent={latest.evalDelta >= 0} />
+                <Stat label="Training pairs" value={latest.trainPairs} />
+                <Stat label="Adapter" value={latest.version} />
+                <Stat label="Size" value={`${(latest.sizeBytes / 1e6).toFixed(1)} MB`} />
+              </div>
+            )}
+            <DashCard title="Better at you — base vs adapter"><GrowthChart points={points} /></DashCard>
+            {axisDeltas.length > 0 && (
+              <DashCard title="Latest adapter — per axis">
+                {axisDeltas.map((a) => (
+                  <Row key={a.axis} label={AXIS_LABEL[a.axis] ?? a.axis} value={<span>{pct(a.base)} → <strong style={{ color: a.delta >= 0 ? "var(--color-sage-deep)" : "var(--color-brick)" }}>{pct(a.adapter)}</strong> ({fmtDelta(a.delta)})</span>} />
+                ))}
+              </DashCard>
+            )}
+            {latest && (
+              <DashCard title="Adapter manifest">
+                <Row label="Version" value={latest.version} />
+                <Row label="Base model" value={latest.baseModel} />
+                <Row label="Trained on" value={`${latest.trainPairs} pairs`} />
+                <Row label="eval Δ (overall)" value={<span style={{ color: latest.evalDelta >= 0 ? "var(--color-sage-deep)" : "var(--color-brick)" }}>{fmtDelta(latest.evalDelta)}</span>} />
+                <Row label="Promotable" value={latest.evalDelta >= 0 ? "yes — clears the bar" : "no — regression, not promoted"} />
+                <Row label="sha256" value={latest.sha256.slice(0, 16) + "…"} />
+                <Row label="Created" value={new Date(latest.createdAt).toLocaleString()} />
+              </DashCard>
+            )}
+          </div>
+        );
+      })()}
       {tab === "forage" && <ForagePanel result={await forage()} />}
     </DashShell>
   );

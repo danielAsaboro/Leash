@@ -46,15 +46,6 @@ function BrainIcon() {
     </svg>
   );
 }
-function GrowIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
-      <path d="M4 20h16" strokeLinecap="round" />
-      <path d="m5 16 4-4 3 2.5L19 7" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M19 7h-3M19 7v3" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
 function TasksIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
@@ -103,7 +94,6 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/chat", label: "Chat", Icon: ChatIcon, isActive: (p) => p.startsWith("/chat") },
   { href: "/feed", label: "Feed", Icon: PaperIcon, isActive: (p) => p.startsWith("/feed") },
   { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
-  { href: "/grow", label: "Grow", Icon: GrowIcon, isActive: (p) => p.startsWith("/grow") },
   { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
   { href: "/research", label: "Research", Icon: ResearchIcon, isActive: (p) => p.startsWith("/research") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
