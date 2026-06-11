@@ -617,6 +617,23 @@ async function runDaemon(): Promise<void> {
    * the host's add-writer record. Poll update() briefly (as the pairing smoke does) rather
    * than failing on the first check.
    */
+  /**
+   * Backfill `bootstrapKey` for a mesh whose meshes.json record predates the resilience fix — the key is
+   * recorded at join time, so memberships paired earlier lack it and would FORK on the next restart.
+   * Once the device is correctly writable in the mesh, record the current autobase key so the next
+   * restart RE-BINDS. Safe for both roles (verified live): an EDGE records the shared (founder's) key and
+   * re-binds to it; a FOUNDER records its own autobase key, and reopening with it recovers the same mesh
+   * writable (Autobase(store, ownKey) ≡ Autobase(store, null)). One-shot per mesh.
+   */
+  const backfillBootstrapKey = (m: MeshRuntime): void => {
+    const meta = meshMeta.get(m.meshId);
+    if (!meta || meta.bootstrapKey || meta.visibility === "public") return;
+    meta.bootstrapKey = m.graph.autobaseKey;
+    meshMeta.set(m.meshId, meta);
+    saveMeshRecords();
+    audit.record({ event: "note", extra: { role: "mesh", phase: "bootstrapKey-backfill", meshId: m.meshId, key: m.graph.autobaseKey.slice(0, 8) } });
+  };
+
   const ensureWritable = async (m: MeshRuntime, timeoutMs = 6000): Promise<boolean> => {
     const t0 = Date.now();
     while (!m.graph.writable && Date.now() - t0 < timeoutMs) {
@@ -624,6 +641,7 @@ async function runDaemon(): Promise<void> {
       if (m.graph.writable) break;
       await sleep(300);
     }
+    if (m.graph.writable) backfillBootstrapKey(m);
     return m.graph.writable;
   };
 
