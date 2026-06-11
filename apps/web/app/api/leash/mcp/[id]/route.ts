@@ -1,5 +1,13 @@
-/** `PUT /api/leash/mcp/[id]` (enabled/name) · `DELETE` — stored rows only (env rows are read-only). */
+/**
+ * `PUT /api/leash/mcp/[id]` (enabled/name) · `DELETE`.
+ *
+ * Built-ins (mesh tools): toggling `enabled` drives the daemon lifecycle (start+await
+ * health / stop) via `toggleBuiltin`; they can't be renamed or removed. Env rows are
+ * read-only. Stored rows: plain enabled/name update + delete.
+ */
 import { updateMcpServer, removeMcpServer } from "../../../../../lib/leash/mcp-store.ts";
+import { builtinById } from "../../../../../lib/leash/mcp-builtins.ts";
+import { toggleBuiltin } from "../../../../../lib/leash/mcp-lifecycle.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -7,10 +15,15 @@ export const dynamic = "force-dynamic";
 type P = { params: Promise<{ id: string }> };
 
 export async function PUT(req: Request, { params }: P): Promise<Response> {
-  const { id } = await params;
-  const body = (await req.json()) as { enabled?: boolean; name?: string };
+  const { id: raw } = await params;
+  const id = decodeURIComponent(raw);
+  const body = (await req.json().catch(() => ({}))) as { enabled?: boolean; name?: string };
   try {
-    const server = await updateMcpServer(decodeURIComponent(id), body);
+    if (builtinById(id) && typeof body.enabled === "boolean") {
+      const { server, warning } = await toggleBuiltin(id, body.enabled);
+      return Response.json({ server, ...(warning ? { warning } : {}) });
+    }
+    const server = await updateMcpServer(id, body);
     if (!server) return Response.json({ error: "not found" }, { status: 404 });
     return Response.json({ server });
   } catch (err) {

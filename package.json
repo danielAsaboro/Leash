@@ -44,6 +44,7 @@
     "smoke:model-fit": "tsx scripts/smoke-model-fit.ts",
     "smoke:model-rows": "tsx scripts/smoke-model-rows.ts",
     "smoke:storage-paging": "tsx scripts/smoke-storage-paging.ts",
+    "smoke:mcp": "tsx scripts/smoke-mcp.ts",
     "gate:firewall-revocation": "tsx scripts/gate-firewall-revocation.ts",
     "probe:metered-continuation": "tsx scripts/probe-metered-continuation.ts",
     "spike:ocr": "tsx spike/06-ocr.ts",

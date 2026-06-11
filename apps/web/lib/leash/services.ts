@@ -68,6 +68,12 @@ interface ServiceDef {
   dataDir?: string;
   /** Extra env DEFAULTS for the spawned daemon (the parent's process.env still wins). */
   env?: Record<string, string>;
+  /**
+   * Hide from the /services console — the daemon is supervised THROUGH another surface
+   * (e.g. the `leash-mcp` daemon's lifecycle is owned by the "Mesh Tools" toggle in
+   * Brain → MCP). `startService`/`stopService` still work by name; only the card is gone.
+   */
+  internal?: boolean;
 }
 
 function mtimeWithin(file: string, ms: number): { fresh: boolean | null; ageMs: number | null } {
@@ -173,7 +179,9 @@ const DEFS: ServiceDef[] = [
     command: ["npx", "tsx", "apps/leash-mcp/src/main.ts"],
     procMatch: "apps/leash-mcp/src/main.ts",
     readyProbe: true,
-    blurb: `MCP server (:${LEASH_MCP_PORT}) exposing mesh pairing as assistant tools — "pair this device with my laptop" becomes an in-chat flow with the PIN asked as a form. Add http://127.0.0.1:${LEASH_MCP_PORT}/mcp under Brain → MCP.`,
+    // Supervised through the "Mesh Tools" built-in toggle in Brain → MCP (no Services card).
+    internal: true,
+    blurb: `MCP server (:${LEASH_MCP_PORT}) exposing mesh pairing as assistant tools — "pair this device with my laptop" becomes an in-chat flow with the PIN asked as a form.`,
     freshness: async () => {
       try {
         const r = await fetch(`http://127.0.0.1:${LEASH_MCP_PORT}/health`, { signal: AbortSignal.timeout(1500) });
@@ -287,7 +295,7 @@ export async function servicesStatus(): Promise<ServiceStatus[]> {
     resettable: false,
     logTail: readLogTail("qvac-serve"),
   };
-  const rest = await Promise.all(DEFS.map(genericStatus));
+  const rest = await Promise.all(DEFS.filter((d) => !d.internal).map(genericStatus));
   return [serveRow, ...rest];
 }
 
