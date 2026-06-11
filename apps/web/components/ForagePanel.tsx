@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { DownloadIcon, ListPlusIcon, Loader2Icon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { IconButton } from "./IconButton.tsx";
 import type { ForageResult, Recommendation } from "../lib/leash/forage.ts";
 
 /**
@@ -87,16 +89,16 @@ export function ForagePanel({ result }: { result: ForageResult }) {
                     <p className="kicker mt-0.5" style={{ color: "var(--color-faint)" }}>
                       ≈{r.gb}G · {r.why}
                     </p>
-                    <div className="mt-1.5 flex gap-1.5">
+                    <div className="mt-1 flex gap-1">
                       {!r.downloaded && (
-                        <button type="button" disabled={busy === r.name} onClick={() => void download(r)} className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-                          Download
-                        </button>
+                        <IconButton title={`Download ${r.name}`} disabled={busy === r.name} onClick={() => void download(r)}>
+                          {busy === r.name ? <Loader2Icon size={14} className="animate-spin" /> : <DownloadIcon size={14} />}
+                        </IconButton>
                       )}
                       {!r.inConfig && (
-                        <button type="button" disabled={busy === r.name} onClick={() => addToConfig(r)} className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-                          Add to config
-                        </button>
+                        <IconButton title={`Add ${r.name} to config`} color="var(--color-sage-deep)" disabled={busy === r.name} onClick={() => addToConfig(r)}>
+                          <ListPlusIcon size={14} />
+                        </IconButton>
                       )}
                     </div>
                   </div>

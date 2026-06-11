@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SaveIcon, RotateCcwIcon, Loader2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { IconButton } from "./IconButton.tsx";
 import type { PromptView } from "../lib/leash/prompts-store.ts";
 
 /**
@@ -59,27 +61,19 @@ export function PromptsPanel({ prompts }: { prompts: PromptView[] }) {
               aria-label={`${p.label} text`}
             />
             <div className="mt-2 flex items-center gap-2">
-              <button
-                type="button"
-                disabled={busy === p.key || !dirty || !draft.trim()}
-                onClick={() => void put(p.key, draft)}
-                className="kicker px-3 py-1.5 transition-opacity hover:opacity-80 disabled:opacity-40"
-                style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
-              >
-                Save override
-              </button>
-              <button
-                type="button"
+              <IconButton title="Save override" color="var(--color-sage-deep)" disabled={busy === p.key || !dirty || !draft.trim()} onClick={() => void put(p.key, draft)}>
+                {busy === p.key ? <Loader2Icon size={15} className="animate-spin" /> : <SaveIcon size={15} />}
+              </IconButton>
+              <IconButton
+                title="Reset to default"
                 disabled={busy === p.key || !p.overridden}
                 onClick={() => {
                   setDrafts((d) => ({ ...d, [p.key]: p.defaultValue }));
                   void put(p.key, null);
                 }}
-                className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
-                style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
               >
-                Reset to default
-              </button>
+                <RotateCcwIcon size={15} />
+              </IconButton>
               {dirty && (
                 <span className="kicker" style={{ color: "var(--color-faint)" }}>
                   Unsaved changes
