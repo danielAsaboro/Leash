@@ -19,18 +19,14 @@ const FIT_LABEL: Record<NonNullable<FitEstimate["verdict"]>, string> = {
   "too-big": "Won't fit",
 };
 
-/** Device-fit badge — green/amber/red verdict + the GB estimate ("alone" = per-model). */
+/** Device-fit indicator — a single green/amber/red dot; the verdict + GB estimate live in the
+ *  hover tooltip (and an sr-only label) so the column stays tight. ("alone" = per-model.) */
 function fitBadge(fit: FitEstimate) {
   if (!fit.verdict) return <span className="kicker" style={{ color: "var(--color-faint)" }}>—</span>;
   return (
-    <span className="inline-flex items-center gap-1.5" title={`≈${fit.gb} GB to serve alone · ${fit.deviceGB.toFixed(0)} GB unified memory`}>
-      <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: FIT_COLOR[fit.verdict] }} />
-      <span className="kicker" style={{ color: "var(--color-ink-soft)" }}>
-        {FIT_LABEL[fit.verdict]}
-      </span>
-      <span className="kicker" style={{ color: "var(--color-faint)" }}>
-        ≈{fit.gb}G
-      </span>
+    <span className="inline-flex items-center" title={`${FIT_LABEL[fit.verdict]} · ≈${fit.gb} GB to serve alone · ${fit.deviceGB.toFixed(0)} GB unified memory`}>
+      <span aria-hidden className="inline-block h-2 w-2 rounded-full" style={{ background: FIT_COLOR[fit.verdict] }} />
+      <span className="sr-only">{FIT_LABEL[fit.verdict]} ≈{fit.gb}G</span>
     </span>
   );
 }
@@ -123,8 +119,9 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [pick, setPick] = useState("");
   const [downloads, setDownloads] = useState<DownloadStatus[]>(initialDownloads);
+  const [unshared, setUnshared] = useState<Set<string>>(new Set());
+  const [nodeSharing, setNodeSharing] = useState(true);
 
   // Poll download progress while any download is active (status-file polling beats
   // SSE here: the detached child survives dev restarts, the file is the truth).
@@ -172,13 +169,55 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
         : `${action === "stop" ? "Stop" : "Restart"} the model serve? Make sure no generation is running (a chat/voice turn mid-decode would wedge the GPU).`,
     );
 
-  const startDownload = () => {
-    const name = pick.trim().toUpperCase();
+  const startDownload = (rawName: string) => {
+    const name = rawName.trim().toUpperCase();
     if (!name) return;
     void call(() => fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }, TIMEOUT.heavy)).then(() => {
       setDownloads((d) => [...d.filter((x) => x.name !== name), { name, state: "starting", percentage: 0, downloaded: 0, total: 0 }]);
     });
   };
+
+  // Per-alias mesh sharing — load the daemon's deny-set once, then toggle optimistically (revert on fail).
+  useEffect(() => {
+    let alive = true;
+    fetchWithTimeout("/api/leash/hypha/share", { cache: "no-store" }, TIMEOUT.probe)
+      .then((r) => r.json())
+      .then((d: { shareModels?: boolean; unshared?: string[] }) => {
+        if (!alive) return;
+        setUnshared(new Set(d.unshared ?? []));
+        setNodeSharing(d.shareModels !== false);
+      })
+      .catch(() => {
+        /* daemon down — sharing column shows defaults; toggling will surface the error */
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const toggleShare = async (alias: string) => {
+    const nextShared = unshared.has(alias); // currently denied → turning sharing ON
+    setUnshared((prev) => {
+      const n = new Set(prev);
+      if (nextShared) n.delete(alias);
+      else n.add(alias);
+      return n;
+    });
+    try {
+      await fetchWithTimeout("/api/leash/hypha/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias, on: nextShared }) }, TIMEOUT.crud);
+    } catch {
+      setUnshared((prev) => {
+        const n = new Set(prev);
+        if (nextShared) n.add(alias);
+        else n.delete(alias);
+        return n;
+      });
+    }
+  };
+
+  // Catalog the user can pull, minus the noisy families (gpt-oss / bitnet); plus a set of
+  // already-cached registry names so a row greys out instead of re-downloading.
+  const downloadable = catalog.filter((c) => !/gpt|bitnet/i.test(c.name));
+  const downloadedNames = new Set<string>([...inventory.configured, ...inventory.onDiskOnly].filter((r) => r.onDiskBytes != null).map((r) => r.name));
 
   const stateLabel: Record<ServeStatus["state"], string> = { stopped: "Stopped", starting: "Starting (preloading)…", ready: "Ready", unhealthy: "Unhealthy" };
   const stateColor: Record<ServeStatus["state"], string> = { stopped: "var(--color-brick)", starting: "var(--color-faint)", ready: "var(--color-sage)", unhealthy: "var(--color-brick)" };
@@ -255,6 +294,27 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
           <span className="kicker" style={{ color: "var(--color-faint)" }}>
             {r.inConfig ? (serve.state === "ready" ? (r.preload ? "Not loaded" : "No preload") : "Serve " + serve.state) : "Cached only"}
           </span>
+        )}
+      </Cell>
+      <Cell>
+        {r.inConfig && r.alias ? (
+          (() => {
+            const shared = !unshared.has(r.alias);
+            return (
+              <button
+                type="button"
+                onClick={() => void toggleShare(r.alias as string)}
+                title={nodeSharing ? "Whether this model is advertised to mesh peers" : "Node sharing is off (Mesh model sharing card) — turn it on to advertise"}
+                className="inline-flex items-center gap-1.5 transition-opacity hover:opacity-80"
+                style={{ fontFamily: "var(--font-mono)", fontSize: "0.66rem", border: "1px solid var(--color-rule)", borderRadius: 999, padding: "1px 7px", background: "none", cursor: "pointer", color: shared && nodeSharing ? "var(--color-sage-deep)" : "var(--color-faint)" }}
+              >
+                <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: shared && nodeSharing ? "var(--color-sage)" : "var(--color-faint)" }} />
+                {shared ? "shared" : "private"}
+              </button>
+            );
+          })()
+        ) : (
+          <span className="kicker" style={{ color: "var(--color-faint)" }}>—</span>
         )}
       </Cell>
       <Cell>
@@ -341,63 +401,6 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
         </p>
       </section>
 
-      {/* Download */}
-      <section className="border p-4" style={{ borderColor: "var(--color-rule)", background: "var(--color-paper)" }}>
-        <span className="kicker kicker-sage">Download a model</span>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <input
-            list="leash-catalog"
-            value={pick}
-            onChange={(e) => setPick(e.target.value)}
-            placeholder="SDK constant, e.g. QWEN3_600M_INST_Q4"
-            aria-label="Model to download"
-            className="min-w-[300px] flex-1 border bg-transparent px-3 py-2"
-            style={{ borderColor: "var(--color-rule-strong)", fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}
-          />
-          <datalist id="leash-catalog">
-            {catalog.map((c) => (
-              <option key={c.name} value={c.name}>
-                {[c.addon, c.params, c.expectedSize ? fmtBytes(c.expectedSize) : null].filter(Boolean).join(" · ")}
-              </option>
-            ))}
-          </datalist>
-          <button type="button" disabled={busy || !pick.trim()} onClick={startDownload} className="kicker px-3 py-2 transition-opacity hover:opacity-80 disabled:opacity-40" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-            Download
-          </button>
-        </div>
-        {(() => {
-          const picked = catalog.find((c) => c.name === pick.trim().toUpperCase());
-          if (!picked?.fit?.verdict) return null;
-          return (
-            <p className="kicker mt-2 inline-flex items-center gap-1.5">
-              {fitBadge(picked.fit)}
-              <span style={{ color: "var(--color-faint)" }}>
-                on this machine ({picked.fit.deviceGB.toFixed(0)} GB unified){picked.fit.verdict === "too-big" ? " — it won't load" : picked.fit.verdict === "tight" ? " — leaves little headroom" : ""}
-              </span>
-            </p>
-          );
-        })()}
-        {downloads.length > 0 && (
-          <ul className="mt-3">
-            {downloads.map((d) => (
-              <li key={d.name} className="border-t py-2" style={{ borderColor: "var(--color-rule)" }}>
-                <div className="flex items-baseline justify-between gap-3">
-                  <span style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}>{d.name}</span>
-                  <span className="kicker" style={{ color: d.state === "error" ? "var(--color-brick)" : "var(--color-faint)" }}>
-                    {d.state === "downloading" ? `${d.percentage.toFixed(1)}% · ${fmtBytes(d.downloaded)}/${fmtBytes(d.total)}` : d.state === "error" ? (d.error ?? "error") : d.state}
-                  </span>
-                </div>
-                {(d.state === "downloading" || d.state === "starting") && (
-                  <div className="mt-1 h-1.5 w-full" style={{ background: "var(--color-rule)" }} role="progressbar" aria-valuenow={Math.round(d.percentage)} aria-valuemin={0} aria-valuemax={100}>
-                    <div className="h-full transition-all" style={{ width: `${d.percentage}%`, background: "var(--color-sage)" }} />
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
       <p className="kicker" style={{ color: "var(--color-faint)" }}>
         Disk cache {fmtBytes(inventory.totalDiskBytes)} · catalog {inventory.catalogCount} models
       </p>
@@ -419,6 +422,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
               <Head>Fit</Head>
               <Head>Size</Head>
               <Head>State</Head>
+              <Head>Share</Head>
               <Head>Actions</Head>
             </tr>
           </thead>
@@ -444,6 +448,7 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
                 <Head>Fit</Head>
                 <Head>Size</Head>
                 <Head>State</Head>
+                <Head>Share</Head>
                 <Head>Actions</Head>
               </tr>
             </thead>
@@ -451,6 +456,48 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
           </table>
         </section>
       )}
+
+      {/* Available to download — the SDK catalog (minus gpt-oss/bitnet noise); a row greys out once
+          its file is cached. Replaces the old type-a-constant card. */}
+      <section>
+        <div className="mb-2 flex items-center gap-3">
+          <span className="kicker kicker-sage">Available to download</span>
+          <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
+        </div>
+        <div className="flex flex-col" style={{ maxHeight: 360, overflowY: "auto" }}>
+          {downloadable.length === 0 && <span className="kicker" style={{ color: "var(--color-faint)" }}>no catalog models</span>}
+          {downloadable.map((c) => {
+            const onDisk = downloadedNames.has(c.name);
+            const dl = downloads.find((d) => d.name === c.name);
+            const downloading = dl?.state === "downloading" || dl?.state === "starting";
+            return (
+              <div key={c.name} className="flex flex-wrap items-center gap-2 border-b py-1.5" style={{ borderColor: "var(--color-rule)" }}>
+                <span className="mono kicker truncate" style={{ flex: 1, minWidth: 0 }} title={c.name}>{c.name}</span>
+                <span className="mono kicker" style={{ color: "var(--color-faint)" }}>{[c.addon, c.params, c.expectedSize ? fmtBytes(c.expectedSize) : null].filter(Boolean).join(" · ") || "—"}</span>
+                {c.fit?.verdict && fitBadge(c.fit)}
+                {onDisk ? (
+                  <span className="kicker" style={{ color: "var(--color-sage-deep)" }}>✓ on disk</span>
+                ) : downloading ? (
+                  <span className="kicker" style={{ color: "var(--color-sage-deep)" }}>{dl?.state === "downloading" ? `${dl.percentage.toFixed(0)}%` : "starting…"}</span>
+                ) : (
+                  <button type="button" disabled={busy} onClick={() => startDownload(c.name)} className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70 disabled:opacity-40" style={{ borderColor: "var(--color-sage-deep)", color: "var(--color-sage-deep)" }}>
+                    Download
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        {downloads.some((d) => d.state === "error") && (
+          <ul className="mt-2">
+            {downloads.filter((d) => d.state === "error").map((d) => (
+              <li key={d.name} className="kicker" style={{ color: "var(--color-brick)" }}>
+                {d.name} — {d.error ?? "download error"}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

@@ -164,10 +164,13 @@ export interface ShimDeps {
   /** Mesh model sharing toggle (advisory): whether peers may discover + pull this node's models. */
   getShareModels?: () => boolean;
   setShareModels?: (on: boolean) => void | Promise<void>;
+  /** Per-alias sharing: the deny-set of aliases NOT advertised to the mesh, and a per-alias toggle. */
+  getUnsharedModels?: () => string[];
+  setAliasShared?: (alias: string, on: boolean) => void | Promise<void>;
 }
 
 export function createShim(deps: ShimDeps): http.Server {
-  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, recordObservation, getReputation, getShareModels, setShareModels } = deps;
+  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared } = deps;
   const json = (res: http.ServerResponse, code: number, body: unknown): void => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
@@ -201,10 +204,18 @@ export function createShim(deps: ShimDeps): http.Server {
     }
     // Mesh model sharing toggle (advisory) — peers may discover + pull this node's models when on.
     if (method === "GET" && url === "/models/share") {
-      return json(res, 200, { shareModels: getShareModels ? getShareModels() : true });
+      return json(res, 200, { shareModels: getShareModels ? getShareModels() : true, unshared: getUnsharedModels ? getUnsharedModels() : [] });
     }
     if (method === "POST" && url === "/models/share") {
-      const on = Boolean((await readJsonBody(req))["on"]);
+      const body = await readJsonBody(req);
+      // Per-alias toggle when an `alias` is given; otherwise the node-wide share switch.
+      if (typeof body["alias"] === "string") {
+        const alias = body["alias"] as string;
+        const on = Boolean(body["on"]);
+        await setAliasShared?.(alias, on);
+        return json(res, 200, { ok: true, alias, on });
+      }
+      const on = Boolean(body["on"]);
       await setShareModels?.(on);
       return json(res, 200, { ok: true, shareModels: on });
     }

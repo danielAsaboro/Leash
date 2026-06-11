@@ -28,7 +28,7 @@ export async function GET(): Promise<Response> {
       fetch(`${BASE}/models/share`, { signal: AbortSignal.timeout(2500), cache: "no-store" }),
     ]);
     const peersBody = (await peersRes.json()) as { peers?: Array<{ displayName?: string; live?: boolean; shareModels?: boolean; models?: string[] }> };
-    const shareBody = (await shareRes.json()) as { shareModels?: boolean };
+    const shareBody = (await shareRes.json()) as { shareModels?: boolean; unshared?: string[] };
     const peers: SharePeer[] = (peersBody.peers ?? []).map((p) => ({
       displayName: p.displayName ?? "peer",
       live: Boolean(p.live),
@@ -45,7 +45,7 @@ export async function GET(): Promise<Response> {
     } catch {
       /* inventory is best-effort context for the Pull affordance */
     }
-    return Response.json({ ok: true, shareModels: shareBody.shareModels !== false, peers, aliasToName, myModels });
+    return Response.json({ ok: true, shareModels: shareBody.shareModels !== false, unshared: shareBody.unshared ?? [], peers, aliasToName, myModels });
   } catch {
     return Response.json({ ok: false, error: "Hypha daemon not running — start it on the Services page." }, { status: 503 });
   }
@@ -53,11 +53,12 @@ export async function GET(): Promise<Response> {
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const body = (await req.json()) as { on?: boolean };
+    const body = (await req.json()) as { on?: boolean; alias?: string };
+    const payload = typeof body.alias === "string" ? { alias: body.alias, on: Boolean(body.on) } : { on: Boolean(body.on) };
     const r = await fetch(`${BASE}/models/share`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ on: Boolean(body.on) }),
+      body: JSON.stringify(payload),
       signal: AbortSignal.timeout(4000),
       cache: "no-store",
     });

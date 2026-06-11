@@ -42,6 +42,8 @@ export const MESH_STORE_DIR = join(HYPHA_DATA_DIR, "mesh-store");
 export const MESHES_FILE = join(HYPHA_DATA_DIR, "meshes.json");
 /** Where the host writes a minted blind-pairing invite for a peer to read/copy. */
 export const INVITE_FILE = join(HYPHA_DATA_DIR, "invite.txt");
+/** Per-alias model-sharing deny-set (aliases NOT advertised to the mesh). Empty/absent = share all. */
+export const MODEL_SHARE_FILE = join(HYPHA_DATA_DIR, "model-share.json");
 /** 64-hex hyperswarm/provider seed (this device's stable mesh identity). */
 export const SEED_FILE = join(HYPHA_DATA_DIR, "seed.txt");
 /** Local tombstones: device keys this device has disconnected/forgotten (hidden everywhere locally). */

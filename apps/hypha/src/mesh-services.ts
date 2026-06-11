@@ -55,6 +55,8 @@ export interface StartMeshServicesDeps {
   bindIdentity?: boolean;
   /** Mesh model sharing — whether peers may discover + pull this node's cached models (advisory). */
   shareModels?: () => boolean;
+  /** Per-alias sharing — serve aliases NOT to advertise to the mesh. Empty/absent = advertise all. */
+  unsharedAliases?: () => Set<string>;
 }
 
 /**
@@ -84,15 +86,19 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
     if (identityProof) audit.record({ event: "capability", extra: { role: "mesh-services", meshId, phase: "identity-bound", wallet: identityProof.wallet, provider: selfKey.slice(0, 16) } });
     else if (deps.bindIdentity) audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "identity-bind-unavailable", reason: "no Plasma rail / wallet could not sign" } });
   };
-  const buildCap = (): DeviceCapability =>
-    makeCapability({
+  const buildCap = (): DeviceCapability => {
+    // Per-alias sharing: drop denied aliases from the advertised model list (empty deny-set = full
+    // list, byte-identical to before). Read fresh each advertise so a runtime toggle takes effect.
+    const denied = deps.unsharedAliases?.();
+    const shown = denied && denied.size ? aliases.filter((a) => !denied.has(a.alias)) : aliases;
+    return makeCapability({
       deviceId: graph.localWriterKey,
       displayName: DEVICE_NAME,
       computeClass: COMPUTE_CLASS,
       ramMB: RAM_MB,
       powerState: POWER_STATE,
-      availableModels: aliases.map((a) => a.alias),
-      models: aliases,
+      availableModels: shown.map((a) => a.alias),
+      models: shown,
       inflight: inflight.get(),
       consumerPublicKey: selfKey,
       isProvider: true,
@@ -104,6 +110,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
       ...(payouts.length > 0 ? { settlements: payouts } : {}),
       ...(identityProof ? { identityProof } : {}),
     });
+  };
 
   // This mesh's contribution to the device-global firewall: its paired peers' consumer keys.
   const reconcileFirewall = async (): Promise<void> => {

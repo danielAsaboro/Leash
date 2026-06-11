@@ -64,6 +64,7 @@ import {
   LOG_DIR,
   MESH_STORE_DIR,
   MESHES_FILE,
+  MODEL_SHARE_FILE,
   STALE_MS,
   UNPAIR_ACK_FILE,
   loadOrCreateSeed,
@@ -265,6 +266,29 @@ async function runDaemon(): Promise<void> {
     audit.record({ event: "note", extra: { role: "mesh", phase: "share-models", on } });
     await Promise.all([...runtimes.values()].map((m) => m.advertise().catch(() => undefined)));
   };
+  // Per-alias sharing: a persisted DENY-set of serve aliases NOT advertised to the mesh. Empty/absent =
+  // share all configured aliases (byte-identical to before). Refines the node-level `shareModels` switch —
+  // an alias in this set is filtered out of every mesh's advertised model list (see mesh-services buildCap).
+  const unsharedModels = new Set<string>(
+    (() => {
+      try {
+        return existsSync(MODEL_SHARE_FILE) ? ((JSON.parse(readFileSync(MODEL_SHARE_FILE, "utf8")) as { unshared?: string[] }).unshared ?? []) : [];
+      } catch {
+        return [];
+      }
+    })(),
+  );
+  const setAliasShared = async (alias: string, on: boolean): Promise<void> => {
+    if (on) unsharedModels.delete(alias);
+    else unsharedModels.add(alias);
+    try {
+      writeFileSync(MODEL_SHARE_FILE, JSON.stringify({ unshared: [...unsharedModels] }, null, 2));
+    } catch {
+      /* best-effort persistence — the live set still drives advertisement this session */
+    }
+    audit.record({ event: "note", extra: { role: "mesh", phase: "share-alias", alias, on } });
+    await Promise.all([...runtimes.values()].map((m) => m.advertise().catch(() => undefined)));
+  };
   // Reputation (Phase 3): always ingest receipts + local observations (read-only); the routing WEIGHT
   // is applied only when HYPHA_REPUTATION is on (else routing is the proven free-first inflight order).
   // Phase 4 (HYPHA_ECONOMY_VERIFY_RECEIPTS): a receipt counts toward reputation only if its tx is verified
@@ -392,7 +416,7 @@ async function runDaemon(): Promise<void> {
 
   /** Every mesh-online path goes through here: start per-mesh services + wire the unpair reconcile. */
   const bringMeshOnline = async (meshId: string, g: MeshGraph, meta: MeshRecord): Promise<MeshRuntime> => {
-    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
+    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
     runtimes.set(meshId, m);
     meshMeta.set(meshId, meta);
     g.onChange(() => void reconcileUnpairs(m));
@@ -728,6 +752,8 @@ async function runDaemon(): Promise<void> {
     getReputation: () => reputation.snapshot(),
     getShareModels: () => shareModels,
     setShareModels,
+    getUnsharedModels: () => [...unsharedModels],
+    setAliasShared,
   });
 
   // Feed reputation from the replicated settled receipts (read-only snapshot, refreshed on a tick).
