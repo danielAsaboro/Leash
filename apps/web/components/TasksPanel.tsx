@@ -2,7 +2,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { PlusIcon, CheckCheckIcon, RotateCcwIcon, Trash2Icon, XIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { IconButton } from "./IconButton.tsx";
 import type { LeashTask, TaskStatus, TaskPriority } from "../lib/leash/tasks-store.ts";
 
 /**
@@ -154,10 +156,12 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
         <button
           type="submit"
           disabled={busy || !title.trim()}
-          className="kicker px-4 py-2.5 transition-opacity hover:opacity-80 disabled:opacity-40"
+          title="Add task"
+          aria-label="Add task"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded transition-opacity hover:opacity-80 disabled:opacity-40"
           style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
         >
-          Add task
+          <PlusIcon size={18} />
         </button>
       </form>
       {error && (
@@ -172,42 +176,19 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
           <span className="kicker" style={{ color: "var(--color-ink-soft)" }}>
             {listedSelected.length} selected
           </span>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => bulkStatus("done", "marked done")}
-            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
-            style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
-          >
-            Mark done
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => bulkStatus("open", "marked open")}
-            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
-            style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
-          >
-            Mark open
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={bulkDelete}
-            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
-            style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}
-          >
-            Delete
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => setSelected(new Set())}
-            className="kicker px-2 py-1.5 transition-opacity hover:opacity-70"
-            style={{ color: "var(--color-faint)" }}
-          >
-            Clear
-          </button>
+          <IconButton title="Mark done" color="var(--color-sage-deep)" disabled={busy} onClick={() => bulkStatus("done", "marked done")}>
+            <CheckCheckIcon size={16} />
+          </IconButton>
+          <IconButton title="Mark open" disabled={busy} onClick={() => bulkStatus("open", "marked open")}>
+            <RotateCcwIcon size={15} />
+          </IconButton>
+          <IconButton title="Delete selected" danger disabled={busy} onClick={bulkDelete}>
+            <Trash2Icon size={15} />
+          </IconButton>
+          <span className="h-4 w-px" style={{ background: "var(--color-rule-strong)" }} />
+          <IconButton title="Clear selection" disabled={busy} onClick={() => setSelected(new Set())}>
+            <XIcon size={15} />
+          </IconButton>
         </div>
       )}
 
@@ -278,9 +259,9 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
                 ))}
               </select>
 
-              <button type="button" onClick={() => del(t.id)} disabled={busy} title="Delete task" aria-label="Delete task" className="px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
-                ×
-              </button>
+              <IconButton title="Delete task" danger disabled={busy} onClick={() => del(t.id)}>
+                <Trash2Icon size={15} />
+              </IconButton>
             </li>
           ))}
         </ul>

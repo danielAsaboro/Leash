@@ -18,7 +18,7 @@ export function GpuToggle({ useGpu, busy, onSave }: { useGpu: boolean | null; bu
       onClick={() => setVal(on)}
       aria-pressed={val === on}
       className="kicker px-2 py-0.5 transition-opacity hover:opacity-80 disabled:opacity-40"
-      style={{ background: val === on ? "var(--color-ink)" : "transparent", color: val === on ? "var(--color-cream)" : "var(--color-ink-soft)" }}
+      style={{ background: val === on ? "var(--color-sage-deep)" : "transparent", color: val === on ? "var(--color-cream)" : "var(--color-ink-soft)" }}
     >
       {label}
     </button>
@@ -26,7 +26,7 @@ export function GpuToggle({ useGpu, busy, onSave }: { useGpu: boolean | null; bu
 
   return (
     <div className="flex flex-col gap-1" style={{ minWidth: 88 }}>
-      <div className="inline-flex border" style={{ borderColor: "var(--color-ink)", width: "fit-content" }}>
+      <div className="inline-flex border" style={{ borderColor: "var(--color-sage-deep)", width: "fit-content" }}>
         {seg(false, "CPU")}
         {seg(true, "GPU")}
       </div>
@@ -38,7 +38,7 @@ export function GpuToggle({ useGpu, busy, onSave }: { useGpu: boolean | null; bu
           onClick={() => onSave(val)}
           title="Write use_gpu to qvac.config.base.json (applies on next serve restart)"
           className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70 disabled:opacity-40"
-          style={{ borderColor: "var(--color-ink)", width: "fit-content" }}
+          style={{ borderColor: "var(--color-sage-deep)", width: "fit-content" }}
         >
           save · restart
         </button>

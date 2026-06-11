@@ -454,8 +454,8 @@ export function ModelsPanel({ inventory, serve, catalog, downloads: initialDownl
 
       {/* One filterable browser: status × kind facets + name search over the merged list. */}
       <section className="flex flex-col gap-3">
-        <FilterChipBar chips={STATUS_CHIPS} active={status} onChange={(k) => setStatus(k as "all" | ModelCategory)} counts={statusCounts} />
-        <FilterChipBar chips={KIND_CHIPS} active={kind} onChange={(k) => setKind(k as "all" | ModelKind)} counts={kindCounts} />
+        <FilterChipBar label="Status" chips={STATUS_CHIPS} active={status} onChange={(k) => setStatus(k as "all" | ModelCategory)} counts={statusCounts} />
+        <FilterChipBar label="Kind" chips={KIND_CHIPS} active={kind} onChange={(k) => setKind(k as "all" | ModelKind)} counts={kindCounts} />
         <input
           type="search"
           value={q}
