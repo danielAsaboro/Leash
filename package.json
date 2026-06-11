@@ -52,6 +52,7 @@
     "smoke:forward-loopback": "HYPHA_FORWARD_FORCE_REMOTE=0 tsx scripts/smoke-forward-loopback.ts",
     "smoke:forward-provider": "HYPHA_FORWARD_FORCE_REMOTE=0 tsx scripts/smoke-forward-provider.ts",
     "smoke:multipart": "tsx scripts/smoke-multipart.ts",
+    "smoke:supersede": "tsx scripts/smoke-supersede.ts",
     "smoke:mcp": "tsx scripts/smoke-mcp.ts",
     "smoke:bash": "tsx scripts/smoke-bash-tool.ts",
     "gate:firewall-revocation": "tsx scripts/gate-firewall-revocation.ts",

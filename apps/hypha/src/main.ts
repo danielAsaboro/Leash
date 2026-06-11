@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { close, stopQVACProvider, heartbeat, suspend, resume } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
-import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
+import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
 import {
   DEVICE_NAME,
   FORGOTTEN_FILE,
@@ -413,6 +413,26 @@ async function runDaemon(): Promise<void> {
     }
   };
 
+  /**
+   * Supersede-based ghost cleanup. A device that re-pairs after a mesh-store reset gets a NEW writer key
+   * (the cap's `deviceId`) while its `providerPublicKey`/`consumerPublicKey` (the seed-derived identity)
+   * stay the same — leaving its old cap as a dead ghost in the grow-only membership set. Forget the
+   * superseded writer key. Only a WRITABLE member can append the forget; SAFE — it never forgets a merely
+   * offline device (it requires the SAME identity to have REAPPEARED under a new key), unlike a staleness
+   * timer (`STALE_MS` is 30s). Driven off graph.onChange + once at mesh boot.
+   */
+  const supersededForgotten = new Set<string>();
+  const reconcileSuperseded = async (m: MeshRuntime): Promise<void> => {
+    if (!m.graph.writable) return;
+    const caps = await m.graph.capabilities().catch(() => []);
+    for (const deviceId of supersededDeviceIds(caps)) {
+      if (supersededForgotten.has(deviceId)) continue;
+      supersededForgotten.add(deviceId);
+      await m.graph.forgetCapability(deviceId).catch(() => undefined);
+      audit.record({ event: "capability", extra: { role: "mesh", phase: "supersede-forget", deviceId: deviceId.slice(0, 16) } });
+    }
+  };
+
   // ── meshes.json index (the memberships to reopen at boot) ────────────────────────────────────
   const primaryRecord = (): MeshRecord => ({ meshId: PRIMARY_MESH_ID, label: "Primary", visibility: "private", reach: "local", tier: 0 });
   const loadMeshRecords = (): MeshRecord[] => {
@@ -437,8 +457,9 @@ async function runDaemon(): Promise<void> {
     const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
     runtimes.set(meshId, m);
     meshMeta.set(meshId, meta);
-    g.onChange(() => void reconcileUnpairs(m));
+    g.onChange(() => { void reconcileUnpairs(m); void reconcileSuperseded(m); });
     void reconcileUnpairs(m);
+    void reconcileSuperseded(m);
     if (meshId === PRIMARY_MESH_ID) {
       mesh = m;
       adapterSync ??= startAdapterSync(g, { audit }); // Layer-4 adapter distribution over the primary mesh

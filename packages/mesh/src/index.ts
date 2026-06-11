@@ -18,6 +18,8 @@ export { MeshHost, PRIMARY_MESH_ID } from "./mesh-host.ts";
 export type { MeshHostOptions, OpenMeshOptions, PairMeshOptions } from "./mesh-host.ts";
 export { unionAllowedConsumers, routeDelegation, meshEligible, maxVisibilityFor, isRouteHit } from "./delegation-policy.ts";
 export type { MeshCandidate, WarmTarget, DelegationRequest, RouteResult, RouteHit, RouteMiss } from "./delegation-policy.ts";
+export { supersededDeviceIds } from "./supersede.ts";
+export type { SupersedeCap } from "./supersede.ts";
 export { GossipMesh, deriveCellSeed, ephemeralCellId } from "./gossip-mesh.ts";
 export type { GossipMessage } from "./gossip-mesh.ts";
 export { PublicMesh, cellTopic } from "./public-mesh.ts";
