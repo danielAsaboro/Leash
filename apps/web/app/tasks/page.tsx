@@ -176,7 +176,7 @@ async function PipelineTab({ params }: { params: Record<string, string | string[
                 </td>
                 <td className="border-b px-2 py-2" style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-body)", fontSize: "0.9rem" }}>
                   {a.stage === "PUBLISHED" ? (
-                    <Link href={`/${a.date}/${a.slug}`} className="transition-opacity hover:opacity-60">
+                    <Link href={`/feed/${a.date}/${a.slug}`} className="transition-opacity hover:opacity-60">
                       {a.headline}
                     </Link>
                   ) : (

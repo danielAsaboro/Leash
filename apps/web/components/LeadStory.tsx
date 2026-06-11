@@ -24,7 +24,7 @@ export function LeadStory({
   bodyCols?: number;
   plate?: boolean;
 }) {
-  const href = `/${article.date}/${article.slug}`;
+  const href = `/feed/${article.date}/${article.slug}`;
   const isLead = variant === "lead";
   const showPlate = plate && Boolean(article.heroImagePath);
   const hasBody = Boolean(article.body && article.body.trim());

@@ -159,7 +159,7 @@ export const leashTools = {
         take: topK ?? 5,
         select: { date: true, slug: true, headline: true, dek: true },
       });
-      const sources: LeashSource[] = rows.map((r) => ({ kind: "paper", title: r.headline, snippet: oneLine(r.dek), url: `/${r.date}/${r.slug}` }));
+      const sources: LeashSource[] = rows.map((r) => ({ kind: "paper", title: r.headline, snippet: oneLine(r.dek), url: `/feed/${r.date}/${r.slug}` }));
       return {
         text: rows.length ? rows.map((r) => `(${r.date}) ${r.headline} — ${oneLine(r.dek)}`).join("\n") : `No published articles match "${q}".`,
         sources,
@@ -178,7 +178,7 @@ export const leashTools = {
         orderBy: [{ publishedAt: "asc" }],
         select: { date: true, slug: true, headline: true, dek: true },
       });
-      const sources: LeashSource[] = rows.map((r) => ({ kind: "paper", title: r.headline, snippet: oneLine(r.dek), url: `/${r.date}/${r.slug}` }));
+      const sources: LeashSource[] = rows.map((r) => ({ kind: "paper", title: r.headline, snippet: oneLine(r.dek), url: `/feed/${r.date}/${r.slug}` }));
       return {
         text: `The Understory — latest edition (${latest.date}), ${rows.length} stories:\n` + rows.map((r) => `${r.headline} — ${oneLine(r.dek)}`).join("\n"),
         sources,

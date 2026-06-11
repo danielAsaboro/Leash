@@ -14,8 +14,6 @@ import { LeashMark } from "./LeashMark.tsx";
  * by the rail width so the 100dvh reader sits beside it untouched.
  */
 
-const DATE_RE = /^\/\d{4}-\d{2}-\d{2}(\/|$)/;
-
 function HomeIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
@@ -103,7 +101,7 @@ function SettingsIcon() {
 const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isActive: (p: string) => boolean }[] = [
   { href: "/home", label: "Home", Icon: HomeIcon, isActive: (p) => p === "/home" },
   { href: "/chat", label: "Chat", Icon: ChatIcon, isActive: (p) => p.startsWith("/chat") },
-  { href: "/paper", label: "Paper", Icon: PaperIcon, isActive: (p) => p === "/paper" || DATE_RE.test(p) },
+  { href: "/feed", label: "Feed", Icon: PaperIcon, isActive: (p) => p.startsWith("/feed") },
   { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
   { href: "/grow", label: "Grow", Icon: GrowIcon, isActive: (p) => p.startsWith("/grow") },
   { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },

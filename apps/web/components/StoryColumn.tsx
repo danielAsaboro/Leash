@@ -14,7 +14,7 @@ const CLAMP_WORDS = 150;
  * a single column never runs away. `data-article-id` is kept for the live ring.
  */
 export function StoryColumn({ article, plate = false }: { article: ArticleCard; plate?: boolean }) {
-  const href = `/${article.date}/${article.slug}`;
+  const href = `/feed/${article.date}/${article.slug}`;
   const bulletin = isBulletin(article);
   const showPlate = plate && Boolean(article.heroImagePath);
   const body = article.body?.trim() ?? "";

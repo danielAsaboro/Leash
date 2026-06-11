@@ -25,7 +25,7 @@ export function CategoryNav({
         <ul className="flex flex-wrap items-center gap-x-7 gap-y-2">
           {TABS.map((t) => {
             const isActive = active === t.key;
-            const href = t.key === "ALL" ? `/${date}` : `/${date}?section=${t.key}`;
+            const href = t.key === "ALL" ? `/feed/${date}` : `/feed/${date}?section=${t.key}`;
             const n = t.key === "ALL" ? undefined : counts[t.key];
             return (
               <li key={t.key}>

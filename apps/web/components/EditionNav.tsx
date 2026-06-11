@@ -31,7 +31,7 @@ export function EditionNav({
       {/* ← Previous (older) edition */}
       <div className="flex flex-1 items-center">
         {prev ? (
-          <Link href={`/${prev}`} className="edition-nav-link">
+          <Link href={`/feed/${prev}`} className="edition-nav-link">
             <span className="edition-nav-arrow" aria-hidden>←</span>
             <span className="flex flex-col">
               <span className="kicker" style={{ color: "var(--color-faint)" }}>Previous</span>
@@ -65,7 +65,7 @@ export function EditionNav({
       {/* Next (newer) edition → */}
       <div className="flex flex-1 items-center justify-end text-right">
         {next ? (
-          <Link href={`/${next}`} className="edition-nav-link justify-end">
+          <Link href={`/feed/${next}`} className="edition-nav-link justify-end">
             <span className="flex flex-col items-end">
               <span className="kicker" style={{ color: "var(--color-faint)" }}>Next</span>
               <span className="edition-nav-date">{formatShort(next)}</span>

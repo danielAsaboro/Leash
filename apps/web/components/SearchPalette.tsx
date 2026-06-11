@@ -122,7 +122,7 @@ export function SearchPalette() {
     (hit: Hit | undefined) => {
       if (!hit) return;
       close();
-      router.push(`/${hit.date}/${hit.slug}`);
+      router.push(`/feed/${hit.date}/${hit.slug}`);
     },
     [router, close],
   );
