@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { AuditLog, SessionSettlementReceipt, Visibility } from "@mycelium/shared";
-import { localChatAliases } from "./catalog.ts";
+import { localBorrowableAliases } from "./catalog.ts";
 import { signProviderPayload, digestAuthorization, type ActiveSessionRecord, type AdvanceAuthorizationRequest, type AdvanceAuthorizationResponse, type AuthorizationRung, type BlockedPayerRecord, type ClosePaidSessionRequest, type OpenPaidSessionRequest, type PaidSessionGrant, type PaidSessionQuote, type PendingBudgetVerification, type QuoteBudgetRequest, type UnsettledReceiptRecord, type VerifyBudgetRequest, type VerifyBudgetResponse } from "./economy-types.ts";
 import type { PlasmaSettlementService, PlasmaVerifiedBudget } from "./plasma-settlement.ts";
 import { appendRung, initMeteredState, isIdleExpired, rungToSettle, settleTokensAtClose, settleTokensAtCutoff } from "./metered.ts";
@@ -35,7 +35,7 @@ const RETRY_BASE_MS = 15_000;
 const RETRY_MAX_MS = 5 * 60_000;
 
 export class ProviderEconomyService {
-  private readonly aliases = new Map(localChatAliases().map((a) => [a.alias, a.modelSrc]));
+  private readonly aliases = new Map(localBorrowableAliases().map((a) => [a.alias, a.modelSrc]));
   private readonly store: ProviderEconomyStore;
   private readonly pending = new Map<string, PendingBudgetVerification>();
   private readonly pendingByDigest = new Map<string, string>();

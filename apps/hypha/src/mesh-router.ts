@@ -80,6 +80,23 @@ export class MeshRouter {
     };
   }
 
+  /**
+   * Peer key of a live peer that SERVES `alias`, for the forward transport. Unlike route(), this does
+   * NOT need a delegated warm or the `borrowable` flag — forward borrows from the peer's LOCAL serve,
+   * so any peer serving the alias qualifies. Walks meshes in tier order, honors a hard mesh pin, and
+   * fails closed on privacy (a private request never falls to a public mesh).
+   */
+  forwardTargetForAlias(req: { alias: string; sensitivity?: Sensitivity; pinMeshId?: string }): string | null {
+    const meshes = [...this.meshes()].sort((a, b) => a.tier - b.tier);
+    for (const m of meshes) {
+      if (req.pinMeshId && m.meshId !== req.pinMeshId) continue;
+      if (!req.pinMeshId && req.sensitivity !== "shareable" && m.visibility === "public") continue;
+      const peerKey = m.pool.forwardTargetForAlias(req.alias);
+      if (peerKey) return peerKey;
+    }
+    return null;
+  }
+
   /** Drop a dead warm entry (TTFB timeout) across every mesh holding it. */
   dropWarm(modelId: string): void {
     for (const m of this.meshes()) m.pool.dropWarm(modelId);

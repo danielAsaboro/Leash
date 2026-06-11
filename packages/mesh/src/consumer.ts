@@ -31,6 +31,9 @@ export interface LoadDelegatedParams {
    * no tools offered can hang (the TOOLLESS-HANG gotcha), so the shim warms toolless.
    */
   tools?: boolean;
+  /** Vision only — the provider's absolute mmproj path. The SDK requires it to load a VLM (the
+   * registry id alone won't pull the projection over delegation); the provider loads it locally. */
+  projectionModelSrc?: string;
   audit?: AuditLog;
 }
 
@@ -42,16 +45,17 @@ export async function loadDelegated({
   fallbackToLocal = true,
   ctxSize = 4096,
   tools = true,
+  projectionModelSrc,
   audit,
 }: LoadDelegatedParams): Promise<string> {
   const t = now();
   const modelId = await loadModel({
     modelSrc,
     modelType: "llm",
-    modelConfig: { ctx_size: ctxSize, tools },
+    modelConfig: { ctx_size: ctxSize, tools, ...(projectionModelSrc ? { projectionModelSrc } : {}) },
     delegate: { providerPublicKey, timeout, fallbackToLocal },
     onProgress: () => {},
-  });
+  } as Parameters<typeof loadModel>[0]);
   audit?.record({
     event: "delegation",
     modelId,

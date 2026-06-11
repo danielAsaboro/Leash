@@ -15,6 +15,9 @@
  */
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { writeFileSync, unlinkSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { AuditLog, SessionSettlementReceipt } from "@mycelium/shared";
 import { completion, unloadModel } from "@qvac/sdk";
 import type { CompletionFinal } from "@qvac/sdk";
@@ -25,7 +28,9 @@ import type { KvSessions } from "@mycelium/shared";
 import type { SettlementManager } from "./settlement-manager.ts";
 import type { PaidSessionGrant } from "./economy-types.ts";
 import type { PaymentControlClient } from "./payment-control.ts";
+import type { ForwardControlClient } from "./forward-control.ts";
 import { descriptorFor } from "./catalog.ts";
+import { flattenContent, parseDataUrlImage, type ContentPart } from "./chat-attachments.ts";
 import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS } from "./config.ts";
 
 export interface Inflight {
@@ -103,13 +108,32 @@ export interface MeshSummary {
 
 interface ChatMessage {
   role: string;
-  content: string | Array<{ type?: string; text?: string }>;
+  content: string | ContentPart[];
 }
 
-function asText(content: ChatMessage["content"]): string {
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) return content.map((p) => (typeof p?.text === "string" ? p.text : "")).join("");
-  return "";
+/**
+ * Flatten a chat message to text + materialize any inline `data:` images to temp files (tracked for
+ * cleanup) — this is how VISION (qwen3vl) borrows over the chat path: OpenAI sends images as
+ * `image_url` content parts, the delegated `completion()` wants `attachments:[{path}]`. The SDK reads
+ * the file on THIS (consumer) side and sends the bytes to the provider. Parsing/decoding is the pure
+ * `chat-attachments` module; this only adds the temp-file write.
+ */
+function extractParts(content: ChatMessage["content"], tmp: string[]): { text: string; attachments: { path: string }[] } {
+  const { text, images } = flattenContent(content);
+  const attachments: { path: string }[] = [];
+  for (const url of images) {
+    const decoded = parseDataUrlImage(url);
+    if (!decoded) continue;
+    const file = join(tmpdir(), `hypha-img-${randomUUID()}.${decoded.ext}`);
+    try {
+      writeFileSync(file, decoded.bytes);
+      tmp.push(file);
+      attachments.push({ path: file });
+    } catch {
+      /* best-effort: a temp-write failure just drops the image */
+    }
+  }
+  return { text, attachments };
 }
 
 function readBody(req: http.IncomingMessage): Promise<Buffer> {
@@ -145,6 +169,124 @@ function sseChunk(id: string, model: string, created: number, delta: object, fin
   return `data: ${JSON.stringify(payload)}\n\n`;
 }
 
+/** Does any message carry an inline image part? Such requests can't ride SDK delegation (attachments
+ *  are path-only, read on the worker), so they go over the forward transport to the peer's local serve. */
+function requestHasImages(messages: ChatMessage[]): boolean {
+  return messages.some((m) => flattenContent(m.content).images.length > 0);
+}
+
+/** Stream a vision (or other non-delegable) chat request to `peerKey` over the forward transport: the
+ *  peer runs it on its LOCAL serve (inline image bytes → vision) and streams tokens back to us. */
+async function streamForwardChat(
+  res: http.ServerResponse,
+  forward: ForwardControlClient,
+  peerKey: string,
+  args: { id: string; alias: string; created: number; stream: boolean; body: unknown },
+  inflight: Inflight,
+  audit?: AuditLog,
+): Promise<void> {
+  inflight.inc();
+  let clientOpen = true;
+  res.on("close", () => { clientOpen = false; });
+  const t0 = Date.now();
+  let tokens = 0;
+  let full = "";
+  try {
+    if (args.stream && clientOpen) {
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      res.write(sseChunk(args.id, args.alias, args.created, { role: "assistant" }, null));
+    }
+    for await (const token of forward.forward(peerKey, { id: args.id, endpoint: "/v1/chat/completions", body: args.body })) {
+      tokens++;
+      full += token;
+      if (args.stream && clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: token }, null));
+    }
+    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-done", peer: peerKey.slice(0, 16), alias: args.alias, tokens, ms: Date.now() - t0 } });
+    if (!clientOpen) return;
+    if (args.stream) {
+      res.write(sseChunk(args.id, args.alias, args.created, {}, "stop"));
+      res.write("data: [DONE]\n\n");
+      res.end();
+    } else {
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ id: args.id, object: "chat.completion", created: args.created, model: args.alias, choices: [{ index: 0, message: { role: "assistant", content: full }, finish_reason: "stop" }] }));
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), alias: args.alias, error: message } });
+    if (!clientOpen) return;
+    if (args.stream) {
+      try { res.write(`data: ${JSON.stringify({ error: { message: `hypha forward: ${message}` } })}\n\n`); res.end(); } catch { /* client gone */ }
+    } else {
+      try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
+    }
+  } finally {
+    inflight.dec();
+  }
+}
+
+/** Forward a non-chat request whose answer is a single JSON body (embeddings) and relay it back. */
+async function forwardJsonResponse(
+  res: http.ServerResponse,
+  forward: ForwardControlClient,
+  peerKey: string,
+  endpoint: string,
+  body: unknown,
+  inflight: Inflight,
+  audit?: AuditLog,
+): Promise<void> {
+  inflight.inc();
+  const t0 = Date.now();
+  try {
+    let out = "";
+    for await (const chunk of forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body })) out += chunk;
+    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-json-done", peer: peerKey.slice(0, 16), endpoint, ms: Date.now() - t0 } });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(out);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: message } });
+    try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
+  } finally {
+    inflight.dec();
+  }
+}
+
+/** Forward a request whose answer is binary (audio/speech): reassemble base64 chunk frames → bytes. */
+async function forwardBinaryResponse(
+  res: http.ServerResponse,
+  forward: ForwardControlClient,
+  peerKey: string,
+  endpoint: string,
+  body: unknown,
+  contentType: string,
+  inflight: Inflight,
+  audit?: AuditLog,
+): Promise<void> {
+  inflight.inc();
+  const t0 = Date.now();
+  try {
+    const gen = forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body });
+    const parts: Buffer[] = [];
+    let next = await gen.next();
+    while (next.done !== true) { parts.push(Buffer.from(next.value, "base64")); next = await gen.next(); }
+    const stats = next.value as { contentType?: string } | undefined;
+    const audio = Buffer.concat(parts);
+    // Use the serve's ACTUAL content-type (stamped in the provider's done frame), falling back to the
+    // request-format guess — supertonic returns WAV regardless of `response_format`.
+    const ct = typeof stats?.contentType === "string" && stats.contentType ? stats.contentType : contentType;
+    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-binary-done", peer: peerKey.slice(0, 16), endpoint, bytes: audio.length, contentType: ct, ms: Date.now() - t0 } });
+    res.writeHead(200, { "content-type": ct });
+    res.end(audio);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: message } });
+    try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
+  } finally {
+    inflight.dec();
+  }
+}
+
 export interface ShimDeps {
   /** Delegation router across this device's meshes, or null (no mesh online yet). */
   getRouter: () => MeshRouter | null;
@@ -161,6 +303,9 @@ export interface ShimDeps {
   settlement?: SettlementManager;
   /** Persistent payment-control client (one per daemon; warmed in the background, closed on shutdown). */
   paymentControl: PaymentControlClient;
+  /** Forward transport for non-delegable modalities (vision today; embed/stt/tts in B2), or null when
+   *  HYPHA_FORWARD is off → vision falls through to the (image-broken cross-machine) delegation path. */
+  forward?: ForwardControlClient | null;
   /** Record a local reputation observation of a delegated completion (provider key, delivered?, TTFB). */
   recordObservation?: (providerId: string, ok: boolean, ttftMs?: number) => void;
   /** Snapshot for `GET /reputation` (per-provider scores), or undefined if reputation isn't wired. */
@@ -174,7 +319,7 @@ export interface ShimDeps {
 }
 
 export function createShim(deps: ShimDeps): http.Server {
-  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared } = deps;
+  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, forward, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared } = deps;
   const json = (res: http.ServerResponse, code: number, body: unknown): void => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
@@ -288,6 +433,31 @@ export function createShim(deps: ShimDeps): http.Server {
       return json(res, 404, { error: `hypha: no mesh route ${method} ${url}` });
     }
 
+    // ── SP2 Option B — borrow non-chat modalities over the forward transport ──────────────────────
+    // The provider runs them on its LOCAL serve (embeddings vector, TTS audio). STT (multipart upload)
+    // is a follow-on. OFF (HYPHA_FORWARD) → these 404 like before.
+    if (forward && method === "POST" && (url.startsWith("/v1/embeddings") || url.startsWith("/v1/audio/speech"))) {
+      const fwdRouter = getRouter();
+      if (!fwdRouter || !fwdRouter.online()) return json(res, 503, { error: { message: "hypha: mesh offline (device not paired)", code: "mesh_offline" } });
+      let fbody: { model?: string; sensitivity?: string; meshId?: string; response_format?: string };
+      try {
+        fbody = JSON.parse((await readBody(req)).toString("utf-8"));
+      } catch (err) {
+        return json(res, 400, { error: { message: `hypha shim: bad JSON: ${String(err)}` } });
+      }
+      const fwdAlias = fbody.model;
+      if (!fwdAlias) return json(res, 400, { error: { message: "hypha shim: `model` (alias) is required" } });
+      const fwdSensitivity = fbody.sensitivity === "shareable" ? "shareable" : "private";
+      const fwdPeer = fwdRouter.forwardTargetForAlias({ alias: fwdAlias, sensitivity: fwdSensitivity, ...(fbody.meshId ? { pinMeshId: fbody.meshId } : {}) });
+      if (!fwdPeer) return json(res, 503, { error: { message: `hypha shim: no peer serves "${fwdAlias}" for forwarding`, code: "no_forward_peer" } });
+      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peer: fwdPeer.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] } });
+      if (url.startsWith("/v1/audio/speech")) {
+        const ct = fbody.response_format === "wav" ? "audio/wav" : "audio/mpeg";
+        return forwardBinaryResponse(res, forward, fwdPeer, "/v1/audio/speech", fbody, ct, inflight, audit);
+      }
+      return forwardJsonResponse(res, forward, fwdPeer, "/v1/embeddings", fbody, inflight, audit);
+    }
+
     // ── overflow chat completions ────────────────────────────────────────────────
     if (!(method === "POST" && url.startsWith("/v1/chat/completions"))) {
       return json(res, 404, { error: `hypha shim: no route ${method} ${url}` });
@@ -329,10 +499,44 @@ export function createShim(deps: ShimDeps): http.Server {
     // Delegation ladder (spec §6): walk meshes by tier, capped by eligibility. `sensitivity`
     // defaults to private (fail-closed); an optional `meshId` hard-pins to one mesh.
     const sensitivity = body.sensitivity === "shareable" ? "shareable" : "private";
+
+    // SP2 Option B — vision (and later embed/stt/tts) can't ride SDK delegation (attachments are
+    // path-only, read on the worker) and is advertised borrowable:false. The forward transport borrows
+    // it from a peer's LOCAL serve instead: when the request carries images and forward is on, pick a
+    // peer that SERVES the alias (no delegated warm needed) and send the OpenAI body (image bytes
+    // inline) over the forward channel; the peer runs it on its serve and streams the answer back.
+    if (forward && requestHasImages(body.messages)) {
+      const peerKey = router.forwardTargetForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
+      if (!peerKey) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
+      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peer: peerKey.slice(0, 16), alias } });
+      return streamForwardChat(res, forward, peerKey, {
+        id: `chatcmpl-${randomUUID()}`,
+        alias,
+        created: Math.floor(Date.now() / 1000),
+        stream: body.stream !== false,
+        body: { model: alias, messages: body.messages },
+      }, inflight, audit);
+    }
+
     const warm = router.route({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
     if (!warm) return json(res, 503, { error: { message: `hypha shim: no eligible warm peer serves "${alias}"`, code: "no_warm_peer" } });
 
-    const history = body.messages.map((m) => ({ role: m.role, content: asText(m.content) }));
+    // Build history, materializing any inline images as attachments (vision borrowing). Temp images
+    // are cleaned up when the response closes (after the decode has drained — the SDK already read them).
+    const tmpImages: string[] = [];
+    res.on("close", () => {
+      for (const f of tmpImages) {
+        try {
+          unlinkSync(f);
+        } catch {
+          /* best-effort temp cleanup */
+        }
+      }
+    });
+    const history = body.messages.map((m) => {
+      const { text, attachments } = extractParts(m.content, tmpImages);
+      return attachments.length ? { role: m.role, content: text, attachments } : { role: m.role, content: text };
+    });
     const id = `chatcmpl-${randomUUID()}`;
     const created = Math.floor(Date.now() / 1000);
     const stream = body.stream !== false;

@@ -1,8 +1,9 @@
 /**
  * `/settings` — device & app settings, tabbed (Storage · Devices · Secrets · Permissions · About).
  * Mirrors /brain's ?tab= pattern. Storage is two-column (model cache + app data, with multi-delete);
- * Devices hosts connect-by-key (QR + sync key), mesh memberships + per-mesh peers, and LAN PIN
- * pairing; Secrets hosts the connector credentials (moved here from Services).
+ * Devices is one mesh-centric "My meshes" card — each mesh expands to its devices + per-mesh
+ * "Invite a device" (QR + sync key) and "Pair over LAN" (PIN); Secrets hosts the connector
+ * credentials (moved here from Services).
  */
 import { DashShell, DashCard } from "../../components/dash.tsx";
 import { aboutInfo } from "../../lib/leash/about.ts";
@@ -13,9 +14,7 @@ import { TabNav, type TabDef } from "../../components/TabNav.tsx";
 import { ModelCacheCard } from "../../components/ModelCacheCard.tsx";
 import { AppDataCard } from "../../components/AppDataCard.tsx";
 import { PermissionsCard } from "../../components/PermissionsCard.tsx";
-import { DeviceConnectCard } from "../../components/DeviceConnectCard.tsx";
 import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
-import { AddDeviceSection } from "../../components/AddDeviceSection.tsx";
 import { SecretsCard } from "../../components/SecretsCard.tsx";
 
 export const dynamic = "force-dynamic";
@@ -50,14 +49,8 @@ async function DevicesTab() {
   const mesh = await meshStatus();
   return (
     <div className="flex flex-col gap-5">
-      <DashCard title="Connect a device">
-        <DeviceConnectCard meshes={mesh.meshes} />
-      </DashCard>
       <DashCard title="My meshes">
         <MeshMembershipsSection meshes={mesh.meshes} forgotten={mesh.forgotten} borrow={mesh.borrow} />
-      </DashCard>
-      <DashCard title="Pair over LAN">
-        <AddDeviceSection meshes={mesh.meshes} />
       </DashCard>
     </div>
   );

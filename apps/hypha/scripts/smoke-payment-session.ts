@@ -11,7 +11,7 @@ import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import type { AuditLog, SessionSettlementReceipt, SettlementEndpoint } from "@mycelium/shared";
-import { localChatAliases } from "../src/catalog.ts";
+import { localBorrowableAliases } from "../src/catalog.ts";
 import { ProviderEconomyService } from "../src/provider-economy.ts";
 import { PaymentControlClient, PaymentControlServer } from "../src/payment-control.ts";
 
@@ -21,7 +21,7 @@ const expect = (label: string, ok: boolean): void => {
 };
 
 const fakeAudit = { record: () => ({}) } as unknown as AuditLog;
-const alias = localChatAliases()[0];
+const alias = localBorrowableAliases()[0];
 if (!alias) throw new Error("No served chat alias is configured; Hypha needs at least one alias for the payment-session smoke.");
 
 const providerPublicKey = "provider-public-key";

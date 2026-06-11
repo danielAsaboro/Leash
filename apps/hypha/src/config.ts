@@ -69,6 +69,12 @@ export const HYPHA_PAIR_PORT = Number(process.env["HYPHA_PAIR_PORT"] ?? 11438);
 export const PAIR_MODE_TIMEOUT_MS = Number(process.env["HYPHA_PAIR_TIMEOUT_MS"] ?? 180_000);
 /** Local serve (broker upstream) — used to read which aliases are actually served here. */
 export const LOCAL_SERVE_URL = (process.env["HYPHA_SERVE_URL"] ?? "http://127.0.0.1:11435").replace(/\/+$/, "");
+
+// ── SP2 Option B — P2P request-forward transport (opt-in; OFF = proven delegation-only core) ──────
+/** Enable forwarding non-delegable modalities (vision today; embeddings/STT/TTS in B2) to a peer's
+ *  LOCAL serve over a P2P channel — the consumer's media rides inline in the request body, the
+ *  provider runs it on its own serve and streams back. OFF = vision stays local-only. */
+export const HYPHA_FORWARD = (process.env["HYPHA_FORWARD"] ?? "0") === "1";
 /** Heartbeat cadence (fresh lastSeen + live inflight). */
 export const HEARTBEAT_MS = Number(process.env["HYPHA_HEARTBEAT_MS"] ?? 10_000);
 /** A peer whose lastSeen is older than this is stale → drop its warm entry, stop delegating. */

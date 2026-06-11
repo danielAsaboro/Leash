@@ -16,7 +16,7 @@ import type { DeviceCapability, DeviceIdentityProof } from "@mycelium/shared";
 import { unionAllowedConsumers } from "@mycelium/mesh";
 import type { MeshGraph } from "@mycelium/mesh";
 import { WarmPool, type ReputationRanker } from "./warm-pool.ts";
-import { localChatAliases } from "./catalog.ts";
+import { localAliases } from "./catalog.ts";
 import type { Inflight } from "./shim.ts";
 import type { DeviceProvider } from "./device-provider.ts";
 import type { SettlementManager } from "./settlement-manager.ts";
@@ -68,7 +68,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
   const { meshId, provider, inflight, audit, settlement } = deps;
   const isForgotten = deps.isForgotten ?? (() => false);
   const selfKey = await provider.ensureStarted();
-  const aliases = localChatAliases();
+  const aliases = localAliases();
   /** Live caps with locally-disconnected (tombstoned) peers removed — the single filter point. */
   const liveCaps = async (): Promise<DeviceCapability[]> => {
     const caps = (await graph.capabilities()).filter((c) => !isForgotten(c.deviceId));

@@ -41,6 +41,8 @@ export interface PeerView {
   inflight: number;
   /** Aliases this peer serves. */
   models: string[];
+  /** Per-model modality + borrowable tag (SP2) — for the UI chips; absent on a pre-SP2 peer. */
+  modelInfo?: { alias: string; modelType: string; borrowable: boolean }[];
   /** Aliases we currently hold a warm delegated model for. */
   warmModels: string[];
   live: boolean;
@@ -149,22 +151,26 @@ export class WarmPool {
         continue;
       }
       for (const m of peer.models ?? []) {
+        if (m.borrowable === false) continue; // SP2: embed/stt/tts are advertised but not delegable
         const k = key(pk, m.modelSrc);
         if (this.warm.has(k) || this.warming.has(k)) continue;
         this.warming.add(k);
-        void this.warmOne(pk, m.alias, m.modelSrc).finally(() => this.warming.delete(k));
+        void this.warmOne(pk, m.alias, m.modelSrc, m.modelType, m.projectionModelSrc).finally(() => this.warming.delete(k));
       }
     }
   }
 
-  private async warmOne(peerKey: string, alias: string, modelSrc: string): Promise<void> {
+  private async warmOne(peerKey: string, alias: string, modelSrc: string, modelType?: string, projectionModelSrc?: string): Promise<void> {
     try {
+      const vision = modelType === "vision";
       const modelId = await loadDelegated({
         modelSrc: descriptorFor(modelSrc) as never, // string | descriptor — both valid modelSrc
         providerPublicKey: peerKey,
         timeout: 60_000,
         fallbackToLocal: false,
         tools: false,
+        // Vision (qwen3vl): load the provider's projection model + a roomier ctx (images cost tokens).
+        ...(vision ? { ctxSize: 8192, ...(projectionModelSrc ? { projectionModelSrc } : {}) } : {}),
         audit: this.deps.audit,
       });
       this.warm.set(key(peerKey, modelSrc), { peerKey, alias, modelSrc, modelId, warmedAt: Date.now() });
@@ -190,7 +196,7 @@ export class WarmPool {
         const peerKey = c.providerPublicKey;
         if (!peerKey) return [];
         return (c.models ?? [])
-          .filter((m) => m.alias === alias)
+          .filter((m) => m.alias === alias && m.borrowable !== false)
           .map((m) => ({ peerKey, inflight: c.inflight ?? 0, modelSrc: m.modelSrc, requiresSession: true } satisfies DelegationTarget));
       });
     const candidates: DelegationTarget[] = [...warmCandidates, ...paidCandidates];
@@ -214,6 +220,19 @@ export class WarmPool {
       candidates.sort((a, b) => a.inflight - b.inflight || Number(Boolean(a.requiresSession)) - Number(Boolean(b.requiresSession)));
     }
     return candidates[0];
+  }
+
+  /**
+   * A live peer (excl. self) that SERVES `alias` — for the forward path, which borrows via the peer's
+   * LOCAL serve and so needs neither a warm delegated model nor the (delegation-only) `borrowable`
+   * flag. Lowest-inflight wins. Returns the peer's provider key, or undefined.
+   */
+  forwardTargetForAlias(alias: string): string | undefined {
+    const candidates = this.livePeers(this.lastCaps)
+      .filter((c) => c.providerPublicKey && (c.models ?? []).some((m) => m.alias === alias))
+      .map((c) => ({ peerKey: c.providerPublicKey as string, inflight: c.inflight ?? 0 }));
+    candidates.sort((a, b) => a.inflight - b.inflight);
+    return candidates[0]?.peerKey;
   }
 
   /** Advertised price/kilo-token for a paid peer (0 = free/warm, sorts first). */
@@ -254,7 +273,7 @@ export class WarmPool {
     const aliases = new Set([...this.warm.values()].map((e) => e.alias));
     for (const peer of this.livePeers(this.lastCaps)) {
       if (!isPaidSessionPeer(peer)) continue;
-      for (const model of peer.models ?? []) aliases.add(model.alias);
+      for (const model of peer.models ?? []) if (model.borrowable !== false) aliases.add(model.alias);
     }
     return aliases;
   }
@@ -287,6 +306,7 @@ export class WarmPool {
           powerState: c.powerState,
           inflight: c.inflight ?? 0,
           models: (c.models ?? []).map((m) => m.alias),
+          modelInfo: (c.models ?? []).map((m) => ({ alias: m.alias, modelType: m.modelType ?? "chat", borrowable: m.borrowable ?? true })),
           warmModels: [...warmSet],
           live: liveKeys.has(c.providerPublicKey!),
           warm: warmSet.size > 0,

@@ -182,7 +182,7 @@ export interface DeviceCapability {
    * from `qvac.config.base.json` against the model catalog. Optional: pre-Hypha devices
    * advertise only `availableModels`. (Layer-1 / Hypha overflow.)
    */
-  models?: { alias: string; modelSrc: string }[];
+  models?: { alias: string; modelSrc: string; modelType?: string; borrowable?: boolean; projectionModelSrc?: string }[];
   /**
    * Current in-flight generations on this device (delegated + local), a live load
    * signal. The registry prefers lower-`inflight` providers so a free strong peer

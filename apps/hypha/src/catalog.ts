@@ -6,17 +6,18 @@
  * `data/leash-models-catalog.json` (the `@qvac/ai-sdk-provider` allModels dump) into a
  * delegable id, and can rebuild a full SDK descriptor from that id on the consumer side.
  *
- * Only CHAT-completable aliases are advertised — the overflow shim speaks
- * `/v1/chat/completions`, so embeddings (gte-large), STT (parakeet), TTS (supertonic),
- * and multimodal (qwen3vl) aliases are excluded. Custom-GGUF completion aliases (a config
- * `.src` path, e.g. medpsy) are advertised but only delegable to a peer holding the same
- * local file.
+ * EVERY served alias is advertised, tagged with its modality (chat / vision / embedding / stt /
+ * tts) and whether it's BORROWABLE. Per the Phase-0 gate (spike/07-p2p-multimodal.ts), the SDK
+ * delegates `completion()` only, so chat + vision are borrowable and embeddings/STT/TTS are
+ * advertised display-only ("shared · local-only"). Custom-GGUF completion aliases (a config `.src`
+ * path, e.g. medpsy) are advertised but only delegable to a peer holding the same local file.
  */
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import * as qvac from "@qvac/sdk";
 import { CATALOG_FILE, QVAC_CONFIG_FILE } from "./config.ts";
+import { modelType, isBorrowable, type Modality } from "./model-type.ts";
 
 /** Expand a machine-neutral `~/` config path to THIS machine's home dir. */
 const expandHome = (p: string): string => (p.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
@@ -37,10 +38,17 @@ interface ServeModelEntry {
   config?: Record<string, unknown>;
 }
 
-/** A serve alias paired with the delegable modelSrc id (registryPath, or a custom path). */
+/** A serve alias paired with the delegable modelSrc id (registryPath, or a custom path), its
+ * modality, and whether it can be borrowed over the mesh (chat + vision — Phase-0 gate). */
 export interface AliasModel {
   alias: string;
   modelSrc: string;
+  modelType: Modality;
+  borrowable: boolean;
+  /** Vision only — the advertiser's OWN absolute projection (mmproj) path. The SDK requires an
+   * absolute path and uses it verbatim on the provider; the content-hash filename is identical on
+   * every Mac, so the provider resolves its own copy (same pattern as a custom `.src`). */
+  projectionModelSrc?: string;
 }
 
 /** A full SDK model descriptor (the rich form `loadModel` accepts). */
@@ -67,44 +75,55 @@ function catalogByName(): Map<string, CatalogEntry> {
   return m;
 }
 
-/** Is this serve entry a chat/completion LLM (vs embeddings/asr/tts/multimodal)? */
-function isChatLlm(entry: ServeModelEntry, cat?: CatalogEntry): boolean {
-  // Multimodal (a VLM with a projection model, e.g. qwen3vl) is excluded — the shim does
-  // text chat only and can't pass images over the delegated `completion()` path.
-  if (entry.config && "projectionModelSrc" in entry.config) return false;
-  // Custom-GGUF completion model (e.g. medpsy: type "llamacpp-completion", a `.src` path).
-  if (entry.src && (entry.type ?? "").includes("completion")) return true;
-  if (!cat) return false;
-  return cat.endpointCategory === "chat" && (cat.addon === "llm" || cat.engine?.startsWith("llamacpp") === true);
-}
-
 /**
- * Read THIS device's chat-completable aliases from `qvac.config.base.json`, each resolved to a
- * delegable modelSrc id. Custom-GGUF aliases keep their absolute `.src` path.
+ * Read EVERY served alias from `qvac.config.base.json`, each classified by modality and resolved to a
+ * modelSrc id (registryPath for registry models, the absolute `.src` path for custom-GGUF). Borrowable
+ * aliases (chat + vision) are what peers can delegate; the rest are advertised display-only.
  */
-export function localChatAliases(): AliasModel[] {
+export function localAliases(): AliasModel[] {
   const cfg = readJson<{ serve?: { models?: Record<string, ServeModelEntry> } }>(QVAC_CONFIG_FILE, {});
   const cat = catalogByName();
   const out: AliasModel[] = [];
   for (const [alias, entry] of Object.entries(cfg.serve?.models ?? {})) {
     const name = entry.model;
     const catEntry = name ? cat.get(name) : undefined;
-    if (!isChatLlm(entry, catEntry)) continue;
+    const mt = modelType(entry, catEntry);
+    if (!mt) continue; // unclassifiable → not advertised
+    let modelSrc: string | undefined;
     if (entry.src) {
-      // The gossiped modelSrc must be THIS machine's absolute path (the advertiser's own
-      // provider loads it on a delegated request) — expand the config's `~/` prefix.
+      // The gossiped modelSrc must be THIS machine's absolute path (the advertiser's own provider
+      // loads it on a delegated request) — expand the config's `~/` prefix.
       const src = expandHome(entry.src);
-      // Advertise honestly: a filesystem `src` that doesn't exist HERE would register the
-      // delegated load and then die silently at decode, poisoning peers' warm pools.
+      // Advertise honestly: a filesystem `src` that doesn't exist HERE would register the delegated
+      // load and then die silently at decode, poisoning peers' warm pools.
       if (!existsSync(src)) {
         console.warn(`hypha: not advertising alias "${alias}" — src missing on this machine: ${src}`);
         continue;
       }
-      out.push({ alias, modelSrc: src });
-    } else if (catEntry?.registryPath) out.push({ alias, modelSrc: catEntry.registryPath });
-    // A registry-name model absent from the catalog is skipped (can't resolve a modelSrc).
+      modelSrc = src;
+    } else if (catEntry?.registryPath) modelSrc = catEntry.registryPath;
+    else if (name) modelSrc = name; // catalog miss → the registry constant name (descriptorFor resolves it)
+    if (!modelSrc) continue;
+    // Vision: resolve the projection (mmproj) to THIS machine's absolute path. Missing locally →
+    // don't advertise it borrowable (a delegated vision load would fail on the provider).
+    let projectionModelSrc: string | undefined;
+    const rawProj = entry.config && typeof entry.config["projectionModelSrc"] === "string" ? (entry.config["projectionModelSrc"] as string) : undefined;
+    if (rawProj) {
+      const abs = expandHome(rawProj);
+      if (!existsSync(abs)) {
+        console.warn(`hypha: not advertising vision alias "${alias}" — projection model missing on this machine: ${abs}`);
+        continue;
+      }
+      projectionModelSrc = abs;
+    }
+    out.push({ alias, modelSrc, modelType: mt, borrowable: isBorrowable(mt), ...(projectionModelSrc ? { projectionModelSrc } : {}) });
   }
   return out;
+}
+
+/** Just the borrowable aliases (chat + vision) — for warming and routing delegated requests. */
+export function localBorrowableAliases(): AliasModel[] {
+  return localAliases().filter((a) => a.borrowable);
 }
 
 /**

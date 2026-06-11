@@ -1,23 +1,29 @@
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, PlusIcon, TicketIcon, CopyIcon, CheckIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, PlusIcon, TicketIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { MeshMembership, BorrowCounters } from "../lib/leash/hypha.ts";
+import { meshEntryAction, type MeshIntent, type MeshVisibility } from "../lib/leash/mesh-entry.ts";
 import { ForgetPeerButton, ClearStaleButton, RestorePeerButton } from "./MeshPeerActions.tsx";
 import { IconButton } from "./IconButton.tsx";
+import { MeshInvite } from "./mesh/MeshInvite.tsx";
+import { MeshLanPairing, type PairStateView } from "./mesh/MeshLanPairing.tsx";
 
 /**
- * The single mesh + peer browser (Settings → Devices → My meshes). It owns:
- *   · multi-mesh CRUD — FOUND a private mesh, mint a blind invite, JOIN by invite, join a public cell
- *   · per-mesh peers — click a mesh to expand its NODES (compute class · RAM · power · inflight ·
- *     last-seen) and the models each advertises (● warm / ○ cold), with a P2P Pull for any you
- *     don't have, and Disconnect per peer
+ * The single mesh card (Settings → Devices → "My meshes"). The mesh is the unit — you join a
+ * mesh (private or public), not "a node". It owns:
+ *   · multi-mesh CRUD — found/join a mesh via two visibility-first forms (New, Join), each
+ *     private (name / paste invite) or public (a shared id anyone can compute to meet)
+ *   · per-mesh session — expand a mesh to see its DEVICES (compute class · RAM · power ·
+ *     inflight · last-seen) + the models each advertises (● warm / ○ cold, P2P pull), plus
+ *     "Invite a device" (QR + sync key) and "Pair over LAN" (PIN handshake) scoped to it
  *   · node-level model sharing — the master "share my models with peers" toggle, and the
  *     Disconnected-devices (tombstone) list with Restore
- * Peer/share data polls `/api/leash/hypha/share` (reads the daemon `/peers`); mesh/forgotten/borrow
- * come from the server (refreshed on action). Errors shown inline, never silent-caught.
+ * Peer/share data polls `/api/leash/hypha/share`; LAN pairing is one daemon-global session,
+ * polled here once and passed to each mesh's MeshLanPairing. Errors shown inline, never
+ * silent-caught.
  */
 
 const kicker = (color: string) => ({ color, fontFamily: "var(--font-mono)" as const });
@@ -40,12 +46,18 @@ async function meshPost(action: string, extra: Record<string, unknown> = {}): Pr
   }
 }
 
+interface ModelInfo {
+  alias: string;
+  modelType: string;
+  borrowable: boolean;
+}
 interface SharePeer {
   deviceId: string;
   displayName: string;
   live: boolean;
   shareModels: boolean;
   models: string[];
+  modelInfo: ModelInfo[];
   warmModels: string[];
   computeClass: string;
   ramMB: number;
@@ -57,6 +69,14 @@ interface SharePeer {
 interface ShareState { shareModels: boolean; peers: SharePeer[]; aliasToName: Record<string, string>; myModels: string[] }
 interface DlStatus { name: string; state: string; percentage: number }
 
+/** Coerce any error value (string, {message}, or other object) to a renderable string. */
+function errStr(e: unknown): string | null {
+  if (e == null) return null;
+  if (typeof e === "string") return e;
+  if (typeof e === "object" && "message" in (e as object)) return String((e as { message: unknown }).message);
+  return JSON.stringify(e);
+}
+
 /** A compact classification badge — icon + (optional) value, with the full label in the hover title. */
 function metaBadge(Icon: LucideIcon, title: string, value?: string | number, color = "var(--color-faint)") {
   return (
@@ -64,6 +84,30 @@ function metaBadge(Icon: LucideIcon, title: string, value?: string | number, col
       <Icon size={13} aria-hidden />
       {value != null && <span className="kicker">{value}</span>}
       <span className="sr-only">{title}</span>
+    </span>
+  );
+}
+
+/** Private | public segmented toggle for the New / Join forms. */
+function VisToggle({ value, onChange }: { value: MeshVisibility; onChange: (v: MeshVisibility) => void }) {
+  const opt = (v: MeshVisibility, Icon: LucideIcon, text: string) => {
+    const on = value === v;
+    return (
+      <button
+        type="button"
+        onClick={() => onChange(v)}
+        className="inline-flex items-center gap-1.5 px-2.5 py-1"
+        style={{ fontFamily: "var(--font-mono)", fontSize: "0.66rem", letterSpacing: "0.06em", textTransform: "uppercase", border: "1px solid var(--color-rule-strong)", background: on ? "var(--color-ink)" : "transparent", color: on ? "var(--color-cream)" : "var(--color-muted)" }}
+      >
+        <Icon size={12} aria-hidden />
+        {text}
+      </button>
+    );
+  };
+  return (
+    <span className="inline-flex">
+      {opt("private", LockIcon, "private")}
+      {opt("public", GlobeIcon, "public")}
     </span>
   );
 }
@@ -81,21 +125,28 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [invite, setInvite] = useState<{ label: string; hex: string } | null>(null);
+  // New / Join forms (each visibility-first).
+  const [newOpen, setNewOpen] = useState(false);
+  const [newVis, setNewVis] = useState<MeshVisibility>("private");
+  const [newLabel, setNewLabel] = useState("");
+  const [newSharedId, setNewSharedId] = useState("");
   const [joinOpen, setJoinOpen] = useState(false);
+  const [joinVis, setJoinVis] = useState<MeshVisibility>("private");
   const [joinInvite, setJoinInvite] = useState("");
   const [joinLabel, setJoinLabel] = useState("");
-  const [publicOpen, setPublicOpen] = useState(false);
-  const [cellId, setCellId] = useState("");
-  const [cellLabel, setCellLabel] = useState("");
-  const [newOpen, setNewOpen] = useState(false);
-  const [newLabel, setNewLabel] = useState("");
+  const [joinSharedId, setJoinSharedId] = useState("");
   // Live peer view + node-level sharing.
   const [share, setShare] = useState<ShareState | null>(null);
   const [shareErr, setShareErr] = useState<string | null>(null);
   const [shareBusy, setShareBusy] = useState(false);
   const [dls, setDls] = useState<Record<string, DlStatus>>({});
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // LAN pairing — one daemon-global session, polled here; pairingMeshId attributes it to a mesh.
+  const [pairState, setPairState] = useState<PairStateView | null>(null);
+  const [pairBusy, setPairBusy] = useState(false);
+  const [pairErr, setPairErr] = useState<string | null>(null);
+  const [pairingMeshId, setPairingMeshId] = useState<string | null>(null);
+  const prevOutStatus = useRef<string | null>(null);
 
   const run = async (fn: () => Promise<MeshActionResult>, after?: () => void): Promise<void> => {
     setBusy(true);
@@ -110,55 +161,34 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
     router.refresh();
   };
 
-  const createMesh = (): void =>
-    void run(
-      () => meshPost("new", { label: newLabel.trim() || "Mesh" }),
-      () => {
-        setNewLabel("");
-        setNewOpen(false);
-      },
-    );
+  /** Map a visibility-first form choice to a mesh action and run it. */
+  const submitEntry = (intent: MeshIntent, visibility: MeshVisibility, fields: { label?: string; invite?: string; sharedId?: string }, after?: () => void): void => {
+    const res = meshEntryAction({ intent, visibility, ...fields });
+    if ("error" in res) {
+      setErr(res.error);
+      return;
+    }
+    void run(() => meshPost(res.action, res.payload), after);
+  };
 
-  const getInvite = (meshId: string, label: string): void =>
-    void run(async () => {
-      const res = await meshPost("invite", { meshId });
-      if (res.ok && res.invite) setInvite({ label, hex: res.invite });
-      return res;
+  const createMesh = (): void =>
+    submitEntry("new", newVis, { label: newLabel, sharedId: newSharedId }, () => {
+      setNewLabel("");
+      setNewSharedId("");
+      setNewOpen(false);
+    });
+
+  const joinMesh = (): void =>
+    submitEntry("join", joinVis, { invite: joinInvite, label: joinLabel, sharedId: joinSharedId }, () => {
+      setJoinInvite("");
+      setJoinLabel("");
+      setJoinSharedId("");
+      setJoinOpen(false);
     });
 
   const deleteMesh = (meshId: string, label: string): void => {
     if (!confirm(`Delete the mesh "${label}"? This device stops serving it and drops the membership. This can't be undone.`)) return;
     void run(() => meshPost("delete", { meshId }));
-  };
-
-  const joinMesh = (): void => {
-    if (!joinInvite.trim()) {
-      setErr("Paste an invite first.");
-      return;
-    }
-    void run(
-      () => meshPost("join", { invite: joinInvite.trim(), label: joinLabel || "Mesh" }),
-      () => {
-        setJoinInvite("");
-        setJoinLabel("");
-        setJoinOpen(false);
-      },
-    );
-  };
-
-  const joinPublic = (): void => {
-    if (!cellId.trim()) {
-      setErr("Enter a cell id (any agreed name — devices computing the same id meet, no pairing).");
-      return;
-    }
-    void run(
-      () => meshPost("public-join", { cellId: cellId.trim(), label: cellLabel || "Public cell" }),
-      () => {
-        setCellId("");
-        setCellLabel("");
-        setPublicOpen(false);
-      },
-    );
   };
 
   // Peer + share state — polled (the detail is live: liveness, inflight, pull progress).
@@ -194,6 +224,61 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
     };
   }, [loadShare, pollDownloads]);
 
+  // LAN pairing poll — fast while a session is active, slow otherwise. Normalized defensively
+  // (a stale daemon can return an unexpected shape). Clears the mesh attribution when mode ends.
+  const refreshPair = useCallback(async () => {
+    try {
+      const r = await fetchWithTimeout("/api/leash/hypha/pair", { cache: "no-store" }, TIMEOUT.probe);
+      const d = (await r.json()) as Record<string, unknown>;
+      const mode = Boolean(d["mode"]);
+      const outgoing = d["outgoing"] ? ({ ...(d["outgoing"] as PairStateView["outgoing"]), error: errStr((d["outgoing"] as { error?: unknown }).error) ?? undefined } as PairStateView["outgoing"]) : null;
+      setPairState({
+        mode,
+        meshOnline: Boolean(d["meshOnline"]),
+        expiresInMs: typeof d["expiresInMs"] === "number" ? (d["expiresInMs"] as number) : null,
+        discovered: Array.isArray(d["discovered"]) ? (d["discovered"] as PairStateView["discovered"]) : [],
+        outgoing,
+        incoming: (d["incoming"] as PairStateView["incoming"]) ?? null,
+        error: errStr(d["error"]) ?? (typeof d["mode"] === "boolean" ? null : "Hypha daemon needs a restart to enable pairing (Services → Mesh → Restart)."),
+      });
+      if (!mode) setPairingMeshId(null);
+      // A completed pair adds a device (and possibly founds the primary mesh) — pull the
+      // server-rendered membership/peer list forward once on the done transition.
+      const outStatus = outgoing?.status ?? null;
+      if (outStatus === "done" && prevOutStatus.current !== "done") router.refresh();
+      prevOutStatus.current = outStatus;
+    } catch {
+      setPairErr("Couldn't reach the dashboard API.");
+    }
+  }, [router]);
+  const pairAct = useCallback(
+    async (action: string, extra: Record<string, unknown> = {}) => {
+      setPairBusy(true);
+      setPairErr(null);
+      try {
+        const r = await fetchWithTimeout("/api/leash/hypha/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
+        const body = (await r.json().catch(() => ({}))) as { error?: unknown };
+        if (!r.ok || body.error) setPairErr(errStr(body.error) ?? `Request failed (${r.status}).`);
+      } catch {
+        setPairErr("Request failed — is the daemon running?");
+      } finally {
+        setPairBusy(false);
+        await refreshPair();
+      }
+    },
+    [refreshPair],
+  );
+  const startPair = (meshId: string): void => {
+    setPairingMeshId(meshId);
+    void pairAct("mode", { on: true, target: { meshId } });
+  };
+  useEffect(() => {
+    void refreshPair();
+    const ms = pairState?.mode ? 1500 : 5000;
+    const t = setInterval(() => void refreshPair(), ms);
+    return () => clearInterval(t);
+  }, [refreshPair, pairState?.mode]);
+
   const toggleNodeShare = async (on: boolean): Promise<void> => {
     setShareBusy(true);
     try {
@@ -226,13 +311,31 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       else n.add(meshId);
       return n;
     });
+  const ensureExpanded = (meshId: string): void =>
+    setExpanded((prev) => (prev.has(meshId) ? prev : new Set(prev).add(meshId)));
 
   const have = new Set(share?.myModels ?? []);
   const peersOf = (meshId: string): SharePeer[] => (share?.peers ?? []).filter((p) => p.meshId === meshId);
   const staleCount = (share?.peers ?? []).filter((p) => !p.live).length;
 
-  /** One advertised-model chip: ● warm / ○ cold on the peer, plus my local status (✓ cached / % pulling / ↓ pull). */
-  const modelChip = (alias: string, warm: boolean, peerShares: boolean) => {
+  /** One advertised-model chip. Borrowable (chat/vision): ● warm / ○ cold + my local status
+   * (✓ cached / % pulling / ↓ pull). Non-borrowable (embed/stt/tts): a dashed "· <modality> · local-only"
+   * chip — advertised + pullable, but the SDK can't delegate it over the mesh (Phase-0 gate). */
+  const modelChip = (m: ModelInfo, warm: boolean, peerShares: boolean) => {
+    const { alias, modelType: mt, borrowable } = m;
+    if (!borrowable) {
+      return (
+        <span
+          key={alias}
+          className="kicker inline-flex items-center gap-1 px-2 py-0.5"
+          title={`${mt} — shared on this device, but not borrowable over the mesh (the SDK delegates chat & vision only)`}
+          style={{ border: "1px dashed var(--color-rule-strong)", color: "var(--color-faint)" }}
+        >
+          {alias}
+          <span style={{ opacity: 0.75 }}>· {mt} · local-only</span>
+        </span>
+      );
+    }
     const mine = have.has(alias);
     const name = share?.aliasToName[alias];
     const dl = name ? dls[name] : undefined;
@@ -246,6 +349,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       >
         {warm ? "● " : "○ "}
         {alias}
+        {mt !== "chat" && <span style={{ opacity: 0.8 }}>· {mt}</span>}
         {mine ? (
           <span title="cached on this device">✓</span>
         ) : pulling ? (
@@ -287,53 +391,74 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
             borrowed: {borrow.shed} shed · {borrow.availabilityRouted} routed{borrow.overflowFailures > 0 ? ` · ${borrow.overflowFailures} fell back` : ""}
           </span>
         )}
-        <IconButton title="Join a public cell (no pairing — same cell id meets)" color="var(--color-brick)" disabled={busy} onClick={() => setPublicOpen((v) => !v)}>
-          <GlobeIcon size={15} aria-hidden />
-        </IconButton>
-        <IconButton title="Join a mesh by pasting an invite" disabled={busy} onClick={() => setJoinOpen((v) => !v)}>
+        <IconButton title="Join a mesh — private (paste an invite) or public (by shared id)" disabled={busy} onClick={() => setJoinOpen((v) => !v)}>
           <LogInIcon size={15} aria-hidden />
         </IconButton>
-        <IconButton title="New mesh — found a private mesh" color="var(--color-sage-deep)" disabled={busy} onClick={() => setNewOpen((v) => !v)}>
+        <IconButton title="New mesh — found a private mesh or a public one" color="var(--color-sage-deep)" disabled={busy} onClick={() => setNewOpen((v) => !v)}>
           <PlusIcon size={15} aria-hidden />
         </IconButton>
       </div>
 
       {newOpen && (
         <div className="mt-3 border p-3" style={{ borderColor: "var(--color-sage-deep)", background: "var(--color-cream)" }}>
-          <p className="kicker" style={kicker("var(--color-muted)")}>
-            Found a new private mesh — your own allow-listed devices. Name it, then invite devices with “Get invite”.
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <input
-              value={newLabel}
-              onChange={(e) => setNewLabel(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") createMesh();
-              }}
-              placeholder="mesh name (e.g. Home, Work)"
-              autoFocus
-              className="border px-2 py-1"
-              style={{ fontFamily: "var(--font-mono)", width: "14rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }}
-            />
-            <button type="button" disabled={busy} onClick={createMesh} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-              {busy ? "creating…" : "Create mesh"}
-            </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <VisToggle value={newVis} onChange={setNewVis} />
+            <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
           </div>
+          {newVis === "private" ? (
+            <>
+              <p className="kicker mt-2" style={kicker("var(--color-muted)")}>Found a private mesh — your own allow-listed devices. Name it, then invite devices from its session.</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createMesh(); }} placeholder="mesh name (e.g. Home, Work)" autoFocus className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "14rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
+                <button type="button" disabled={busy} onClick={createMesh} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
+                  {busy ? "creating…" : "Create mesh"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="kicker mt-2" style={kicker("var(--color-muted)")}>Public mesh — no pairing, broadcast-only. Every device that enters the same shared id auto-discovers the others and gossips. Anyone with the id can join.</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <input value={newSharedId} onChange={(e) => setNewSharedId(e.target.value)} placeholder="shared id (e.g. my-block-42)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "14rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
+                <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="label (optional)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "10rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
+                <button type="button" disabled={busy || !newSharedId.trim()} onClick={createMesh} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-brick)", color: "var(--color-cream)" }}>
+                  {busy ? "joining…" : "Create / join public"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      {publicOpen && (
-        <div className="mt-3 border p-3" style={{ borderColor: "var(--color-brick)", background: "var(--color-cream)" }}>
-          <p className="kicker" style={kicker("var(--color-muted)")}>
-            Join a public cell — no pairing. Every device that enters the same cell id auto-discovers each other over the network and gossips (broadcast-only). (A geofenced cell id is Phase 3.)
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <input value={cellId} onChange={(e) => setCellId(e.target.value)} placeholder="cell id (e.g. my-block-42)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "14rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
-            <input value={cellLabel} onChange={(e) => setCellLabel(e.target.value)} placeholder="label (optional)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "10rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
-            <button type="button" disabled={busy || !cellId.trim()} onClick={joinPublic} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-brick)", color: "var(--color-cream)" }}>
-              {busy ? "joining…" : "Join cell"}
-            </button>
+      {joinOpen && (
+        <div className="mt-3 border p-3" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-cream)" }}>
+          <div className="flex flex-wrap items-center gap-2">
+            <VisToggle value={joinVis} onChange={setJoinVis} />
+            <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
           </div>
+          {joinVis === "private" ? (
+            <>
+              <p className="kicker mt-2" style={kicker("var(--color-muted)")}>Paste an invite minted on another device (its session&rsquo;s &ldquo;Invite a device&rdquo;):</p>
+              <textarea value={joinInvite} onChange={(e) => setJoinInvite(e.target.value.trim())} rows={2} placeholder="invite hex…" className="mt-1.5 w-full border px-2 py-1" style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", wordBreak: "break-all", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)", color: "var(--color-ink)" }} />
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <input value={joinLabel} onChange={(e) => setJoinLabel(e.target.value)} placeholder="label (e.g. Work)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "10rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
+                <button type="button" disabled={busy || !joinInvite.trim()} onClick={joinMesh} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
+                  {busy ? "joining…" : "Join"}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="kicker mt-2" style={kicker("var(--color-muted)")}>Join a public mesh — enter its shared id (any agreed name; devices computing the same id meet, no pairing).</p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                <input value={joinSharedId} onChange={(e) => setJoinSharedId(e.target.value)} placeholder="shared id (e.g. my-block-42)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "14rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
+                <input value={joinLabel} onChange={(e) => setJoinLabel(e.target.value)} placeholder="label (optional)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "10rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
+                <button type="button" disabled={busy || !joinSharedId.trim()} onClick={joinMesh} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-brick)", color: "var(--color-cream)" }}>
+                  {busy ? "joining…" : "Join public"}
+                </button>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -347,12 +472,41 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
           {shareErr}
         </p>
       )}
+      {pairErr && (
+        <p className="kicker mt-2" style={kicker("var(--color-brick)")} role="alert">
+          {pairErr}
+        </p>
+      )}
+
+      {meshes.length === 0 && (
+        <div className="mt-3 border p-3" style={{ borderColor: "var(--color-rule)", background: "var(--color-cream)" }}>
+          <p className="italic" style={{ color: "var(--color-faint)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>
+            No meshes yet — create one or join one above. You can also pair a nearby device to start your first mesh.
+          </p>
+          <div className="mt-2.5">
+            <MeshLanPairing
+              meshId=""
+              pairState={pairState}
+              busy={pairBusy}
+              active={Boolean(pairState?.mode)}
+              elsewhere={false}
+              onStart={() => {
+                setPairingMeshId(null);
+                void pairAct("mode", { on: true });
+              }}
+              onAct={pairAct}
+            />
+          </div>
+        </div>
+      )}
 
       {meshes.length > 0 && (
         <ul className="mt-2 flex flex-col gap-2">
           {meshes.map((m) => {
             const open = expanded.has(m.meshId);
             const gp = peersOf(m.meshId);
+            const pairingHere = Boolean(pairState?.mode) && (pairingMeshId === m.meshId || pairingMeshId === null);
+            const pairingElsewhere = Boolean(pairState?.mode) && pairingMeshId !== null && pairingMeshId !== m.meshId;
             return (
               <li key={m.meshId} className="border" style={{ borderColor: "var(--color-rule)", background: "var(--color-cream)" }}>
                 <div className="flex flex-wrap items-center gap-2.5 p-3">
@@ -362,16 +516,16 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                   </button>
                   <span className="inline-flex flex-wrap items-center gap-2.5">
                     {m.visibility === "public"
-                      ? metaBadge(GlobeIcon, "Public cell — open, discoverable", undefined, "var(--color-brick)")
+                      ? metaBadge(GlobeIcon, "Public mesh — open, discoverable", undefined, "var(--color-brick)")
                       : metaBadge(LockIcon, "Private mesh — your allow-listed devices", undefined, "var(--color-muted)")}
                     {metaBadge(LayersIcon, `Tier ${m.tier} — routing priority`, m.tier)}
-                    {metaBadge(UsersIcon, `${m.peers} peer${m.peers === 1 ? "" : "s"} in this mesh`, m.peers)}
+                    {metaBadge(UsersIcon, `${m.peers} device${m.peers === 1 ? "" : "s"} in this mesh`, m.peers)}
                     {m.writable
                       ? metaBadge(PencilIcon, "Writable — you can manage this mesh", undefined, "var(--color-sage-deep)")
                       : metaBadge(RefreshCwIcon, "Syncing — read-only until write access syncs", undefined, "var(--color-faint)")}
                   </span>
                   <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
-                  <IconButton title={`Get an invite for "${m.label}"`} color="var(--color-sage-deep)" disabled={busy} onClick={() => getInvite(m.meshId, m.label)}>
+                  <IconButton title={`Invite a device to "${m.label}"`} color="var(--color-sage-deep)" disabled={busy} onClick={() => ensureExpanded(m.meshId)}>
                     <TicketIcon size={15} aria-hidden />
                   </IconButton>
                   {m.creator && (
@@ -383,9 +537,9 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                 {open && (
                   <div className="border-t px-3 py-2.5" style={{ borderColor: "var(--color-rule)" }}>
                     {!share ? (
-                      <p className="kicker" style={kicker("var(--color-faint)")}>Loading peers…</p>
+                      <p className="kicker" style={kicker("var(--color-faint)")}>Loading devices…</p>
                     ) : gp.length === 0 ? (
-                      <p className="italic" style={{ color: "var(--color-faint)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>No peer nodes in this mesh yet — pair a device, or wait for one to come online.</p>
+                      <p className="italic" style={{ color: "var(--color-faint)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>No devices in this mesh yet — invite one below, or wait for one to come online.</p>
                     ) : (
                       <ul className="flex flex-col gap-2">
                         {gp.map((p) => (
@@ -403,74 +557,34 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                               {p.deviceId && <ForgetPeerButton deviceKey={p.deviceId} name={p.displayName} />}
                             </div>
                             <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {p.models.length === 0 ? (
-                                <span className="kicker" style={kicker("var(--color-faint)")}>no chat models advertised</span>
+                              {p.modelInfo.length === 0 ? (
+                                <span className="kicker" style={kicker("var(--color-faint)")}>no models advertised</span>
                               ) : (
-                                p.models.map((alias) => modelChip(alias, p.warmModels.includes(alias), p.shareModels))
+                                p.modelInfo.map((m) => modelChip(m, p.warmModels.includes(m.alias), p.shareModels))
                               )}
                             </div>
                           </li>
                         ))}
                       </ul>
                     )}
+                    <div className="mt-3 flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--color-rule)" }}>
+                      <MeshInvite meshId={m.meshId} label={m.label} />
+                      <MeshLanPairing
+                        meshId={m.meshId}
+                        pairState={pairState}
+                        busy={pairBusy}
+                        active={pairingHere}
+                        elsewhere={pairingElsewhere}
+                        onStart={() => startPair(m.meshId)}
+                        onAct={pairAct}
+                      />
+                    </div>
                   </div>
                 )}
               </li>
             );
           })}
         </ul>
-      )}
-
-      {invite && (
-        <div className="mt-3 border p-3" style={{ borderColor: "var(--color-sage-deep)", background: "var(--color-cream)" }}>
-          <p className="kicker" style={kicker("var(--color-muted)")}>
-            Invite for &ldquo;{invite.label}&rdquo; — paste it into &ldquo;Join a mesh&rdquo; on the other device (one-time):
-          </p>
-          <textarea
-            readOnly
-            value={invite.hex}
-            onFocus={(e) => e.currentTarget.select()}
-            rows={2}
-            className="mt-1.5 w-full border px-2 py-1"
-            style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", wordBreak: "break-all", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)", color: "var(--color-ink)" }}
-          />
-          <div className="mt-1.5 flex gap-1">
-            <IconButton title="Copy invite" onClick={() => void navigator.clipboard?.writeText(invite.hex)}>
-              <CopyIcon size={15} aria-hidden />
-            </IconButton>
-            <IconButton title="Done" color="var(--color-sage-deep)" onClick={() => setInvite(null)}>
-              <CheckIcon size={15} aria-hidden />
-            </IconButton>
-          </div>
-        </div>
-      )}
-
-      {joinOpen && (
-        <div className="mt-3 border p-3" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-cream)" }}>
-          <p className="kicker" style={kicker("var(--color-muted)")}>
-            Paste an invite minted on another device (its &ldquo;Get invite&rdquo;):
-          </p>
-          <textarea
-            value={joinInvite}
-            onChange={(e) => setJoinInvite(e.target.value.trim())}
-            rows={2}
-            placeholder="invite hex…"
-            className="mt-1.5 w-full border px-2 py-1"
-            style={{ fontFamily: "var(--font-mono)", fontSize: "0.72rem", wordBreak: "break-all", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)", color: "var(--color-ink)" }}
-          />
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
-            <input
-              value={joinLabel}
-              onChange={(e) => setJoinLabel(e.target.value)}
-              placeholder="label (e.g. Work)"
-              className="border px-2 py-1"
-              style={{ fontFamily: "var(--font-mono)", width: "10rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }}
-            />
-            <button type="button" disabled={busy || !joinInvite.trim()} onClick={joinMesh} className="kicker px-3 py-1.5 transition-opacity hover:opacity-80" style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}>
-              {busy ? "joining…" : "Join"}
-            </button>
-          </div>
-        </div>
       )}
 
       {forgotten.length > 0 && (
@@ -489,7 +603,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
             ))}
           </ul>
           <p className="mt-1.5" style={{ color: "var(--color-faint)", fontSize: "0.78rem", fontFamily: "var(--font-body)" }}>
-            Restore un-hides the device on this end; for full two-way reconnection, re-pair via &ldquo;Connect a device&rdquo;.
+            Restore un-hides the device on this end; for full two-way reconnection, re-pair via a mesh&rsquo;s &ldquo;Pair over LAN&rdquo;.
           </p>
         </div>
       )}

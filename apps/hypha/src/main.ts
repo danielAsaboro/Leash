@@ -60,6 +60,7 @@ import {
   HYPHA_PORT,
   HYPHA_REPUTATION,
   HYPHA_SHARE_MODELS,
+  HYPHA_FORWARD,
   INVITE_FILE,
   LOG_DIR,
   MESH_STORE_DIR,
@@ -89,6 +90,8 @@ import { PlasmaSettlementService } from "./plasma-settlement.ts";
 import { SettlementManager } from "./settlement-manager.ts";
 import { ProviderEconomyService } from "./provider-economy.ts";
 import { PaymentControlClient, PaymentControlServer } from "./payment-control.ts";
+import { ForwardControlServer, ForwardControlClient } from "./forward-control.ts";
+import { createForwardProvider } from "./forward-provider.ts";
 
 /** One membership row persisted in meshes.json — the device's local record of a mesh it belongs to. */
 interface MeshRecord {
@@ -249,17 +252,25 @@ async function runDaemon(): Promise<void> {
     : null;
   const paymentControlServer = providerEconomy ? new PaymentControlServer({ seed, audit, economy: providerEconomy }) : null;
   if (paymentControlServer) await paymentControlServer.ready();
+  // SP2 Option B — provider-side forward server: runs forwarded vision (later embed/stt/tts) requests
+  // on this device's LOCAL serve. Joins the SAME per-pair firewall topics as payment-control (below).
+  const forwardServer = HYPHA_FORWARD ? new ForwardControlServer({ seed, audit, handler: createForwardProvider({ audit }) }) : null;
+  if (forwardServer) await forwardServer.ready();
   // The ONE delegated-inference provider for this device + its union firewall (spec §4). Every
   // mesh contributes its paired consumers; the provider serves their union. Lazy: not started
   // until the first mesh comes online.
   const provider = new DeviceProvider(seed, audit, async (providerPublicKey, allowedConsumers) => {
     await paymentControlServer?.updateAllowedConsumers(providerPublicKey, allowedConsumers);
+    await forwardServer?.updateAllowedConsumers(providerPublicKey, allowedConsumers);
   });
 
   // Consumer-side payment-control: ONE persistent client per daemon (stable seed → warm DHT/NAT
   // state, one multiplexed connection per provider). Constructed always (cheap — its swarm is lazy),
   // but only pre-warmed when this device can actually pay (Plasma rail online).
   const paymentControl = new PaymentControlClient(() => provider.selfKey, seed, audit);
+  // SP2 Option B — consumer-side forward client (one per daemon; lazy swarm). The shim uses it to
+  // borrow vision (and later embed/stt/tts) from a peer's local serve.
+  const forwardClient = HYPHA_FORWARD ? new ForwardControlClient(() => provider.selfKey, seed, audit) : null;
   const onPaidPeer = plasmaSettlement.online() ? (providerKey: string) => paymentControl.warm(providerKey) : undefined;
   // Mesh model sharing (advisory): whether peers may discover + pull this node's cached models. A
   // per-node Leash toggle flips it at runtime; flipping re-advertises every mesh so peers see it fast.
@@ -765,6 +776,7 @@ async function runDaemon(): Promise<void> {
     ...(kv ? { kv } : {}),
     settlement,
     paymentControl,
+    forward: forwardClient,
     recordObservation: (providerId, ok, ttftMs) => reputation.recordObservation({ providerId, ok, ...(ttftMs ? { ttftMs } : {}) }),
     getReputation: () => reputation.snapshot(),
     getShareModels: () => shareModels,
@@ -883,6 +895,8 @@ async function runDaemon(): Promise<void> {
       server.close();
       await paymentControl.close().catch(() => undefined);
       await paymentControlServer?.close().catch(() => undefined);
+      await forwardClient?.close().catch(() => undefined);
+      await forwardServer?.close().catch(() => undefined);
       try {
         await stopQVACProvider();
       } catch {

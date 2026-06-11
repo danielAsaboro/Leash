@@ -20,6 +20,8 @@ interface SharePeer {
   live: boolean;
   shareModels: boolean;
   models: string[];
+  /** Per-model modality + borrowable tag (SP2) — drives the chip's modality label + "local-only". */
+  modelInfo: { alias: string; modelType: string; borrowable: boolean }[];
   warmModels: string[];
   /** Node classification — surfaced in the per-mesh peer detail (Settings → Devices → My meshes). */
   computeClass: string;
@@ -38,6 +40,7 @@ interface RawPeer {
   live?: boolean;
   shareModels?: boolean;
   models?: string[];
+  modelInfo?: { alias: string; modelType: string; borrowable: boolean }[];
   warmModels?: string[];
   computeClass?: string;
   ramMB?: number;
@@ -62,6 +65,7 @@ export async function GET(): Promise<Response> {
       live: Boolean(p.live),
       shareModels: p.shareModels !== false,
       models: p.models ?? [],
+      modelInfo: p.modelInfo ?? (p.models ?? []).map((alias) => ({ alias, modelType: "chat", borrowable: true })),
       warmModels: p.warmModels ?? [],
       computeClass: p.computeClass ?? "—",
       ramMB: p.ramMB ?? 0,
