@@ -76,9 +76,10 @@ export const LOCAL_SERVE_URL = (process.env["HYPHA_SERVE_URL"] ?? "http://127.0.
  *  provider runs it on its own serve and streams back. OFF = vision stays local-only. */
 export const HYPHA_FORWARD = (process.env["HYPHA_FORWARD"] ?? "0") === "1";
 /** B4: meter the forward path. When ON and the chosen peer advertises a paid (plasma+upto) rail, a forward
- *  request opens an x402 paid session and settles per-modality natural units (forwardBillingTokens). OFF =
- *  forward borrows are free. Default OFF — flip only after the live paid-borrow test is green. */
-export const HYPHA_FORWARD_METERED = (process.env["HYPHA_FORWARD_METERED"] ?? "0") === "1";
+ *  request opens an x402 paid session and settles per-modality natural units (forwardBillingTokens). A peer
+ *  with no paid rail is still borrowed for free. Default ON since the live paid-borrow test went green
+ *  (2026-06-11, settled on the anvil fork) — set HYPHA_FORWARD_METERED=0 to force free forward. */
+export const HYPHA_FORWARD_METERED = (process.env["HYPHA_FORWARD_METERED"] ?? "1") === "1";
 /** Heartbeat cadence (fresh lastSeen + live inflight). */
 export const HEARTBEAT_MS = Number(process.env["HYPHA_HEARTBEAT_MS"] ?? 10_000);
 /** A peer whose lastSeen is older than this is stale → drop its warm entry, stop delegating. */
