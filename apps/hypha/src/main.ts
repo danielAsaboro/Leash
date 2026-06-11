@@ -783,6 +783,22 @@ async function runDaemon(): Promise<void> {
         return { ok: true };
       } catch (err) { return { ok: false, error: String(err) }; }
     },
+    leaveMesh: async (meshId) => {
+      // Leave a mesh THIS device joined: drop only our own membership (stop the runtime + remove the
+      // record so boot won't reopen it). No creator gate — unlike deleteMesh, anyone can leave; the mesh
+      // lives on for its other members. The primary mesh is identity-anchoring and never leavable.
+      if (meshId === PRIMARY_MESH_ID) return { ok: false, error: "the primary mesh can't be left" };
+      const meta = meshMeta.get(meshId);
+      if (!meta) return { ok: false, error: "no such mesh on this device" };
+      try {
+        const rt = runtimes.get(meshId);
+        if (rt) { await rt.stop(); runtimes.delete(meshId); }
+        meshMeta.delete(meshId);
+        saveMeshRecords();
+        audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "mesh-left" } });
+        return { ok: true };
+      } catch (err) { return { ok: false, error: String(err) }; }
+    },
     receipts: async () => {
       const all = await Promise.all([...runtimes.values()].map((m) => m.graph.receipts().catch(() => [])));
       return all.flat();

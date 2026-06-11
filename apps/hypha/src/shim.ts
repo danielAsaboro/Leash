@@ -91,6 +91,8 @@ export interface MeshControl {
   joinPublicCell(cellId: string, label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
   /** Delete a mesh THIS device founded (creator-gated; the primary mesh is never deletable). */
   deleteMesh(meshId: string): Promise<{ ok: boolean; error?: string }>;
+  /** Leave a mesh THIS device joined — drops only our own membership (any member; primary is never leavable). */
+  leaveMesh(meshId: string): Promise<{ ok: boolean; error?: string }>;
   /** Replicated paid-session settlement receipts visible across this device's meshes. */
   receipts(): Promise<SessionSettlementReceipt[]>;
 }
@@ -462,6 +464,10 @@ export function createShim(deps: ShimDeps): http.Server {
       }
       if (method === "POST" && url === "/mesh/delete") {
         const r = await mesh.deleteMesh(String((await readJsonBody(req))["meshId"] ?? ""));
+        return json(res, r.ok ? 200 : 400, r);
+      }
+      if (method === "POST" && url === "/mesh/leave") {
+        const r = await mesh.leaveMesh(String((await readJsonBody(req))["meshId"] ?? ""));
         return json(res, r.ok ? 200 : 400, r);
       }
       return json(res, 404, { error: `hypha: no mesh route ${method} ${url}` });
