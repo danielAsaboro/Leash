@@ -1,14 +1,24 @@
 /**
- * `/settings` — device & app settings. About (version · developer · license), and — added in the
- * Storage and Permissions features — what this device stores and what the browser can access.
+ * `/settings` — device & app settings, tabbed (Storage · Devices · Permissions · About). Mirrors
+ * /brain's ?tab= pattern. Storage is two-column (model cache + app data, with multi-delete);
+ * Devices hosts connect-by-key (QR + sync key), mesh memberships, and LAN PIN pairing.
  */
 import { DashShell, DashCard } from "../../components/dash.tsx";
 import { aboutInfo } from "../../lib/leash/about.ts";
 import { storageUsage } from "../../lib/leash/storage.ts";
-import { StorageCard } from "../../components/StorageCard.tsx";
+import { meshStatus } from "../../lib/leash/hypha.ts";
+import { TabNav, type TabDef } from "../../components/TabNav.tsx";
+import { ModelCacheCard } from "../../components/ModelCacheCard.tsx";
+import { AppDataCard } from "../../components/AppDataCard.tsx";
 import { PermissionsCard } from "../../components/PermissionsCard.tsx";
+import { DeviceConnectCard } from "../../components/DeviceConnectCard.tsx";
+import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
+import { AddDeviceSection } from "../../components/AddDeviceSection.tsx";
 
 export const dynamic = "force-dynamic";
+
+const TABS = ["storage", "devices", "permissions", "about"] as const;
+type Tab = (typeof TABS)[number];
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -19,27 +29,72 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default async function SettingsPage() {
-  const [about, usage] = await Promise.all([aboutInfo(), storageUsage()]);
+async function StorageTab() {
+  const usage = await storageUsage();
   return (
-    <DashShell kicker="Device & app" title="Settings" lede="What this app is, what it stores, and what it can access.">
-      <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
-        <DashCard title="About">
-          <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--color-ink-soft)", marginBottom: "0.75rem" }}>
-            {about.tagline}
-          </p>
-          <Row label="App" value={about.name} />
-          <Row label="Version" value={about.version} />
-          <Row label="Developer" value={about.developer} />
-          <Row label="License" value={about.license} />
-        </DashCard>
-        <DashCard title="Storage">
-          <StorageCard usage={usage} />
-        </DashCard>
-        <DashCard title="Permissions">
-          <PermissionsCard />
-        </DashCard>
-      </div>
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,320px)]">
+      <DashCard title="Storage">
+        <ModelCacheCard files={usage.modelFiles} totalBytes={usage.modelBytes} />
+      </DashCard>
+      <DashCard title="App data">
+        <AppDataCard data={usage.data} />
+      </DashCard>
+    </div>
+  );
+}
+
+async function DevicesTab() {
+  const mesh = await meshStatus();
+  return (
+    <div className="flex flex-col gap-5">
+      <DashCard title="Connect a device">
+        <DeviceConnectCard meshes={mesh.meshes} />
+      </DashCard>
+      <DashCard title="My meshes">
+        <MeshMembershipsSection meshes={mesh.meshes} />
+      </DashCard>
+      <DashCard title="Pair over LAN">
+        <AddDeviceSection meshes={mesh.meshes} />
+      </DashCard>
+    </div>
+  );
+}
+
+async function AboutTab() {
+  const about = await aboutInfo();
+  return (
+    <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
+      <DashCard title="About">
+        <p style={{ fontFamily: "var(--font-body)", fontStyle: "italic", color: "var(--color-ink-soft)", marginBottom: "0.75rem" }}>{about.tagline}</p>
+        <Row label="App" value={about.name} />
+        <Row label="Version" value={about.version} />
+        <Row label="Developer" value={about.developer} />
+        <Row label="License" value={about.license} />
+      </DashCard>
+    </div>
+  );
+}
+
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = await searchParams;
+  const raw = Array.isArray(params["tab"]) ? params["tab"][0] : params["tab"];
+  const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "storage";
+  const tabDefs: TabDef[] = TABS.map((t) => ({ key: t, label: t[0]!.toUpperCase() + t.slice(1), href: t === "storage" ? "/settings" : `/settings?tab=${t}` }));
+
+  return (
+    <DashShell kicker="Device & app" title="Settings" lede="What this app stores, the devices it connects to, and what it can access.">
+      <TabNav tabs={tabDefs} active={tab} />
+
+      {tab === "storage" && (await StorageTab())}
+      {tab === "devices" && (await DevicesTab())}
+      {tab === "permissions" && (
+        <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
+          <DashCard title="Permissions">
+            <PermissionsCard />
+          </DashCard>
+        </div>
+      )}
+      {tab === "about" && (await AboutTab())}
     </DashShell>
   );
 }

@@ -14,8 +14,6 @@ import { ServiceCard } from "../../components/ServiceCard.tsx";
 import { SchedulesSection } from "../../components/SchedulesSection.tsx";
 import { SecretsCard } from "../../components/SecretsCard.tsx";
 import { HyphaPeersSection } from "../../components/HyphaPeersSection.tsx";
-import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
-import { AddDeviceSection } from "../../components/AddDeviceSection.tsx";
 import { LiveRefresh } from "../../components/LiveRefresh.tsx";
 
 export const dynamic = "force-dynamic";
@@ -30,13 +28,7 @@ export default async function ServicesPage() {
         {services.map((s) => (
           <ServiceCard key={s.name} service={s}>
             {s.name === "leash-cron" && <SchedulesSection schedules={schedules} state={state} runs={runs} />}
-            {s.name === "hypha" && (
-              <>
-                <MeshMembershipsSection meshes={mesh.meshes} />
-                <AddDeviceSection meshes={mesh.meshes} />
-                <HyphaPeersSection status={mesh} />
-              </>
-            )}
+            {s.name === "hypha" && <HyphaPeersSection status={mesh} />}
           </ServiceCard>
         ))}
         <SecretsCard secrets={listSecretStatus()} />
