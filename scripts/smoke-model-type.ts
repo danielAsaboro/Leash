@@ -25,14 +25,13 @@ assert.equal(modelType({ model: "WHISPER_BASE_Q8_0" }, undefined), "stt");
 // unknown → null (skipped from advertisement)
 assert.equal(modelType({ model: "SOMETHING_WEIRD_V2" }, undefined), null);
 
-// borrowable = CHAT only over SDK delegation. The live two-Mac test showed vision images can't cross
-// (SDK attachments are path-only, read on the provider) — vision/embed/stt/tts are local-only until
-// the Option B request-forward transport lands.
+// borrowable = every real modality: chat delegates directly; vision/embeddings/STT/TTS borrow over the
+// P2P forward transport (the provider runs them on its local serve). Only null (unclassified) is not.
 assert.equal(isBorrowable("chat"), true);
-assert.equal(isBorrowable("vision"), false);
-assert.equal(isBorrowable("embedding"), false);
-assert.equal(isBorrowable("stt"), false);
-assert.equal(isBorrowable("tts"), false);
+assert.equal(isBorrowable("vision"), true);
+assert.equal(isBorrowable("embedding"), true);
+assert.equal(isBorrowable("stt"), true);
+assert.equal(isBorrowable("tts"), true);
 assert.equal(isBorrowable(null), false);
 
-console.log("✅ model-type — chat/vision/embedding/stt/tts · projection-beats-chat · catalog-miss name fallback · borrowable=chat-only — GO");
+console.log("✅ model-type — chat/vision/embedding/stt/tts · projection-beats-chat · catalog-miss name fallback · borrowable=all-modalities — GO");

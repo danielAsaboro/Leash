@@ -32,13 +32,25 @@ export function createForwardProvider(deps: ForwardProviderDeps): (req: ForwardR
   return async (req, send) => {
     const url = serveUrl + req.endpoint;
     const isChat = req.endpoint.includes("/chat/completions");
+    const isTranscription = req.endpoint.includes("/audio/transcriptions");
     const inBody = (req.body as Record<string, unknown>) ?? {};
-    // Chat streams as SSE (a long vision decode reaches the consumer incrementally); other endpoints
-    // return a single JSON or binary body. Serve bodies are passthrough, so consumer fields ride along.
-    const payload = isChat ? { ...inBody, stream: true } : inBody;
     let res: Response;
     try {
-      res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      if (isTranscription) {
+        // STT uploads a file: rebuild the multipart form the serve expects from the inline base64 audio.
+        const form = new FormData();
+        form.append("model", String(inBody["model"] ?? ""));
+        form.append("file", new Blob([Buffer.from(String(inBody["audio_base64"] ?? ""), "base64")]), String(inBody["filename"] ?? "audio.wav"));
+        for (const k of ["response_format", "language", "prompt", "temperature"]) {
+          if (inBody[k] !== undefined) form.append(k, String(inBody[k]));
+        }
+        res = await fetch(url, { method: "POST", body: form }); // fetch sets the multipart content-type + boundary
+      } else {
+        // Chat streams as SSE (a long vision decode reaches the consumer incrementally); embeddings/speech
+        // return a single JSON or binary body. Serve bodies are passthrough, so consumer fields ride along.
+        const payload = isChat ? { ...inBody, stream: true } : inBody;
+        res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+      }
     } catch (e) {
       send({ id: req.id, type: "error", error: `forward-provider: local serve unreachable at ${url}: ${e instanceof Error ? e.message : String(e)}` });
       return;

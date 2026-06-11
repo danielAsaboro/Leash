@@ -151,7 +151,10 @@ export class WarmPool {
         continue;
       }
       for (const m of peer.models ?? []) {
-        if (m.borrowable === false) continue; // SP2: embed/stt/tts are advertised but not delegable
+        if (m.borrowable === false) continue;
+        // Only CHAT delegates (loadDelegated carries completion()); vision/embed/stt/tts borrow over the
+        // FORWARD transport (forwardTargetForAlias), so don't speculatively delegate-warm them.
+        if (m.modelType !== undefined && m.modelType !== "chat") continue;
         const k = key(pk, m.modelSrc);
         if (this.warm.has(k) || this.warming.has(k)) continue;
         this.warming.add(k);
@@ -223,16 +226,17 @@ export class WarmPool {
   }
 
   /**
-   * A live peer (excl. self) that SERVES `alias` — for the forward path, which borrows via the peer's
-   * LOCAL serve and so needs neither a warm delegated model nor the (delegation-only) `borrowable`
-   * flag. Lowest-inflight wins. Returns the peer's provider key, or undefined.
+   * Live peers (excl. self) that SERVE `alias`, lowest-inflight first — for the forward path, which
+   * borrows via the peer's LOCAL serve and so needs neither a warm delegated model nor the
+   * (delegation-only) `borrowable` flag. The ordered list lets the shim fail over to the next capable
+   * peer when one errors.
    */
-  forwardTargetForAlias(alias: string): string | undefined {
-    const candidates = this.livePeers(this.lastCaps)
+  forwardTargetsForAlias(alias: string): string[] {
+    return this.livePeers(this.lastCaps)
       .filter((c) => c.providerPublicKey && (c.models ?? []).some((m) => m.alias === alias))
-      .map((c) => ({ peerKey: c.providerPublicKey as string, inflight: c.inflight ?? 0 }));
-    candidates.sort((a, b) => a.inflight - b.inflight);
-    return candidates[0]?.peerKey;
+      .map((c) => ({ peerKey: c.providerPublicKey as string, inflight: c.inflight ?? 0 }))
+      .sort((a, b) => a.inflight - b.inflight)
+      .map((c) => c.peerKey);
   }
 
   /** Advertised price/kilo-token for a paid peer (0 = free/warm, sorts first). */

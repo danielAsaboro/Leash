@@ -54,9 +54,10 @@ export function modelType(entry: ModelTypeEntry, cat?: ModelTypeCatalog): Modali
   return null;
 }
 
-/** True only for modalities that can be BORROWED over the mesh. Empirically: only CHAT — the SDK
- * delegates `completion()` only, and its multimodal `attachments` are path-only (read on the provider),
- * so a consumer's image can't cross. Vision/embeddings/STT/TTS are advertised display-only. */
+/** True for any real modality. CHAT delegates directly (loadDelegated carries completion()); vision,
+ * embeddings, STT and TTS borrow over the P2P forward transport (HYPHA_FORWARD), where the provider
+ * runs them on its LOCAL serve — so the old SDK-delegation limit (path-only attachments) no longer
+ * gates them. Only `null` (unclassified) is not advertised/borrowable. */
 export function isBorrowable(m: Modality | null): boolean {
-  return m === "chat";
+  return m !== null;
 }

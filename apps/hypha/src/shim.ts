@@ -29,6 +29,7 @@ import type { SettlementManager } from "./settlement-manager.ts";
 import type { PaidSessionGrant } from "./economy-types.ts";
 import type { PaymentControlClient } from "./payment-control.ts";
 import type { ForwardControlClient } from "./forward-control.ts";
+import { parseMultipart, boundaryOf } from "./multipart-parse.ts";
 import { descriptorFor } from "./catalog.ts";
 import { flattenContent, parseDataUrlImage, type ContentPart } from "./chat-attachments.ts";
 import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS } from "./config.ts";
@@ -175,12 +176,13 @@ function requestHasImages(messages: ChatMessage[]): boolean {
   return messages.some((m) => flattenContent(m.content).images.length > 0);
 }
 
-/** Stream a vision (or other non-delegable) chat request to `peerKey` over the forward transport: the
- *  peer runs it on its LOCAL serve (inline image bytes → vision) and streams tokens back to us. */
+/** Stream a chat request to the first capable peer in `peers` over the forward transport (the peer runs
+ *  it on its LOCAL serve — inline image bytes → vision — and streams tokens back). Fails over to the next
+ *  peer if one errors BEFORE any byte reaches the client; once streaming has started it can't retry. */
 async function streamForwardChat(
   res: http.ServerResponse,
   forward: ForwardControlClient,
-  peerKey: string,
+  peers: string[],
   args: { id: string; alias: string; created: number; stream: boolean; body: unknown },
   inflight: Inflight,
   audit?: AuditLog,
@@ -188,75 +190,100 @@ async function streamForwardChat(
   inflight.inc();
   let clientOpen = true;
   res.on("close", () => { clientOpen = false; });
-  const t0 = Date.now();
-  let tokens = 0;
-  let full = "";
+  let committed = false; // true once we've written the response head to the client → no more failover
+  let lastErr: Error | null = null;
+  const writeHead = (): void => {
+    res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+    res.write(sseChunk(args.id, args.alias, args.created, { role: "assistant" }, null));
+    committed = true;
+  };
   try {
-    if (args.stream && clientOpen) {
-      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
-      res.write(sseChunk(args.id, args.alias, args.created, { role: "assistant" }, null));
+    for (const peerKey of peers) {
+      const t0 = Date.now();
+      let tokens = 0;
+      let full = "";
+      try {
+        const gen = forward.forward(peerKey, { id: args.id, endpoint: "/v1/chat/completions", body: args.body });
+        for (let next = await gen.next(); next.done !== true; next = await gen.next()) {
+          tokens++;
+          full += next.value;
+          if (args.stream) {
+            if (!committed && clientOpen) writeHead();
+            if (clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: next.value }, null));
+          }
+        }
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-done", peer: peerKey.slice(0, 16), alias: args.alias, tokens, ms: Date.now() - t0 } });
+        if (!clientOpen) return;
+        if (args.stream) {
+          if (!committed) writeHead();
+          res.write(sseChunk(args.id, args.alias, args.created, {}, "stop"));
+          res.write("data: [DONE]\n\n");
+          res.end();
+        } else {
+          committed = true;
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify({ id: args.id, object: "chat.completion", created: args.created, model: args.alias, choices: [{ index: 0, message: { role: "assistant", content: full }, finish_reason: "stop" }] }));
+        }
+        return;
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), alias: args.alias, committed, error: lastErr.message } });
+        if (committed) {
+          if (clientOpen) { try { res.write(`data: ${JSON.stringify({ error: { message: `hypha forward: ${lastErr.message}` } })}\n\n`); res.end(); } catch { /* client gone */ } }
+          return;
+        }
+        // nothing written yet → fail over to the next capable peer
+      }
     }
-    for await (const token of forward.forward(peerKey, { id: args.id, endpoint: "/v1/chat/completions", body: args.body })) {
-      tokens++;
-      full += token;
-      if (args.stream && clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: token }, null));
-    }
-    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-done", peer: peerKey.slice(0, 16), alias: args.alias, tokens, ms: Date.now() - t0 } });
     if (!clientOpen) return;
-    if (args.stream) {
-      res.write(sseChunk(args.id, args.alias, args.created, {}, "stop"));
-      res.write("data: [DONE]\n\n");
-      res.end();
-    } else {
-      res.writeHead(200, { "content-type": "application/json" });
-      res.end(JSON.stringify({ id: args.id, object: "chat.completion", created: args.created, model: args.alias, choices: [{ index: 0, message: { role: "assistant", content: full }, finish_reason: "stop" }] }));
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), alias: args.alias, error: message } });
-    if (!clientOpen) return;
-    if (args.stream) {
-      try { res.write(`data: ${JSON.stringify({ error: { message: `hypha forward: ${message}` } })}\n\n`); res.end(); } catch { /* client gone */ }
-    } else {
-      try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
-    }
-  } finally {
-    inflight.dec();
-  }
-}
-
-/** Forward a non-chat request whose answer is a single JSON body (embeddings) and relay it back. */
-async function forwardJsonResponse(
-  res: http.ServerResponse,
-  forward: ForwardControlClient,
-  peerKey: string,
-  endpoint: string,
-  body: unknown,
-  inflight: Inflight,
-  audit?: AuditLog,
-): Promise<void> {
-  inflight.inc();
-  const t0 = Date.now();
-  try {
-    let out = "";
-    for await (const chunk of forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body })) out += chunk;
-    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-json-done", peer: peerKey.slice(0, 16), endpoint, ms: Date.now() - t0 } });
-    res.writeHead(200, { "content-type": "application/json" });
-    res.end(out);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: message } });
+    const message = lastErr?.message ?? "no capable peer";
     try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
   } finally {
     inflight.dec();
   }
 }
 
-/** Forward a request whose answer is binary (audio/speech): reassemble base64 chunk frames → bytes. */
+/** Forward a non-chat request whose answer is a single JSON body (embeddings) and relay it back, trying
+ *  each capable peer in turn — the response isn't written until fully collected, so failover is clean. */
+async function forwardJsonResponse(
+  res: http.ServerResponse,
+  forward: ForwardControlClient,
+  peers: string[],
+  endpoint: string,
+  body: unknown,
+  inflight: Inflight,
+  audit?: AuditLog,
+): Promise<void> {
+  inflight.inc();
+  let lastErr: Error | null = null;
+  try {
+    for (const peerKey of peers) {
+      const t0 = Date.now();
+      try {
+        let out = "";
+        for await (const chunk of forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body })) out += chunk;
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-json-done", peer: peerKey.slice(0, 16), endpoint, ms: Date.now() - t0 } });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(out);
+        return;
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message } });
+      }
+    }
+    const message = lastErr?.message ?? "no capable peer";
+    try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
+  } finally {
+    inflight.dec();
+  }
+}
+
+/** Forward a request whose answer is binary (audio/speech): reassemble base64 chunk frames → bytes,
+ *  trying each capable peer in turn (nothing written until fully collected → clean failover). */
 async function forwardBinaryResponse(
   res: http.ServerResponse,
   forward: ForwardControlClient,
-  peerKey: string,
+  peers: string[],
   endpoint: string,
   body: unknown,
   contentType: string,
@@ -264,23 +291,30 @@ async function forwardBinaryResponse(
   audit?: AuditLog,
 ): Promise<void> {
   inflight.inc();
-  const t0 = Date.now();
+  let lastErr: Error | null = null;
   try {
-    const gen = forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body });
-    const parts: Buffer[] = [];
-    let next = await gen.next();
-    while (next.done !== true) { parts.push(Buffer.from(next.value, "base64")); next = await gen.next(); }
-    const stats = next.value as { contentType?: string } | undefined;
-    const audio = Buffer.concat(parts);
-    // Use the serve's ACTUAL content-type (stamped in the provider's done frame), falling back to the
-    // request-format guess — supertonic returns WAV regardless of `response_format`.
-    const ct = typeof stats?.contentType === "string" && stats.contentType ? stats.contentType : contentType;
-    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-binary-done", peer: peerKey.slice(0, 16), endpoint, bytes: audio.length, contentType: ct, ms: Date.now() - t0 } });
-    res.writeHead(200, { "content-type": ct });
-    res.end(audio);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: message } });
+    for (const peerKey of peers) {
+      const t0 = Date.now();
+      try {
+        const gen = forward.forward(peerKey, { id: `fwd-${randomUUID()}`, endpoint, body });
+        const parts: Buffer[] = [];
+        let next = await gen.next();
+        while (next.done !== true) { parts.push(Buffer.from(next.value, "base64")); next = await gen.next(); }
+        const stats = next.value as { contentType?: string } | undefined;
+        const audio = Buffer.concat(parts);
+        // Use the serve's ACTUAL content-type (stamped in the provider's done frame), falling back to the
+        // request-format guess — supertonic returns WAV regardless of `response_format`.
+        const ct = typeof stats?.contentType === "string" && stats.contentType ? stats.contentType : contentType;
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-binary-done", peer: peerKey.slice(0, 16), endpoint, bytes: audio.length, contentType: ct, ms: Date.now() - t0 } });
+        res.writeHead(200, { "content-type": ct });
+        res.end(audio);
+        return;
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message } });
+      }
+    }
+    const message = lastErr?.message ?? "no capable peer";
     try { res.writeHead(502, { "content-type": "application/json" }); res.end(JSON.stringify({ error: { message: `hypha forward: ${message}`, code: "forward_failed" } })); } catch { /* client gone */ }
   } finally {
     inflight.dec();
@@ -448,14 +482,36 @@ export function createShim(deps: ShimDeps): http.Server {
       const fwdAlias = fbody.model;
       if (!fwdAlias) return json(res, 400, { error: { message: "hypha shim: `model` (alias) is required" } });
       const fwdSensitivity = fbody.sensitivity === "shareable" ? "shareable" : "private";
-      const fwdPeer = fwdRouter.forwardTargetForAlias({ alias: fwdAlias, sensitivity: fwdSensitivity, ...(fbody.meshId ? { pinMeshId: fbody.meshId } : {}) });
-      if (!fwdPeer) return json(res, 503, { error: { message: `hypha shim: no peer serves "${fwdAlias}" for forwarding`, code: "no_forward_peer" } });
-      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peer: fwdPeer.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] } });
+      const fwdPeers = fwdRouter.forwardTargetsForAlias({ alias: fwdAlias, sensitivity: fwdSensitivity, ...(fbody.meshId ? { pinMeshId: fbody.meshId } : {}) });
+      if (fwdPeers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${fwdAlias}" for forwarding`, code: "no_forward_peer" } });
+      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: fwdPeers.length, peer: fwdPeers[0]!.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] } });
       if (url.startsWith("/v1/audio/speech")) {
         const ct = fbody.response_format === "wav" ? "audio/wav" : "audio/mpeg";
-        return forwardBinaryResponse(res, forward, fwdPeer, "/v1/audio/speech", fbody, ct, inflight, audit);
+        return forwardBinaryResponse(res, forward, fwdPeers, "/v1/audio/speech", fbody, ct, inflight, audit);
       }
-      return forwardJsonResponse(res, forward, fwdPeer, "/v1/embeddings", fbody, inflight, audit);
+      return forwardJsonResponse(res, forward, fwdPeers, "/v1/embeddings", fbody, inflight, audit);
+    }
+
+    // STT — /v1/audio/transcriptions uploads a file (multipart/form-data). Parse out the audio + model,
+    // forward the audio inline as base64, and the provider rebuilds the multipart for its local serve.
+    if (forward && method === "POST" && url.startsWith("/v1/audio/transcriptions")) {
+      const sttRouter = getRouter();
+      if (!sttRouter || !sttRouter.online()) return json(res, 503, { error: { message: "hypha: mesh offline (device not paired)", code: "mesh_offline" } });
+      const boundary = boundaryOf(String(req.headers["content-type"] ?? ""));
+      if (!boundary) return json(res, 400, { error: { message: "hypha shim: /v1/audio/transcriptions expects multipart/form-data" } });
+      const sttParts = parseMultipart(await readBody(req), boundary);
+      const filePart = sttParts.find((p) => p.name === "file");
+      const sttModel = sttParts.find((p) => p.name === "model")?.data.toString("utf8").trim();
+      if (!filePart || !sttModel) return json(res, 400, { error: { message: "hypha shim: `model` and `file` are required" } });
+      const sttPeers = sttRouter.forwardTargetsForAlias({ alias: sttModel, sensitivity: "private" });
+      if (sttPeers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${sttModel}" for forwarding`, code: "no_forward_peer" } });
+      const sttBody: Record<string, unknown> = { model: sttModel, audio_base64: filePart.data.toString("base64"), filename: filePart.filename ?? "audio.wav" };
+      for (const k of ["response_format", "language", "prompt"]) {
+        const v = sttParts.find((p) => p.name === k)?.data.toString("utf8");
+        if (v !== undefined) sttBody[k] = v;
+      }
+      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: sttPeers.length, peer: sttPeers[0]!.slice(0, 16), alias: sttModel, endpoint: "/v1/audio/transcriptions" } });
+      return forwardJsonResponse(res, forward, sttPeers, "/v1/audio/transcriptions", sttBody, inflight, audit);
     }
 
     // ── overflow chat completions ────────────────────────────────────────────────
@@ -506,10 +562,10 @@ export function createShim(deps: ShimDeps): http.Server {
     // peer that SERVES the alias (no delegated warm needed) and send the OpenAI body (image bytes
     // inline) over the forward channel; the peer runs it on its serve and streams the answer back.
     if (forward && requestHasImages(body.messages)) {
-      const peerKey = router.forwardTargetForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
-      if (!peerKey) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
-      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peer: peerKey.slice(0, 16), alias } });
-      return streamForwardChat(res, forward, peerKey, {
+      const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
+      if (peers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
+      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias } });
+      return streamForwardChat(res, forward, peers, {
         id: `chatcmpl-${randomUUID()}`,
         alias,
         created: Math.floor(Date.now() / 1000),

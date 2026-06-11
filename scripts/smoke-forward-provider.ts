@@ -92,7 +92,29 @@ async function main(): Promise<void> {
     assert.ok(audioBytes.length === 8 && audioBytes[0] === 0x49, `TTS bytes not reassembled (got ${audioBytes.length})`);
     console.log(`✅ audio/speech — ${audioBytes.length} binary bytes reassembled from base64 frames`);
 
-    console.log("\n🎉 FORWARD-PROVIDER GO — chat/embeddings/speech all proxied + framed correctly over P2P.");
+    // 4) failover — a provider whose handler errors is skipped for the next capable peer (the shim's loop).
+    const errSeed = randomBytes(32).toString("hex");
+    const errKey = randomBytes(32).toString("hex");
+    const errServer = new ForwardControlServer({ seed: errSeed, audit, handler: async (req, send) => send({ id: req.id, type: "error", error: "serve down" }) });
+    await errServer.ready();
+    await errServer.updateAllowedConsumers(errKey, new Set([consumerKey]));
+    let foOut = "";
+    let lastErr: unknown;
+    for (const p of [errKey, providerKey]) { // erroring peer first, working peer second
+      try {
+        foOut = "";
+        for await (const c of client.forward(p, { id: `fo-${p.slice(0, 6)}`, endpoint: "/v1/embeddings", body: { model: "gte-large", input: "x" } })) foOut += c;
+        lastErr = undefined;
+        break;
+      } catch (e) { lastErr = e; }
+    }
+    assert.ok(!lastErr, `failover did not land on a working peer: ${String(lastErr)}`);
+    const foEmb = JSON.parse(foOut) as { data: Array<{ embedding: number[] }> };
+    assert.ok(Array.isArray(foEmb.data[0]!.embedding), "failover should land on the working provider (real vector)");
+    console.log(`✅ failover — erroring provider skipped; landed on the working one (vector[${foEmb.data[0]!.embedding.length}])`);
+    await errServer.close();
+
+    console.log("\n🎉 FORWARD-PROVIDER GO — chat/embeddings/speech + failover all proven over P2P.");
   } finally {
     void client.close();
     void server.close();
