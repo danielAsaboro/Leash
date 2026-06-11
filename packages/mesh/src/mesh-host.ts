@@ -84,6 +84,18 @@ export class MeshHost {
     let swarm: Hyperswarm | null = null;
     if (opts.swarm !== false) {
       swarm = new Hyperswarm();
+      // Force localConnection:false on every dial. hyperdht's same-public-IP "LAN shortcut" pings the
+      // peer's LAN address and ABORTS the whole connect if that ping fails — which silently breaks
+      // RE-DIALS to a restarted peer inside the daemon, so a reopened edge device never re-syncs its
+      // Autobase membership (it stays non-writable and the mesh shows 0 peers — the membership data is
+      // on disk, the device just can't reconnect to re-confirm it). payment-control + forward-control
+      // wrap this for the same reason; the normal holepunch connects in <1s. The swarm path is
+      // daemon/cross-machine only — every same-machine mesh smoke uses `swarm:false`.
+      const dht = (swarm as unknown as { dht?: { connect: (key: Buffer, o?: Record<string, unknown>) => unknown } }).dht;
+      if (dht) {
+        const origConnect = dht.connect.bind(dht);
+        dht.connect = (key: Buffer, o?: Record<string, unknown>) => origConnect(key, { ...o, localConnection: false });
+      }
       // ONE handler covers every mesh namespace (spec §3): replicate the ROOT store.
       swarm.on("connection", (rawConn, info) => {
         const conn = rawConn as { on(event: string, listener: (...args: unknown[]) => void): void };

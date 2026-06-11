@@ -104,6 +104,10 @@ interface MeshRecord {
   /** True only when THIS device founded the mesh via `foundMesh` (the "New mesh" action) — the
    *  gate for deleting it. Joined/primary/public memberships are not creators (absent = false). */
   creator?: boolean;
+  /** The shared mesh's Autobase key (hex), recorded only for meshes this device JOINED. Passed back
+   *  as the bootstrapKey on reopen so a restart RE-BINDS to the founder's mesh instead of founding a
+   *  fresh fork. Absent for meshes this device founded (they recover their own autobase with no key). */
+  bootstrapKey?: string;
 }
 
 const audit = new AuditLog("hypha", LOG_DIR);
@@ -454,8 +458,9 @@ async function runDaemon(): Promise<void> {
     primaryOpening ??= (async () => {
       try {
         const h = await ensureHost();
-        const { graph } = await h.openMesh({ meshId: PRIMARY_MESH_ID });
-        return await bringMeshOnline(PRIMARY_MESH_ID, graph, meshMeta.get(PRIMARY_MESH_ID) ?? primaryRecord());
+        const rec = meshMeta.get(PRIMARY_MESH_ID) ?? primaryRecord();
+        const { graph } = await h.openMesh({ meshId: PRIMARY_MESH_ID, ...(rec.bootstrapKey ? { bootstrapKey: Buffer.from(rec.bootstrapKey, "hex") } : {}) });
+        return await bringMeshOnline(PRIMARY_MESH_ID, graph, rec);
       } finally {
         primaryOpening = null;
       }
@@ -486,6 +491,8 @@ async function runDaemon(): Promise<void> {
     const meta: MeshRecord = isPrimary ? { ...primaryRecord(), label } : { meshId, label, visibility: "private", reach: "local", tier: nextTier(), creator: false };
     try {
       const { graph } = await h.pairMesh({ meshId, invite, timeoutMs: 45_000 });
+      // Persist the SHARED mesh key so a restart re-binds to the founder's mesh (not a fresh fork).
+      meta.bootstrapKey = graph.autobaseKey;
       await bringMeshOnline(meshId, graph, meta);
       saveMeshRecords();
       return meshId;
@@ -862,7 +869,7 @@ async function runDaemon(): Promise<void> {
             await joinPublicCell(rec.meshId, rec.label);
           } else {
             const h = await ensureHost();
-            const { graph } = await h.openMesh({ meshId: rec.meshId });
+            const { graph } = await h.openMesh({ meshId: rec.meshId, ...(rec.bootstrapKey ? { bootstrapKey: Buffer.from(rec.bootstrapKey, "hex") } : {}) });
             await bringMeshOnline(rec.meshId, graph, rec);
           }
         } catch (err) {
