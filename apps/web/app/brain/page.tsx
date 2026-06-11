@@ -28,8 +28,7 @@ import { GrowthChart } from "../../components/GrowthChart.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
 import { ToolsPanel, type ToolRow } from "../../components/ToolsPanel.tsx";
 import { PromptsPanel } from "../../components/PromptsPanel.tsx";
-import { MemoryPanel } from "../../components/MemoryPanel.tsx";
-import { MemoriesSection } from "../../components/MemoriesSection.tsx";
+import { MemoryLanding } from "../../components/MemoryLanding.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
 import { ForagePanel } from "../../components/ForagePanel.tsx";
 import { McpPanel } from "../../components/McpPanel.tsx";
@@ -60,7 +59,6 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
   const raw = one(params["tab"]);
   const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "memory";
-  const offset = Math.max(0, Number(one(params["offset"]) ?? 0) || 0);
 
   return (
     <DashShell kicker="Leash · Brain" title="Brain" lede="What the assistant knows and how it behaves — memory, skills, tools, prompts.">
@@ -83,10 +81,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       </div>
 
       {tab === "memory" && (
-        <div className="flex flex-col gap-6">
-          <MemoriesSection memories={await listMemories()} />
-          <MemoryPanel notes={await listNotes()} activity={await activityPage(offset, 50)} stats={await indexStats()} offset={offset} />
-        </div>
+        <MemoryLanding memories={await listMemories()} notes={await listNotes()} activity={await activityPage(0, 5)} stats={await indexStats()} />
       )}
       {tab === "skills" && <SkillsPanel skills={await listSkills()} />}
       {tab === "tools" && <ToolsPanel tools={await toolRows()} />}

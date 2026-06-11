@@ -1,7 +1,9 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { PencilIcon, Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { IconButton } from "./IconButton.tsx";
 import type { LeashMemory, MemoryType } from "../lib/leash/memories-store.ts";
 
 /**
@@ -137,12 +139,12 @@ export function MemoriesSection({ memories }: { memories: LeashMemory[] }) {
               <span className="kicker" style={{ color: "var(--color-faint)" }} suppressHydrationWarning>
                 {m.source} · {ago(m.updatedAt)}
               </span>
-              <button type="button" onClick={() => edit(m)} disabled={busy} className="kicker border px-2 py-1 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}>
-                Edit
-              </button>
-              <button type="button" onClick={() => forget(m)} disabled={busy} className="kicker border px-2 py-1 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-brick)" }}>
-                Forget
-              </button>
+              <IconButton title="Edit memory" disabled={busy} onClick={() => edit(m)}>
+                <PencilIcon size={15} />
+              </IconButton>
+              <IconButton title="Forget memory" danger disabled={busy} onClick={() => forget(m)}>
+                <Trash2Icon size={15} />
+              </IconButton>
             </li>
           ))}
         </ul>
