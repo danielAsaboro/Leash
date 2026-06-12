@@ -49,10 +49,22 @@ export const leashCallOptionsSchema = z.object({
    * route branch. Empty = use the route default. Never applied on the tool-less vision route.
    */
   skillTools: z.array(z.string()).optional(),
+  /**
+   * Whether `<think>` reasoning is ON for this turn (deep text). Drives sampling per Qwen3's
+   * best practices: thinking → temp 0.6 / topP 0.95; non-thinking (/no_think) → temp 0.7 / topP 0.8
+   * (topK 20 both). The serve's default (temp ~0.1, near-greedy) is exactly what Qwen warns AGAINST
+   * — "performance degradation and endless repetitions". Absent on vision (single-shot, own model).
+   */
+  thinking: z.boolean().optional(),
   /** The fully-assembled system prompt for this turn. */
   system: z.string(),
 });
 export type LeashCallOptions = z.infer<typeof leashCallOptionsSchema>;
+
+/** Qwen3 sampling per thinking mode (Qwen3 best practices). topK/minP best-effort (provider may drop). */
+function samplingFor(thinking: boolean | undefined): { temperature: number; topP: number; topK: number } {
+  return thinking ? { temperature: 0.6, topP: 0.95, topK: 20 } : { temperature: 0.7, topP: 0.8, topK: 20 };
+}
 
 const COMPUTER_NAMES = new Set(Object.keys(computerTools));
 
@@ -126,6 +138,9 @@ export function buildLeashAgent(tools: ToolSet): ToolLoopAgent<LeashCallOptions,
         model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : chatModel(),
         instructions: options.system,
         activeTools,
+        // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision
+        // (qwen3vl, single-shot) keeps its own behavior; every text/tool route gets proper sampling.
+        ...(options.route !== "vision" ? samplingFor(options.thinking) : {}),
         ...(options.steps !== null ? { stopWhen: stepCountIs(options.steps) } : {}),
         ...(options.maxOutputTokens !== null ? { maxOutputTokens: options.maxOutputTokens } : {}),
       };

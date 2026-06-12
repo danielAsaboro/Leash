@@ -292,7 +292,12 @@ export async function POST(req: Request): Promise<Response> {
   // not send a key. Every text tier runs tools-ON (the TOOLLESS-HANG guard in effort.ts),
   // and custom-key kv reuse across tool-call turns is unverified SDK territory; a wrong
   // count-state silently corrupts answers. Hypha-only by design — see the README.
-  const modelInput = await convertToModelMessages(modelMessages);
+  // Qwen3 best practice: historical assistant output must NOT carry its `<think>` reasoning — it
+  // bloats context and degrades performance. Strip reasoning parts from the MODEL input only; the
+  // stored/displayed thread keeps them (originalMessages = `validated`).
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const noReasoning = modelMessages.map((m: any) => (m.role === "assistant" && Array.isArray(m.parts) ? { ...m, parts: m.parts.filter((p: any) => p?.type !== "reasoning") } : m));
+  const modelInput = await convertToModelMessages(noReasoning);
 
   // The Leash agent (ToolLoopAgent, agent.ts): typed call options carry this turn's
   // derived context; `prepareCall` maps them to model / activeTools / steps / tokens.
@@ -312,6 +317,8 @@ export async function POST(req: Request): Promise<Response> {
     steps: imageTurn || !cfg ? null : declaredSkillTools.length ? SKILL_TOOL_STEPS : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
     maxOutputTokens: imageTurn || !cfg ? null : cfg.maxOutputTokens,
     ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
+    // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
+    thinking: !imageTurn && !useNoThink,
     system,
   };
   const result = await agent.stream({ messages: modelInput, options: callOptions });
