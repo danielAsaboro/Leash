@@ -35,6 +35,7 @@ import { openForwardSession, closeForwardSession, type ForwardSettlementDeps } f
 import { descriptorFor } from "./catalog.ts";
 import { flattenContent, parseDataUrlImage, type ContentPart } from "./chat-attachments.ts";
 import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS, HYPHA_FORWARD_METERED } from "./config.ts";
+import { meshBus, MESH_EVENT } from "./mesh-events.ts";
 
 export interface Inflight {
   inc(): void;
@@ -220,6 +221,7 @@ async function streamForwardChat(
         }
         const usage = (next.value as { usage?: ForwardUsage } | undefined)?.usage;
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-done", peer: peerKey.slice(0, 16), alias: args.alias, tokens, ms: Date.now() - t0 } });
+        meshBus.record({ kind: "done", phase: "forward-done", peer: peerKey.slice(0, 16), alias: args.alias, tokens, ms: Date.now() - t0 });
         if (!clientOpen) return usage;
         if (args.stream) {
           if (!committed) writeHead();
@@ -235,6 +237,7 @@ async function streamForwardChat(
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), alias: args.alias, committed, error: lastErr.message } });
+        meshBus.record({ kind: "failed", phase: "forward-failed", peer: peerKey.slice(0, 16), alias: args.alias, error: lastErr.message });
         if (committed) {
           if (clientOpen) { try { res.write(`data: ${JSON.stringify({ error: { message: `hypha forward: ${lastErr.message}` } })}\n\n`); res.end(); } catch { /* client gone */ } }
           return;
@@ -273,12 +276,14 @@ async function forwardJsonResponse(
         while (next.done !== true) { out += next.value; next = await gen.next(); }
         const usage = (next.value as { usage?: ForwardUsage } | undefined)?.usage;
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-json-done", peer: peerKey.slice(0, 16), endpoint, ms: Date.now() - t0 } });
+        meshBus.record({ kind: "done", phase: "forward-json-done", peer: peerKey.slice(0, 16), endpoint, ms: Date.now() - t0 });
         res.writeHead(200, { "content-type": "application/json" });
         res.end(out);
         return usage;
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message } });
+        meshBus.record({ kind: "failed", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message });
       }
     }
     const message = lastErr?.message ?? "no capable peer";
@@ -316,12 +321,14 @@ async function forwardBinaryResponse(
         // request-format guess — supertonic returns WAV regardless of `response_format`.
         const ct = typeof stats?.contentType === "string" && stats.contentType ? stats.contentType : contentType;
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-binary-done", peer: peerKey.slice(0, 16), endpoint, bytes: audio.length, contentType: ct, ms: Date.now() - t0 } });
+        meshBus.record({ kind: "done", phase: "forward-binary-done", peer: peerKey.slice(0, 16), endpoint, bytes: audio.length, ms: Date.now() - t0 });
         res.writeHead(200, { "content-type": ct });
         res.end(audio);
         return stats?.usage;
       } catch (err) {
         lastErr = err instanceof Error ? err : new Error(String(err));
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message } });
+        meshBus.record({ kind: "failed", phase: "forward-failed", peer: peerKey.slice(0, 16), endpoint, error: lastErr.message });
       }
     }
     const message = lastErr?.message ?? "no capable peer";
@@ -423,6 +430,20 @@ export function createShim(deps: ShimDeps): http.Server {
       // Additive — none of the per-peer rows describe self. wallet is null when no payout rail is online.
       const self = { providerKey: getSelfConsumerKey(), wallet: settlement?.payoutEndpoints()[0]?.recipient ?? null };
       return json(res, 200, { peers: router ? router.peers() : [], self, ...info });
+    }
+    // ── live routing event stream (SSE) — the browser-subscribable mirror of the JSONL
+    //    delegation audit; powers the living-mesh visualization. localhost control surface. ──
+    if (method === "GET" && (url === "/events" || url.startsWith("/events?"))) {
+      res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
+      // Replay recent routing activity so a freshly-connected viz shows context at once.
+      for (const e of meshBus.recent()) { try { res.write(`data: ${JSON.stringify(e)}\n\n`); } catch { /* client gone */ } }
+      try { res.write("event: ready\ndata: {}\n\n"); } catch { /* client gone */ }
+      const onEvt = (e: unknown): void => { try { res.write(`data: ${JSON.stringify(e)}\n\n`); } catch { /* client gone */ } };
+      meshBus.on(MESH_EVENT, onEvt);
+      const ping = setInterval(() => { try { res.write(":keepalive\n\n"); } catch { /* client gone */ } }, 15000);
+      ping.unref?.();
+      res.on("close", () => { clearInterval(ping); meshBus.off(MESH_EVENT, onEvt); });
+      return;
     }
     if (method === "GET" && url === "/receipts") {
       return json(res, 200, { receipts: await mesh.receipts() });
@@ -541,6 +562,7 @@ export function createShim(deps: ShimDeps): http.Server {
       const fwdPeers = fwdRouter.forwardTargetsForAlias({ alias: fwdAlias, sensitivity: fwdSensitivity, ...(fbody.meshId ? { pinMeshId: fbody.meshId } : {}) });
       if (fwdPeers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${fwdAlias}" for forwarding`, code: "no_forward_peer" } });
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: fwdPeers.length, peer: fwdPeers[0]!.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] } });
+      meshBus.record({ kind: "route", phase: "forward-route", peers: fwdPeers.length, peer: fwdPeers[0]!.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] });
       if (url.startsWith("/v1/audio/speech")) {
         const ct = fbody.response_format === "wav" ? "audio/wav" : "audio/mpeg";
         return forwardWithOptionalSettlement(res, forwardSettleDeps(), fwdRouter, fwdAlias, "/v1/audio/speech", fbody as Record<string, unknown>, fwdPeers,
@@ -569,6 +591,7 @@ export function createShim(deps: ShimDeps): http.Server {
         if (v !== undefined) sttBody[k] = v;
       }
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: sttPeers.length, peer: sttPeers[0]!.slice(0, 16), alias: sttModel, endpoint: "/v1/audio/transcriptions" } });
+      meshBus.record({ kind: "route", phase: "forward-route", peers: sttPeers.length, peer: sttPeers[0]!.slice(0, 16), alias: sttModel, endpoint: "/v1/audio/transcriptions" });
       return forwardWithOptionalSettlement(res, forwardSettleDeps(), sttRouter, sttModel, "/v1/audio/transcriptions", sttBody, sttPeers,
         (peers) => forwardJsonResponse(res, forward, peers, "/v1/audio/transcriptions", sttBody, inflight, audit));
     }
@@ -624,6 +647,7 @@ export function createShim(deps: ShimDeps): http.Server {
       const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
       if (peers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias } });
+      meshBus.record({ kind: "route", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias });
       const chatArgs = {
         id: `chatcmpl-${randomUUID()}`,
         alias,
@@ -637,6 +661,7 @@ export function createShim(deps: ShimDeps): http.Server {
 
     const warm = router.route({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
     if (!warm) return json(res, 503, { error: { message: `hypha shim: no eligible warm peer serves "${alias}"`, code: "no_warm_peer" } });
+    meshBus.record({ kind: "route", phase: "route", peer: warm.peerKey.slice(0, 16), alias, meshId: warm.meshId });
 
     // Build history, materializing any inline images as attachments (vision borrowing). Temp images
     // are cleaned up when the response closes (after the decode has drained — the SDK already read them).
@@ -898,6 +923,7 @@ export function createShim(deps: ShimDeps): http.Server {
             },
           });
           recordObservation?.(warm.peerKey, produced > 0, ttft); // delivered tokens → positive signal
+          meshBus.record({ kind: "done", phase: "completion", peer: warm.peerKey.slice(0, 16), alias, tokens: produced, ms: Date.now() - t0 });
           return;
         }
       } else {
@@ -1096,6 +1122,7 @@ export function createShim(deps: ShimDeps): http.Server {
         },
       });
       recordObservation?.(warm.peerKey, tokenCount > 0, ttft); // delivered tokens → positive signal
+      meshBus.record({ kind: "done", phase: "completion", peer: warm.peerKey.slice(0, 16), alias, tokens: tokenCount, ms: Date.now() - t0 });
     } catch (err) {
       if (sessionGrant && !closeAttempted) {
         closeAttempted = true;
@@ -1120,6 +1147,7 @@ export function createShim(deps: ShimDeps): http.Server {
       }
       const msg = `hypha shim: delegated completion failed: ${err instanceof Error ? err.message : String(err)}`;
       audit?.record({ event: "note", extra: { role: "shim", alias, peer: warm.peerKey.slice(0, 16), error: msg, afterFirstByte: tokenCount > 0 } });
+      meshBus.record({ kind: "failed", phase: "completion-failed", peer: warm.peerKey.slice(0, 16), alias, error: msg });
       if (clientOpen) {
         if (!res.headersSent) json(res, 502, { error: { message: msg, code: "delegation_failed" } });
         else {

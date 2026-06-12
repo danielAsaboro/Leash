@@ -15,7 +15,7 @@
  *   <runId>.json   throttled status (state, round, queries, sources, progress)
  *   <runId>.md     the final report
  */
-import { writeFileSync, renameSync, mkdirSync } from "node:fs";
+import { writeFileSync, renameSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { streamText, stepCountIs, tool } from "ai";
@@ -27,6 +27,7 @@ import { webSearch, fetchReadable, type SearchResult } from "../lib/leash/search
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
 const DIR = process.env["LEASH_RESEARCH_DIR"] ?? join(ROOT, "data", "leash-research");
+const TASKS_FILE = process.env["LEASH_TASKS_FILE"] ?? join(ROOT, "data", "leash-tasks.json");
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 const MODEL = process.env["LEASH_RESEARCH_MODEL"] ?? "qwen3-4b";
 
@@ -90,6 +91,56 @@ function saveReport(md: string): void {
   const tmp = join(DIR, `.${runId}.md.tmp`);
   writeFileSync(tmp, md);
   renameSync(tmp, join(DIR, `${runId}.md`));
+}
+
+/** A task row in the shared store (mirrors apps/web lib/leash/tasks-store.ts). */
+interface TaskRow {
+  id: string;
+  title: string;
+  detail?: string;
+  status: string;
+  priority: string;
+  tags: string[];
+  source: string;
+  chatIds: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+/** Drop a `source:"research"` follow-up onto the shared task store so a finished (or failed)
+ *  background run lands on the /tasks dashboard instead of vanishing into a file. Lenient read +
+ *  atomic tmp/rename (the dream.mts cross-process discipline); best-effort — a task-write failure
+ *  must never fail the research run itself. */
+function addResearchTask(t: { title: string; detail?: string }): void {
+  try {
+    let tasks: TaskRow[] = [];
+    try {
+      const raw = JSON.parse(readFileSync(TASKS_FILE, "utf8"));
+      if (Array.isArray(raw)) tasks = raw as TaskRow[];
+    } catch {
+      /* missing/garbled → start fresh */
+    }
+    const now = Date.now();
+    tasks.push({
+      id: `research-${now}`,
+      title: t.title.slice(0, 120),
+      ...(t.detail ? { detail: t.detail.slice(0, 1000) } : {}),
+      status: "open",
+      priority: "normal",
+      tags: ["research"],
+      source: "research",
+      chatIds: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+    mkdirSync(dirname(TASKS_FILE), { recursive: true });
+    const tmp = join(dirname(TASKS_FILE), `.research-task-${now}.tmp`);
+    writeFileSync(tmp, JSON.stringify(tasks, null, 2));
+    renameSync(tmp, TASKS_FILE);
+    console.log(`📝 task added → ${TASKS_FILE}`);
+  } catch (err) {
+    console.error("research: could not add task:", err);
+  }
 }
 
 // ── Cancel (SIGTERM from the dashboard) ────────────────────────────────────────
@@ -269,11 +320,19 @@ async function main(): Promise<void> {
   const md = `# ${question}\n\n${final}\n\n---\n\n## Sources\n\n${sourcesList || "_none_"}\n`;
   saveReport(md);
   save({ state: "done", finishedAt: Date.now() });
+  addResearchTask({
+    title: `Review research: ${question.slice(0, 80)}`,
+    detail: `Deep-research run finished — ${allSources.size} source(s), ${status.round} round(s). Open the report: /research?run=${runId}`,
+  });
   console.log(`📑 research ${runId} done — ${allSources.size} sources, ${status.round} round(s)`);
 }
 
 main().catch((err) => {
-  save({ state: "error", error: err instanceof Error ? err.message : String(err), finishedAt: Date.now() });
+  const msg = err instanceof Error ? err.message : String(err);
+  save({ state: "error", error: msg, finishedAt: Date.now() });
+  // A genuine failure (user-cancel exits earlier via SIGTERM, so it never reaches here) →
+  // surface it so a forgotten background run doesn't die silently.
+  addResearchTask({ title: `Research failed: ${(question ?? runId ?? "").slice(0, 80)}`, detail: `The deep-research run errored: ${msg}. Retry it from /research.` });
   console.error("research failed:", err);
   process.exit(1);
 });

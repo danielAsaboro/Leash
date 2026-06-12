@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { fraunces, newsreader, plexMono } from "./fonts.ts";
 import { LeashRail } from "../components/LeashRail.tsx";
 import { SearchPalette } from "../components/SearchPalette.tsx";
+import { OfflineHud } from "../components/OfflineHud.tsx";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -28,6 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <LeashRail />
         <div className="leash-content relative z-10">{children}</div>
         <SearchPalette />
+        <OfflineHud />
       </body>
     </html>
   );

@@ -136,6 +136,7 @@ export interface McpServerPatch {
   url?: string;
   command?: string;
   args?: string[];
+  cwd?: string;
   headers?: Record<string, string>;
   env?: Record<string, string>;
   /** Present (even empty `""`) → set or clear the user icon. */

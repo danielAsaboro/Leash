@@ -33,10 +33,11 @@ assert.throws(() => validateServerInput({ transport: "carrier-pigeon", url: "htt
 assert.equal(validateServerInput({ url: "https://x.y", headers: { A: "", B: "v" } }).headers?.["A"], undefined, "blank header value dropped");
 
 // --- validateServerInput: stdio ------------------------------------------------------
-const stdio = validateServerInput({ transport: "stdio", command: "npx", args: ["-y", "@mcp/fs", "/notes"], env: { KEY: "v" } });
+const stdio = validateServerInput({ transport: "stdio", command: "npx", args: ["-y", "@mcp/fs", "/notes"], cwd: " /Users/me/mcp-fs ", env: { KEY: "v" } });
 assert.equal(stdio.transport, "stdio", "stdio honored");
 assert.equal(stdio.name, "npx", "stdio name defaults to the command basename");
 assert.deepEqual(stdio.args, ["-y", "@mcp/fs", "/notes"], "args pass through");
+assert.equal(stdio.cwd, "/Users/me/mcp-fs", "cwd is trimmed and passes through");
 assert.deepEqual(stdio.env, { KEY: "v" }, "env passes through");
 assert.equal(stdio.url, undefined, "stdio has no url");
 assert.throws(() => validateServerInput({ transport: "stdio", command: "  " }), /need a command/, "blank command rejected");
@@ -51,6 +52,11 @@ assert.equal(
   "stdio sig = command + args",
 );
 assert.notEqual(serverSignature({ transport: "stdio", command: "npx", args: ["a"] }), serverSignature({ transport: "stdio", command: "npx", args: ["b"] }), "different args → different sig");
+assert.notEqual(
+  serverSignature({ transport: "stdio", command: "yarn", args: ["start"], cwd: "/servers/a" }),
+  serverSignature({ transport: "stdio", command: "yarn", args: ["start"], cwd: "/servers/b" }),
+  "different cwd → different sig",
+);
 
 // --- parseMcpJson: bare map ----------------------------------------------------------
 const bare = parseMcpJson('{ "tavily": { "type": "http", "url": "https://api.tavily.com/mcp", "headers": { "Authorization": "Bearer k" } } }');
@@ -62,10 +68,11 @@ assert.equal(bare.ready[0]?.server.name, "tavily", "name defaults to the JSON ke
 assert.deepEqual(bare.ready[0]?.server.headers, { Authorization: "Bearer k" }, "headers parsed");
 
 // --- parseMcpJson: mcpServers wrapper + stdio + transport alias -----------------------
-const wrapped = parseMcpJson('{ "mcpServers": { "fs": { "command": "npx", "args": ["-y", "@mcp/fs"] }, "remote": { "transport": "sse", "url": "https://r/sse" } } }');
+const wrapped = parseMcpJson('{ "mcpServers": { "fs": { "command": "npx", "args": ["-y", "@mcp/fs"], "cwd": "/servers/fs" }, "remote": { "transport": "sse", "url": "https://r/sse" } } }');
 assert.equal(wrapped.ready.length, 2, "wrapper: two servers");
 const fs = wrapped.ready.find((r) => r.key === "fs");
 assert.equal(fs?.server.transport, "stdio", "command-only entry → stdio");
+assert.equal(fs?.server.cwd, "/servers/fs", "stdio cwd imported");
 assert.equal(wrapped.ready.find((r) => r.key === "remote")?.server.transport, "sse", "`transport` alias honored alongside `type`");
 
 // --- parseMcpJson: per-entry errors don't sink the batch ------------------------------

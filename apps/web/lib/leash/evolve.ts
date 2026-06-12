@@ -115,18 +115,22 @@ function latestManifest(): AdapterManifest | null {
   return best;
 }
 
-/** Pair every adapter run with the base run that preceded it → the growth trajectory. */
+/** Pair every adapter run with the preceding base run OF THE SAME base model → the
+ *  growth trajectory. The log interleaves bases (the 600M Phase-0 gate and the 8B
+ *  recall bet); pairing an 8B adapter against a 600M base (or vice-versa) would draw a
+ *  misleading line, so we track the last base per `model`. */
 export function buildSeries(): GrowthSeries {
   const runs = readEvalRuns();
   const points: SeriesPoint[] = [];
-  let lastBase: EvalRun | undefined;
+  const lastBaseByModel = new Map<string, EvalRun>();
   for (const r of runs) {
     if (r.label === "base") {
-      lastBase = r;
+      lastBaseByModel.set(r.model, r);
       continue;
     }
-    const axes = r.axes.map((a) => ({ axis: a.axis, base: lastBase ? axisScore(lastBase, a.axis) : 0, adapter: a.score }));
-    points.push({ ts: r.ts, version: r.label, base: lastBase ? lastBase.overall : 0, adapter: r.overall, axes });
+    const matchedBase = lastBaseByModel.get(r.model);
+    const axes = r.axes.map((a) => ({ axis: a.axis, base: matchedBase ? axisScore(matchedBase, a.axis) : 0, adapter: a.score }));
+    points.push({ ts: r.ts, version: r.label, base: matchedBase ? matchedBase.overall : 0, adapter: r.overall, axes });
   }
 
   const latest = latestManifest();

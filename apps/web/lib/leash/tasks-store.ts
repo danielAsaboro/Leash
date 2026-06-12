@@ -23,7 +23,7 @@ const DREAMS_FILE = process.env["LEASH_DREAMS_FILE"] ?? join(DATA_DIR, "leash-dr
 
 export type TaskStatus = "open" | "in_progress" | "done" | "dropped";
 export type TaskPriority = "low" | "normal" | "high";
-export type TaskSource = "user" | "assistant" | "dream" | "cron";
+export type TaskSource = "user" | "assistant" | "dream" | "cron" | "research" | "evolve";
 
 export interface LeashTask {
   id: string;
@@ -41,6 +41,9 @@ export interface LeashTask {
 
 export const TASK_STATUSES: readonly TaskStatus[] = ["open", "in_progress", "done", "dropped"];
 export const TASK_PRIORITIES: readonly TaskPriority[] = ["low", "normal", "high"];
+/** Sources other than the default "user" — a background writer (cron-task, dreaming, a finished
+ *  research run, a promoted nightly adapter) stamps one of these; anything unknown → "user". */
+const NON_USER_SOURCES: readonly TaskSource[] = ["assistant", "dream", "cron", "research", "evolve"];
 
 /** Serialize mutations within this process; the write itself is atomic (tmp+rename). */
 let mutex: Promise<unknown> = Promise.resolve();
@@ -61,7 +64,7 @@ function normalize(raw: unknown): LeashTask[] {
       status: TASK_STATUSES.includes(t.status as TaskStatus) ? (t.status as TaskStatus) : "open",
       priority: TASK_PRIORITIES.includes(t.priority as TaskPriority) ? (t.priority as TaskPriority) : "normal",
       tags: Array.isArray(t.tags) ? t.tags.filter((x): x is string => typeof x === "string") : [],
-      source: t.source === "assistant" || t.source === "dream" || t.source === "cron" ? t.source : "user",
+      source: NON_USER_SOURCES.includes(t.source as TaskSource) ? (t.source as TaskSource) : "user",
       chatIds: Array.isArray(t.chatIds) ? t.chatIds.filter((x): x is string => typeof x === "string") : [],
       createdAt: typeof t.createdAt === "number" ? t.createdAt : Date.now(),
       updatedAt: typeof t.updatedAt === "number" ? t.updatedAt : Date.now(),

@@ -29,6 +29,8 @@ export interface McpServerEntry {
   command?: string;
   /** stdio only — argv after the command. */
   args?: string[];
+  /** stdio only — working directory for the spawned process. */
+  cwd?: string;
   /** stdio only — extra env for the child. May hold secrets. */
   env?: Record<string, string>;
   /** True for `LEASH_MCP_SERVERS` env-seeded rows — read-only in the dashboard. */
@@ -47,6 +49,7 @@ export interface McpServerInput {
   headers?: Record<string, string>;
   command?: string;
   args?: string[];
+  cwd?: string;
   env?: Record<string, string>;
   /** Optional user-chosen icon — an image URL or an uploaded image data URI. */
   userIcon?: string;
@@ -88,8 +91,8 @@ export function validateUserIcon(raw: unknown): string | undefined {
 }
 
 /** A stable signature used to dedupe a server against the configured set. */
-export function serverSignature(e: { transport: McpTransport; url?: string; command?: string; args?: string[] }): string {
-  return e.transport === "stdio" ? `stdio:${e.command ?? ""} ${(e.args ?? []).join(" ")}`.trim() : `${e.transport}:${e.url ?? ""}`;
+export function serverSignature(e: { transport: McpTransport; url?: string; command?: string; args?: string[]; cwd?: string }): string {
+  return e.transport === "stdio" ? `stdio:${e.cwd ?? ""}:${e.command ?? ""} ${(e.args ?? []).join(" ")}`.trim() : `${e.transport}:${e.url ?? ""}`;
 }
 
 /** A friendly default name from the connection target. */
@@ -120,6 +123,8 @@ export function validateServerInput(input: McpServerInput): NormalizedServer {
     const n: NormalizedServer = { transport, name: "", command };
     const args = cleanArgs(input.args);
     if (args) n.args = args;
+    const cwd = (input.cwd ?? "").trim();
+    if (cwd) n.cwd = cwd;
     const env = cleanRecord(input.env);
     if (env) n.env = env;
     if (userIcon) n.userIcon = userIcon;
@@ -147,7 +152,7 @@ export interface ParsedJsonImport {
 
 /**
  * Parse a pasted JSON config into validated servers. Lenient by design — accepts BOTH:
- *   { "mcpServers": { "name": { type|transport, url|command, headers|args|env } } }   (Claude-desktop wrapper)
+ *   { "mcpServers": { "name": { type|transport, url|command, headers|args|cwd|env } } }   (Claude-desktop wrapper)
  *   { "name": { ... } }                                                                 (bare map)
  * Per-entry failures are collected (not thrown) so a 3-server blob with one bad row
  * still imports the other two. Throws ONLY when the whole text isn't a JSON object.
@@ -179,6 +184,7 @@ export function parseMcpJson(text: string): ParsedJsonImport {
         headers: cfg["headers"] as Record<string, string> | undefined,
         command: cfg["command"] as string | undefined,
         args: cfg["args"] as string[] | undefined,
+        cwd: cfg["cwd"] as string | undefined,
         env: cfg["env"] as Record<string, string> | undefined,
       });
       out.ready.push({ key, server });
@@ -204,7 +210,8 @@ export const MCP_JSON_EXAMPLE = `{
   "filesystem": {
     "type": "stdio",
     "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/notes"]
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/Users/me/notes"],
+    "cwd": "/Users/me/mcp-servers"
   }
 }`;
 

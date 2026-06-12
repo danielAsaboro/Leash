@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 const TABS = ["mine", "newsroom", "runs"] as const;
 type Tab = (typeof TABS)[number];
-const SOURCES: TaskSource[] = ["user", "assistant", "dream", "cron"];
+const SOURCES: TaskSource[] = ["user", "assistant", "dream", "cron", "research", "evolve"];
 
 function fmtTime(d: Date | string | number | null | undefined): string {
   if (!d) return "—";

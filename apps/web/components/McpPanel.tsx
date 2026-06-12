@@ -19,7 +19,9 @@ import type { McpTransport } from "../lib/leash/mcp-config.ts";
 const TRANSPORT_ICON: Record<McpTransport, typeof GlobeIcon> = { http: GlobeIcon, sse: RadioIcon, stdio: TerminalIcon };
 
 function target(s: McpServerStatus): string {
-  return s.transport === "stdio" ? [s.command, ...(s.args ?? [])].filter(Boolean).join(" ") : s.url ?? "";
+  if (s.transport !== "stdio") return s.url ?? "";
+  const command = [s.command, ...(s.args ?? [])].filter(Boolean).join(" ");
+  return s.cwd ? `${command} · cwd ${s.cwd}` : command;
 }
 
 export function McpPanel({ servers }: { servers: McpServerStatus[] }) {

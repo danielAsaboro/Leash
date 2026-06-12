@@ -6,6 +6,17 @@
       "url": "http://127.0.0.1:11439/mcp",
       "transport": "http",
       "enabled": true
+    },
+    {
+      "transport": "stdio",
+      "name": "anki-mcp-server",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@ankimcp/anki-mcp-server"
+      ],
+      "id": "87ab74a5-50c7-4bce-8208-788f96c33872",
+      "enabled": true
     }
   ],
   "builtins": {

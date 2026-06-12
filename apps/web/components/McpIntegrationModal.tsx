@@ -17,7 +17,7 @@ import {
 
 /**
  * "Create Custom Integration" modal — Manual + JSON paths over one validation core
- * (`mcp-config.ts`, shared with the server). Manual: name, transport, url|command, auth
+ * (`mcp-config.ts`, shared with the server). Manual: name, transport, url|command, cwd, auth
  * headers / env. JSON: a lenient `{ "<name>": { type, url, headers } }` (or `{mcpServers}`)
  * blob with a LIVE parsed preview, Format button, and partial-success add. Adds POST to
  * `/api/leash/mcp` one entry at a time, then refreshes the panel.
@@ -116,6 +116,7 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
   const [url, setUrl] = useState(editing?.url ?? "");
   const [command, setCommand] = useState(editing?.command ?? "");
   const [argsText, setArgsText] = useState((editing?.args ?? []).join("\n"));
+  const [cwd, setCwd] = useState(editing?.cwd ?? "");
   const [headers, setHeaders] = useState<Pair[]>(editing?.headerNames?.length ? editing.headerNames.map((k) => ({ k, v: "" })) : [{ k: "", v: "" }]);
   const [envRows, setEnvRows] = useState<Pair[]>(editing?.envNames?.length ? editing.envNames.map((k) => ({ k, v: "" })) : [{ k: "", v: "" }]);
   const [iconValue, setIconValue] = useState(editing?.iconDataUri ?? ""); // URL string OR an uploaded-image data URI
@@ -165,7 +166,7 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
   const manualInput = (): McpServerInput => {
     const userIcon = iconValue.trim();
     return transport === "stdio"
-      ? { name, transport, command, args: argsText.split("\n").map((a) => a.trim()).filter(Boolean), env: pairsToRecord(envRows), userIcon }
+      ? { name, transport, command, args: argsText.split("\n").map((a) => a.trim()).filter(Boolean), cwd, env: pairsToRecord(envRows), userIcon }
       : { name, transport, url, headers: pairsToRecord(headers), userIcon };
   };
 
@@ -323,6 +324,12 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
                       Arguments <span style={{ color: "var(--color-faint)" }}>(one per line)</span>
                     </span>
                     <textarea value={argsText} onChange={(e) => setArgsText(e.target.value)} placeholder={"-y\n@modelcontextprotocol/server-filesystem\n/Users/me/notes"} rows={3} className="border bg-transparent px-3 py-2" style={fieldStyle} />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span className={labelCls} style={labelStyle}>
+                      Working Directory <span style={{ color: "var(--color-faint)" }}>(optional)</span>
+                    </span>
+                    <input value={cwd} onChange={(e) => setCwd(e.target.value)} placeholder="/Users/me/mcp-servers/apple-notes" className="border bg-transparent px-3 py-2" style={fieldStyle} />
                   </label>
                   <div className="flex flex-col gap-1">
                     <span className={labelCls} style={labelStyle}>

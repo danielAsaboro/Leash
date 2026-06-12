@@ -8,6 +8,7 @@
 import { updateMcpServer, removeMcpServer, type McpServerPatch } from "../../../../../lib/leash/mcp-store.ts";
 import { builtinById } from "../../../../../lib/leash/mcp-builtins.ts";
 import { toggleBuiltin } from "../../../../../lib/leash/mcp-lifecycle.ts";
+import { retryMcpServer } from "../../../../../lib/leash/mcp.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export async function PUT(req: Request, { params }: P): Promise<Response> {
     }
     const server = await updateMcpServer(id, body);
     if (!server) return Response.json({ error: "not found" }, { status: 404 });
+    await retryMcpServer(server.id);
     return Response.json({ server });
   } catch (err) {
     return Response.json({ error: err instanceof Error ? err.message : String(err) }, { status: 400 });
