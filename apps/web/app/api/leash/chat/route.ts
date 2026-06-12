@@ -211,7 +211,11 @@ export async function POST(req: Request): Promise<Response> {
   const lastText = lastUserText(validated);
   const [systemPrompt, skillsSection, activeSkills, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts()]);
   const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
-  const availableSkillsSection = activeSkills ? "" : skillsSection;
+  // Always advertise the skill catalog — even with a skill already active — so the model can
+  // ORCHESTRATE: discover and load OTHER skills mid-flow with read_skill (multi-skill workflows).
+  // When a skill is auto-active its body is already injected (activeSkills.section); the catalog
+  // here lets the model reach the rest.
+  const availableSkillsSection = skillsSection;
   // Progressive tool disclosure: an active skill's declared `tools:` become the EXACT
   // toolset for this turn (agent.ts honors `skillTools`, overriding the route default).
   const declaredSkillTools = activeSkills?.tools ?? [];

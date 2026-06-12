@@ -1,8 +1,8 @@
 /**
  * Context compaction (server-only) — keep long chats inside the model's window.
  *
- * qwen3-4b serves a 4096-token window; a long thread silently falls off the back.
- * Instead, when the history outgrows a budget we summarize the OLDEST messages into a
+ * qwen3-4b serves a 32k-token window; a long thread silently falls off the back.
+ * Instead, when the history outgrows a budget (default 80% of the window) we summarize the OLDEST messages into a
  * running `summary` (stored on the ChatRecord) and feed the model
  * `[summary + recent tail]`. The full message array is never touched — the user still
  * sees and the store still keeps everything; only the model's input is compacted.
@@ -17,8 +17,8 @@ import type { LeashUIMessage } from "./types.ts";
 
 /** Messages always kept verbatim at the end (recent turns the model sees in full). */
 const KEEP_TAIL = 6;
-/** Fraction of the context window we let history occupy before compacting. */
-const BUDGET_FRACTION = 0.6;
+/** Fraction of the context window history may occupy before we compact (env-overridable). */
+const BUDGET_FRACTION = Math.min(0.95, Math.max(0.1, Number(process.env["LEASH_COMPACT_FRACTION"] ?? 0.8)));
 
 /** Plain text of a UI message (text parts joined) — for token estimation + summarizing. */
 function messageText(m: LeashUIMessage): string {
