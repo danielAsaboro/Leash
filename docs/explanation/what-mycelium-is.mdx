@@ -1,0 +1,50 @@
+---
+title: "What Mycelium is"
+description: "The platform definition: one private intelligence spread across your own devices."
+---
+
+Mycelium is the platform name for a private, end-to-end-encrypted exocortex that lives
+across your own devices. Its job is not just to host a chatbot. It combines local
+inference, retrieval, memory, and delegated compute into one runtime that stays on your
+hardware.
+
+## Why it is not just Leash
+
+Leash is the most visible surface, but it is not the whole system. Mycelium also
+includes:
+
+- the QVAC serve and model alias layer
+- Hypha for pairing and delegated compute
+- packages for senses, mind, mesh, memory, and shared logic
+- supporting daemons such as the broker, watcher, newsroom, cron, and MCP server
+
+Treating Leash as the whole product would hide the actual platform boundary. The docs
+therefore describe Leash as one surface inside Mycelium.
+
+## What makes it distinct
+
+Three constraints shape the product:
+
+- inference is QVAC-only
+- the system is expected to work offline after warm-cache
+- the runtime is allowed to use multiple devices, but not third-party cloud AI
+
+That combination changes the architecture. Models live in a local serve. Mesh routing is
+between your machines. Retrieval is against local files and stores. When the system needs
+another GPU, it borrows one from a paired peer, not from a hosted API.
+
+## What the user is actually getting
+
+From the user's point of view, Mycelium offers:
+
+- grounded chat over private notes and activity
+- delegated compute over a paired device mesh
+- typed memory plus retrieval-backed recall
+- local speech and vision paths
+- a reproducible workspace where the core runtime is inspectable
+
+## Evidence and reporting live elsewhere
+
+This docs site explains the product and the engineering surface. Hackathon evidence,
+spike results, and build logs stay in `submission/`. The current repo keeps those as
+external artifacts rather than duplicating them here.

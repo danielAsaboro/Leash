@@ -1,0 +1,64 @@
+---
+title: "Runtime ports and processes"
+description: "Commands, ports, health checks, and roles for the current Mycelium processes."
+---
+
+## Primary local processes
+
+| Process | Start command | Port | Purpose |
+|---|---|---|---|
+| QVAC serve | `npm run qvac` | `11435` | local model inference |
+| Leash web app | `npm run web:dev` | `6801` | assistant and dashboard UI |
+| Leash broker | `npm run broker` | `11436` | per-alias queueing and mesh overflow |
+| Hypha | `npm run hypha` | `11437` | local control plane and delegated-compute shim |
+| Hypha pairing | Hypha runtime | `11438` | LAN pairing surface |
+| Leash MCP | `npm run mcp` | `11439` | mesh pairing tools over MCP |
+
+## Background daemons
+
+| Process | Start command | Port | Purpose |
+|---|---|---|---|
+| Newsroom | `npm run newsroom` | none | runs The Understory pipeline |
+| Watcher | `npm run watch` | none | app activity observation |
+| Cron | `npm run cron` | none | scheduler for recurring local jobs |
+| Hub | `npm run hub` | none | original strong-brain app |
+| Edge Node | `npm run ask -- "<question>"` | none | original weak-consumer app |
+
+## Health and inspection endpoints
+
+| Endpoint | Owner | Use |
+|---|---|---|
+| `http://127.0.0.1:11435/v1/models` | QVAC serve | list served model aliases |
+| `http://127.0.0.1:11436/__broker/stats` | broker | inspect queue and overflow counters |
+| `http://127.0.0.1:11437/health` | Hypha | inspect peer count, warm aliases, inflight work |
+| `http://127.0.0.1:11437/peers` | Hypha | inspect peer inventory |
+| `http://127.0.0.1:11439/health` | Leash MCP | confirm MCP daemon readiness |
+
+## Port relationships
+
+| From | To | Relationship |
+|---|---|---|
+| web app | serve or broker | uses `QVAC_OPENAI_URL` |
+| broker | serve | forwards queued local requests upstream |
+| broker | Hypha | sheds eligible requests to warm peers |
+| Leash MCP | Hypha | drives local pairing routes and health |
+
+## Log locations
+
+| Process | Log location |
+|---|---|
+| spike scripts | `spike/logs/` |
+| Hypha | `apps/hypha/logs/` |
+| Newsroom | `apps/newsroom/logs/` |
+| Watcher | `apps/leash-watch/logs/` |
+| dashboard-supervised services | `data/leash-services/` and `data/leash-serve.log` |
+
+## Command reminders
+
+```bash
+npm run qvac
+npm run web:dev
+npm run broker
+npm run hypha
+npm run mcp
+```

@@ -1,43 +1,9 @@
 ---
-title: "Deep research"
-description: "Multi-round web research, synthesized on-device — start it, watch it, cancel it."
+title: "Research"
+description: "Compatibility page for the old research route."
 ---
 
-Deep research is Leash's one **online** feature: it gathers live web sources (keyless
-DuckDuckGo by default, or your own SearXNG), reads them, and synthesizes a cited report —
-with all model work still on-device. Runs are detached processes, so they survive
-dashboard restarts.
+The research surface is now documented at
+[How to run deep research](/guides/run-deep-research).
 
-## Start a run
-
-Two ways:
-
-- **/research page:** type the question, press Research.
-- **In chat:** ask for it — *"research the best on-device LLM runtimes for Apple
-  Silicon"* — the `deep_research` tool starts a run and returns a `/research` link
-  (research takes minutes; chat doesn't block on it).
-
-## Watch it work
-
-The /research page shows a live "synapse": the question at the center, one node per
-search query, source leaves fanning out — plus phase (planning → searching → reading →
-synthesizing), round counter, source count, and elapsed time. It polls a status file,
-so reloading the page never loses a run.
-
-## Cancel a run
-
-Click **Cancel** on any active run. The worker finishes whatever model call is currently
-decoding (dropping it mid-decode would destabilize the serve — the status note says so),
-then exits and marks the run **"cancelled by user"**. Whatever it gathered stays on disk.
-
-## Read and manage reports
-
-A finished run renders its report inline — headings, citations, links. The **×** deletes
-a run and its report. Reports live in `data/leash-research/` as markdown if you want
-them elsewhere.
-
-## Use your own search backend
-
-Set a SearXNG instance under **Services → Connections** (`LEASH_SEARXNG_URL`) for more
-private, robust search; Leash falls back to DuckDuckGo automatically — and tells you
-when it did.
+Use that page for the current task-oriented flow.

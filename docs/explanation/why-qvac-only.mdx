@@ -1,0 +1,41 @@
+---
+title: "Why QVAC only"
+description: "Why the runtime forbids cloud AI fallbacks and routes all model work through QVAC."
+---
+
+Mycelium routes all inference, embeddings, retrieval-adjacent model work, delegated
+compute, and training through `@qvac/sdk`. This is not an implementation accident. It is
+the core product rule.
+
+## The product reason
+
+The promise is private intelligence on your own hardware. The moment a hidden cloud
+fallback appears, the privacy, offline, and reproducibility guarantees stop being true.
+The system would become harder to reason about exactly where it is supposed to be most
+trustworthy.
+
+## The engineering reason
+
+A single inference substrate keeps the runtime coherent:
+
+- one serve process owns the aliases and model lifecycle
+- local and delegated paths share the same model vocabulary
+- warm-cache and offline claims stay testable
+- audit logging remains attached to one real inference stack
+
+Mixing cloud AI into that path would create two different operational stories with
+different failure modes and different privacy boundaries.
+
+## The tradeoff
+
+QVAC-only makes the system stricter. You do not get to hide behind a hosted API when a
+local model is missing, slow, or misconfigured. But that strictness is useful. Errors
+become visible instead of silently routing around the rule.
+
+## What this means for the docs
+
+Task guides in this site assume:
+
+- the model endpoint is a local QVAC-compatible serve
+- delegation is to a paired peer running the same stack
+- offline success after warm-cache is an acceptance condition, not a nice-to-have

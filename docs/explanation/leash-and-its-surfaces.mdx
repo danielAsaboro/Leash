@@ -1,0 +1,44 @@
+---
+title: "Leash and its surfaces"
+description: "How the flagship interface is split into chat, Brain, Feed, Services, research, and settings rather than one flat app."
+---
+
+Leash is the flagship interface for Mycelium, but it is not one undifferentiated screen.
+It is a cluster of operator and user-facing surfaces that expose different parts of the
+platform.
+
+## Why the surface split matters
+
+If everything were forced into chat, the system would be harder to inspect, harder to
+operate, and harder to trust. Mycelium exposes several surfaces because the runtime does
+several different jobs.
+
+## The main surfaces
+
+- **Chat** is the conversational front door: grounded answers, tools, approvals, and
+  multi-step reasoning.
+- **Brain** is the configuration and introspection surface for memory, skills, tools,
+  MCP, prompts, models, growth, and forage.
+- **Feed** is the publishing surface for The Understory.
+- **Services** is the runtime console for daemons.
+- **Research** is the detached long-running web research surface.
+- **Settings** is the machine-local operations area for storage, devices, secrets, and
+  permissions.
+
+## Why Brain exists separately from Settings
+
+Brain configures the assistant's behavior and knowledge. Settings configures the local
+machine, mesh memberships, credentials, and permissions. They look adjacent in the UI,
+but they solve different operator problems.
+
+## Why Feed is part of the showcase
+
+Feed is where the project stops looking like "yet another local chat app." It shows that
+the same local runtime can produce a researched, reviewed, and published artifact with
+its own evidence trail, not just answers in a message bubble.
+
+## Why Services is visible
+
+Most apps hide their daemons. Mycelium makes them visible because the runtime is honest
+about being a set of cooperating local processes. That honesty is useful operationally
+and also helps explain what the system really is.

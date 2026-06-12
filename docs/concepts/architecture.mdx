@@ -1,77 +1,12 @@
 ---
 title: "Architecture"
-description: "How Leash holds together — and why it's built the way it is."
+description: "Compatibility page for the old architecture route."
 ---
 
-## The shape
+The architecture explanation moved to [Architecture](/explanation/architecture).
 
-```
-Browser (Next.js dashboard :6801)
-   │
-   ▼
-Chat route ── ToolLoopAgent ──► tools (RAG, tasks, memory, skills, MCP, computer use…)
-   │
-   ▼
-Priority broker :11436 ──► local QVAC serve :11435 (six preloaded models)
-   │                            ▲
-   └──► Hypha shim :11437 ──► a paired peer's serve   (encrypted P2P, DHT-routed)
-```
+For lookup material, use:
 
-Everything above the serve is a stateless HTTP client; the models live in the serve
-process. The dashboard, the newsroom daemon, the research worker, and the screen watcher
-are separate processes that share the same local endpoints and file stores.
-
-## One agent, typed per-turn options
-
-Every chat turn derives its context server-side — intent route, effort tier, the
-assembled system prompt — and passes it to a `ToolLoopAgent` as **typed call options**.
-`prepareCall` maps them onto the turn's model, active toolset, step budget, and token
-ceiling. Four routes exist: general (`qwen3-4b`), health (`medpsy`), vision (`qwen3vl`),
-and computer use (configurable, possibly mesh-delegated).
-
-## Why turns never get aborted
-
-The serve's decode loop is wedged machine-wide if a client disconnects mid-generation —
-a single abort poisons every later generation until restart. Leash therefore **never**
-passes an abort signal to a generation: a stopped or abandoned turn runs to completion
-server-side (bounded by its token ceiling) while the client moves on. The agent's
-settings type excludes `abortSignal` structurally, so the rule is compiler-enforced.
-"Slow beats dead."
-
-## Why toolsets are focused
-
-The serve folds every offered tool schema into the model's context window — tool
-definitions are prompt, not metadata. On a 4-billion-parameter model, offering all ~28
-schemas at once overflows the budget and stalls the decode. So each turn offers only
-what its route needs: computer turns get the six computer tools, everything else gets
-the lean general registry. Side benefit: smaller prompts mean faster prefill on every
-turn.
-
-## Memory, in four layers
-
-| Layer | Store | Surfaced by |
-|---|---|---|
-| Preferences | typed memories (JSON) | injected into every turn |
-| Facts, goals, people, routines | typed memories | `recall` on demand |
-| Notes, screen activity, **past conversations** | embedding index (local) | `search_graph` |
-| Long-thread history | per-chat compaction summaries | automatic |
-
-Deletion is real: forgetting an activity record tombstones it out of retrieval;
-deleting a chat drops its chunks from the index.
-
-## The mesh
-
-Devices pair over the LAN with a PIN handshake and form an encrypted swarm. The broker
-in front of the serve makes delegation boring: if a model isn't warm locally but is warm
-on a live peer, the turn routes there; consecutive delegated turns reuse the peer's KV
-cache when (and only when) the new request provably extends the cached one. The mesh
-also replicates the context graph (multi-writer CRDT), so paired devices share memory —
-not just compute.
-
-## Honesty as a design rule
-
-Every failure path ends in a visible message: tool errors return honest text the model
-must relay, dashboard mutations surface request failures inline, and a feature that
-needs something missing (a binary, a permission, the network) says exactly that. The
-audit log (model loads, prompts, tokens, TTFT, tok/s) is both the evidence bundle and
-the debugging story.
+- [Workspace map](/reference/workspace-map)
+- [Runtime ports and processes](/reference/runtime-ports-and-processes)
+- [Configuration](/reference/configuration)

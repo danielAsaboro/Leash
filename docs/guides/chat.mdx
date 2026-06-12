@@ -5,6 +5,9 @@ description: "Get grounded answers, manage what Leash remembers, and control too
 
 This guide assumes the stack is running (see the [Quickstart](/quickstart)). It covers
 the everyday tasks: asking grounded questions, steering memory, and handling approvals.
+The router picks the right model automatically — health questions go to `medpsy`, image
+turns to `qwen3vl`, computer-use requests to the computer driver. See
+[Architecture](/concepts/architecture) for how routing works.
 
 ## Ask something grounded in your own data
 
@@ -28,17 +31,6 @@ Preference memories are injected into every future turn; facts, goals, people, a
 routines are retrieved on demand. Review, edit, or delete everything under
 **Brain → Memory**. To make Leash forget a screen-activity record, use **Forget** in the
 activity browser — it disappears from retrieval immediately.
-
-## Route to the right model
-
-You don't pick models manually; the router does it per turn:
-
-| You ask about… | It answers with |
-|---|---|
-| anything general | `qwen3-4b` |
-| health, medication, wellbeing | `medpsy` (with a clinician caveat) |
-| an attached image | `qwen3vl` |
-| your screen, files, shell, mouse | the computer-use driver ([details](/guides/computer-use)) |
 
 ## Approve or deny side effects
 

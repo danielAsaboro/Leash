@@ -1,0 +1,65 @@
+---
+title: "Scripts and smoke tests"
+description: "Root scripts, spike scripts, and smoke-test entry points in the current workspace."
+---
+
+## Main runtime scripts
+
+These come from the root `package.json`.
+
+| Script | Command target | Purpose |
+|---|---|---|
+| `npm run qvac` | `qvac serve openai --port 11435` | start the local serve |
+| `npm run web:dev` | `@mycelium/web` | run the web app in dev mode |
+| `npm run broker` | `apps/leash-broker/src/main.ts` | run the serve broker |
+| `npm run hypha` | `apps/hypha/src/main.ts` | run Hypha |
+| `npm run mcp` | `apps/leash-mcp/src/main.ts` | run the MCP daemon |
+| `npm run newsroom` | `apps/newsroom/src/main.ts` | run The Understory pipeline |
+| `npm run watch` | `apps/leash-watch/src/main.ts` | run the screen watcher |
+| `npm run cron` | `apps/leash-cron/src/main.ts` | run the scheduler |
+
+## Spike scripts
+
+| Script | Purpose |
+|---|---|
+| `npm run spike:warm` | warm-cache required models |
+| `npm run spike:inference` | verify local inference |
+| `npm run spike:rag` | verify local RAG |
+| `npm run spike:p2p:provider` | start delegated-compute provider |
+| `npm run spike:p2p:consumer` | run delegated-compute consumer |
+| `npm run spike:p2p:multimodal` | exercise multimodal P2P path |
+| `npm run spike:ocr` | OCR spike |
+| `npm run spike:lora` / `spike:lora4b` | LoRA training spikes |
+| `npm run spike:autobase` | pairing and CRDT graph sync spike |
+
+## Package smoke tests
+
+| Script | Package | Purpose |
+|---|---|---|
+| `npm run senses:smoke` | `packages/senses` | graph and retrieval smoke |
+| `npm run mind:smoke` | `packages/mind` | tool-call smoke |
+| `npm run mind:council` | `packages/mind` | council smoke |
+| `npm run memory:smoke` | `packages/memory` | memory curation smoke |
+| `npm run mesh:smoke` | `packages/mesh` | mesh graph smoke |
+
+## Root smoke and probe scripts
+
+| Script | Purpose |
+|---|---|
+| `npm run smoke:registry` | registry behavior |
+| `npm run smoke:failover` | peer failover |
+| `npm run smoke:allowlist` | pairing allowlist |
+| `npm run smoke:adapter` | adapter sharing |
+| `npm run smoke:economy` | economy path |
+| `npm run smoke:metered` | metered settlement |
+| `npm run smoke:reconnect` | reconnect path |
+| `npm run smoke:mcp` | MCP path |
+| `npm run smoke:bash` | bash tool path |
+| `npm run probe:metered-continuation` | metered continuation probe |
+| `npm run gate:firewall-revocation` | firewall revocation gate |
+
+## Notes
+
+- Spike scripts write audit logs under `spike/logs/`.
+- Many smoke tests assume local services or peer devices are already running.
+- The scripts in `scripts/` are operational assets, not placeholder examples.

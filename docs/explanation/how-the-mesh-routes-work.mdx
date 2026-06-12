@@ -1,0 +1,49 @@
+---
+title: "How the mesh routes work"
+description: "How broker queueing, Hypha, warm aliases, and paired peers combine into delegated execution."
+---
+
+Mycelium's mesh routing is not a generic service mesh. It is a local-first borrowing
+system for model work across your own paired devices.
+
+## The local-first rule
+
+Every request starts with the assumption that the local machine should do the work. The
+mesh becomes relevant only when another device can help and is already in a good state to
+help.
+
+## The broker's role
+
+The broker watches two things:
+
+- whether the local alias is available
+- whether the local queue is too deep
+
+If the alias is not served locally, or if the queue is already backed up, the broker can
+ask Hypha whether a live peer holds that alias warm. If no such peer exists, the request
+waits locally.
+
+## The warm-peer rule
+
+Routing is intentionally biased toward peers that already hold the alias warm. The goal
+is not to invent distributed scheduling in the abstract. The goal is to avoid paying a
+cold-start penalty on the request path whenever possible.
+
+## What Hypha contributes
+
+Hypha maintains the peer picture that the broker depends on:
+
+- who is paired
+- who is live
+- which aliases each peer can actually serve
+- whether delegated sessions can reuse provider-side KV cache
+
+This lets the web app stay small and stateless while Hypha carries the mesh-specific
+state.
+
+## Why routing is conservative
+
+The system is conservative because local AI runtimes are fragile in different ways than
+cloud queues. Aborting a generation or misrouting a request can wedge the serve. Overly
+aggressive routing can also send work to a peer that looks available but is not actually
+ready. The current design prefers slower but legible behavior over cleverness.

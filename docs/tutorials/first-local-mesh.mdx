@@ -1,0 +1,116 @@
+---
+title: "First local mesh"
+description: "Start the local serve and web app, ask a grounded question, and verify local inference, retrieval, and offline behavior."
+---
+
+This tutorial walks one happy path: start the local runtime, ground a chat answer in a
+note you control, and confirm that the core path still works offline after the initial
+warm-cache.
+
+## Before you start
+
+- macOS on Apple Silicon is the reference setup
+- Node `24+` and npm `11+`
+- network access for the first run, because missing model weights may need to download
+- the repo checked out and dependencies installed:
+
+```bash
+cd mycelium
+npm install
+```
+
+## What success looks like
+
+By the end, you will have:
+
+- a QVAC serve answering on `:11435`
+- the Leash web app open on `http://localhost:6801`
+- a cited answer grounded in `data/notes/`
+- a second answer completed with Wi-Fi off
+
+## 1. Start the local serve
+
+In one terminal, start the committed QVAC serve configuration:
+
+```bash
+npm run qvac
+```
+
+Wait for the preload to finish, then confirm the server is answering:
+
+```bash
+curl -s http://127.0.0.1:11435/v1/models
+```
+
+You should see the served aliases from `qvac.config.base.json`, including `qwen3-4b`
+and `gte-large`.
+
+## 2. Start the web app
+
+In a second terminal:
+
+```bash
+npm run web:dev
+```
+
+Open `http://localhost:6801`. You should land in the Leash interface.
+
+## 3. Create one note we can retrieve
+
+Add a markdown note under `data/notes/` with a fact the model cannot guess. For example:
+
+```md
+# mesh-setup
+
+The workshop test phrase is: cedar lanterns at low tide.
+```
+
+Save it as `data/notes/mesh-setup.md`.
+
+## 4. Ask a local question
+
+In Leash chat, ask:
+
+> What is the workshop test phrase in my notes?
+
+What to notice:
+
+- the answer should stream back in the browser
+- the serve terminal should show local completion activity
+- the answer should include a citation or source chip from your note
+
+That proves the path used local inference plus local retrieval.
+
+## 5. Verify retrieval, not recall
+
+Ask a second question that forces the same note to be consulted:
+
+> Which file contains the workshop test phrase?
+
+You should see the same note cited again. The important result is not just the answer
+text; it is that retrieval points back to a file you control.
+
+## 6. Verify offline behavior
+
+Turn off Wi-Fi, then ask:
+
+> Repeat the workshop test phrase exactly.
+
+The answer should still complete. Local chat and retrieval continue working after the
+warm-cache. Features that truly need the network, such as external web research, should
+fail honestly instead of silently falling back to cloud services.
+
+## 7. Stop cleanly
+
+Stop the web app and serve with `Ctrl-C` in their own terminals.
+
+<Note>
+Keep these processes attached to visible terminals while you are learning the system.
+Serve logs and app logs are part of the audit and debugging story.
+</Note>
+
+## Next steps
+
+- [How to run Leash locally](/guides/run-leash-locally)
+- [How to use grounded chat and memory](/guides/use-grounded-chat-and-memory)
+- [Why QVAC only](/explanation/why-qvac-only)

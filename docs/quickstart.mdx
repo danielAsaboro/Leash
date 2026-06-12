@@ -1,86 +1,13 @@
 ---
 title: "Quickstart"
-description: "From clone to your first on-device conversation in about ten minutes."
+description: "Compatibility page for the old quickstart route."
 ---
 
-By the end of this page you will have the model server and the dashboard running on your
-machine, and you will have asked Leash a question that it answers with a locally-running
-model. The first run downloads model weights (a few GB); every run after that works
-offline.
+This route has been replaced by the tutorial-first docs structure.
 
-## Prerequisites
+Use [First local mesh](/tutorials/first-local-mesh) for the guided path, or jump
+straight to [How to run Leash locally](/guides/run-leash-locally) if you already know
+the basics.
 
-- macOS on Apple Silicon (the reference setup; 16 GB+ unified memory recommended)
-- Node.js 24+ and npm 11+
-- ~10 GB free disk for model weights
-- Network access **for the first run only** (weight download)
-
-## 1. Install
-
-```bash
-git clone https://github.com/danielAsaboro/Leash.git mycelium
-cd mycelium
-npm install
-```
-
-## 2. Start the model server
-
-In its own terminal (it stays running):
-
-```bash
-npx @qvac/cli serve openai --port 11435
-```
-
-The serve reads `qvac.config.mjs`, downloads any missing weights on first run, and
-preloads six models: `qwen3-4b` (chat), `gte-large` (embeddings), `medpsy` (health),
-`qwen3vl` (vision), `parakeet` (speech-to-text), and `supertonic` (text-to-speech).
-Preload is finished when the port answers:
-
-```bash
-curl -s http://127.0.0.1:11435/v1/models | head -c 200
-```
-
-You should see a JSON list naming the models above.
-
-## 3. Start the dashboard
-
-In a second terminal:
-
-```bash
-npm run web:dev
-```
-
-Open [http://localhost:6801](http://localhost:6801). You land on the chat.
-
-## 4. Say hello
-
-Type:
-
-> what can you do?
-
-You will see a spinner with "Thinking…" while the model prefils, then a streamed answer
-describing Leash's tools. That entire round trip happened on your machine — you can
-verify by watching the serve terminal log the completion.
-
-## 5. Prove it's grounded
-
-Drop a markdown note into `data/notes/` (any `.md` file with a few facts), then ask the
-chat something only that note answers. Leash calls its `search_graph` tool, retrieves the
-passage over local embeddings, and cites it as a source chip under the answer.
-
-## 6. Prove it's offline
-
-Turn off Wi-Fi and ask another question. Chat, retrieval, and voice keep working —
-only [Deep research](/guides/research) needs the network, and it says so honestly.
-
-<Note>
-The serve and the dashboard belong in your own terminals, not in detached background
-jobs — the serve logs are also your audit trail.
-</Note>
-
-## Next steps
-
-- [Chat & memory](/guides/chat) — routing, recall, approvals
-- [Computer use](/guides/computer-use) — let it act on your Mac, safely
-- [Pair a second device](/guides/mesh) — delegated inference over your own mesh
-- [Configuration](/reference/configuration) — every knob in one place
+For the rest of the new structure, use the sidebar's `Tutorials`, `How-to Guides`,
+`Reference`, and `Explanation` groups.

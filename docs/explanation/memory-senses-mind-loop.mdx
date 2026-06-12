@@ -1,0 +1,46 @@
+---
+title: "Memory, senses, and the mind loop"
+description: "How observation, reasoning, retrieval, and longer-term adaptation reinforce each other."
+---
+
+Mycelium is built around a loop, not a one-shot chat interaction. The loop matters
+because the system is trying to become more useful through repeated local use.
+
+## Senses
+
+The senses layer turns raw local inputs into usable artifacts:
+
+- notes become retrievable text
+- voice becomes transcribed text
+- activity becomes timeline records
+- photos become searchable content
+
+Its job is not to answer questions. Its job is to make grounded evidence available.
+
+## Mind
+
+The mind layer decides how to answer a request:
+
+- which model route fits the turn
+- which tools are worth offering
+- when to retrieve
+- when to ask for approval
+
+It is the orchestration layer, not the storage layer.
+
+## Memory
+
+Memory sits on top of repeated use. Some information is explicit and typed, such as saved
+preferences or facts. Some is implicit in retrieval stores, chats, and curated training
+sets. The memory package turns that repeated interaction into something that can be
+evaluated, trained, and served again.
+
+## Why the loop matters
+
+Without the loop, the system would just be a local assistant shell. With the loop:
+
+- sensing produces better retrieval
+- better retrieval produces better decisions
+- accepted outcomes can be curated into longer-lived memory adaptations
+
+That is why Mycelium uses the term exocortex rather than just app or assistant.

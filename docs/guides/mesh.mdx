@@ -9,18 +9,18 @@ your own encrypted swarm. This guide pairs a second Mac and verifies delegation.
 
 ## Prerequisites
 
-- The full stack running on both machines (serve + dashboard + the Hypha daemon from
-  **/services**)
+- The full stack running on both machines (serve + dashboard + the Hypha daemon —
+  start it under **Services**)
 - Both machines on the same LAN for pairing (delegation itself is DHT-routed and works
   beyond the LAN afterwards)
 
 ## Pair with a PIN
 
-1. On machine A: **Services → Mesh → Add a device** — it starts advertising.
-2. On machine B: the same panel lists machine A — click it. A 6-digit PIN appears on
-   one screen; type it on the other.
-3. Both Services panels now list the peer, its compute class, and which models it has
-   **warm**.
+1. On machine A: **Settings → Devices → Pair over LAN** — it starts advertising.
+2. On machine B: open the same panel. Machine A appears in the list — click it. A 6-digit
+   PIN appears on one screen; type it on the other.
+3. Both **Settings → Devices** panels now list the peer, its compute class, and which
+   models it has **warm**.
 
 Prefer chat? Ask Leash *"pair this device with my laptop"* — discovery runs as a tool
 call and the PIN entry renders as a form inside the conversation.
@@ -38,7 +38,7 @@ The broker prefers your local serve and routes to a peer only when:
 - the requested model **isn't served locally** but a live peer has it warm, or
 - the local queue for that model is already deep.
 
-Watch it happen: **Services → Mesh** shows borrow counters (`availabilityRouted`,
+Watch it happen: **Settings → Devices** shows borrow counters (`availabilityRouted`,
 `shed`) incrementing as turns delegate.
 
 ## Reuse the peer's KV cache
@@ -50,7 +50,7 @@ re-prime from scratch (correctness over speed). Kill switch: `HYPHA_KV_CACHE=0`.
 
 ## Disconnect a device
 
-**Services → Mesh → Disconnect** tombstones the peer locally and (on acknowledgment)
+**Settings → Devices → Disconnect** tombstones the peer locally and (on acknowledgment)
 mutually — either side can **Restore** it later. **Reset mesh** wipes this device's
 identity and all pairings; other devices keep their state and you re-pair.
 

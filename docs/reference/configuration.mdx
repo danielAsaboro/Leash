@@ -1,22 +1,22 @@
 ---
 title: "Configuration"
-description: "Every knob: ports, environment variables, and the serve config."
+description: "Configuration files, environment variables, and data paths for the current Mycelium runtime."
 ---
 
-## Ports
+## Config files
 
-| Port | Process | Notes |
+| File | Purpose |
 |---|---|---|
-| `6801` | Next.js dashboard (`npm run web:dev`) | the UI |
-| `11435` | QVAC serve (`npx @qvac/cli serve openai`) | all model inference |
-| `11436` | Leash broker | priority queue + mesh overflow routing |
-| `11437` | Hypha daemon/shim | pairing, peers, delegated sessions |
-| `11439` | Leash MCP server | mesh-pairing tools for the chat |
+| `qvac.config.base.json` | Machine-neutral source of truth for served model aliases and preload behavior |
+| `qvac.config.mjs` | Wrapper that expands `~/` to the current machine's home directory |
+| `data/leash-mcp.json` | Stored MCP server rows for the web app |
+| `packages/db/prisma/schema.prisma` | Prisma schema for the database package |
 
-## Serve config — `qvac.config.base.json`
+## Serve configuration
 
-Machine-neutral JSON (paths use `~/`), wrapped by `qvac.config.mjs` which the CLI
-actually loads. Do not create a `qvac.config.json` — it would shadow the wrapper.
+The committed serve config is `qvac.config.base.json`. Paths inside it use `~/`, and
+`qvac.config.mjs` expands them at runtime. Do not create a `qvac.config.json`; the CLI
+prefers `.json` and would shadow the wrapper.
 
 | Alias | Model | ctx_size | Role |
 |---|---|---|---|
@@ -28,47 +28,114 @@ actually loads. Do not create a `qvac.config.json` — it would shadow the wrapp
 | `supertonic` | Supertonic TTS | — | text-to-speech |
 
 <Note>
-The serve's built-in `ctx_size` default is **1024** — far too small for tool-carrying
-turns. Always set it explicitly per completion model.
+The serve's built-in `ctx_size` default is `1024`. The committed chat and health aliases
+override it because tool-carrying turns need larger budgets.
 </Note>
 
-## Environment variables — web app
+## Web app and assistant variables
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | inference endpoint; point at `:11436` to enable broker/mesh routing |
+| `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | Inference endpoint; point this at `http://127.0.0.1:11436/v1` to use the broker |
 | `LEASH_CHAT_MODEL` | `qwen3-4b` | general chat alias |
 | `LEASH_EMBED_MODEL` | `gte-large` | embeddings alias |
 | `LEASH_MEDPSY_MODEL` | `medpsy` | health-route alias |
 | `LEASH_VISION_MODEL` | `qwen3vl` | image-turn / screenshot alias |
-| `LEASH_COMPUTER_MODEL` | = chat model | computer-use driver; set to a bigger served alias (no-op until set) |
-| `LEASH_UTILITY_MODEL` | = chat model | background maintenance (compaction) |
-| `LEASH_IMAGE_MODEL` | `sd` | `generate_image` diffusion alias |
-| `LEASH_CHAT_CTX` | `16384` | compactor's history budget — keep in sync with `qwen3-4b` ctx_size |
+| `LEASH_COMPUTER_MODEL` | chat model | computer-use driver alias |
+| `LEASH_UTILITY_MODEL` | chat model | background maintenance alias |
+| `LEASH_IMAGE_MODEL` | `sd` | diffusion alias for `generate_image` |
+| `LEASH_CHAT_CTX` | `16384` | chat history budget |
+| `LEASH_STT_MODEL` | `parakeet` | speech-to-text alias |
+| `LEASH_TTS_MODEL` | `supertonic` | text-to-speech alias |
 | `LEASH_COMPUTER_ROOT` | home directory | jail root for file tools |
 | `LEASH_COMMAND_ALLOW` | unset | comma-separated first-token allowlist for `run_command` (guard-rail) |
 | `LEASH_MCP_SERVERS` | empty | comma-separated MCP server URLs (read-only rows) |
-| `LEASH_HA_URL` / `LEASH_HA_TOKEN` | empty | Home Assistant (prefer the Services → Connections vault) |
-| `LEASH_SEARXNG_URL` | empty | SearXNG for deep research (vault-editable) |
+| `LEASH_HA_URL` / `LEASH_HA_TOKEN` | empty | Home Assistant (configure via Settings → Secrets) |
+| `LEASH_SEARXNG_URL` | empty | SearXNG for deep research (configure via Settings → Secrets) |
 | `LEASH_ELICIT_TIMEOUT_MS` | `120000` | unanswered in-chat form → cancel |
 | `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | screen-watcher trail location |
+| `LEASH_NOTES_DIR` | `data/notes` | notes directory used for graph retrieval |
 
-## Environment variables — mesh & workers
+## Broker variables
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `HYPHA_PORT` | `11437` | Hypha shim |
-| `LEASH_BROKER_PORT` | `11436` | broker |
-| `HYPHA_KV_CACHE` | on | `0` disables delegated KV-cache reuse |
-| `LEASH_RESEARCH_MODEL` | `qwen3-4b` | research worker's model |
+| `LEASH_BROKER_PORT` | `11436` | broker listen port |
+| `LEASH_BROKER_UPSTREAM` | `http://127.0.0.1:11435` | local serve upstream |
+| `LEASH_BROKER_AGING_MS` | `8000` | queue aging interval |
+| `LEASH_BROKER_HYPHA_URL` | empty | Hypha shim URL for overflow routing |
+| `LEASH_BROKER_OVERFLOW_DEPTH` | `2` | queue depth threshold before shedding to a warm peer |
+
+## Hypha variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HYPHA_PORT` | `11437` | local Hypha control and overflow shim |
+| `HYPHA_PAIR_PORT` | `11438` | LAN pairing port |
+| `HYPHA_DATA_DIR` | `data/hypha` | private Hypha state directory |
+| `HYPHA_SERVE_URL` | `http://127.0.0.1:11435` | local serve used for alias discovery |
+| `HYPHA_NAME` | hostname | display name advertised to peers |
+| `HYPHA_COMPUTE_CLASS` | `mac` | advertised device class |
+| `HYPHA_POWER` | `plugged` | advertised power state |
+| `HYPHA_KV_CACHE` | on | set `0` to disable delegated KV cache reuse |
+| `HYPHA_KV_MAX_SESSIONS` | `8` | max tracked KV sessions |
+| `HYPHA_KV_TTL_MS` | `86400000` | KV session janitor TTL |
+| `HYPHA_FORWARD` | `0` | enable P2P forward transport |
+| `HYPHA_FORWARD_METERED` | `1` | meter forward-path usage when paid rails are present |
+| `HYPHA_SHARE_MODELS` | `1` | advertise cached models to peers |
+| `HYPHA_REPUTATION` | `0` | enable reputation-weighted routing |
+| `HYPHA_RESILIENT_RECONNECT` | `0` | enable suspend/resume based reconnect healing |
+| `HYPHA_TTFB_MS` | `60000` | first-token timeout for delegated completions |
+
+## Environment variables - economy (opt-in)
+
+Economy is off by default. Set `HYPHA_ECONOMY_ENABLED=1` and configure at least one
+settlement rail to use it.
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `HYPHA_ECONOMY_ENABLED` | `0` | `1` enables settlement |
+| `HYPHA_ECONOMY_PRICE_PER_KTOK` | `1000` | µ-units charged per 1,000 tokens served |
+| `HYPHA_ECONOMY_FLOAT` | `50000` | pre-authorized µ-units before a settle TX fires |
+| `HYPHA_ECONOMY_MAX_PER_TX` | `5000` | max µ-units per settlement transaction |
+| `HYPHA_ECONOMY_MAX_PER_HOUR` | `20000` | rolling hourly spend ceiling (µ-units) |
+| `HYPHA_ECONOMY_MAX_PER_COUNTERPARTY` | `10000` | cumulative cap per peer wallet (µ-units) |
+| `HYPHA_ECONOMY_METERED` | `0` | `1` enables streaming chunk-by-chunk settlement |
+| **Plasma (EVM)** | | |
+| `HYPHA_ECONOMY_PLASMA_RPC_URL` | empty | EVM RPC endpoint (e.g. `http://127.0.0.1:8545`) |
+| `HYPHA_ECONOMY_PLASMA_MNEMONIC` | empty | BIP39 mnemonic for the payout wallet |
+| `HYPHA_ECONOMY_PLASMA_ASSET_MINT` | empty | stablecoin contract address |
+| `HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL` | `USDT` | asset ticker shown in the ledger |
+| `HYPHA_ECONOMY_PLASMA_NETWORK_ID` | `eip155:9745` | CAIP-2 network identifier |
+| **Solana** | | |
+| `HYPHA_ECONOMY_SOLANA_RPC_URL` | empty | Solana RPC endpoint |
+| `HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE` | empty | path to keypair JSON |
+| `HYPHA_ECONOMY_SOLANA_ASSET_MINT` | empty | SPL token mint address |
+| `HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL` | `USDT` | asset ticker shown in the ledger |
+
+## Research, watch, and newsroom variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LEASH_RESEARCH_MODEL` | `qwen3-4b` | deep research worker model |
 | `LEASH_RESEARCH_ROUNDS` | `4` | max research rounds |
 | `LEASH_RESEARCH_TIMEOUT_MS` | `600000` | research HTTP body timeout |
+| `LEASH_WATCH_INTERVAL_SEC` | `60` | screen watcher tick interval |
+| `LEASH_WATCH_IDLE_SKIP_SEC` | `120` | idle threshold before skipping a tick |
+| `LEASH_WATCH_FRAME` | `/tmp/leash/frame.png` | temporary screenshot path |
+| `LEASH_WATCH_VISION_TIMEOUT_MS` | `60000` | soft timeout per watch tick |
+| `LEASH_WATCH_ALLOW` | empty | allowlist of app names to observe |
+| `LEASH_WATCH_BLOCK` | empty | blocklist of app names to skip |
+| `UNDERSTORY_MASTHEAD` | `The Understory` | newsroom masthead |
+| `UNDERSTORY_CADENCE_MIN` | `60` | newsroom discovery cadence |
+| `UNDERSTORY_DATE` | current local date | override edition date for backfills |
 
 ## Data locations
 
 | Path | Contents |
 |---|---|
-| `~/.qvac/` | model weights, registry, RAG store (per machine; symlink-friendly) |
-| `data/` | per-machine stores: chats, tasks, memories, skills, research, secrets vault |
+| `~/.qvac/` | model weights, registry, KV cache, and RAG store |
+| `data/` | per-machine stores: chats, tasks, memories, skills, research, secrets, catalogs, and Hypha state |
 | `data/notes/` | your markdown notes (RAG source) |
-| `logs/` | per-machine audit evidence |
+| `data/hypha/` | Hypha seed, mesh store, invite, and economy state |
+| `apps/*/logs/` | per-app audit evidence |

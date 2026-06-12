@@ -1,0 +1,81 @@
+---
+title: "Mycelium as an agent harness"
+description: "Why the strongest framing is not 'assistant app' but an extensible local agent harness you can keep teaching."
+---
+
+One of the biggest documentation risks is underselling Mycelium as just "the app with
+chat, feed, and mesh." That is true, but it misses the deeper point.
+
+## The stronger framing
+
+Mycelium is an extensible local agent harness.
+
+That means the core value is not only what ships on day one. It is that you can keep
+adding capabilities and recombining them:
+
+- tools
+- MCP integrations
+- skills
+- computer-use actions
+- local daemons
+- delegated compute across your own devices
+
+## Why this matters more than a feature list
+
+A feature list freezes the product in one moment. A harness framing explains why the
+product can keep taking on new jobs without becoming a cloud-dependent black box.
+
+The important question becomes:
+
+> Can I teach this system new ways to get work done locally?
+
+For Mycelium, the answer is yes.
+
+## What that looks like concretely
+
+The harness claim is only useful if it turns into real compositions. In the current
+system, that means things like:
+
+- grounding an answer in notes and memories, then saving the durable part back as memory
+- reading files, editing them, running a command, and asking for approval before side effects
+- attaching an MCP server so a whole new integration surface appears inside normal chat
+- importing a skill so a repeatable house procedure becomes reusable instead of re-prompted
+- shifting a heavier turn to a paired device while keeping the same local UI
+- letting daemons such as watcher, research, newsroom, and cron keep work moving between turns
+
+## The extension layers
+
+The harness works in layers:
+
+- **Built-in tools** give the assistant native abilities.
+- **MCP servers** add external tool families.
+- **Skills** add reusable procedures and optional scripts.
+- **Computer use** lets the assistant act on the local machine itself.
+- **Services and daemons** keep long-lived capabilities running between turns.
+- **Hypha** widens the execution substrate by borrowing another one of your devices.
+
+Each layer changes what the assistant can accomplish without requiring a hosted AI
+backend.
+
+## Why local-first still matters here
+
+Calling something an agent harness often implies remote orchestration and SaaS control
+planes. Mycelium's version is different. The extension story stays inside the same
+constraints as the rest of the system:
+
+- QVAC-only model work
+- offline-capable after warm-cache
+- no hidden cloud fallback
+- approvals for side effects
+
+So the harness claim is stronger, not weaker, because it is bounded by real local rules.
+
+## Why the docs need to say this plainly
+
+If the docs present Mycelium only as a polished set of surfaces, readers miss the thing
+that makes it strategically interesting. The right mental model is:
+
+- it is a product today
+- it is also a local substrate for whatever agent workflows you want to keep layering on
+
+That is a better description of what was actually built.

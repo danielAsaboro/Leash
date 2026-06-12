@@ -73,10 +73,10 @@ LEASH_COMPUTER_MODEL=gpt-oss-20b QVAC_OPENAI_URL=http://127.0.0.1:11436/v1 npm r
 **Brain → Tools** shows which model drives the computer tools and whether it runs
 locally or on a named peer.
 
-## Narrow or widen the jail
+## Change what tools are allowed
 
-| Knob | Default | Effect |
-|---|---|---|
-| `LEASH_COMPUTER_ROOT` | your home directory | hard jail for read/write/edit (symlink-escape proof) |
-| `LEASH_COMMAND_ALLOW` | unset | comma-separated first tokens `run_command` may use — a guard-rail, **not** a security boundary |
-| Brain → Tools toggles | screenshot + read_file un-gated | flip "Ask first" per tool, or disable a tool entirely |
+**Brain → Tools** lets you flip "Ask first" on or off per tool, or disable a tool entirely.
+`screenshot` and `read_file` are un-gated by default; all write and execute tools require
+approval. For the environment variables that set the file-system jail root and command
+allowlist (`LEASH_COMPUTER_ROOT`, `LEASH_COMMAND_ALLOW`), see
+[Configuration](/reference/configuration).

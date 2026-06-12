@@ -1,0 +1,82 @@
+---
+title: "Tools and approvals"
+description: "The assistant tool surface, grouped by job, with approval behavior and runtime constraints."
+---
+
+## Approval model
+
+Tools can be offered or withheld per route. Some tools are marked ask-first and pause on
+an in-chat approval card before they execute. Tool settings are adjustable in the UI,
+but the defaults below describe the shipped behavior.
+
+## Knowledge and memory tools
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `search_graph` | semantic search over notes, activity, memories, and past chats | no |
+| `understory_search` | search published Understory articles | no |
+| `understory_today` | fetch the latest edition headlines | no |
+| `now` | current date and time | no |
+| `remember` | save a typed memory | no |
+| `recall` | read typed memories | no |
+
+## Personal data and media tools
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `list_photos` | list locally tagged photos | no |
+| `generate_image` | run local diffusion image generation | no |
+| `active_context` | read the current watcher context | no |
+| `activity_recent` | read recent activity trail entries | no |
+
+## Smart home tools
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `ha_list_entities` | enumerate Home Assistant entities | no |
+| `ha_get_state` | read one entity state | no |
+| `ha_call_service` | trigger a Home Assistant action | yes |
+
+## Task and skill tools
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `create_task`, `list_tasks`, `update_task` | manipulate task state | no |
+| `read_skill` | read skill instructions | no |
+| `read_skill_file` | read a skill attachment | no |
+| `run_skill_script` | execute a bundled skill script | yes |
+
+## Research tool
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `deep_research` | run the background web research worker | no |
+
+## Computer-use tools
+
+These tools are normally offered only on computer-intent turns. File access is jailed
+under `LEASH_COMPUTER_ROOT`.
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `screenshot` | capture a frame and ask the local VLM about it | no |
+| `read_file` | read a jailed text file | no |
+| `write_file` | write a jailed text file | yes |
+| `edit_file` | perform an exact-string replacement in a jailed text file | yes |
+| `run_command` | run `bash -c` with stripped env and output limits | yes |
+| `computer` | mouse and keyboard control via `cliclick` | yes |
+
+## MCP tools
+
+MCP tools are merged into the registry from configured servers. The bundled `leash-mcp`
+daemon contributes mesh pairing tools and renders required user input as an in-chat
+elicitation form.
+
+## Operational constraints
+
+| Constraint | Detail |
+|---|---|
+| Tool surface size | large tool registries increase prompt size, so routes stay focused |
+| Approval cards | stop execution before a side effect is carried out |
+| Computer-use boundary | not a sandbox; the approval gate is the main safety control |
+| Missing integrations | Home Assistant and SearXNG tools fail honestly when unconfigured |

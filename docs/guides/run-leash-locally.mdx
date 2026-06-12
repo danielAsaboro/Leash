@@ -1,0 +1,93 @@
+---
+title: "How to run Leash locally"
+description: "Start the local Mycelium assistant surface on one machine and verify the main endpoints."
+---
+
+Use this guide when you want the main assistant and dashboard running on a single
+machine.
+
+## Start the baseline local stack
+
+From `mycelium/`, start the serve in one terminal:
+
+```bash
+npm run qvac
+```
+
+Start the web app in another:
+
+```bash
+npm run web:dev
+```
+
+Open `http://localhost:6801`.
+
+## Confirm the serve is healthy
+
+Check the served model list:
+
+```bash
+curl -s http://127.0.0.1:11435/v1/models
+```
+
+Expected result: a JSON payload listing the current aliases from
+`qvac.config.base.json`.
+
+## Run the web app through the broker
+
+If you want queueing, priority separation, or mesh overflow routing, start the broker:
+
+```bash
+npm run broker
+```
+
+Then start the web app with `QVAC_OPENAI_URL` pointed at the broker:
+
+```bash
+QVAC_OPENAI_URL=http://127.0.0.1:11436/v1 npm run web:dev
+```
+
+If `apps/hypha` is also running and a peer holds a warm alias, the broker can shed work
+there. Without Hypha, the broker still helps by serializing same-alias requests.
+
+## Run the optional local daemons
+
+Start the delegated-compute daemon:
+
+```bash
+npm run hypha
+```
+
+Start the bundled mesh MCP server:
+
+```bash
+npm run mcp
+```
+
+These daemons are optional for single-machine chat, but they are required for pairing,
+mesh overflow, and in-chat pairing tools.
+
+## Check the local endpoints
+
+Use these probes:
+
+```bash
+curl -s http://127.0.0.1:11435/v1/models
+curl -s http://127.0.0.1:11436/__broker/stats
+curl -s http://127.0.0.1:11437/health
+curl -s http://127.0.0.1:11439/health
+```
+
+Run only the probes for processes you actually started.
+
+## Stop the stack
+
+Stop each process with `Ctrl-C` in the terminal that started it. Avoid detached
+background jobs for the serve while you are debugging; visible logs are useful and the
+runtime is designed around attached processes.
+
+## Related pages
+
+- [How to operate Hypha and the broker](/guides/operate-hypha-and-broker)
+- [Runtime ports and processes](/reference/runtime-ports-and-processes)
+- [Configuration](/reference/configuration)

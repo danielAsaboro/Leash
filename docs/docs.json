@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "maple",
-  "name": "Leash",
+  "name": "Mycelium",
   "colors": {
     "primary": "#16A34A",
     "light": "#07C983",
@@ -11,28 +11,49 @@
   "navigation": {
     "pages": [
       {
-        "group": "Getting Started",
-        "pages": ["index", "quickstart"]
+        "group": "Tutorials",
+        "pages": ["tutorials/first-local-mesh"]
       },
       {
-        "group": "Guides",
+        "group": "How-to Guides",
         "pages": [
-          "guides/chat",
-          "guides/computer-use",
-          "guides/voice",
-          "guides/skills",
-          "guides/mesh",
-          "guides/research",
-          "guides/paper"
+          "guides/run-leash-locally",
+          "guides/use-brain-and-settings",
+          "guides/extend-the-agent-with-tools-mcp-and-skills",
+          "guides/compose-agent-workflows",
+          "guides/read-the-understory-feed",
+          "guides/manage-services-and-daemons",
+          "guides/pair-a-second-device",
+          "guides/use-grounded-chat-and-memory",
+          "guides/operate-hypha-and-broker",
+          "guides/run-deep-research",
+          "guides/debug-common-runtime-failures"
         ]
       },
       {
-        "group": "Concepts",
-        "pages": ["concepts/architecture"]
+        "group": "Reference",
+        "pages": [
+          "reference/workspace-map",
+          "reference/runtime-ports-and-processes",
+          "reference/configuration",
+          "reference/models-and-aliases",
+          "reference/tools-and-approvals",
+          "reference/scripts-and-smoke-tests"
+        ]
       },
       {
-        "group": "Reference",
-        "pages": ["reference/configuration", "reference/tools", "troubleshooting"]
+        "group": "Explanation",
+        "pages": [
+          "index",
+          "explanation/what-mycelium-is",
+          "explanation/leash-and-its-surfaces",
+          "explanation/mycelium-as-an-agent-harness",
+          "explanation/architecture",
+          "explanation/why-qvac-only",
+          "explanation/how-the-mesh-routes-work",
+          "explanation/memory-senses-mind-loop",
+          "explanation/what-the-understory-is"
+        ]
       }
     ]
   },

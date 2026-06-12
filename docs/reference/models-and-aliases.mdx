@@ -1,0 +1,57 @@
+---
+title: "Models and aliases"
+description: "Served aliases, runtime role mapping, and alias-related constraints in the current Mycelium setup."
+---
+
+## Committed served aliases
+
+These aliases come from `qvac.config.base.json`.
+
+| Alias | Backing model | Role |
+|---|---|---|
+| `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | default chat and general tool use |
+| `gte-large` | `GTE_LARGE_FP16` | embeddings |
+| `medpsy` | custom `medpsy` GGUF | health-specialist chat |
+| `qwen3vl` | `QWEN3VL_2B_MULTIMODAL_Q4_K` + projection model | vision |
+| `parakeet` | `PARAKEET_TDT_0_6B_V3_Q8_0` | speech-to-text |
+| `supertonic` | `TTS_EN_SUPERTONIC_Q8_0` | text-to-speech |
+
+## Runtime alias mapping
+
+| Runtime variable | Default | Consumed by |
+|---|---|---|
+| `LEASH_CHAT_MODEL` | `qwen3-4b` | main chat route |
+| `LEASH_EMBED_MODEL` | `gte-large` | retrieval and indexing |
+| `LEASH_MEDPSY_MODEL` | `medpsy` | health route |
+| `LEASH_VISION_MODEL` | `qwen3vl` | screenshots, image turns, watcher |
+| `LEASH_STT_MODEL` | `parakeet` | transcription route |
+| `LEASH_TTS_MODEL` | `supertonic` | speech synthesis route |
+| `LEASH_COMPUTER_MODEL` | chat model | computer-use route |
+| `LEASH_UTILITY_MODEL` | chat model | background maintenance |
+| `LEASH_RESEARCH_MODEL` | `qwen3-4b` | research worker |
+
+## Context budgets in the committed config
+
+| Alias | Config |
+|---|---|
+| `qwen3-4b` | `tools: true`, `toolsMode: "dynamic"`, `ctx_size: 16384` |
+| `medpsy` | `tools: true`, `toolsMode: "dynamic"`, `ctx_size: 8192` |
+| `qwen3vl` | `ctx_size: 8192` plus `projectionModelSrc` |
+
+## Alias constraints
+
+| Constraint | Detail |
+|---|---|
+| Chat and health aliases | committed with tools enabled |
+| Vision alias | used through the vision route; request shape remains stricter than text models |
+| Image generation alias | `LEASH_IMAGE_MODEL` defaults to `sd`, but no `sd` alias is committed in `qvac.config.base.json` |
+| Mesh advertising | peers only advertise aliases they can actually serve on that machine |
+
+## Related files
+
+| File | Role |
+|---|---|
+| `qvac.config.base.json` | alias source of truth |
+| `apps/web/lib/leash/provider.ts` | web-app alias selection |
+| `apps/web/lib/leash/models.ts` | model catalog and config editing helpers |
+| `apps/hypha/src/catalog.ts` | Hypha view of served aliases |

@@ -1,0 +1,66 @@
+---
+title: "Workspace map"
+description: "Package, app, data, and docs boundaries in the current Mycelium monorepo."
+---
+
+## Root workspace
+
+| Path | Kind | Notes |
+|---|---|---|
+| `package.json` | workspace manifest | npm workspaces root; scripts for spike, apps, and smoke tests |
+| `qvac.config.base.json` | serve config | committed model alias source of truth |
+| `qvac.config.mjs` | serve wrapper | expands `~/` paths at runtime |
+| `scripts/` | operational scripts | smoke tests, probes, helpers |
+| `spike/` | validated primitives | warm-cache, inference, RAG, P2P, OCR, LoRA, Autobase |
+| `data/` | machine-local state | chats, notes, memories, services, catalogs, Hypha state |
+| `docs/` | Mintlify site | this docs site only |
+
+## Packages
+
+| Workspace | Role |
+|---|---|
+| `packages/shared` | shared types, logging, audit helpers, KV session support |
+| `packages/senses` | embeddings, graph ingest, RAG index, voice and photo sensing |
+| `packages/mind` | routing, council logic, critic, tool orchestration |
+| `packages/mesh` | pairing, provider and consumer mesh logic, graph sync, failover |
+| `packages/memory` | memory curation, evaluation, training, serve alias handling |
+| `packages/db` | Prisma schema and generated database client |
+
+## Apps
+
+| Workspace | Role |
+|---|---|
+| `apps/web` | Leash web assistant and dashboard |
+| `apps/hypha` | delegated-compute daemon and mesh control plane |
+| `apps/hub` | always-on strong-brain app for the original mesh path |
+| `apps/edge-node` | lightweight consumer app for the original mesh path |
+| `apps/newsroom` | The Understory pipeline daemon |
+| `apps/leash-broker` | queueing and overflow proxy in front of the serve |
+| `apps/leash-mcp` | MCP server for mesh pairing tools |
+| `apps/leash-watch` | local screen watcher |
+| `apps/leash-cron` | local scheduler daemon |
+
+## Data and logs
+
+| Path | Contents |
+|---|---|
+| `data/notes/` | markdown notes used for retrieval |
+| `data/voice/` | voice memo inputs |
+| `data/photos/` | image inputs |
+| `data/hypha/` | Hypha seed, mesh store, invites, and economy state |
+| `data/leash-*.json*` | web-app stores for chats, tasks, memories, prompts, schedules, MCP, and services |
+| `apps/*/logs/` | app-local audit logs |
+| `spike/logs/` | spike audit logs |
+
+## Docs and evidence boundaries
+
+| Path | Boundary |
+|---|---|
+| `mycelium/docs/` | product and engineering docs site |
+| `submission/` | hackathon evidence, build notes, and public reporting artifacts |
+| `resources/` | cached external reference material |
+
+<Note>
+`mycelium/docs/` is the only markdown-bearing docs area inside the code workspace. Spike
+results and build logs stay outside it in `submission/`.
+</Note>

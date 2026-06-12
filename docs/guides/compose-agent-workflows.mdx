@@ -1,0 +1,128 @@
+---
+title: "How to compose agent workflows"
+description: "Combine tools, MCP, skills, computer use, daemons, and mesh delegation into real local workflows."
+---
+
+Use this guide when you want to think beyond single features and make Mycelium do
+end-to-end work.
+
+## Start from the job, not the feature
+
+The right question is not "does it have skills?" or "does it support MCP?" The right
+question is:
+
+> What work do I want the local agent to be able to complete?
+
+Then you compose the pieces that fit that job.
+
+## Workflow pattern 1: private retrieval and synthesis
+
+Use this when you want the assistant to answer from your own materials.
+
+Composition:
+
+- chat route
+- `search_graph`
+- notes under `data/notes/`
+- typed memories
+- optional past-conversation recall
+
+Example outcome:
+
+- "Summarize what I decided about the mesh economy this week and cite the source notes."
+
+## Workflow pattern 2: local machine execution with approvals
+
+Use this when the work target is the machine itself.
+
+Composition:
+
+- computer-use tools
+- file read/write/edit
+- `run_command`
+- screenshot and GUI control
+- ask-first approvals
+
+Example outcome:
+
+- "Find the config file, update the port, run the smoke check, and show me the diff before you save anything else."
+
+## Workflow pattern 3: teach it a house procedure
+
+Use this when the missing capability is procedural rather than a new API.
+
+Composition:
+
+- skill instructions
+- optional script bundle
+- existing tools and retrieval
+
+Example outcome:
+
+- "When I ask for a release brief, use our internal structure, pull the right notes, and produce the same format every time."
+
+## Workflow pattern 4: bolt on a new integration
+
+Use this when the assistant needs access to a system it does not already know.
+
+Composition:
+
+- MCP server
+- optional elicitation forms
+- Brain → MCP management
+- existing assistant routing and approvals
+
+Example outcome:
+
+- "Read from my external tool, ask me for any missing input in-chat, then continue the task with those results available as tools."
+
+## Workflow pattern 5: widen the execution substrate
+
+Use this when the local machine is not the right place to do the work.
+
+Composition:
+
+- broker
+- Hypha
+- warm peer
+- optional KV reuse
+
+Example outcome:
+
+- "Run the heavier turn on the paired machine because that alias is warm there, while I keep using the same local UI."
+
+## Workflow pattern 6: make it ambient or recurring
+
+Use this when the work should continue between chat turns.
+
+Composition:
+
+- watcher
+- cron
+- newsroom
+- research workers
+- services console
+
+Example outcome:
+
+- "Keep observing activity, run discovery in the background, and publish a new edition when the pipeline is ready."
+
+## Choose the minimum composition that works
+
+- If the job is already covered by built-in tools, do not invent a new skill.
+- If the missing piece is an external system, prefer MCP over hardcoding it into the assistant.
+- If the work is mostly instructions and formatting, prefer a skill.
+- If the work lives on the machine itself, prefer computer use.
+- If the work should persist or recur, make it a daemon-backed flow.
+
+## The point of the harness
+
+A harness matters because you do not have to wait for the original app author to ship
+your exact workflow. You can keep layering on the capabilities you need while staying
+inside the same local-first runtime.
+
+## Related pages
+
+- [How to extend the agent with tools, MCP, and skills](/guides/extend-the-agent-with-tools-mcp-and-skills)
+- [Mycelium as an agent harness](/explanation/mycelium-as-an-agent-harness)
+- [Tools and approvals](/reference/tools-and-approvals)
