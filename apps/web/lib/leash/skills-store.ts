@@ -43,6 +43,15 @@ export interface Skill {
    * disclosure — see agent.ts). Empty = inherit the route's default toolset.
    */
   tools: string[];
+  /**
+   * An ORDERED plan (frontmatter `steps:` block scalar, one sub-task per line). When present,
+   * `run_skill` executes the skill as a DETERMINISTIC pipeline: the harness drives the steps in
+   * order, the model does ONE sub-task per step (with earlier steps' results fed forward), and
+   * the model never decides "am I done?". This is the fix for qwen3-4b's dependent-step failure —
+   * the planning burden lives with the author, not the 4B (deterministic decomposition; see
+   * skill-runner.ts). Empty = single-shot skill (the model free-runs the body).
+   */
+  steps: string[];
   /** Attachment paths relative to the skill folder (POSIX, e.g. `references/x.md`). */
   files: string[];
   /** Unknown frontmatter keys, round-tripped verbatim on save (spec fields survive edits). */
@@ -162,6 +171,20 @@ function parseToolList(raw: string | undefined): string[] {
     .filter((t) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t));
 }
 
+/**
+ * Parse a `steps:` block-scalar value into an ORDERED list of sub-task strings — one per line,
+ * with any leading list marker (`- `, `* `, `1. `) stripped. Blank lines are dropped. The block
+ * value is produced by the `|`/`>` frontmatter scalar parser; bounded to keep a pipeline sane.
+ */
+function parseStepList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .split(/\r?\n/)
+    .map((l) => l.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim())
+    .filter((l) => l.length > 0)
+    .slice(0, 12);
+}
+
 /** Parse one SKILL.md: frontmatter + body. Null on bad shape. `enabled` absent ⇒ DISABLED. */
 function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
@@ -177,8 +200,9 @@ function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
     description: fields["description"] ?? "",
     enabled: fields["enabled"] === "true", // absent or anything else ⇒ disabled (see module header)
     body: (m[2] as string).trim(),
-    // `tools` is round-tripped via `extras` (not a KNOWN_KEY); we also surface it parsed.
+    // `tools`/`steps` are round-tripped via `extras` (not KNOWN_KEYS); we also surface them parsed.
     tools: parseToolList(fields["tools"]),
+    steps: parseStepList(fields["steps"]),
     files,
     extras,
   };
@@ -278,7 +302,7 @@ export async function saveSkill(input: { slug?: string; name: string; descriptio
   } catch {
     /* none existed */
   }
-  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["tools"]), files: await skillFiles(slug), extras: input.extras ?? {} };
+  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["tools"]), steps: parseStepList(input.extras?.["steps"]), files: await skillFiles(slug), extras: input.extras ?? {} };
 }
 
 /** Delete a skill — folder and/or legacy flat file (no-op if already gone). */

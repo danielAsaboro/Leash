@@ -6,6 +6,16 @@
  * model a REAL tool to invoke another skill — instead of emitting `<tool_call>` text for a skill
  * whose tools aren't loaded (the within-turn-orchestration failure the forgiving-parser detector caught).
  *
+ * Two execution modes, chosen by the target skill:
+ *   · SINGLE-SHOT (no `steps:`): one `generateText` over the skill body — the model free-runs.
+ *   · DETERMINISTIC PIPELINE (`steps:` declared): the harness drives the steps IN ORDER, the model
+ *     does ONE sub-task per step (earlier steps' results fed forward), and never decides "am I done?".
+ *     This is the fix for qwen3-4b's dependent-step / Implicit-Action failure (verified 2026-06-12:
+ *     the 4B reliably does ONE sub-task and fires parallel calls, but drops the dependent NEXT call at
+ *     the continuation boundary — and a scratchpad nudge, though confirmed-injected, did NOT fix it).
+ *     Moving the step-ordering decision OUT of the model and INTO the harness is the deep-research-
+ *     recommended placement of the planning burden for a small model (author-time, not model-time).
+ *
  * The sub-agent gets the skill's declared tools MINUS any that are approval-gated or disabled — a
  * non-streaming `generateText` can't pause on a human approval card, so side-effectful actions
  * (run_command, ha_call_service, installs) stay on the main turn. Sub-agents don't nest (no run_skill).
@@ -14,56 +24,130 @@ import "server-only";
 import { tool, generateText, stepCountIs, type ToolSet } from "ai";
 import { z } from "zod";
 import { chatModel } from "./provider.ts";
-import { getSkill } from "./skills-store.ts";
+import { getSkill, type Skill } from "./skills-store.ts";
 import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
+import { loopLog } from "./loop-diagnostics.ts";
 import type { LeashSource } from "./tools.ts";
 
-/** Step budget for a delegated sub-skill (its own small tool loop). */
+/** Step budget for a single-shot delegated sub-skill (its own small tool loop). */
 const SUB_STEPS = 6;
+/** Per-step budget inside a deterministic pipeline — each step is ONE bounded sub-task (tool → report). */
+const PIPELINE_STEP_BUDGET = 3;
+
+/** Resolve the sub-agent toolset for a skill: declared tools that exist, aren't disabled/approval-gated,
+ *  and aren't run_skill (no nesting). Returns the live ToolSet plus the names skipped for approval. */
+async function subAgentTools(skill: Skill, registry: ToolSet): Promise<{ subTools: ToolSet; names: string[]; skipped: string[] }> {
+  const off = await disabledTools();
+  const names: string[] = [];
+  const skipped: string[] = [];
+  for (const n of skill.tools) {
+    if (n === "run_skill" || !registry[n] || off.has(n)) continue;
+    if (await toolNeedsApproval(n)) {
+      skipped.push(n);
+      continue;
+    }
+    names.push(n);
+  }
+  const subTools: ToolSet = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
+  return { subTools, names, skipped };
+}
+
+/** Common generateText settings for a sub-skill call (qvac wedge rule: no abortSignal, maxRetries 0). */
+function subCallBase(label: string, system: string, userContent: string, subTools: ToolSet, names: string[], stepBudget: number) {
+  return {
+    model: chatModel(label),
+    system,
+    messages: [{ role: "user" as const, content: userContent }],
+    temperature: 0.6,
+    topP: 0.95,
+    maxRetries: 0,
+    ...(names.length ? { tools: subTools, stopWhen: stepCountIs(stepBudget) } : {}),
+  };
+}
+
+/**
+ * DETERMINISTIC PIPELINE: run a step-declared skill one sub-task at a time, feeding each step's result
+ * forward. The model never chooses whether to continue — the harness does. Each step is an isolated
+ * `generateText` (fresh context → no overthinking accumulation), bounded to PIPELINE_STEP_BUDGET.
+ */
+async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, names: string[]): Promise<string> {
+  const results: string[] = [];
+  for (let i = 0; i < skill.steps.length; i++) {
+    const step = skill.steps[i] as string;
+    const prior = results.length
+      ? `\n\nResults from earlier steps (use them — a later step often depends on what an earlier one returned):\n${results.map((r, j) => `· Step ${j + 1} (${skill.steps[j]}): ${r}`).join("\n")}`
+      : "";
+    const system =
+      `You are executing ONE step of the "${skill.name}" skill for the main assistant.\n\n${skill.body}\n\n` +
+      `OVERALL TASK: ${task}\n\nYOUR CURRENT STEP (${i + 1} of ${skill.steps.length}): ${step}${prior}\n\n` +
+      `Do ONLY this step now — call a tool if the step needs one — then briefly report what you did or found. Do not attempt the other steps; the harness will run them.`;
+    loopLog(`pipeline ${skill.slug} step ${i + 1}/${skill.steps.length}: ${step.slice(0, 60)}`);
+    const r = await generateText(subCallBase(`run_skill:${skill.slug}:step${i + 1}`, system, step, subTools, names, PIPELINE_STEP_BUDGET));
+    results.push(r.text.trim() || "(this step produced no text output)");
+  }
+  // Hand the main assistant a compact, ordered digest of what the pipeline accomplished.
+  return skill.steps.map((s, j) => `Step ${j + 1} — ${s}\n${results[j]}`).join("\n\n");
+}
+
+/**
+ * Run a step-declared skill as a deterministic pipeline DIRECTLY (no model-side delegation) — the
+ * chat route calls this when the matched active skill declares `steps:`, so a step-skill behaves as
+ * a reliable multi-step WORKFLOW for the turn instead of being free-run by the 4B (which drops
+ * dependent steps). Returns the same `{ text, sources }` shape run_skill produces. Loads the skill
+ * by slug; returns an honest message if it's missing/disabled or has no steps.
+ */
+export async function runSkillAsPipeline(slug: string, task: string, registry: ToolSet): Promise<{ text: string; sources: LeashSource[] }> {
+  const s = await getSkill(slug.trim().toLowerCase());
+  if (!s || !s.enabled) return { text: `No runnable skill named "${slug}".`, sources: [] };
+  if (s.steps.length === 0) return { text: `The "${s.slug}" skill has no steps to run.`, sources: [] };
+  const { subTools, names, skipped } = await subAgentTools(s, registry);
+  const note = skipped.length ? ` (note: ${skipped.join(", ")} need approval and were skipped — invoke them on the main turn if needed.)` : "";
+  try {
+    const text = await runStepPipeline(s, task, subTools, names);
+    return { text: text + note, sources: [{ kind: "graph", title: `Skill · ${s.name}`, snippet: task.slice(0, 120) }] };
+  } catch (e) {
+    return { text: `The "${s.slug}" skill failed: ${e instanceof Error ? e.message : String(e)}`, sources: [] };
+  }
+}
 
 /** Build the `run_skill` orchestration tool over the (raw) tool registry it delegates from. */
 export function buildSkillRunner(registry: ToolSet): ToolSet {
   return {
     run_skill: tool({
       description:
-        "Delegate a sub-task to ANOTHER of your skills. It runs that skill in its own focused context with its own tools and returns just the result — use it to orchestrate a multi-skill workflow (e.g. run the research skill, then act on what it returns). Pass the skill's slug and a clear, self-contained sub-task.",
+        "Delegate a sub-task to ANOTHER of your skills. It runs that skill in its own focused context with its own tools and returns just the result — use it to orchestrate a multi-skill workflow (e.g. run the research skill, then act on what it returns). A skill may run as a single step or as a fixed multi-step pipeline; either way you make ONE call and get back the finished result. Pass the skill's slug and a clear, self-contained task.",
       inputSchema: z.object({
         skill: z.string().describe("The slug of the skill to run, exactly as listed in your prompt (e.g. 'deep-research')."),
-        task: z.string().describe("The specific, self-contained sub-task for that skill to carry out."),
+        task: z.string().describe("The specific, self-contained task for that skill to carry out."),
       }),
       execute: async ({ skill, task }) => {
         const s = await getSkill(skill.trim().toLowerCase());
         if (!s || !s.enabled) return { text: `No runnable skill named "${skill}".`, sources: [] as LeashSource[] };
 
-        // Sub-agent toolset: the skill's declared tools that exist, aren't disabled, aren't approval-
-        // gated, and aren't run_skill itself (no nesting). Gated/action tools stay on the main turn.
-        const off = await disabledTools();
-        const names: string[] = [];
-        const skipped: string[] = [];
-        for (const n of s.tools) {
-          if (n === "run_skill" || !registry[n] || off.has(n)) continue;
-          if (await toolNeedsApproval(n)) {
-            skipped.push(n);
-            continue;
-          }
-          names.push(n);
-        }
-        const subTools: ToolSet = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
+        const { subTools, names, skipped } = await subAgentTools(s, registry);
+        const note = skipped.length ? ` (note: ${skipped.join(", ")} need approval and were skipped here — invoke them on the main turn if needed.)` : "";
 
         try {
-          // No abortSignal + maxRetries 0 (qvac wedge rule — a retry re-pays a hung decode).
-          const r = await generateText({
-            model: chatModel(),
-            system: `You are running the "${s.name}" skill as a focused sub-task for the main assistant. Follow these instructions, use your tools, and return a concise result the main assistant can use directly.\n\n${s.body}`,
-            messages: [{ role: "user", content: task }],
-            temperature: 0.6,
-            topP: 0.95,
-            maxRetries: 0,
-            ...(names.length ? { tools: subTools, stopWhen: stepCountIs(SUB_STEPS) } : {}),
-          });
-          const note = skipped.length ? ` (note: ${skipped.join(", ")} need approval and were skipped here — invoke them on the main turn if needed.)` : "";
+          // DETERMINISTIC PIPELINE when the skill declares an ordered plan; else single-shot free-run.
+          let text: string;
+          if (s.steps.length > 0) {
+            text = await runStepPipeline(s, task, subTools, names);
+          } else {
+            // No abortSignal + maxRetries 0 (qvac wedge rule — a retry re-pays a hung decode).
+            const r = await generateText(
+              subCallBase(
+                `run_skill:${s.slug}`,
+                `You are running the "${s.name}" skill as a focused sub-task for the main assistant. Follow these instructions, use your tools, and return a concise result the main assistant can use directly.\n\n${s.body}`,
+                task,
+                subTools,
+                names,
+                SUB_STEPS,
+              ),
+            );
+            text = r.text.trim() || `(the ${s.slug} skill returned no text)`;
+          }
           return {
-            text: (r.text.trim() || `(the ${s.slug} skill returned no text)`) + note,
+            text: text + note,
             sources: [{ kind: "graph", title: `Skill · ${s.name}`, snippet: task.slice(0, 120) }] as LeashSource[],
           };
         } catch (e) {

@@ -14,8 +14,20 @@
  */
 import "server-only";
 import { createQvac } from "@qvac/ai-sdk-provider";
-import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel } from "ai";
+import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel, type LanguageModelV2Middleware } from "ai";
 import { Agent, fetch as undiciFetch } from "undici";
+import { loopDiagnosticMiddleware, loopDebugOn } from "./loop-diagnostics.ts";
+
+/**
+ * Compose the standard chat middleware: reasoning-extraction (always), and — only when
+ * LEASH_DEBUG_LOOP is set — the multi-step loop diagnostic OUTERMOST, so it observes the
+ * per-step finishReason / tool-call presence the loop actually sees (after `<think>` is
+ * split out). Zero behavior change; pure observation. `label` tags the log line.
+ */
+function chatMiddleware(label: string): LanguageModelV2Middleware[] {
+  const reasoning = extractReasoningMiddleware({ tagName: "think" });
+  return loopDebugOn() ? [loopDiagnosticMiddleware(label), reasoning] : [reasoning];
+}
 
 /**
  * A fetch with NO body/headers timeout for the serve. On-device decodes are slow and a
@@ -61,11 +73,13 @@ export const qvacBackground = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qv
  *  the chat model so nothing changes until the user adds a small reasoning-off alias. */
 export const UTILITY_MODEL = process.env["LEASH_UTILITY_MODEL"] ?? CHAT_MODEL;
 
-/** The chat model with `<think>` reasoning extracted into reasoning parts. */
-export function chatModel(): LanguageModel {
+/** The chat model with `<think>` reasoning extracted into reasoning parts.
+ *  `label` tags the loop-diagnostic log line (LEASH_DEBUG_LOOP) so the main chat loop and a
+ *  run_skill sub-agent are distinguishable in a multi-step transcript. Defaults to "chat". */
+export function chatModel(label = "chat"): LanguageModel {
   return wrapLanguageModel({
     model: qvac(CHAT_MODEL),
-    middleware: extractReasoningMiddleware({ tagName: "think" }),
+    middleware: chatMiddleware(label),
   });
 }
 

@@ -22,7 +22,7 @@ import { skillTools, skillsSystemSection, activeSkillsSection } from "../../../.
 import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { computerTools } from "../../../../lib/leash/computer-tools.ts";
 import { buildBashTools, BASH_TOOL_NAMES } from "../../../../lib/leash/bash-tools.ts";
-import { buildSkillRunner } from "../../../../lib/leash/skill-runner.ts";
+import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skill-runner.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
@@ -35,7 +35,9 @@ import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// A deterministic step-pipeline turn runs several sequential model calls (one per step), so a turn can
+// run a few minutes; keep the ceiling generous (local dev doesn't hard-enforce, but be honest about it).
+export const maxDuration = 300;
 
 // `.optional()` on the OBJECT: user messages carry no metadata at all (only assistant messages get
 // it via `messageMetadata`), so the schema must accept `undefined` or validation fails on every
@@ -290,6 +292,51 @@ export async function POST(req: Request): Promise<Response> {
   // Count this generation as in-flight so the dashboard's serve stop/restart refuses
   // while the serve is decoding (aborting/killing mid-generation wedges the GPU).
   const release = beginGeneration();
+
+  // DETERMINISTIC-WORKFLOW turn: when the matched skill declares an ordered `steps:` plan, DRIVE it as
+  // a pipeline (skill-runner.ts) instead of a free-run agent loop — the harness owns the step order, so
+  // the 4B does one atomic sub-task per step and can't drop a dependent step (verified 2026-06-12:
+  // pipeline 3/3 vs free-run ~1/3 on a dependent chain). The pipeline uses the skill's own declared
+  // tools (approval-gated ones are skipped, like run_skill). Text turns only; image turns never match here.
+  const pipeline = !imageTurn ? activeSkills?.pipeline ?? null : null;
+  if (pipeline) {
+    let unsubscribePipe: (() => void) | undefined;
+    const pipeStream = createUIMessageStream<LeashUIMessage>({
+      originalMessages: validated,
+      generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+      execute: async ({ writer }) => {
+        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: CHAT_MODEL, ...(tier ? { effort: tier } : {}) } });
+        unsubscribePipe = subscribeElicitations((ev) => {
+          try {
+            writer.write({ type: "data-elicitation", data: ev, transient: true });
+          } catch {
+            /* stream already closed */
+          }
+        });
+        writer.write({ type: "data-skill", data: { mode: activeSkills?.mode ?? "automatic", skills: activeSkills?.skills ?? [{ slug: pipeline.slug, name: pipeline.slug }] } });
+        let text: string;
+        try {
+          const out = await runSkillAsPipeline(pipeline.slug, lastText, baseTools);
+          text = out.text;
+        } catch (e) {
+          text = `The "${pipeline.slug}" workflow couldn't finish: ${e instanceof Error ? e.message : String(e)}`;
+        } finally {
+          release();
+        }
+        const tid = "pipeline-out";
+        writer.write({ type: "text-start", id: tid });
+        writer.write({ type: "text-delta", id: tid, delta: text });
+        writer.write({ type: "text-end", id: tid });
+        writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+      },
+      onFinish: ({ messages: finalMessages }) => {
+        unsubscribePipe?.();
+        release(); // idempotent
+        void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
+      },
+    });
+    return createUIMessageStreamResponse({ stream: pipeStream });
+  }
 
   // NOTE on serve-side kvCache: the forked serve accepts a `kv_cache` body field (see
   // patches/@qvac+cli) and hypha's shim caches delegated sessions — but THIS route does

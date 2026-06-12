@@ -72,6 +72,7 @@ interface ActiveSkillView {
   name: string;
   body: string;
   tools: string[];
+  steps: string[];
   files: string[];
 }
 
@@ -85,6 +86,15 @@ export interface ActiveSkillsResult {
    * toolset with exactly these names (progressive tool disclosure — see agent.ts).
    */
   tools: string[];
+  /**
+   * Set when the (first) active skill declares an ordered `steps:` plan. The chat route then runs
+   * that skill as a DETERMINISTIC PIPELINE (skill-runner.ts) for this turn — the harness drives the
+   * steps, the model does one atomic sub-task each — INSTEAD of a free-run agent turn. This is what
+   * makes a step-skill a reliable multi-step workflow on qwen3-4b (the 4B can't drop a chain it
+   * doesn't own; verified 2026-06-12: pipeline 3/3 vs free-run ~1/3 on a dependent chain). Null
+   * when no active skill declares steps (normal free-run turn).
+   */
+  pipeline: { slug: string; steps: string[] } | null;
 }
 
 interface SkillEmbedding {
@@ -161,10 +171,12 @@ function renderActiveSkillBody(skills: Array<{ slug: string; body: string; files
 }
 
 function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkillView[]): ActiveSkillsResult {
+  const stepSkill = skills.find((s) => (s.steps ?? []).length > 0);
   return {
     mode: reason,
     skills: skills.map((s) => ({ slug: s.slug, name: s.name })),
     tools: [...new Set(skills.flatMap((s) => s.tools ?? []))],
+    pipeline: stepSkill ? { slug: stepSkill.slug, steps: stepSkill.steps } : null,
     section:
       renderActiveSkillHeader(reason, skills.map((s) => s.slug)) +
       " Do not print fake tool-call text like `CALL read_skill(...)` in your answer. If a skill requires exact output, treat that as higher priority than your normal style and emit it with no extra words or surrounding whitespace.\n\n" +
