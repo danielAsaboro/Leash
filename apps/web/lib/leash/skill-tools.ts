@@ -97,17 +97,25 @@ export interface ActiveSkillsResult {
   pipeline: { slug: string; steps: string[] } | null;
 }
 
-interface SkillEmbedding {
+interface SkillUtteranceEmbeddings {
   slug: string;
-  embedding: number[];
+  /** One embedding per utterance (the discovery text + each declared `examples:` line). */
+  embeddings: number[][];
 }
 
 interface SkillEmbeddingCache {
   key: string;
-  rows: SkillEmbedding[];
+  rows: SkillUtteranceEmbeddings[];
 }
 
 let skillEmbeddingsPromise: Promise<SkillEmbeddingCache> | null = null;
+
+/** A skill's routing utterances: its discovery text PLUS each declared example (capped). The matcher
+ *  routes by MAX similarity to any of these (semantic-router style), so several concrete phrasings can
+ *  represent the skill — not just its one description. */
+function skillUtterances(skill: { slug: string; name: string; description: string; examples?: string[] }): string[] {
+  return [discoveryText(skill), ...(skill.examples ?? [])].map((u) => u.trim()).filter(Boolean).slice(0, 8);
+}
 
 function mentionsSkill(haystack: string, slug: string, name: string): boolean {
   const slugRe = new RegExp(`(?:^|[^a-z0-9-])@?${escapeRe(slug)}(?:$|[^a-z0-9-])`, "i");
@@ -123,10 +131,12 @@ function tokenize(s: string): string[] {
   return (s.toLowerCase().match(/[a-z0-9][a-z0-9-]{1,}/g) ?? []).filter((t) => !STOP.has(t));
 }
 
-function lexicalScore(query: string, skill: { slug: string; name: string; description: string }): number {
+function lexicalScore(query: string, skill: { slug: string; name: string; description: string; examples?: string[] }): number {
   const q = new Set(tokenize(query));
   if (q.size === 0) return 0;
-  const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description}`));
+  // Examples are routing utterances — fold them into the lexical target so a skill's concrete phrasings
+  // (e.g. "mark it done", "then complete it") count toward keyword overlap, not just its description.
+  const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description} ${(skill.examples ?? []).join(" ")}`));
   if (target.size === 0) return 0;
   let hits = 0;
   for (const t of q) if (target.has(t)) hits++;
@@ -135,19 +145,24 @@ function lexicalScore(query: string, skill: { slug: string; name: string; descri
   return coverage * 0.75 + precision * 0.25;
 }
 
-async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; description: string }>): Promise<SkillEmbedding[]> {
-  const key = JSON.stringify(skills.map((s) => [s.slug, s.name, s.description]));
+async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; description: string; examples?: string[] }>): Promise<SkillUtteranceEmbeddings[]> {
+  const spans = skills.map((s) => ({ slug: s.slug, utterances: skillUtterances(s) }));
+  const key = JSON.stringify(spans);
   if (skillEmbeddingsPromise) {
     const cached = await skillEmbeddingsPromise;
     if (cached.key === key) return cached.rows;
   }
   skillEmbeddingsPromise = (async () => {
-    const values = skills.map(discoveryText);
-    const { embeddings } = await embedMany({ model: embeddingModel(), values });
-    return {
-      key,
-      rows: skills.map((s, i) => ({ slug: s.slug, embedding: embeddings[i] as number[] })),
-    };
+    // Embed ALL utterances of ALL skills in one batched call, then regroup by skill.
+    const flat = spans.flatMap((s) => s.utterances);
+    const { embeddings } = await embedMany({ model: embeddingModel(), values: flat });
+    let i = 0;
+    const rows = spans.map((s) => {
+      const group = embeddings.slice(i, i + s.utterances.length) as number[][];
+      i += s.utterances.length;
+      return { slug: s.slug, embeddings: group };
+    });
+    return { key, rows };
   })();
   return (await skillEmbeddingsPromise).rows;
 }
@@ -213,26 +228,36 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
     return activeSkillsResult("explicit", explicit);
   }
 
-  // Auto-selection: load the SINGLE best-matching skill whose score clears a confidence floor —
-  // by keyword overlap (lexical) OR semantic similarity (embedding) against its discovery
-  // metadata. One skill at a time keeps the context lean; the model can pull in OTHER skills
-  // mid-turn with read_skill (the skill-system tools stay available inside an active skill —
-  // see agent.ts). No margin gate: the #1 match is taken directly (margin gates dropped correct
-  // but clustered skills — measured), but only if it clears the floor (so general turns load none).
+  // Auto-selection (semantic-router + Reciprocal Rank Fusion). Each skill is represented by its discovery
+  // text PLUS its declared `examples:` utterances; the embedding score is the MAX cosine over those
+  // utterances — so a skill that lists the exact intent it's for out-scores a broad sibling on that intent
+  // (this is what lets the SPECIFIC skill win, the gap a single-description embedding couldn't close).
+  // Lexical and embedding rankings are then fused with RRF (rank-based, scale-free, rewards agreement
+  // across BOTH signals) instead of comparing two differently-scaled scores via max(). A confidence FLOOR
+  // still gates candidates (so general turns load no skill); RRF only ORDERS the ones that clear it. One
+  // skill at a time keeps context lean — the model pulls in others mid-turn with read_skill.
   const lex = new Map(enabled.map((s) => [s.slug, lexicalScore(query, s)]));
   const emb = new Map<string, number>();
   try {
     const rows = await getSkillEmbeddings(enabled);
     const { embedding } = await embed({ model: embeddingModel(), value: query });
-    for (const r of rows) emb.set(r.slug, cosine(embedding, r.embedding));
+    for (const r of rows) emb.set(r.slug, r.embeddings.reduce((m, e) => Math.max(m, cosine(embedding, e)), -1));
   } catch {
     /* embeddings serve unavailable — fall back to lexical-only activation */
   }
+  // Rank each signal (1-based, descending) → RRF score = Σ 1/(k + rank), k=60 (community default).
+  const rankBy = (score: (slug: string) => number): Map<string, number> => {
+    const order = [...enabled].sort((a, b) => score(b.slug) - score(a.slug));
+    return new Map(order.map((s, i) => [s.slug, i + 1]));
+  };
+  const lexRank = rankBy((slug) => lex.get(slug) ?? 0);
+  const embRank = rankBy((slug) => emb.get(slug) ?? -1);
+  const K = 60;
+  const rrf = (slug: string): number => 1 / (K + (lexRank.get(slug) ?? enabled.length)) + 1 / (K + (embRank.get(slug) ?? enabled.length));
   const best = enabled
-    .map((s) => ({ skill: s, lex: lex.get(s.slug) ?? 0, emb: emb.get(s.slug) ?? -1 }))
-    .filter((c) => c.lex >= SKILL_LEX_FLOOR || c.emb >= SKILL_EMB_FLOOR)
-    .sort((a, b) => Math.max(b.emb, b.lex) - Math.max(a.emb, a.lex))[0];
-  return best ? activeSkillsResult("automatic", [best.skill]) : null;
+    .filter((s) => (lex.get(s.slug) ?? 0) >= SKILL_LEX_FLOOR || (emb.get(s.slug) ?? -1) >= SKILL_EMB_FLOOR)
+    .sort((a, b) => rrf(b.slug) - rrf(a.slug))[0];
+  return best ? activeSkillsResult("automatic", [best]) : null;
 }
 
 export const skillTools = {

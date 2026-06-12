@@ -52,6 +52,14 @@ export interface Skill {
    * skill-runner.ts). Empty = single-shot skill (the model free-runs the body).
    */
   steps: string[];
+  /**
+   * Example user utterances (frontmatter `examples:` block, one per line) that should route TO this
+   * skill. The matcher embeds each and routes by MAX similarity to any utterance (semantic-router
+   * style) — so a skill can be represented by several concrete phrasings, not just its one description.
+   * This is what lets a SPECIFIC skill out-rank a broad sibling on the intent it's actually for. Empty
+   * = the description alone represents the skill (existing behavior).
+   */
+  examples: string[];
   /** Attachment paths relative to the skill folder (POSIX, e.g. `references/x.md`). */
   files: string[];
   /** Unknown frontmatter keys, round-tripped verbatim on save (spec fields survive edits). */
@@ -172,17 +180,17 @@ function parseToolList(raw: string | undefined): string[] {
 }
 
 /**
- * Parse a `steps:` block-scalar value into an ORDERED list of sub-task strings — one per line,
- * with any leading list marker (`- `, `* `, `1. `) stripped. Blank lines are dropped. The block
- * value is produced by the `|`/`>` frontmatter scalar parser; bounded to keep a pipeline sane.
+ * Parse a block-scalar value into a clean line list — one item per line, any leading list marker
+ * (`- `, `* `, `1. `) stripped, blanks dropped, bounded. Used for both `steps:` (ordered sub-tasks)
+ * and `examples:` (routing utterances). The block value is produced by the `|`/`>` frontmatter parser.
  */
-function parseStepList(raw: string | undefined): string[] {
+function parseLineList(raw: string | undefined, cap: number): string[] {
   if (!raw) return [];
   return raw
     .split(/\r?\n/)
     .map((l) => l.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim())
     .filter((l) => l.length > 0)
-    .slice(0, 12);
+    .slice(0, cap);
 }
 
 /** Parse one SKILL.md: frontmatter + body. Null on bad shape. `enabled` absent ⇒ DISABLED. */
@@ -200,9 +208,10 @@ function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
     description: fields["description"] ?? "",
     enabled: fields["enabled"] === "true", // absent or anything else ⇒ disabled (see module header)
     body: (m[2] as string).trim(),
-    // `tools`/`steps` are round-tripped via `extras` (not KNOWN_KEYS); we also surface them parsed.
+    // `tools`/`steps`/`examples` are round-tripped via `extras` (not KNOWN_KEYS); also surfaced parsed.
     tools: parseToolList(fields["tools"]),
-    steps: parseStepList(fields["steps"]),
+    steps: parseLineList(fields["steps"], 12),
+    examples: parseLineList(fields["examples"], 12),
     files,
     extras,
   };
@@ -302,7 +311,7 @@ export async function saveSkill(input: { slug?: string; name: string; descriptio
   } catch {
     /* none existed */
   }
-  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["tools"]), steps: parseStepList(input.extras?.["steps"]), files: await skillFiles(slug), extras: input.extras ?? {} };
+  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["tools"]), steps: parseLineList(input.extras?.["steps"], 12), examples: parseLineList(input.extras?.["examples"], 12), files: await skillFiles(slug), extras: input.extras ?? {} };
 }
 
 /** Delete a skill — folder and/or legacy flat file (no-op if already gone). */
