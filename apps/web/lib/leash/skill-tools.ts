@@ -12,6 +12,7 @@ import { tool } from "ai";
 import { z } from "zod";
 import { listSkills, getSkill, readSkillFile } from "./skills-store.ts";
 import { runSkillScript } from "./skill-exec.ts";
+import { loopLog } from "./loop-diagnostics.ts";
 import { embeddingModel } from "./provider.ts";
 import { cosine } from "./graph.ts";
 import type { LeashSource } from "./tools.ts";
@@ -59,13 +60,16 @@ const STOP = new Set([
   "you",
 ]);
 // Skill-activation floors. We load the single best-matching skill whose score clears a floor —
-// keyword (lexical) OR semantic (embedding). The #1 match is taken directly (no margin gate: a
-// margin gate dropped correct-but-clustered skills — measured), but it must clear the floor so
-// general turns load no skill. Floors separate capability queries (~0.76+) from general ones
-// (~0.72) and are overridable via env. The model composes by loading further skills with
-// read_skill mid-turn, so one auto-loaded skill keeps the context lean without losing reach.
-const SKILL_LEX_FLOOR = Number(process.env["LEASH_SKILL_LEX_FLOOR"] ?? 0.55);
-const SKILL_EMB_FLOOR = Number(process.env["LEASH_SKILL_EMB_FLOOR"] ?? 0.74);
+// keyword (lexical) OR semantic (embedding). A candidate must clear a floor so general turns load
+// NO skill; among the survivors, RRF orders and the #1 is taken (no margin gate — it dropped
+// correct-but-clustered skills, measured). Floors CALIBRATED 2026-06-12 against real queries with
+// the multi-utterance matcher + gte-large: that encoder compresses cosines into a HIGH band, so
+// general prompts ("tell me a joke") land at emb~0.78-0.80 while true intents land at 0.82-0.99 —
+// the old 0.74 floor sat inside the false-positive zone. 0.81 separates them (TP-min 0.82 vs
+// FP-max 0.80). Lexical floor 0.45 gives a keyword-only second path (general prompts score ≤0.26).
+// Both overridable via env.
+const SKILL_LEX_FLOOR = Number(process.env["LEASH_SKILL_LEX_FLOOR"] ?? 0.45);
+const SKILL_EMB_FLOOR = Number(process.env["LEASH_SKILL_EMB_FLOOR"] ?? 0.81);
 
 interface ActiveSkillView {
   slug: string;
@@ -257,6 +261,9 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
   const best = enabled
     .filter((s) => (lex.get(s.slug) ?? 0) >= SKILL_LEX_FLOOR || (emb.get(s.slug) ?? -1) >= SKILL_EMB_FLOOR)
     .sort((a, b) => rrf(b.slug) - rrf(a.slug))[0];
+  // Gated diagnostic: the top few candidates with their lex/emb so floors can be tuned against real queries.
+  const top = [...enabled].sort((a, b) => Math.max(emb.get(b.slug) ?? -1, lex.get(b.slug) ?? 0) - Math.max(emb.get(a.slug) ?? -1, lex.get(a.slug) ?? 0)).slice(0, 3);
+  loopLog(`match "${query.slice(0, 40)}" → ${best?.slug ?? "(none)"} | top: ${top.map((s) => `${s.slug}(lex=${(lex.get(s.slug) ?? 0).toFixed(2)},emb=${(emb.get(s.slug) ?? -1).toFixed(2)})`).join(" ")}`);
   return best ? activeSkillsResult("automatic", [best]) : null;
 }
 
