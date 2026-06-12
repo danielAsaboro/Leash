@@ -104,3 +104,9 @@ data/*.env
 **/data/evolve/checkpoints/
 **/data/adapters/
 data/leash-feedback.jsonl
+
+# Local env files — secrets + machine config. Only *.env.example is committed.
+.env
+.env.local
+**/.env
+**/.env.local
