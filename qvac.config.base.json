@@ -10,7 +10,7 @@
         "config": {
           "tools": true,
           "toolsMode": "dynamic",
-          "ctx_size": 16384
+          "ctx_size": 32768
         }
       },
       "gte-large": {
@@ -18,8 +18,7 @@
         "preload": true
       },
       "medpsy": {
-        "src": "~/.qvac/models/medpsy-1.7b-q4_k_m-imat.gguf",
-        "type": "llamacpp-completion",
+        "model": "MEDGEMMA_4B_IT_Q4_1",
         "preload": true,
         "config": {
           "tools": true,

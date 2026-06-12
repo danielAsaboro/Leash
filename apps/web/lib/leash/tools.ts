@@ -4,7 +4,6 @@
  *   search_graph      — the user's private notes + screen-activity trail (RAG over QVAC embeddings)
  *   understory_search — published articles in The Understory (the user's paper)
  *   understory_today  — the latest edition's headlines
- *   now               — current local date/time
  *   list_photos       — the user's images + on-device auto-tags
  *   generate_image    — on-device diffusion image generation
  *   ha_list_entities / ha_get_state / ha_call_service — Home Assistant control over its LAN REST API
@@ -26,6 +25,7 @@ import { prisma, Stage } from "@mycelium/db";
 import { searchNotes, readActivityRecords } from "./graph.ts";
 import { getSecret } from "./vault.ts";
 import { imageModel, IMAGE_MODEL } from "./provider.ts";
+import { mcpAdminTools } from "./mcp-admin-tools.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/lib/leash → apps/web/public/leash-gen (Next serves /leash-gen/*). */
@@ -184,12 +184,6 @@ export const leashTools = {
         sources,
       };
     },
-  }),
-
-  now: tool({
-    description: "Get the current local date and time. Use when the answer depends on what day or time it is.",
-    inputSchema: z.object({}),
-    execute: async () => ({ text: `Current local date/time: ${new Date().toString()}`, sources: [] as LeashSource[] }),
   }),
 
   list_photos: tool({
@@ -366,30 +360,24 @@ export const leashTools = {
       return { text: `Activity in the last ${window} minutes (${recent.length} observations):\n${lines.join("\n")}`, sources };
     },
   }),
+
+  ...mcpAdminTools,
 };
 
 /**
- * The assistant's DEFAULT system prompt — tool-first grounding. The effective prompt is
+ * The assistant's DEFAULT system prompt — SKILLS-FIRST grounding. It establishes Leash's
+ * identity and the skill contract; it does NOT enumerate tools. Capability flows through
+ * skills, which declare the tools they need and can stand up new ones (incl. MCP servers).
+ * The tool schemas the model is offered each turn already name + describe the available tools,
+ * and an active skill's body supplies the workflow — so the base prompt stays lean and the
+ * model isn't told about tools it can't call this turn. The effective prompt is
  * `getPrompt("system")` (prompts-store.ts): a dashboard override beats this default.
  */
 export const DEFAULT_LEASH_SYSTEM =
-  "You are Leash, a private, on-device assistant with access to the user's world. You have tools: " +
-  "search_graph (their private notes/files/voice memos, their screen-activity trail, and past conversations — semantic recall like 'when was I in the budget sheet' or 'what did we decide last week'), " +
-  "understory_search and understory_today (The Understory — their auto-written daily paper), now (current date/time), " +
-  "list_photos and generate_image (their images), " +
-  "ha_list_entities / ha_get_state / ha_call_service (Home Assistant smart-home control — discover devices, check a device, then act; e.g. to turn on the office light call ha_call_service with domain 'light', service 'turn_on', entity_id 'light.office'; if the device is ambiguous, list first), " +
-  "active_context / activity_recent (what the user is doing on screen right now / over the last N minutes, from the on-device screen watcher), " +
-  "create_task / list_tasks / update_task (the user's task list on the /tasks dashboard — use create_task when they ask to be reminded or to track a follow-up, update_task with status 'done' when they finish something), " +
-  "remember / recall (your long-term memory of the user — remember durable preferences/facts/goals/people/routines they state; recall before answering questions about them), " +
-  "and deep_research (kick off a background web-research run for questions needing current multi-source evidence — it returns a /research link, not an instant answer). " +
-  "Additional tools may also come from connected MCP servers; if such tools are available, use them exactly according to their tool descriptions. " +
-  // Computer-use tools (screenshot/read_file/write_file/edit_file/run_command/computer) are
-  // deliberately NOT named here: they're offered per-turn (chat route's computerNote) so
-  // non-computer prompts stay lean for the 4096-ctx serve and the model never sees names
-  // of tools it can't call this turn.
-  "For anything about the user, their notes, their paper, their home devices, their tasks, or their current activity, CALL THE RELEVANT TOOL FIRST instead of guessing. " +
-  "Never write pretend tool-call text in the answer; either call the tool or answer normally. " +
-  "After tool results, answer concisely and factually. If the tools don't contain the answer, say so plainly.";
+  "You are Leash, a private, on-device assistant with access to the user's world — their notes, files, paper, photos, home devices, tasks, and your shared memory. Everything runs on-device or on the user's own mesh; nothing leaves for the cloud. " +
+  "You work through SKILLS — instruction documents the user gave you. A skill is a FOLDER: its SKILL.md holds the description (when it applies) and the body of steps, and it can bundle extra files — references/ (reference docs you load with read_skill_file when the steps point you to one), scripts/ (runnable helpers you run with run_skill_script), and assets/ (templates/data). When a request matches a skill, its SKILL.md is loaded into this prompt for the turn: follow it EXACTLY and IN ORDER, to the letter — don't skip steps, don't improvise, don't stop early. If the steps tell you to read a reference or run a script, ACTUALLY do it (read_skill_file / run_skill_script) — don't just mention it. A skill brings the tools it needs and can set up new capabilities for you, including installing and connecting MCP servers; when one is active, let it drive. " +
+  "When no skill applies, answer directly with the tools you're offered this turn: for anything about the user — their notes, paper, photos, home devices, tasks, or current activity — call the relevant tool first instead of guessing. " +
+  "Never write pretend tool-call text in the answer; either call a tool or answer in plain words. After tool results, answer concisely and factually. If you don't have the answer, say so plainly.";
 
 /**
  * Appended to the system prompt on VOICE turns only — the reply is spoken aloud by Supertonic TTS,

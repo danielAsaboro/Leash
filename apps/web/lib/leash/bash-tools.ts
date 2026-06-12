@@ -11,9 +11,10 @@
  * the sandbox out-of-process via `scripts/bash-exec.mts`. Next never imports just-bash, and
  * never walks the filesystem — the child owns the (temp-file-cached) snapshot.
  *
- * Scope: `LEASH_BASH_ROOT` (default `COMPUTER_ROOT` = home). Two tools (`bash`, `readFile`)
- * activated only on the chat route's `files` lane (agent.ts) — never counting toward the
- * chat lane's ~22-schema cap.
+ * Scope: `LEASH_BASH_ROOT` (default `COMPUTER_ROOT` = home). ONE tool (`bash`) — the
+ * default executor for time (`date`) and file reads (`cat`/`grep`/`find`). It's always-on
+ * (read-only + un-gated, so it's safe in the chat lane) and the `files` lane narrows the
+ * turn to just it. The former `readFile` micro-tool folded into `bash cat` (Mechanism 2).
  */
 import "server-only";
 import { spawn } from "node:child_process";
@@ -26,8 +27,8 @@ import { COMPUTER_ROOT } from "./computer-exec.ts";
 /** Root the sandbox snapshots. Defaults to the computer-use jail (home); narrow it for speed/focus. */
 export const BASH_ROOT = process.env["LEASH_BASH_ROOT"] ?? COMPUTER_ROOT;
 
-/** The tool names the agent's `files` lane activates. */
-export const BASH_TOOL_NAMES = new Set(["bash", "readFile"]);
+/** The tool names the agent's `files` lane activates (also always-on in the chat lane). */
+export const BASH_TOOL_NAMES = new Set(["bash"]);
 
 const ROOT = join(DATA_DIR, ".."); // mycelium repo root — cwd for the spawned child
 const CHILD = "apps/web/scripts/bash-exec.mts";
@@ -40,6 +41,34 @@ interface ChildResult {
   exitCode?: number;
   error?: string;
   truncated?: boolean;
+}
+
+const REAL_SHELL_ONLY_PATTERNS: RegExp[] = [
+  /\b(?:curl|wget|ssh|scp|rsync|ftp|sftp|gh|brew)\b/i,
+  /\b(?:git\s+(?:clone|pull|fetch|push|checkout|switch|merge|rebase|reset|restore|stash|clean|apply|am|submodule|worktree|init))\b/i,
+  /\b(?:(?:npm|yarn|pnpm|bun|npx|pnpx)\s+(?:install|add|remove|upgrade|update|create|dlx|exec|run\s+\S+|build|dev|start|test|lint))\b/i,
+  /\b(?:node|tsx|ts-node|python(?:3)?|pip(?:3)?|uv|poetry|ruby|bundle|php|java|cargo|go|rustc|make|cmake|docker|podman|osascript)\b/i,
+  /(^|[;&|]\s*|\s)(?:rm|mv|cp|mkdir|touch|chmod|chown|ln|kill|pkill|nohup)\b/i,
+  /(^|[;&|]\s*|\s)tee\b/i,
+  /(^|[;&|]\s*|\s)\d*>>?\s*\S/,
+  /(^|[;&|]\s*)sed\s+-i\b/i,
+  /(^|[;&|]\s*)perl\s+-i\b/i,
+  /(^|[;&|]\s*)patch\b/i,
+  /(^|[;&|]\s*)source\b/i,
+  /(^|[;&|]\s*)\.\s+\S+/,
+  /&\s*$/,
+];
+
+function realShellOnlyMessage(command: string): string | null {
+  const trimmed = command.trim();
+  if (!trimmed) return "The `bash` tool needs a command to inspect the snapshot.";
+  if (!REAL_SHELL_ONLY_PATTERNS.some((re) => re.test(trimmed))) return null;
+  const suggested = JSON.stringify({ command: trimmed });
+  return (
+    "The `bash` tool is a read-only snapshot inspector. Do not use it for installs, builds, starts, network fetches, or real file/process changes. " +
+    `Immediately call \`run_command\` with this input instead: ${suggested}. ` +
+    "For real disk edits, use `run_command` (e.g. a heredoc `cat > file <<'EOF' … EOF`, or `sed -i`/`patch`)."
+  );
 }
 
 /** Spawn the out-of-process sandbox (tsx child), send the request on stdin, parse its JSON. */
@@ -85,18 +114,16 @@ function render(r: ChildResult): string {
 // Terse descriptions (the serve packs tool schemas into a 4096-token prompt — see computer-tools.ts).
 const BASH_TOOLS: ToolSet = {
   bash: tool({
-    description: "Search/read the user's files via a SANDBOXED shell over a read-only snapshot (grep/find/cat/ls/head/wc/sed/awk). Safe — can't touch the real disk. Returns the command output.",
+    description:
+      "Run a SANDBOXED read-only shell: inspect the user's files (grep/find/cat/ls/head/wc/sed/awk/jq) and check the current date/time (`date`). Use this to read files and to answer time/date questions. Inspection only: not for installs, builds, starts, network fetches, or real file changes. Returns the command output.",
     inputSchema: z.object({
       command: z.string().describe("Shell command, e.g. `grep -rni \"budget\" .` or `find . -name '*.md'`."),
     }),
-    execute: async ({ command }) => ({ text: render(await runChild({ op: "bash", command })), sources: [] }),
-  }),
-  readFile: tool({
-    description: "Read one file from the sandboxed read-only snapshot of the user's files, by relative path.",
-    inputSchema: z.object({
-      path: z.string().describe("Relative path within the snapshot, e.g. `notes/todo.md`."),
-    }),
-    execute: async ({ path }) => ({ text: render(await runChild({ op: "readFile", path })), sources: [] }),
+    execute: async ({ command }) => {
+      const msg = realShellOnlyMessage(command);
+      if (msg) return { text: msg, sources: [] };
+      return { text: render(await runChild({ op: "bash", command })), sources: [] };
+    },
   }),
 };
 

@@ -37,6 +37,12 @@ export interface Skill {
   enabled: boolean;
   /** The markdown instruction body (without frontmatter). */
   body: string;
+  /**
+   * Tool names this skill declares it needs (frontmatter `tools: [bash, run_command, …]`).
+   * When the skill activates, the harness loads ONLY this toolset (progressive tool
+   * disclosure — see agent.ts). Empty = inherit the route's default toolset.
+   */
+  tools: string[];
   /** Attachment paths relative to the skill folder (POSIX, e.g. `references/x.md`). */
   files: string[];
   /** Unknown frontmatter keys, round-tripped verbatim on save (spec fields survive edits). */
@@ -140,6 +146,22 @@ function parseFrontmatter(src: string): Record<string, string> {
   return fields;
 }
 
+/**
+ * Parse a `tools:` frontmatter value into a clean tool-name list. Accepts both the
+ * `[a, b, c]` array form and a bare `a, b, c` (comma/space-separated) string; strips
+ * brackets/quotes and keeps only tool-name-shaped tokens (so prose can't smuggle in
+ * junk). Round-tripping is handled by `extras` (the raw value survives a save verbatim).
+ */
+function parseToolList(raw: string | undefined): string[] {
+  if (!raw) return [];
+  return raw
+    .replace(/^\s*\[/, "")
+    .replace(/\]\s*$/, "")
+    .split(/[\s,]+/)
+    .map((t) => t.trim().replace(/^["']|["']$/g, ""))
+    .filter((t) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t));
+}
+
 /** Parse one SKILL.md: frontmatter + body. Null on bad shape. `enabled` absent ⇒ DISABLED. */
 function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
@@ -155,6 +177,8 @@ function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
     description: fields["description"] ?? "",
     enabled: fields["enabled"] === "true", // absent or anything else ⇒ disabled (see module header)
     body: (m[2] as string).trim(),
+    // `tools` is round-tripped via `extras` (not a KNOWN_KEY); we also surface it parsed.
+    tools: parseToolList(fields["tools"]),
     files,
     extras,
   };
@@ -254,7 +278,7 @@ export async function saveSkill(input: { slug?: string; name: string; descriptio
   } catch {
     /* none existed */
   }
-  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, files: await skillFiles(slug), extras: input.extras ?? {} };
+  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["tools"]), files: await skillFiles(slug), extras: input.extras ?? {} };
 }
 
 /** Delete a skill — folder and/or legacy flat file (no-op if already gone). */

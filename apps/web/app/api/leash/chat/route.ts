@@ -54,6 +54,24 @@ const skillDataSchema = z.object({
   skills: z.array(z.object({ slug: z.string(), name: z.string() })).min(1),
 });
 
+/**
+ * Empty-turn guard (SmallCode quality-monitor port): an honest message to append when the model
+ * finishes a turn with no answer text. If it ran tools, name them; else nudge to rephrase. Loosely
+ * typed + fully defensive — this runs in the stream's tail and must never throw.
+ */
+async function emptyTurnFallback(result: unknown): Promise<string> {
+  let toolNames: string[] = [];
+  try {
+    const steps = ((await (result as { steps?: Promise<unknown[]> }).steps) ?? []) as Array<{ toolCalls?: Array<{ toolName?: string }> }>;
+    toolNames = [...new Set(steps.flatMap((s) => (s.toolCalls ?? []).map((c) => c.toolName).filter((n): n is string => !!n)))];
+  } catch {
+    /* fall through to the generic message */
+  }
+  return toolNames.length > 0
+    ? `I ran ${toolNames.join(", ")} but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary.`
+    : "I couldn't produce a response to that — try rephrasing it, or breaking it into smaller steps.";
+}
+
 /** The text-parts join of the most recent user message (intent classifiers + effort grading). */
 function lastUserText(messages: LeashUIMessage[]): string {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -103,6 +121,12 @@ function isFilesIntent(messages: LeashUIMessage[]): boolean {
 const COMPUTER_STEPS = 10;
 /** Step budget for files turns — a retrieval loop is grep → read → grep → answer. */
 const FILES_STEPS = 8;
+/**
+ * Step budget for a turn an ACTIVE skill drives with its own toolset (skillTools). Skill
+ * workflows chain many tool calls (e.g. MCP install: inspect → clone/build → patch →
+ * register), so they get the most headroom regardless of the effort tier.
+ */
+const SKILL_TOOL_STEPS = 12;
 
 export async function POST(req: Request): Promise<Response> {
   const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean };
@@ -171,6 +195,9 @@ export async function POST(req: Request): Promise<Response> {
   const [systemPrompt, skillsSection, activeSkills, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts()]);
   const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
   const availableSkillsSection = activeSkills ? "" : skillsSection;
+  // Progressive tool disclosure: an active skill's declared `tools:` become the EXACT
+  // toolset for this turn (agent.ts honors `skillTools`, overriding the route default).
+  const declaredSkillTools = activeSkills?.tools ?? [];
   // `preference` memories steer behavior on EVERY turn (other memory types are
   // retrieval-only via recall/search_graph). Bounded: newest 20.
   const prefSection = prefs.length ? "Saved user preferences — follow them: " + prefs.slice(0, 20).map((p) => `· ${p}`).join(" ") : "";
@@ -187,13 +214,13 @@ export async function POST(req: Request): Promise<Response> {
   // naming them every turn invites hallucinated <tool_call>s for absent tools.
   const computerNote = computerTurn
     ? "You can act on this Mac (all on-device or on the user's own paired mesh, never a cloud): screenshot (SEE the screen — use it before and after acting), " +
-      "read_file, and the approval-gated write_file / edit_file / run_command / computer (mouse+keyboard). If the user denies an approval, do not retry it."
+      "and the approval-gated run_command (the real-disk executor — read with `cat`, write with a heredoc, edit with `sed`/`patch`, plus installs/builds) and computer (mouse+keyboard). If the user denies an approval, do not retry it."
     : "";
-  // Files turn: name the sandboxed retrieval tools so the model reaches for bash (grep/find/cat/jq)
+  // Files turn: name the sandboxed retrieval tool so the model reaches for bash (grep/find/cat/jq)
   // over the user's files. It's a read-only in-memory snapshot — no approval, can't touch the disk.
   const filesNote = filesTurn
-    ? "You're in file-retrieval mode. You have a SANDBOXED bash over a READ-ONLY in-memory snapshot of the user's files: " +
-      "`bash` (run grep/find/cat/jq/ls to locate and read context), `readFile`, `writeFile`. Prefer these for searching and reading the user's files. " +
+    ? "You're in file-retrieval mode. You have a SANDBOXED `bash` over a READ-ONLY in-memory snapshot of the user's files " +
+      "(run grep/find/cat/jq/ls to locate and read context). Prefer it for searching and reading the user's files. " +
       "The sandbox cannot touch the real disk — writes affect only the sandbox, so don't promise to have changed real files here."
     : "";
   // The (possibly overridden) system prompt may still NAME disabled tools — tell the
@@ -204,16 +231,23 @@ export async function POST(req: Request): Promise<Response> {
   // acknowledge the refusal and move on (without this, small models loop the same call).
   const approvalNote =
     "Some tool calls require the user's approval before running. If the user denies a tool call, do NOT retry it — acknowledge that it was declined and continue without it.";
+  // Thinking-budget cap (SmallCode port): on reasoning-ON turns (deep text), qwen3-4b can burn its
+  // whole token budget on <think> and emit no answer. Steer it to reason briefly so the answer fits
+  // (paired with the raised deep-tier token budget in effort.ts). Only when not /no_think and not vision.
+  const thinkingNote =
+    !useNoThink && !imageTurn
+      ? "Keep your private <think> reasoning BRIEF and focused — a few short sentences, not an essay — then write your actual answer. The answer matters more than the reasoning; never let thinking use up your whole response."
+      : "";
 
   // Context compaction (text turns only): when the thread outgrows the model's window,
   // summarize the oldest messages into a stored running summary and send only
   // [summary + recent tail] to the model. The FULL history stays in `validated` →
   // `originalMessages` → saved/displayed; only the model's input shrinks. Image turns
   // are single-shot, so they skip this. Best-effort: failure falls back to full history.
-  // Tracks qwen3-4b's `ctx_size` in qvac.config.base.json (16384 since 2026-06-07 —
-  // the serve's own default is a tiny 1024; agent turns carry 2-4k of tool schemas +
-  // system prompt before history even starts). Keep the two in sync.
-  const CTX = Number(process.env["LEASH_CHAT_CTX"] ?? 16384);
+  // Tracks qwen3-4b's `ctx_size` in qvac.config.base.json (32768 since 2026-06-12, qwen3-4b's
+  // native window — the serve's own default is a tiny 1024; agent turns carry 2-4k of tool
+  // schemas + system prompt before history even starts). Keep the two in sync.
+  const CTX = Number(process.env["LEASH_CHAT_CTX"] ?? 32768);
   let modelMessages = validated;
   let summarySection = "";
   if (!imageTurn) {
@@ -224,7 +258,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -252,10 +286,11 @@ export async function POST(req: Request): Promise<Response> {
   const callOptions: LeashCallOptions = {
     route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : health ? "health" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
-    // (qwen3vl breaks on max_tokens — see computer-tools.ts). Computer turns get a
-    // raised step budget — a GUI loop is screenshot → act → verify.
-    steps: imageTurn || !cfg ? null : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
+    // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
+    // the most steps; else computer/files get their raised budgets, else the effort tier's.
+    steps: imageTurn || !cfg ? null : declaredSkillTools.length ? SKILL_TOOL_STEPS : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
     maxOutputTokens: imageTurn || !cfg ? null : cfg.maxOutputTokens,
+    ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
     system,
   };
   const result = await agent.stream({ messages: modelInput, options: callOptions });
@@ -274,7 +309,7 @@ export async function POST(req: Request): Promise<Response> {
   const stream = createUIMessageStream<LeashUIMessage>({
     originalMessages: validated,
     generateId: createIdGenerator({ prefix: "msg", size: 16 }),
-    execute: ({ writer }) => {
+    execute: async ({ writer }) => {
       unsubscribe = subscribeElicitations((ev) => {
         try {
           writer.write({ type: "data-elicitation", data: ev, transient: true });
@@ -302,6 +337,21 @@ export async function POST(req: Request): Promise<Response> {
           },
         }),
       );
+      // Empty-turn guard (SmallCode quality-monitor port): a small model sometimes burns its budget
+      // on <think> or stalls and emits NO answer text. Never leave the user with a blank turn —
+      // append an honest fallback. Best-effort; failure here must not break the stream.
+      try {
+        const finalText = ((await result.text) ?? "").trim();
+        if (!finalText) {
+          const fb = await emptyTurnFallback(result);
+          const id = "empty-turn-fallback";
+          writer.write({ type: "text-start", id });
+          writer.write({ type: "text-delta", id, delta: fb });
+          writer.write({ type: "text-end", id });
+        }
+      } catch {
+        /* never let the guard break the response */
+      }
     },
     onFinish: ({ messages: finalMessages }) => {
       unsubscribe?.();

@@ -10,9 +10,12 @@
  *   · `run_command` is NOT a hard jail: its cwd is contained for convenience, but an
  *     approved shell command runs as the user and can touch anything the user can.
  *     The real boundary is the chat layer's human approval card (DEFAULT_ASK_FIRST)
- *     plus stripped env (PATH/HOME/LANG/TMPDIR), 60 s SIGKILL timeout, and output caps.
- *     `LEASH_COMMAND_ALLOW` (comma-separated first tokens) is a best-effort guard-rail
- *     — `bash -c` composability means it is NOT a security boundary.
+ *     plus a stripped env (PATH/HOME/LANG/TMPDIR by default — secrets never leak), a
+ *     SIGKILL timeout (`LEASH_COMMAND_TIMEOUT_MS`, default 60 s — raise it for slow
+ *     installs/builds), and output caps. `LEASH_COMMAND_ALLOW` (comma-separated first
+ *     tokens) is a best-effort guard-rail — `bash -c` composability means it is NOT a
+ *     security boundary. Workspace config (`LEASH_MCP_REPOS_DIR`, plus any names in
+ *     `LEASH_COMMAND_ENV`) is passed through so skills can resolve install paths.
  *   · `runCliclick` drives the GUI via the `cliclick` binary (argv-array spawn, no
  *     shell); a missing binary gets an honest install hint instead of a crash.
  *
@@ -27,7 +30,8 @@ import { join, resolve, dirname, sep } from "node:path";
 /** The file-op jail root (and `run_command`'s default cwd). Default: the user's home. */
 export const COMPUTER_ROOT = process.env["LEASH_COMPUTER_ROOT"] ?? homedir();
 
-const TIMEOUT_MS = 60_000;
+/** SIGKILL timeout for a single command. Default 60 s; raise for slow installs/builds. */
+const TIMEOUT_MS = Number(process.env["LEASH_COMMAND_TIMEOUT_MS"] ?? 60_000);
 const OUTPUT_CAP = 16 * 1024;
 const READ_CAP = 64 * 1024;
 const WRITE_CAP = 1024 * 1024;
@@ -50,10 +54,21 @@ function cap(label: string, text: string): string {
   return text.length > OUTPUT_CAP ? text.slice(0, OUTPUT_CAP) + `\n…(${label} truncated at 16 KB of ${text.length} chars)` : text;
 }
 
-/** Stripped child env — only the basics a well-behaved process needs (no secrets leak). */
+/**
+ * Stripped child env — only the basics a well-behaved process needs, so no secrets leak
+ * into approved commands. Beyond the base set we pass through WORKSPACE config a skill may
+ * need to resolve install paths (`LEASH_MCP_REPOS_DIR`), plus any extra names an operator
+ * allow-lists via `LEASH_COMMAND_ENV` (comma-separated). These are non-secret config knobs;
+ * keep secrets (tokens, keys) out of this list.
+ */
+const ENV_PASSTHROUGH: string[] = [
+  "LEASH_MCP_REPOS_DIR",
+  ...(process.env["LEASH_COMMAND_ENV"] ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+];
+
 function strippedEnv(): NodeJS.ProcessEnv {
   const env: Record<string, string> = {};
-  for (const key of ["PATH", "HOME", "LANG", "TMPDIR"]) {
+  for (const key of ["PATH", "HOME", "LANG", "TMPDIR", ...ENV_PASSTHROUGH]) {
     const v = process.env[key];
     if (v) env[key] = v;
   }

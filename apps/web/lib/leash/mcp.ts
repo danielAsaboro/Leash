@@ -10,10 +10,13 @@
  * With nothing configured this returns `{}` — an honest empty state, not a mock.
  */
 import "server-only";
+import { join } from "node:path";
+import { mkdirSync } from "node:fs";
 import type { ToolSet } from "ai";
 import { createMCPClient, ElicitationRequestSchema, type ElicitResult, type MCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import { listMcpServers, type McpServerEntry } from "./mcp-store.ts";
+import { MCP_REPOS_DIR } from "./mcp-install.ts";
 import { requestElicitation, cancelElicitationsFor } from "./elicitations.ts";
 import { parseIcons, resolveBestIcon, resolveUserIcon } from "./mcp-icons.ts";
 
@@ -47,7 +50,9 @@ const registry: Registry = (g.__leashMcp ??= { connections: new Map(), failures:
 /** How long a failed connect is remembered before we retry (avoids hammering a dead server every turn). */
 const FAILURE_TTL_MS = 30_000;
 /** Bound the initial MCP connect/tool-discovery handshake so one dead server can't wedge chat. */
-const CONNECT_TIMEOUT_MS = 5_000;
+const CONNECT_TIMEOUT_MS = Number(process.env["LEASH_MCP_CONNECT_TIMEOUT_MS"] ?? 5_000);
+/** Longer budget for `npx`/`npm`/… launchers: their FIRST run downloads the package before the server even starts. */
+const PM_CONNECT_TIMEOUT_MS = Number(process.env["LEASH_MCP_PM_CONNECT_TIMEOUT_MS"] ?? 90_000);
 /** Bound the (cosmetic) icon harvest — per-fetch timeouts already apply; this caps the whole pass. */
 const ICON_HARVEST_TIMEOUT_MS = 8_000;
 
@@ -56,10 +61,45 @@ const ICON_HARVEST_TIMEOUT_MS = 8_000;
 // cache". Passing `cache: 'no-store'` tells Next.js not to buffer the response.
 const mcpFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: "no-store" });
 
+/** Package-manager launchers that fetch into a cache — `npx -y <pkg>` MCP servers, etc. */
+const PM_COMMAND_RE = /^(npx|npm|yarn|pnpm|pnpx|bunx|bun)$/;
+
+/**
+ * Env for a spawned stdio server. For a package-manager launcher (`npx`/`npm`/…) we inject a
+ * minimal inherited env (PATH/HOME/LANG — enough to find + run node) and redirect its cache + temp
+ * onto the repos' volume, so an `npx -y <pkg>` fetch doesn't ENOSPC on a full system disk. Other
+ * commands keep their entry env (or the SDK's safe default). We never pass the full process env —
+ * spawned third-party servers shouldn't see Leash's secrets.
+ */
+function stdioEnv(entry: McpServerEntry): Record<string, string> | undefined {
+  const isPm = PM_COMMAND_RE.test((entry.command ?? "").trim());
+  if (!isPm) return entry.env;
+  const env: Record<string, string> = {};
+  for (const k of ["PATH", "HOME", "LANG"]) if (process.env[k]) env[k] = process.env[k] as string;
+  const cache = join(MCP_REPOS_DIR, ".cache");
+  for (const sub of ["npm", "yarn", "tmp"]) {
+    try {
+      mkdirSync(join(cache, sub), { recursive: true });
+    } catch {
+      /* best-effort */
+    }
+  }
+  env["npm_config_cache"] = join(cache, "npm");
+  env["YARN_CACHE_FOLDER"] = join(cache, "yarn");
+  env["TMPDIR"] = join(cache, "tmp");
+  return { ...env, ...(entry.env ?? {}) };
+}
+
 /** Build the @ai-sdk/mcp transport for an entry — a spawned stdio process, or an http/sse URL with optional auth headers. */
 function transportFor(entry: McpServerEntry): unknown {
   if (entry.transport === "stdio") {
-    return new Experimental_StdioMCPTransport({ command: entry.command as string, ...(entry.args ? { args: entry.args } : {}), ...(entry.env ? { env: entry.env } : {}) });
+    const env = stdioEnv(entry);
+    return new Experimental_StdioMCPTransport({
+      command: entry.command as string,
+      ...(entry.args ? { args: entry.args } : {}),
+      ...(entry.cwd ? { cwd: entry.cwd } : {}),
+      ...(env ? { env } : {}),
+    });
   }
   return { type: entry.transport, url: entry.url, fetch: mcpFetch, ...(entry.headers ? { headers: entry.headers } : {}) };
 }
@@ -80,6 +120,10 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 
 async function connectOne(entry: McpServerEntry): Promise<void> {
   let client: MCPClient | undefined;
+  // A package-manager launcher (`npx -y <pkg>`) DOWNLOADS the package on its first run, which
+  // easily exceeds the snappy default — give those a much longer connect budget (subsequent
+  // runs hit the cache and are fast). Everything else stays on the short timeout.
+  const connectTimeout = PM_COMMAND_RE.test((entry.command ?? "").trim()) ? PM_CONNECT_TIMEOUT_MS : CONNECT_TIMEOUT_MS;
   try {
     client = await withTimeout(
       createMCPClient({
@@ -89,7 +133,7 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
       // times out to cancel there, so a tool call can pause on a human form mid-chat.
       capabilities: { elicitation: {} },
       }),
-      CONNECT_TIMEOUT_MS,
+      connectTimeout,
       `connect ${entry.name}`,
     );
     client.onElicitationRequest(
@@ -101,7 +145,7 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
           requestedSchema: request.params.requestedSchema,
         }) as Promise<ElicitResult>, // ElicitResultLike is the index-signature-free subset
     );
-    const tools = await withTimeout(client.tools(), CONNECT_TIMEOUT_MS, `discover tools from ${entry.name}`);
+    const tools = await withTimeout(client.tools(), connectTimeout, `discover tools from ${entry.name}`);
     // Best-effort: harvest the icons the server advertises on serverInfo + each tool. Cosmetic —
     // a slow or dead icon host must NEVER fail or stall the connection beyond this bound.
     let iconDataUri: string | undefined;
@@ -148,7 +192,9 @@ async function harvestIcons(client: MCPClient): Promise<{ serverIcon?: string; t
 
 /** Human-readable connection target for logs (URL for http/sse, command for stdio). */
 function connectTarget(entry: McpServerEntry): string {
-  return entry.transport === "stdio" ? `${entry.command ?? ""} ${(entry.args ?? []).join(" ")}`.trim() : entry.url ?? "";
+  if (entry.transport !== "stdio") return entry.url ?? "";
+  const command = `${entry.command ?? ""} ${(entry.args ?? []).join(" ")}`.trim();
+  return entry.cwd ? `${command} (cwd: ${entry.cwd})` : command;
 }
 
 async function closeOne(id: string): Promise<void> {
@@ -196,6 +242,13 @@ export async function leashMcpTools(): Promise<ToolSet> {
   let merged: ToolSet = {};
   for (const conn of registry.connections.values()) merged = { ...merged, ...conn.tools };
   return merged;
+}
+
+/** Drop a server's remembered failure and reconcile now (used after fixing config). */
+export async function retryMcpServer(id?: string): Promise<void> {
+  if (id) registry.failures.delete(id);
+  else registry.failures.clear();
+  await reconcile();
 }
 
 /**

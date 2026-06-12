@@ -5,11 +5,12 @@
  * and disqualify the hackathon submission — these are native AI SDK `tool()`s instead.
  *
  *   screenshot   — capture the screen → the on-device VLM answers a question about it
- *   run_command  — shell command (`bash -c`), approval-gated
- *   read_file    — text file read under COMPUTER_ROOT (hard-jailed)
- *   write_file   — text file create/replace, approval-gated
- *   edit_file    — exact-str-replace edit with uniqueness check, approval-gated
+ *   run_command  — shell command (`bash -c`), approval-gated. The default real-disk executor:
+ *                  reads (`cat`), writes (heredoc / `tee`), edits (`sed`/`patch`), installs, builds.
  *   computer     — mouse/keyboard via cliclick, approval-gated (experimental)
+ *
+ * The former read_file/write_file/edit_file micro-tools folded into `run_command` + the
+ * read-only `bash` sandbox (Mechanism 2 — the shell is the default executor).
  *
  * Same `{ text, sources }` contract as tools.ts. The screenshot VLM round-trip passes
  * NO abortSignal (the qvac serve wedges on client aborts — see chat/route.ts); the
@@ -19,7 +20,7 @@ import "server-only";
 import { tool, generateText } from "ai";
 import { z } from "zod";
 import { captureScreen, CaptureError } from "./capture.ts";
-import { runCommand, readTextFile, writeTextFile, editTextFile, runCliclick, COMPUTER_ROOT, TYPE_MAX, type ExecResult } from "./computer-exec.ts";
+import { runCommand, runCliclick, TYPE_MAX, type ExecResult } from "./computer-exec.ts";
 import { visionModel, VISION_MODEL } from "./provider.ts";
 import type { LeashSource } from "./tools.ts";
 
@@ -86,48 +87,13 @@ export const computerTools = {
   }),
 
   run_command: tool({
-    description: "Run a shell command on this Mac (bash) and return its output. Pauses for the user's approval.",
+    description:
+      "Run a shell command string on this Mac (bash) and return its output. The real-disk executor: read a file with `cat`, create/replace with a heredoc (`cat > file <<'EOF' … EOF`) or `tee`, edit in place with `sed -i`/`patch`, plus installs/builds. Inputs are `command` and optional `cwd` only. Pauses for the user's approval.",
     inputSchema: z.object({
-      command: z.string().describe("Shell command, e.g. `ls -la ~/Documents`."),
-      cwd: z.string().optional().describe("Working directory (default: home)."),
+      command: z.string().describe("Full shell command string, e.g. `ls -la ~/Documents`. Do not split into args."),
+      cwd: z.string().optional().describe("Optional working directory (default: home)."),
     }),
     execute: async ({ command, cwd }) => ({ text: execText(await runCommand(command, cwd)), sources: NO_SOURCES }),
-  }),
-
-  read_file: tool({
-    description: "Read a text file on this Mac by path (~/…, absolute, or relative to home).",
-    inputSchema: z.object({
-      path: z.string().describe("File path, e.g. `~/.zshrc`."),
-    }),
-    execute: async ({ path }) => {
-      const r = await readTextFile(path);
-      return { text: r.ok ? r.text : r.error, sources: NO_SOURCES };
-    },
-  }),
-
-  write_file: tool({
-    description: "Create or replace a text file on this Mac (parents created). Pauses for the user's approval. To change part of a file, prefer edit_file.",
-    inputSchema: z.object({
-      path: z.string().describe("File path, e.g. `~/leash-test.txt`."),
-      content: z.string().describe("Full text content."),
-    }),
-    execute: async ({ path, content }) => {
-      const r = await writeTextFile(path, content);
-      return { text: r.ok ? `${r.replaced ? "Replaced" : "Created"} ${r.path} (${content.length} chars).` : r.error, sources: NO_SOURCES };
-    },
-  }),
-
-  edit_file: tool({
-    description: "Edit a text file by exact replacement: old_str must match exactly once (read_file first, copy exactly). Pauses for the user's approval.",
-    inputSchema: z.object({
-      path: z.string().describe("File path."),
-      old_str: z.string().describe("Exact existing text — must occur exactly once."),
-      new_str: z.string().describe("Replacement text."),
-    }),
-    execute: async ({ path, old_str, new_str }) => {
-      const r = await editTextFile(path, old_str, new_str);
-      return { text: r.ok ? `Edited ${r.path}.` : r.error, sources: NO_SOURCES };
-    },
   }),
 
   computer: tool({

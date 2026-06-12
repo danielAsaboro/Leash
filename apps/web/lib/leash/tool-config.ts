@@ -23,12 +23,13 @@ export const TOOLS_FILE = process.env["LEASH_TOOLS_FILE"] ?? join(DATA_DIR, "lea
 export const DEFAULT_ASK_FIRST: ReadonlySet<string> = new Set([
   "ha_call_service",
   "run_skill_script",
-  // Computer-use: every side-effectful action on the Mac asks first (screenshot +
-  // read_file stay un-gated — see-only / hard-jailed read — but remain toggleable).
+  // Computer-use: every side-effectful action on the Mac asks first (screenshot stays
+  // un-gated — see-only — but remains toggleable). run_command is the real-disk executor
+  // (reads/writes/edits/installs all flow through it), so it always asks.
   "run_command",
-  "write_file",
-  "edit_file",
   "computer",
+  "upsert_mcp_server",
+  "install_mcp_repo",
 ]);
 
 interface ToolConfig {

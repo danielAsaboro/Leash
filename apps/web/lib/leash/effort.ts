@@ -149,8 +149,11 @@ export function effortConfig(tier: EffortTier, isVoice: boolean): EffortConfig {
       // call on a greeting still gets a closing answer instead of ending mid-loop.
       return { tools: true, steps: 2, noThink: true, maxOutputTokens: 150 };
     case "deep":
-      // Voice stays fast (`/no_think`, 4 steps); text keeps the `<think>` panel + 6 steps.
-      return { tools: true, steps: isVoice ? 4 : 6, noThink: isVoice, maxOutputTokens: 600 };
+      // Voice stays fast (`/no_think`, 4 steps, short spoken cap); text keeps the `<think>` panel +
+      // 6 steps and a MUCH larger token budget so reasoning + the answer both fit (a tight cap is
+      // exactly what made the model burn its budget on <think> and emit nothing — paired with the
+      // thinking-budget directive in the route, which keeps the reasoning itself brief).
+      return { tools: true, steps: isVoice ? 4 : 6, noThink: isVoice, maxOutputTokens: isVoice ? 600 : 2500 };
     case "standard":
     default:
       // 3 steps: a skill-driven turn needs read_skill → read_skill_file → answer.

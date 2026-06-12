@@ -58,15 +58,20 @@ const STOP = new Set([
   "with",
   "you",
 ]);
-const AUTO_SKILL_MIN_SCORE = 0.42;
-const AUTO_SKILL_MARGIN = 0.03;
-const LEXICAL_SKILL_MIN_SCORE = 0.65;
-const LEXICAL_SKILL_MARGIN = 0.12;
+// Skill-activation floors. We load the single best-matching skill whose score clears a floor —
+// keyword (lexical) OR semantic (embedding). The #1 match is taken directly (no margin gate: a
+// margin gate dropped correct-but-clustered skills — measured), but it must clear the floor so
+// general turns load no skill. Floors separate capability queries (~0.76+) from general ones
+// (~0.72) and are overridable via env. The model composes by loading further skills with
+// read_skill mid-turn, so one auto-loaded skill keeps the context lean without losing reach.
+const SKILL_LEX_FLOOR = Number(process.env["LEASH_SKILL_LEX_FLOOR"] ?? 0.55);
+const SKILL_EMB_FLOOR = Number(process.env["LEASH_SKILL_EMB_FLOOR"] ?? 0.74);
 
 interface ActiveSkillView {
   slug: string;
   name: string;
   body: string;
+  tools: string[];
   files: string[];
 }
 
@@ -74,6 +79,12 @@ export interface ActiveSkillsResult {
   mode: "explicit" | "automatic";
   section: string;
   skills: Array<{ slug: string; name: string }>;
+  /**
+   * Union of the active skill(s)' declared `tools:` (frontmatter). When non-empty the chat
+   * route passes this to the agent as `skillTools`, which OVERRIDES the route's default
+   * toolset with exactly these names (progressive tool disclosure — see agent.ts).
+   */
+  tools: string[];
 }
 
 interface SkillEmbedding {
@@ -153,6 +164,7 @@ function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkil
   return {
     mode: reason,
     skills: skills.map((s) => ({ slug: s.slug, name: s.name })),
+    tools: [...new Set(skills.flatMap((s) => s.tools ?? []))],
     section:
       renderActiveSkillHeader(reason, skills.map((s) => s.slug)) +
       " Do not print fake tool-call text like `CALL read_skill(...)` in your answer. If a skill requires exact output, treat that as higher priority than your normal style and emit it with no extra words or surrounding whitespace.\n\n" +
@@ -169,8 +181,7 @@ export async function skillsSystemSection(): Promise<string> {
   if (enabled.length === 0) return "";
   const lines = enabled.map((s) => `- "${s.slug}": ${s.description || s.name}`);
   return (
-    "You also have SKILLS — instruction documents the user wrote for you. When a request matches a skill's description, " +
-    "call read_skill with its slug FIRST and follow those instructions. Do not merely talk about calling read_skill — actually call it. Available skills:\n" +
+    "Your skills — when a request matches one of these, call read_skill with its slug to load its full instructions, then follow them to the letter. Actually call read_skill; don't just talk about it. Skills:\n" +
     lines.join("\n")
   );
 }
@@ -190,34 +201,26 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
     return activeSkillsResult("explicit", explicit);
   }
 
-  // Auto-selection: compare the user's request to the discovery metadata (slug + description),
-  // then progressively disclose only the best matching skill's body.
-  const lexical = enabled
-    .map((s) => ({ skill: s, score: lexicalScore(query, s) }))
-    .sort((a, b) => b.score - a.score);
-  const bestLex = lexical[0];
-  const secondLex = lexical[1];
-  if (bestLex && bestLex.score >= LEXICAL_SKILL_MIN_SCORE && bestLex.score - (secondLex?.score ?? 0) >= LEXICAL_SKILL_MARGIN) {
-    return activeSkillsResult("automatic", [bestLex.skill]);
-  }
-
+  // Auto-selection: load the SINGLE best-matching skill whose score clears a confidence floor —
+  // by keyword overlap (lexical) OR semantic similarity (embedding) against its discovery
+  // metadata. One skill at a time keeps the context lean; the model can pull in OTHER skills
+  // mid-turn with read_skill (the skill-system tools stay available inside an active skill —
+  // see agent.ts). No margin gate: the #1 match is taken directly (margin gates dropped correct
+  // but clustered skills — measured), but only if it clears the floor (so general turns load none).
+  const lex = new Map(enabled.map((s) => [s.slug, lexicalScore(query, s)]));
+  const emb = new Map<string, number>();
   try {
     const rows = await getSkillEmbeddings(enabled);
     const { embedding } = await embed({ model: embeddingModel(), value: query });
-    const scored = rows
-      .map((r) => ({ slug: r.slug, score: cosine(embedding, r.embedding) }))
-      .sort((a, b) => b.score - a.score);
-    const best = scored[0];
-    const second = scored[1];
-    if (!best) return null;
-    if (best.score < AUTO_SKILL_MIN_SCORE) return null;
-    if ((best.score - (second?.score ?? -Infinity)) < AUTO_SKILL_MARGIN) return null;
-    const chosen = enabled.find((s) => s.slug === best.slug);
-    if (!chosen) return null;
-    return activeSkillsResult("automatic", [chosen]);
+    for (const r of rows) emb.set(r.slug, cosine(embedding, r.embedding));
   } catch {
-    return null;
+    /* embeddings serve unavailable — fall back to lexical-only activation */
   }
+  const best = enabled
+    .map((s) => ({ skill: s, lex: lex.get(s.slug) ?? 0, emb: emb.get(s.slug) ?? -1 }))
+    .filter((c) => c.lex >= SKILL_LEX_FLOOR || c.emb >= SKILL_EMB_FLOOR)
+    .sort((a, b) => Math.max(b.emb, b.lex) - Math.max(a.emb, a.lex))[0];
+  return best ? activeSkillsResult("automatic", [best.skill]) : null;
 }
 
 export const skillTools = {
