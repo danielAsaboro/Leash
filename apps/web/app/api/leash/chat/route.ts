@@ -72,6 +72,23 @@ async function emptyTurnFallback(result: unknown): Promise<string> {
     : "I couldn't produce a response to that — try rephrasing it, or breaking it into smaller steps.";
 }
 
+/**
+ * Forgiving-parser DETECTOR (SmallCode port, measure-and-nudge scope): did the model emit a tool
+ * call as plain TEXT (`<tool_call>…</tool_call>`, Liquid `<|tool_call_start|>`, `functions.x(...)`,
+ * or a bare `{"name":…,"arguments":…}`) instead of actually invoking it? We can't re-run it inside
+ * a streamed turn, so we log it (to gauge how often this still happens now that compound tools
+ * exist — the data that decides whether the full streaming-recovery middleware is worth the risk)
+ * and the route adds an honest nudge. Returns the tool name when identifiable.
+ */
+function toolCallAsText(text: string): { matched: boolean; toolName?: string } {
+  const tagged = /<tool_call>[\s\S]*?<\/tool_call>/i.test(text) || /<\|tool_call_start\|>/i.test(text);
+  const fnStyle = /(?:^|[\s`])functions?\.[a-z_][a-z0-9_]*\s*\(/i.test(text);
+  const bareJson = /\{\s*"name"\s*:\s*"[a-z0-9_]+"\s*,\s*"(?:arguments|parameters|input)"\s*:/i.test(text);
+  if (!tagged && !fnStyle && !bareJson) return { matched: false };
+  const m = text.match(/"name"\s*:\s*"([a-z0-9_]+)"/i) ?? text.match(/functions?\.([a-z0-9_]+)/i) ?? text.match(/<tool_call>\s*([a-z0-9_]+)/i);
+  return { matched: true, toolName: m?.[1] };
+}
+
 /** The text-parts join of the most recent user message (intent classifiers + effort grading). */
 function lastUserText(messages: LeashUIMessage[]): string {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
@@ -337,17 +354,26 @@ export async function POST(req: Request): Promise<Response> {
           },
         }),
       );
-      // Empty-turn guard (SmallCode quality-monitor port): a small model sometimes burns its budget
-      // on <think> or stalls and emits NO answer text. Never leave the user with a blank turn —
-      // append an honest fallback. Best-effort; failure here must not break the stream.
+      // Stream-tail quality guards (SmallCode quality-monitor ports). Best-effort — a throw here
+      // must never break the response.
       try {
         const finalText = ((await result.text) ?? "").trim();
-        if (!finalText) {
-          const fb = await emptyTurnFallback(result);
-          const id = "empty-turn-fallback";
+        const appendText = (id: string, text: string): void => {
           writer.write({ type: "text-start", id });
-          writer.write({ type: "text-delta", id, delta: fb });
+          writer.write({ type: "text-delta", id, delta: text });
           writer.write({ type: "text-end", id });
+        };
+        if (!finalText) {
+          // Empty turn: the model emitted no answer (often after burning its budget on <think>).
+          appendText("empty-turn-fallback", await emptyTurnFallback(result));
+        } else {
+          // Tool-call-as-text: the model wrote a tool call into its answer instead of invoking it.
+          // Log it (to measure frequency) and add an honest nudge after the stray text.
+          const tc = toolCallAsText(finalText);
+          if (tc.matched) {
+            console.warn(`leash: model emitted a tool call as TEXT${tc.toolName ? ` (${tc.toolName})` : ""} — route=${callOptions.route}, len=${finalText.length}`);
+            appendText("toolcall-text-note", "\n\n_(I wrote that as text instead of actually running the tool — ask me to try again and I'll invoke it for real.)_");
+          }
         }
       } catch {
         /* never let the guard break the response */
