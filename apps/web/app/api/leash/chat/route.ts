@@ -22,6 +22,7 @@ import { skillTools, skillsSystemSection, activeSkillsSection } from "../../../.
 import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { computerTools } from "../../../../lib/leash/computer-tools.ts";
 import { buildBashTools, BASH_TOOL_NAMES } from "../../../../lib/leash/bash-tools.ts";
+import { buildSkillRunner } from "../../../../lib/leash/skill-runner.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
@@ -151,7 +152,10 @@ export async function POST(req: Request): Promise<Response> {
 
   // Task/memory tools are per-request factories: writes get stamped with this chat's id.
   // This is the FULL registry — used for message validation; `streamText` gets the filtered set.
-  const tools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await buildBashTools()), ...(await leashMcpTools()) };
+  const baseTools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await buildBashTools()), ...(await leashMcpTools()) };
+  // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
+  // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself).
+  const tools = { ...baseTools, ...buildSkillRunner(baseTools) };
 
   // Rebuild the working history from the store + the incoming trigger.
   const record = await loadRecord(id);

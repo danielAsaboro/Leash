@@ -74,7 +74,7 @@ const COMPUTER_NAMES = new Set(Object.keys(computerTools));
  * or run a skill's bundled script (run_skill_script) mid-turn. This is what lets one active skill
  * reach for another instead of the harness pre-loading them all.
  */
-const SKILL_SYSTEM_NAMES = new Set(["read_skill", "read_skill_file", "run_skill_script"]);
+const SKILL_SYSTEM_NAMES = new Set(["read_skill", "read_skill_file", "run_skill_script", "run_skill"]);
 
 /**
  * The ACTIVE toolset for a turn, over the live (gated+filtered) registry `names`.
