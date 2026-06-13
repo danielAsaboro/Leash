@@ -1,0 +1,44 @@
+---
+title: "How we meet the criteria"
+description: "A feature-to-criterion mapping against the QVAC Hackathon judging rubric."
+---
+
+This page maps Leash's shipped surfaces to the hackathon's judging criteria. Each row points at
+the docs that explain the feature and, where relevant, the evidence in `submission/`.
+
+## Hard gates
+
+These are pass/fail prerequisites, not scored dimensions:
+
+| Gate | How Leash meets it |
+|---|---|
+| QVAC SDK for all inference/embeddings/RAG/multimodal | Every AI path routes through `@qvac/sdk` → local serve. No cloud AI. [Proof →](/hackathon/qvac-only-proof) |
+| Track hardware constraints | General Purpose, ≤32 GB consumer device. [Overview →](/hackathon/overview) |
+| Reproducibility & out-of-the-box setup | Documented run path + warm-cache; airplane-mode acceptance. [Evidence →](/hackathon/evidence-and-reproducibility) |
+| Structured audit log | JSONL records of model loads, prompts, tokens, TTFT, tok/s. [Evidence →](/hackathon/evidence-and-reproducibility) |
+| Open-source license | **Apache-2.0** across the workspace. |
+
+## Scored criteria
+
+| Criterion | What addresses it | Reference |
+|---|---|---|
+| **Innovation** | A composing exocortex: encrypted device mesh + a machine-payable agent economy + an on-device nightly LoRA loop — not a single-feature demo. | [The agent economy](/explanation/the-agent-economy), [Memory loop](/explanation/the-memory-evolution-loop) |
+| **Capabilities (multi-agent, tool calling)** | Skills-first harness with `run_skill` sub-agents, deterministic step pipelines, plan mode, tool calling with human-in-the-loop approval, MCP integrations. | [The skills harness](/explanation/the-skills-harness), [Build multi-skill workflows](/guides/build-multi-skill-workflows) |
+| **Performance (P2P load distribution, constrained devices, speed)** | Broker overflow + delegated inference, KV-cache reuse across delegated turns, per-model CPU/GPU and context-size tuning to fit RAM. Spike: 70.6 tok/s on a 1B, 24.1 tok/s on the 4B chat model; P2P round-trip 1.27 s. | [How the mesh routes work](/explanation/how-the-mesh-routes-work), [Evidence](/hackathon/evidence-and-reproducibility) |
+| **Model usage & coverage** | Six+ QVAC models in daily use — `qwen3-4b`, `gte-large`, `qwen3vl`, `parakeet` (STT), `supertonic` (TTS), `medpsy`/MedGemma — plus Flux2-klein image gen and OCR. | [Models and the catalog](/explanation/models-and-the-catalog), [Models reference](/reference/models-and-aliases) |
+| **Complexity & UX** | Tabbed dashboard (chat, Brain, Models, Tasks, Economy, Feed, Services, Settings), AI Elements chat, voice call mode, a desktop app, and a broadsheet landing site. | [Leash and its surfaces](/explanation/leash-and-its-surfaces) |
+| **Artifact quality** | Consistent JSONL audit evidence, smoke tests, a commit-mapped changelog, and a full Diataxis docs site. | [Changelog](/reference/changelog), [Scripts & smoke tests](/reference/scripts-and-smoke-tests) |
+| **Social engagement (build-in-public)** | A daily build-in-public log distilled into tweet drafts. | `submission/build-in-public.md` |
+
+## Early-bird bonus
+
+The hackathon awards an early-bird bonus for submissions before **June 17**. Leash's submission
+timeline targets that window; the submission checklist and status live in `submission/`.
+
+<Note>
+A few submission-form artifacts are tracked as tasks in `submission/` rather than claimed done
+here: the final ≤5-minute demo video cut/upload, a structured remote-API-call disclosure file,
+and hardware-spec screenshots. The underlying capabilities are shipped and documented; the
+packaging of those specific artifacts is the remaining submission step. **(hold final claims
+until done.)**
+</Note>

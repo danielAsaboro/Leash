@@ -11,7 +11,7 @@ These aliases come from `qvac.config.base.json`.
 |---|---|---|
 | `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | default chat and general tool use |
 | `gte-large` | `GTE_LARGE_FP16` | embeddings |
-| `medpsy` | custom `medpsy` GGUF | health-specialist chat |
+| `medpsy` | `MEDGEMMA_4B_IT_Q4_1` (QVAC MedGemma) | health-specialist chat |
 | `qwen3vl` | `QWEN3VL_2B_MULTIMODAL_Q4_K` + projection model | vision |
 | `parakeet` | `PARAKEET_TDT_0_6B_V3_Q8_0` | speech-to-text |
 | `supertonic` | `TTS_EN_SUPERTONIC_Q8_0` | text-to-speech |
@@ -34,9 +34,28 @@ These aliases come from `qvac.config.base.json`.
 
 | Alias | Config |
 |---|---|
-| `qwen3-4b` | `tools: true`, `toolsMode: "dynamic"`, `ctx_size: 16384` |
+| `qwen3-4b` | `tools: true`, `toolsMode: "dynamic"`, `ctx_size: 32768`, `default: true` |
 | `medpsy` | `tools: true`, `toolsMode: "dynamic"`, `ctx_size: 8192` |
 | `qwen3vl` | `ctx_size: 8192` plus `projectionModelSrc` |
+| `supertonic` | `ttsEngine: "supertonic"`, `voice: "F1"`, `ttsSpeed: 1.05`, `ttsNumInferenceSteps: 5` |
+
+## The catalog browser
+
+The **Models** tab surfaces the full SDK catalog — 729+ entries from `@qvac/ai-sdk-provider` —
+on top of the committed aliases.
+
+| Facet / control | Values | Notes |
+|---|---|---|
+| Status filter | All / Configured / Downloaded / Available | "Available" is the un-downloaded residual |
+| Kind filter | Text / Image / Speech / Embedding / OCR / Translation | |
+| Hidden families | `gpt`, `bitnet` | hidden from "Available" unless already configured/cached |
+| Per-model **Share** | on / off | advertises the alias to the mesh via a daemon deny-set |
+| Per-model **Compute** | CPU / GPU / default | `config.use_gpu`; default is GPU on Metal |
+| Per-model **Context size** | ≈1024–32768 | live RAM-fit estimate: fits / tight / too-big |
+| **Preload** | `true` when added | warms the weight at serve start |
+
+Lifecycle changes (add, compute, context size) apply on the serve's next load of the model, not
+instantly. The catalog is dumped to `data/leash-models-catalog.json` by a spawned child script.
 
 ## Alias constraints
 

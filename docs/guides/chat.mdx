@@ -7,7 +7,7 @@ This guide assumes the stack is running (see the [Quickstart](/quickstart)). It 
 the everyday tasks: asking grounded questions, steering memory, and handling approvals.
 The router picks the right model automatically — health questions go to `medpsy`, image
 turns to `qwen3vl`, computer-use requests to the computer driver. See
-[Architecture](/concepts/architecture) for how routing works.
+[Architecture](/explanation/architecture) for how routing works.
 
 ## Ask something grounded in your own data
 
@@ -44,7 +44,7 @@ its next turn.
 
 - **Stop** ends the stream in your browser. The model finishes its current generation
   server-side (a deliberate safety property — see
-  [Architecture](/concepts/architecture)), so the next turn may queue briefly.
+  [Architecture](/explanation/architecture)), so the next turn may queue briefly.
 - **Regenerate** on the last answer re-runs it.
 - Long threads compact automatically: older messages are summarized for the model while
   the full history stays visible to you.

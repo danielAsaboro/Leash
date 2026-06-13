@@ -1,25 +1,32 @@
 ---
-title: "What Mycelium is"
-description: "The platform definition: one private intelligence spread across your own devices."
+title: "What Leash is"
+description: "The product and the engine: one private intelligence spread across your own devices."
 ---
 
-Mycelium is the platform name for a private, end-to-end-encrypted exocortex that lives
-across your own devices. Its job is not just to host a chatbot. It combines local
-inference, retrieval, memory, and delegated compute into one runtime that stays on your
-hardware.
+**Leash** is a private, end-to-end-encrypted assistant that runs on your own hardware. Its
+job is not just to host a chatbot. It combines local inference, retrieval, typed memory,
+delegated compute, and a nightly learning loop into one assistant that stays on your
+devices.
 
-## Why it is not just Leash
+**Mycelium** is the engine underneath. It is the local-first runtime, the encrypted device
+mesh, the agent economy, and the workspace that builds them. Leash is the surface you use;
+Mycelium is the five-layer system that makes Leash work and that other clients (the desktop
+app, the hub and edge-node apps) also sit on.
 
-Leash is the most visible surface, but it is not the whole system. Mycelium also
-includes:
+## Product versus engine
 
-- the QVAC serve and model alias layer
-- Hypha for pairing and delegated compute
-- packages for senses, mind, mesh, memory, and shared logic
-- supporting daemons such as the broker, watcher, newsroom, cron, and MCP server
+It helps to keep the two words straight:
 
-Treating Leash as the whole product would hide the actual platform boundary. The docs
-therefore describe Leash as one surface inside Mycelium.
+- **Leash** is the flagship interface — the assistant, dashboard, and operator console in
+  `apps/web`, plus the desktop client in `apps/desktop`. When you "use the product," you use
+  Leash.
+- **Mycelium** is the platform boundary — the serve and model-alias layer, Hypha for pairing
+  and delegated compute, the agent economy, and the `packages/*` that implement senses, mind,
+  mesh, memory, and shared logic.
+
+Treating Leash as the whole system would hide that boundary. The architecture, the mesh, and
+the memory loop are Mycelium concerns; the chat, the catalog, and the settings tabs are Leash
+surfaces over them.
 
 ## What makes it distinct
 
@@ -27,24 +34,27 @@ Three constraints shape the product:
 
 - inference is QVAC-only
 - the system is expected to work offline after warm-cache
-- the runtime is allowed to use multiple devices, but not third-party cloud AI
+- the runtime is allowed to use multiple of your own devices, but never third-party cloud AI
 
 That combination changes the architecture. Models live in a local serve. Mesh routing is
 between your machines. Retrieval is against local files and stores. When the system needs
-another GPU, it borrows one from a paired peer, not from a hosted API.
+another GPU — or a modality this device can't serve — it borrows one from a paired peer, not
+from a hosted API.
 
 ## What the user is actually getting
 
-From the user's point of view, Mycelium offers:
+From your point of view, Leash offers:
 
-- grounded chat over private notes and activity
-- delegated compute over a paired device mesh
-- typed memory plus retrieval-backed recall
-- local speech and vision paths
+- grounded chat over private notes, activity, and past conversations
+- delegated compute and modality borrowing over a paired device mesh
+- an opt-in agent economy that settles borrowed compute on-chain
+- typed memory plus retrieval-backed recall, and a nightly loop that adapts a personal model
+- local speech, vision, and image paths
 - a reproducible workspace where the core runtime is inspectable
 
 ## Evidence and reporting live elsewhere
 
-This docs site explains the product and the engineering surface. Hackathon evidence,
-spike results, and build logs stay in `submission/`. The current repo keeps those as
-external artifacts rather than duplicating them here.
+This docs site explains the product and the engineering surface. Hackathon evidence, spike
+results, and build logs stay in `submission/`. The repo keeps those as external artifacts
+rather than duplicating them here; the [Hackathon](/hackathon/overview) section summarizes
+and links to them.

@@ -1,79 +1,110 @@
 ---
-title: "Mycelium overview"
-description: "A private, offline-capable exocortex built entirely on QVAC, with Leash as its flagship interface."
+title: "Leash overview"
+description: "A private, offline-capable assistant that runs across your own devices — powered end-to-end by QVAC."
 sidebarTitle: "Overview"
 ---
 
-Mycelium is a private, offline-capable exocortex that runs across your own device mesh.
-It keeps inference, embeddings, retrieval, delegated compute, and memory loops on your
-hardware through `@qvac/sdk`. The headline surface is **Leash**, the assistant and
-dashboard in `apps/web`, but Leash is only one part of the platform.
+**Leash** is a private assistant that runs on your own hardware. It grounds answers in your
+notes, screen activity, and past conversations, drives your machine with your approval,
+borrows compute from your other devices, and keeps every inference on-device through
+`@qvac/sdk`. There is no cloud AI in the loop.
 
-## The platform at a glance
+Under the hood, Leash is the flagship surface of **Mycelium** — a five-layer, local-first
+engine (mesh, senses, mind, memory, clients) that hosts the runtime, the encrypted device
+mesh, the agent economy, and the nightly memory loop. Leash is what you use; Mycelium is
+what makes it work.
+
+## What you can do with it
 
 <CardGroup cols={2}>
-  <Card title="Leash" icon="messages-square" href="/guides/run-leash-locally">
-    The web assistant and dashboard surface: grounded chat, tool use, services, memory,
-    and local model operations.
+  <Card title="Chat, grounded in your data" icon="messages-square" href="/guides/chat">
+    Ask questions answered from your notes, activity, and past chats — with source chips,
+    plan mode, and tool approvals.
   </Card>
-  <Card title="Brain" icon="brain" href="/guides/use-brain-and-settings">
-    Configure memory, skills, tools, prompts, MCP integrations, models, and growth
-    from the operator surface inside Leash.
+  <Card title="Run a device mesh" icon="circle-nodes" href="/guides/mesh">
+    Pair your machines over an encrypted swarm and let heavy turns run on whichever peer
+    has the model warm.
   </Card>
-  <Card title="Agent Harness" icon="wrench" href="/guides/extend-the-agent-with-tools-mcp-and-skills">
-    Add tools, MCP servers, skills, and local runtime integrations so the assistant can
-    take on whatever work you need it to do.
+  <Card title="Borrow a modality" icon="shuffle" href="/guides/borrow-a-modality-from-a-peer">
+    Borrow vision, embeddings, speech-to-text, or text-to-speech from a peer that serves
+    the model you lack.
   </Card>
-  <Card title="Feed" icon="newspaper" href="/guides/read-the-understory-feed">
-    Read The Understory, Mycelium's autonomous local newsroom, with dossiers, source
-    trails, hero art, and audio when generated.
+  <Card title="Earn and spend compute" icon="coins" href="/guides/economy">
+    The mesh runs a micro-economy: serve inference to earn, borrow to spend, settled
+    on-chain per completion.
   </Card>
-  <Card title="Services" icon="server" href="/guides/manage-services-and-daemons">
-    Run the daemons that make the exocortex feel alive: serve, broker, Hypha, watcher,
-    newsroom, cron, and MCP.
+  <Card title="Browse the model catalog" icon="layers" href="/guides/use-the-model-catalog">
+    Filter a 729-model catalog, download a model, share it to the mesh, and tune its
+    CPU/GPU and context size to fit your RAM.
   </Card>
-  <Card title="Hypha" icon="circle-nodes" href="/guides/operate-hypha-and-broker">
-    The delegated-compute and mesh daemon: pairing, peer discovery, warm-model routing,
-    and overflow execution.
+  <Card title="Teach repeatable skills" icon="wand-sparkles" href="/guides/build-multi-skill-workflows">
+    Compose skills into multi-step workflows that the harness runs as focused sub-agents.
   </Card>
-  <Card title="Workspace" icon="folders" href="/reference/workspace-map">
-    The monorepo is split into packages for shared logic, senses, mind, mesh, memory,
-    and database, plus apps for each runtime surface.
+  <Card title="Operate the machine" icon="terminal" href="/guides/computer-use">
+    Read files, run commands, and drive the GUI — every side effect behind an approval card.
   </Card>
-  <Card title="Architecture" icon="waypoints" href="/explanation/architecture">
-    A five-layer design: mesh, senses, mind, memory, and clients, all constrained by the
-    QVAC-only, offline-capable rules.
+  <Card title="Read your own paper" icon="newspaper" href="/guides/read-the-understory-feed">
+    The Understory is an autonomous local newsroom that researches, drafts, and publishes
+    about your world.
   </Card>
 </CardGroup>
 
-## Surfaces and components
+## How it is built
 
-- **Mycelium** is the whole platform: the local-first runtime, the mesh, the memory loop,
-  and the workspace that builds them.
-- **Leash** is the flagship interface: the assistant and operator console in `apps/web`.
-- **Brain** is Leash's configuration surface for memory, tools, prompts, models, MCP,
-  growth, and operator controls.
-- **The agent harness** is the extensibility story: tools, MCP servers, skills,
-  computer use, connectors, and local daemons can be composed to pursue arbitrary work.
-- **Feed** is The Understory surface: the autonomous paper generated about your world.
-- **Services** is the daemon console: the place where background processes are started,
-  stopped, inspected, and restarted.
-- **Hypha** is the delegated-compute and pairing daemon in `apps/hypha`.
-- **Hub** and **Edge Node** are narrower runtime apps used to exercise the original mesh
-  and replicated-graph paths.
-- **Newsroom**, **Broker**, **Watch**, **Cron**, and **MCP** are supporting runtimes.
+<CardGroup cols={2}>
+  <Card title="What Leash is" icon="dog" href="/explanation/what-mycelium-is">
+    The product and the engine: how Leash sits on top of the Mycelium runtime.
+  </Card>
+  <Card title="Architecture" icon="waypoints" href="/explanation/architecture">
+    The five layers — mesh, senses, mind, memory, clients — and how a request moves
+    through them.
+  </Card>
+  <Card title="The agent economy" icon="receipt" href="/explanation/the-agent-economy">
+    Why machine-payable compute, and how x402 pre-auth, metering, and on-chain settlement fit.
+  </Card>
+  <Card title="The skills harness" icon="boxes" href="/explanation/the-skills-harness">
+    Skills-first routing, RRF matching, sub-agent orchestration, and deterministic pipelines.
+  </Card>
+  <Card title="Workspace map" icon="folders" href="/reference/workspace-map">
+    The monorepo: packages for shared logic, senses, mind, mesh, memory, and database, plus
+    apps for each runtime surface.
+  </Card>
+  <Card title="Changelog" icon="git-commit-horizontal" href="/reference/changelog">
+    Every shipped milestone from the spike to today, mapped to commits.
+  </Card>
+</CardGroup>
+
+## For judges
+
+This project was built for **QVAC Hackathon I — "Unleash Edge AI"** (Tether). The Hackathon
+section makes the case directly: track fit, criteria mapping, the QVAC-only proof, and the
+reproducible evidence bundle.
+
+<CardGroup cols={2}>
+  <Card title="Hackathon overview" icon="trophy" href="/hackathon/overview">
+    What Leash is in one screen, and why it fits the General Purpose track.
+  </Card>
+  <Card title="How we meet the criteria" icon="list-checks" href="/hackathon/how-we-meet-the-criteria">
+    Feature-to-criterion mapping across innovation, capabilities, performance, and UX.
+  </Card>
+  <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
+    Every inference, embedding, RAG, LoRA, vision, STT, and TTS path through `@qvac/sdk`.
+  </Card>
+  <Card title="Evidence & reproducibility" icon="clipboard-check" href="/hackathon/evidence-and-reproducibility">
+    Spike gates, JSONL audit logs, airplane-mode acceptance, and Apache-2.0.
+  </Card>
+</CardGroup>
 
 ## Non-negotiable constraints
 
-- **QVAC only.** All inference, embeddings, RAG, delegated compute, and LoRA work go
-  through `@qvac/sdk`. There is no cloud AI fallback.
-- **Offline after warm-cache.** First run can download model weights and bootstrap the
-  DHT. After that, local chat, retrieval, and mesh operations are expected to work
-  without network access.
+- **QVAC only.** All inference, embeddings, RAG, delegated compute, vision, speech, and LoRA
+  work go through `@qvac/sdk`. There is no cloud AI fallback.
+- **Offline after warm-cache.** First run can download model weights and bootstrap the DHT.
+  After that, local chat, retrieval, and mesh operations work without network access.
 - **Real runtime code only.** The workspace adds packages and apps only when they land as
   working implementations. The spike, smoke tests, and daemons are all real paths.
-- **Audit logs stay on.** Spike and runtime flows emit JSONL audit records and are part
-  of the verification story.
+- **Audit logs stay on.** Spike and runtime flows emit JSONL audit records and are part of
+  the verification story.
 
 ## Docs conventions
 
@@ -84,38 +115,14 @@ These docs follow Diataxis on purpose:
 - Reference pages stay factual and lookup-oriented.
 - Explanation pages handle architecture, rationale, and tradeoffs.
 
-Hackathon evidence, spike results, and build logs stay in `submission/`, not in this
-docs tree. When a docs page needs to point at evidence, it links out instead of copying
-the material.
-
-## What you can make it do
-
-These are the kinds of jobs the current system is designed to take on:
-
-- **Ground and answer private questions** by combining chat, local retrieval, typed
-  memory, and notes under `data/notes/`.
-- **Operate your machine with approval** by combining computer-use tools, file access,
-  shell execution, and GUI control.
-- **Borrow another device's compute** by combining the broker, Hypha, and a warm peer.
-- **Add new integrations without rewriting the app** by attaching MCP servers and
-  letting their tools merge into the assistant's registry.
-- **Teach repeatable procedures** by importing or writing skills with instructions and,
-  when needed, script-backed steps.
-- **Run long-lived background behavior** through daemons like watcher, newsroom, cron,
-  and MCP.
-- **Publish a local paper** by combining research, review, generation, and feed surfaces
-  in The Understory.
-
-The important point is not the individual features. It is that these pieces compose.
+Hackathon evidence, spike results, and build logs stay in `submission/`, not in this docs
+tree. When a docs page needs to point at evidence, it links out instead of copying the
+material.
 
 ## Start here
 
 - Learn the local path: [First local mesh](/tutorials/first-local-mesh)
 - Run the main surface: [How to run Leash locally](/guides/run-leash-locally)
-- Configure the operator surface: [How to use Brain and Settings](/guides/use-brain-and-settings)
-- Extend the system: [How to add tools, MCP, and skills](/guides/extend-the-agent-with-tools-mcp-and-skills)
-- Compose real jobs: [How to compose agent workflows](/guides/compose-agent-workflows)
-- Tour the autonomous paper: [How to read The Understory feed](/guides/read-the-understory-feed)
-- Operate the daemons: [How to manage services and daemons](/guides/manage-services-and-daemons)
-- Understand the system: [What Mycelium is](/explanation/what-mycelium-is)
-- Inspect the repo shape: [Workspace map](/reference/workspace-map)
+- Have your first grounded conversation: [Chat, memory & recall](/guides/chat)
+- Add a second machine: [Pair a second device](/guides/pair-a-second-device)
+- Understand the system: [What Leash is](/explanation/what-mycelium-is)

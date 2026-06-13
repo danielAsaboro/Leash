@@ -47,8 +47,9 @@ grouped by day. Filter by direction, counterparty, or date range.
 
 Set `HYPHA_ECONOMY_ENABLED=1` in the Hypha daemon's environment, then configure a
 wallet and RPC endpoint for either the Plasma (EVM) or Solana rail. The demonstrated
-path uses a local Anvil fork of Plasma (`eip155:9745`); for production, point the RPC
-at a live node and fund the wallet.
+path uses a local Anvil fork of Plasma testnet (`eip155:9746`); the committed config default
+is Plasma mainnet (`eip155:9745`). For production, point the RPC at a live node and fund the
+wallet.
 
 All economy environment variables — wallet mnemonics, RPC URLs, asset mints, price per
 k-token, spend caps, and forward-path metering — are listed in

@@ -1,58 +1,114 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "maple",
-  "name": "Mycelium",
+  "name": "Leash",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#3f7d4e",
+    "light": "#79b985",
+    "dark": "#2c5a39"
+  },
+  "fonts": {
+    "heading": {
+      "family": "Fraunces"
+    },
+    "body": {
+      "family": "Newsreader"
+    }
   },
   "favicon": "/favicon.svg",
   "navigation": {
-    "pages": [
+    "tabs": [
       {
-        "group": "Tutorials",
-        "pages": ["tutorials/first-local-mesh"]
-      },
-      {
-        "group": "How-to Guides",
-        "pages": [
-          "guides/run-leash-locally",
-          "guides/use-brain-and-settings",
-          "guides/extend-the-agent-with-tools-mcp-and-skills",
-          "guides/compose-agent-workflows",
-          "guides/read-the-understory-feed",
-          "guides/manage-services-and-daemons",
-          "guides/pair-a-second-device",
-          "guides/use-grounded-chat-and-memory",
-          "guides/operate-hypha-and-broker",
-          "guides/run-deep-research",
-          "guides/debug-common-runtime-failures"
+        "tab": "Documentation",
+        "icon": "book-open",
+        "groups": [
+          {
+            "group": "Get started",
+            "icon": "play",
+            "pages": [
+              "index",
+              "quickstart",
+              "tutorials/first-local-mesh"
+            ]
+          },
+          {
+            "group": "Concepts",
+            "icon": "lightbulb",
+            "pages": [
+              "explanation/what-mycelium-is",
+              "explanation/leash-and-its-surfaces",
+              "explanation/architecture",
+              "explanation/mycelium-as-an-agent-harness",
+              "explanation/the-skills-harness",
+              "explanation/the-agent-economy",
+              "explanation/mesh-and-membership",
+              "explanation/how-the-mesh-routes-work",
+              "explanation/modality-borrowing",
+              "explanation/models-and-the-catalog",
+              "explanation/memory-senses-mind-loop",
+              "explanation/the-memory-evolution-loop",
+              "explanation/what-the-understory-is",
+              "explanation/why-qvac-only"
+            ]
+          },
+          {
+            "group": "How-to Guides",
+            "icon": "square-check",
+            "pages": [
+              "guides/run-leash-locally",
+              "guides/chat",
+              "guides/use-grounded-chat-and-memory",
+              "guides/use-brain-and-settings",
+              "guides/use-the-model-catalog",
+              "guides/extend-the-agent-with-tools-mcp-and-skills",
+              "guides/skills",
+              "guides/build-multi-skill-workflows",
+              "guides/compose-agent-workflows",
+              "guides/computer-use",
+              "guides/voice",
+              "guides/tasks",
+              "guides/run-deep-research",
+              "guides/read-the-understory-feed",
+              "guides/pair-a-second-device",
+              "guides/mesh",
+              "guides/borrow-a-modality-from-a-peer",
+              "guides/economy",
+              "guides/enable-the-agent-economy",
+              "guides/operate-hypha-and-broker",
+              "guides/manage-services-and-daemons",
+              "guides/run-the-desktop-app",
+              "guides/debug-common-runtime-failures"
+            ]
+          },
+          {
+            "group": "Reference",
+            "icon": "book",
+            "pages": [
+              "reference/workspace-map",
+              "reference/runtime-ports-and-processes",
+              "reference/configuration",
+              "reference/models-and-aliases",
+              "reference/tools-and-approvals",
+              "reference/scripts-and-smoke-tests"
+            ]
+          }
         ]
       },
       {
-        "group": "Reference",
+        "tab": "Hackathon",
+        "icon": "trophy",
         "pages": [
-          "reference/workspace-map",
-          "reference/runtime-ports-and-processes",
-          "reference/configuration",
-          "reference/models-and-aliases",
-          "reference/tools-and-approvals",
-          "reference/scripts-and-smoke-tests"
+          "hackathon/overview",
+          "hackathon/how-we-meet-the-criteria",
+          "hackathon/qvac-only-proof",
+          "hackathon/evidence-and-reproducibility"
         ]
       },
       {
-        "group": "Explanation",
+        "tab": "Changelog",
+        "icon": "list",
         "pages": [
-          "index",
-          "explanation/what-mycelium-is",
-          "explanation/leash-and-its-surfaces",
-          "explanation/mycelium-as-an-agent-harness",
-          "explanation/architecture",
-          "explanation/why-qvac-only",
-          "explanation/how-the-mesh-routes-work",
-          "explanation/memory-senses-mind-loop",
-          "explanation/what-the-understory-is"
+          "reference/changelog"
         ]
       }
     ]

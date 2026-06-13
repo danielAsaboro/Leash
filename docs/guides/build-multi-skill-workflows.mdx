@@ -1,0 +1,61 @@
+---
+title: "Build multi-skill workflows"
+description: "Compose skills into reliable multi-step work with run_skill, deterministic step pipelines, plan mode, and steering."
+---
+
+A single skill teaches one procedure. This guide composes several into a reliable multi-step
+workflow on the 4B chat model — using sub-agents, deterministic pipelines, plan mode, and
+mid-turn steering. It assumes you can already [create a skill](/guides/skills). For why the
+harness is built this way, see [The skills harness](/explanation/the-skills-harness).
+
+## Make a step reliable with a pipeline
+
+Free-running tool loops drop steps on a small model. To make a multi-step skill reliable,
+declare the steps in the skill's frontmatter — one sub-task per line:
+
+```markdown
+---
+name: weekly-review
+description: Use when the user asks for a weekly review.
+steps: >
+  Gather this week's completed tasks.
+  Summarize the three most important outcomes.
+  Draft next week's top priorities from the summary.
+---
+```
+
+With `steps:` present, the harness runs the skill as a **deterministic pipeline**: it drives the
+steps in order, the model does exactly one sub-task per step with prior results fed forward, and
+the model never decides on its own that it's finished. The planning lives with you, the author —
+written once and verified — not re-derived every turn.
+
+## Call one skill from another with `run_skill`
+
+A coordinating skill delegates sub-tasks with `run_skill`. The named skill runs as a **sub-agent**
+in its own focused context with its own tools and returns only its result. Use this when a step
+needs a different capability:
+
+> Instruction in a step: *Use run_skill to call `deep-research` for sources on X, then continue.*
+
+Because each sub-agent has a fresh context, the coordinating skill stays small and on-task
+instead of accumulating every sub-task's reasoning.
+
+## Use plan mode for ad-hoc multi-step work
+
+When the work isn't a saved skill, turn on **plan mode** in chat. The model drafts a plan, you
+**approve / reject / adjust** it on a plan card, and the harness then drives the approved steps
+through the same deterministic pipeline. Plan mode is available on plain chat turns — image,
+file, computer-use, and skill-pipeline turns already have their own flows.
+
+## Steer a running workflow
+
+A long workflow doesn't lock you out. Type a follow-up while it runs to **queue** it: the turn
+checks the queue at the next step boundary, finishes cleanly, and then runs your queued message
+as the next turn. The in-flight generation completes server-side rather than being killed — so
+steering redirects the *next* step, it doesn't corrupt the current one.
+
+## Verify
+
+- A skill with `steps:` shows each step executing in order in the chat, one sub-task at a time.
+- A `run_skill` call renders as a sub-agent invocation that returns a result to the parent.
+- A queued message sends as soon as the running turn reaches a step boundary.

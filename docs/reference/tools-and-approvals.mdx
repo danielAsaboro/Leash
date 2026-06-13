@@ -44,7 +44,14 @@ but the defaults below describe the shipped behavior.
 | `create_task`, `list_tasks`, `update_task` | manipulate task state | no |
 | `read_skill` | read skill instructions | no |
 | `read_skill_file` | read a skill attachment | no |
+| `run_skill` | run a matched skill as a focused sub-agent (single-shot or deterministic `steps:` pipeline) | no |
 | `run_skill_script` | execute a bundled skill script | yes |
+
+## Orchestration tools
+
+| Tool | Behavior | Ask first |
+|---|---|---|
+| `submit_plan` | in plan mode, propose a numbered plan; execution is gated on the plan card | yes (plan approval) |
 
 ## Research tool
 

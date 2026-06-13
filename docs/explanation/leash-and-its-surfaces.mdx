@@ -15,21 +15,37 @@ several different jobs.
 
 ## The main surfaces
 
-- **Chat** is the conversational front door: grounded answers, tools, approvals, and
-  multi-step reasoning.
+- **Chat** is the conversational front door: grounded answers, tools, approvals,
+  multi-step reasoning, and a plan mode that drafts a plan for you to approve before it runs.
 - **Brain** is the configuration and introspection surface for memory, skills, tools,
   MCP, prompts, models, growth, and forage.
+- **Models** is one filterable browser over the full catalog, with per-model compute,
+  context-size, and mesh-sharing controls.
+- **Tasks** is the unified work log across your to-dos, the newsroom pipeline, and scheduler
+  runs.
+- **Economy** is the ledger for borrowed and served compute: balances, the peer market, and
+  on-chain receipts.
 - **Feed** is the publishing surface for The Understory.
 - **Services** is the runtime console for daemons.
 - **Research** is the detached long-running web research surface.
-- **Settings** is the machine-local operations area for storage, devices, secrets, and
-  permissions.
+- **Settings** is the machine-local operations area: a tabbed console for storage, devices
+  and mesh membership, permissions, and an about panel.
 
 ## Why Brain exists separately from Settings
 
 Brain configures the assistant's behavior and knowledge. Settings configures the local
 machine, mesh memberships, credentials, and permissions. They look adjacent in the UI,
-but they solve different operator problems.
+but they solve different operator problems. Settings is itself tabbed —
+[Storage / Devices / Permissions / About](/guides/use-brain-and-settings) — because each
+answers a different machine-local question.
+
+## Why Economy and Models are first-class
+
+Borrowed compute and the model catalog used to hide inside Services. They surfaced as their
+own pages because each is a place you *decide* something: the [Economy](/guides/economy) ledger
+is where you read what serving and borrowing cost, and [Models](/guides/use-the-model-catalog)
+is where you choose what to run, how to run it, and what to share. Those are recurring operator
+choices, not one-time setup, so they earn a surface.
 
 ## Why Feed is part of the showcase
 

@@ -13,20 +13,23 @@ offline-first operation, and optional delegation to your own peers.
    graph transport.
 2. **Senses** ingests notes, voice, photos, and activity into local retrieval-friendly forms.
 3. **Mind** routes requests, chooses tools, and runs the main reasoning loops.
-4. **Memory** curates, evaluates, and trains longer-lived personal adaptations.
-5. **Clients** expose the system through the web app and narrower runtime apps.
+4. **Memory** curates, evaluates, and trains longer-lived personal adaptations — including the
+   nightly LoRA loop described in [The memory evolution loop](/explanation/the-memory-evolution-loop).
+5. **Clients** expose the system through the web app, the desktop app, and narrower runtime apps.
 
 ## The common local request path
 
 The main Leash path looks like this:
 
-```text
-Browser UI (:6801)
-  -> server route in apps/web
-  -> QVAC provider client
-  -> local serve (:11435) or broker (:11436)
-  -> optional Hypha overflow (:11437)
-  -> optional warm peer serve
+```mermaid
+flowchart TB
+    UI["Browser UI · :6801"] --> Route["Server route · apps/web"]
+    Route --> Provider["QVAC provider client"]
+    Provider -->|"broker mode"| Broker["Broker · :11436"]
+    Provider -.->|"direct mode"| Serve["QVAC serve · :11435"]
+    Broker -->|"local alias, queue OK"| Serve
+    Broker -->|"not local / queue deep"| Hypha["Hypha overflow · :11437"]
+    Hypha --> Peer["Warm peer serve"]
 ```
 
 The model weights do not live in the web app. They live in the serve. Everything above
@@ -43,7 +46,18 @@ fight each other blindly.
 
 Hypha separates mesh concerns from the web app. Pairing, peer health, warm-model
 tracking, and delegated-compute control are long-lived concerns. They fit a daemon much
-better than a browser-bound request handler.
+better than a browser-bound request handler. The same daemon owns the forward path for
+[borrowed modalities](/explanation/modality-borrowing) and, when enabled, the
+[agent economy's](/explanation/the-agent-economy) metering and settlement — because billing a
+borrowed turn belongs next to the routing decision that produced it, not in the UI.
+
+## Where the memory loop runs
+
+The first four layers serve requests in the foreground; the **memory** layer mostly runs in the
+background. The nightly evolution job — curate, train, evaluate, apply, share — is scheduled by
+the cron daemon and writes its adapter back into the serve as a `<base>-me` alias, which then
+replicates to peers over the mesh. It is the one path that changes the model itself rather than
+just the prompt; see [The memory evolution loop](/explanation/the-memory-evolution-loop).
 
 ## Why the docs split lookup from explanation
 

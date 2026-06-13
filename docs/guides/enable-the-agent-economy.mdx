@@ -1,0 +1,79 @@
+---
+title: "Enable the agent economy"
+description: "Turn on settlement, fund a wallet, do a paid borrow between two devices, and read the receipts."
+---
+
+By default the mesh shares compute for free. This guide turns on **on-chain settlement** so a
+device that borrows inference pays for it and a device that serves inference earns. It assumes
+you've already [paired a second device](/guides/pair-a-second-device). For the read-only ledger
+tour, see [Mesh economy](/guides/economy); for the concepts, see
+[The agent economy](/explanation/the-agent-economy).
+
+<Warning>
+Settlement moves real value on whatever rail you point it at. Use a testnet (the demonstrated
+path is an Anvil fork of Plasma testnet `eip155:9746`) and a throwaway wallet until you've
+watched a full borrow settle end to end.
+</Warning>
+
+## 1. Configure a settlement rail on the provider
+
+In the Hypha daemon's environment on the device that will **serve** inference, enable the
+economy and configure a rail. For the Plasma (EVM) rail:
+
+```bash
+HYPHA_ECONOMY_ENABLED=1
+HYPHA_ECONOMY_PLASMA_RPC_URL=http://127.0.0.1:8545
+HYPHA_ECONOMY_PLASMA_NETWORK_ID=eip155:9746
+HYPHA_ECONOMY_PLASMA_MNEMONIC="<bip39 mnemonic for the payout wallet>"
+HYPHA_ECONOMY_PLASMA_ASSET_MINT=<stablecoin contract address>
+HYPHA_ECONOMY_PRICE_PER_KTOK=1000   # µ-units per 1,000 tokens
+```
+
+The Solana rail is the alternative (`HYPHA_ECONOMY_SOLANA_*`). Every variable, including the
+spend caps and the metered-session knobs, is in
+[Configuration → Economy](/reference/configuration#environment-variables--economy-opt-in).
+
+<Note>
+Quote the mnemonic. An unquoted multi-word value tokenizes when sourced and the wallet comes up
+silently wrong.
+</Note>
+
+## 2. Fund the wallet
+
+The provider's wallet needs gas (and the consumer's needs the settlement asset to spend). On a
+local Anvil fork, fund it directly:
+
+```bash
+cast rpc anvil_setBalance <wallet-address> 0x56BC75E2D63100000   # 100 native, via the RPC
+```
+
+On a live testnet, use that network's faucet. The economy stays disabled on a device until it
+has a reachable RPC and a funded wallet.
+
+## 3. Enable settlement on the consumer
+
+On the **borrowing** device, set `HYPHA_ECONOMY_ENABLED=1` and configure its own wallet and RPC
+on the matching network id. The forward path already meters paid peers by default
+(`HYPHA_FORWARD_METERED=1`), so once both sides are enabled, a borrow that lands on a peer
+advertising a price becomes a billed session.
+
+## 4. Do a paid borrow
+
+Run a turn that overflows to the paid peer — point the dashboard at the broker
+(`QVAC_OPENAI_URL=http://127.0.0.1:11436/v1`) and ask for a model only the peer serves, or let
+the local queue shed. The session pre-authorizes a budget, runs, and settles the actual amount
+on close.
+
+## 5. Read the receipts
+
+Open **/economy**. The headline figures (Earned, Spent, Net) refresh every few seconds, and the
+**Receipts** card shows the settlement: counterparty wallet, token count, amount, and the
+on-chain transaction reference. **View all →** opens `/economy/receipts`, the full ledger
+grouped by day and filterable by direction and counterparty.
+
+## Verify
+
+- `/economy` shows non-zero Earned on the provider and Spent on the consumer.
+- A receipt has a transaction hash and status `settled`.
+- The provider's `data/hypha-*/economy/settled-receipts.json` records the session on the network
+  id you configured.

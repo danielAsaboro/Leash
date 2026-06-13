@@ -3,7 +3,7 @@ title: "Memory, senses, and the mind loop"
 description: "How observation, reasoning, retrieval, and longer-term adaptation reinforce each other."
 ---
 
-Mycelium is built around a loop, not a one-shot chat interaction. The loop matters
+Leash is built around a loop, not a one-shot chat interaction. The loop matters
 because the system is trying to become more useful through repeated local use.
 
 ## Senses
@@ -33,7 +33,8 @@ It is the orchestration layer, not the storage layer.
 Memory sits on top of repeated use. Some information is explicit and typed, such as saved
 preferences or facts. Some is implicit in retrieval stores, chats, and curated training
 sets. The memory package turns that repeated interaction into something that can be
-evaluated, trained, and served again.
+evaluated, trained, and served again — the nightly LoRA loop covered in detail in
+[The memory evolution loop](/explanation/the-memory-evolution-loop).
 
 ## Why the loop matters
 
@@ -43,4 +44,4 @@ Without the loop, the system would just be a local assistant shell. With the loo
 - better retrieval produces better decisions
 - accepted outcomes can be curated into longer-lived memory adaptations
 
-That is why Mycelium uses the term exocortex rather than just app or assistant.
+That is why Leash is described as an exocortex rather than just an app or assistant.

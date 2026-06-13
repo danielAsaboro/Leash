@@ -42,8 +42,10 @@ immediately. The terminal running the dashboard needs **Screen Recording** permi
 (System Settings → Privacy & Security).
 
 <Note>
-On the current serve build, vision inference has a known upstream regression — the tool
-reports the failure honestly in-chat. See [Troubleshooting](/troubleshooting).
+Vision runs on a patched serve — the Leash fork of `qvac serve` that accepts image content in
+the OpenAI-compatible API (see [QVAC-only proof](/hackathon/qvac-only-proof)). If a frame
+fails to decode, the tool reports it honestly in-chat rather than guessing; see
+[Debug common runtime failures](/guides/debug-common-runtime-failures).
 </Note>
 
 ## Drive the mouse and keyboard

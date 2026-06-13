@@ -1,0 +1,139 @@
+---
+title: "Changelog"
+description: "Every shipped day from the spike to today, mapped to commits."
+rss: true
+---
+
+The day-by-day release history of Leash / Mycelium across the QVAC Hackathon build window
+(May 31 – June 13, 2026). Everything here runs on-device through `@qvac/sdk` — no cloud AI.
+Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
+
+<Update label="June 13" description="Chat overhaul, plan mode & the landing site" tags={["Leash", "UI"]}>
+  The AI Elements chat overhaul with **plan mode** and a prompt **queue + steering**, the
+  broadsheet marketing front page (useleash.xyz) with live in-app previews, and the standalone
+  mesh view.
+
+  `2e42360` chat overhaul + plan mode + steering · `a4b4a71` broadsheet landing site ·
+  `1310886` mesh view
+</Update>
+
+<Update label="June 12" description="The skills-first harness" tags={["Skills", "Agent"]}>
+  Routing became skills-first: multi-skill orchestration with `run_skill` sub-agents, RRF skill
+  matching on `gte-large`, **deterministic step pipelines** for reliable multi-step runs on
+  qwen3-4b, 80% context compaction, a forgiving-parser detector, and a stop to tracking env
+  secrets (commit `.env.example` only).
+
+  `e9e6389` skills-first harness · `e600399` multi-skill orchestration + 80% compaction ·
+  `ff42ac8` run_skill sub-agents · `e69d200` deterministic step pipelines · `d5d6a62`
+  multi-utterance + RRF matching · `4e27e8e` calibrate match floors · `3d8b470` Qwen3 sampling fix ·
+  `6718d04` forgiving-parser detector · `b04b7a1` stop tracking env secrets
+</Update>
+
+<Update label="June 11" description="Catalog, mesh view & settlement on the forward path" tags={["UI", "Mesh", "Economy", "Models"]}>
+  The heaviest day (33 commits). Tabbed Settings (Storage / Devices QR+sync-key / Permissions /
+  About), the **Models v2** browser over the 729-model catalog with per-model sharing, a
+  collapsible Devices mesh+peer view, **mesh modality borrowing** (vision/embeddings/TTS/STT)
+  with failover, supersede-based ghost cleanup, `/mesh/leave`, per-modality forward-path metering
+  with x402 settlement (default metered), the `/economy/receipts` ledger, a sandboxed bash files
+  route, the feed move to `/feed`, Growth folded into Brain, and icon-affordance sweeps.
+
+  `93ec9d8` tabbed Settings · `139a2ae` Models v2 catalog · `ec489c8` per-model sharing ·
+  `b0541d6` Devices view · `3103b97` modality borrowing · `096f4dc` forward failover + STT ·
+  `09b26d4` supersede ghost cleanup · `2a7b32a` /mesh/leave · `7f85d7a` x402 forward settlement ·
+  `c0c6e62` crash-safe settlement · `aa0f3ea` metering default on · `40b77d6` receipts ledger ·
+  `1444943` sandboxed bash files route · `6bc31cf` Growth → Brain tab
+</Update>
+
+<Update label="June 10" description="The P2P agent economy" tags={["Economy", "UI"]}>
+  Paid delegated inference **settled on-chain** via a self-hosted x402 facilitator, a credibility
+  roadmap (P2–P5) with resilient reconnection and a restorePeer fix, plus the first Settings
+  surfaces — per-model context-size slider, CPU/GPU toggle, Storage, and About.
+
+  `6128718` P2P agent economy · `d0ca63f` credibility roadmap + reconnection · `8fe56ee` context
+  slider · `eb2e94f` CPU/GPU toggle · `323b678` Settings + About · `ae12597` Settings → Storage
+</Update>
+
+<Update label="June 8" description="Layer 4 — the memory evolution loop" tags={["Memory"]}>
+  "The Understory" evolution loop: the nightly on-device **curate → train → eval → apply →
+  share** LoRA loop, plus live mesh adapter sync (publish/fetch) on the live hypha mesh, with a
+  replication smoke test.
+
+  `50846fe` Layer 4 evolution loop · `d9eca98` live mesh adapter sync · `8185ec3` adapter
+  replication smoke · `160bb19` adapter sync on the live mesh
+</Update>
+
+<Update label="June 7" description="Computer use, agent core & the first docs site" tags={["Agent", "Mesh", "Docs"]}>
+  KV-cache sessions so delegated turns reuse the provider's cache, a mesh-pairing MCP server
+  (PIN entry as an in-chat elicitation), **computer use** over a jailed Mac with a ToolLoopAgent
+  core and cross-chat recall, a pending-state chat indicator, and the first Mintlify docs site.
+
+  `aa5b07f` kvCache sessions · `b6f52cf` mesh-pairing MCP server · `26044df` computer use +
+  agent core · `dbe6bec` merge agentic + computer use · `d70c3e2` pending indicator · `38d64b5`
+  Mintlify docs
+</Update>
+
+<Update label="June 6" description="LAN pairing + the agentic upgrades" tags={["Mesh", "Agent"]}>
+  Click-to-pair over the LAN with mutual disconnect and reset/restore (plus the pairing-hang
+  fixes), skills (agentskills.io layout, zip import, script execution), human-in-the-loop tool
+  approval, MCP server config with elicitation, the patch-package **vision fork** of `qvac serve`,
+  machine-neutral config (`~/` prefix + `.mjs` wrapper), broker overflow to the local hypha shim,
+  and jsonrepair self-healing of malformed model JSON.
+
+  `dd0fb70` LAN click-to-pair · `f8238e6` vision fork (patch-package) · `a06a788` skills ·
+  `66d402a` tool approval · `9e0ec5a` MCP elicitation · `b5bd118` machine-neutral config ·
+  `3eb9e5f` broker → hypha shim · `ca36448` jsonrepair · `68480c8` TTFB guard
+</Update>
+
+<Update label="June 5" description="The web app becomes the full dashboard" tags={["Leash", "UI"]}>
+  A voice **call mode**, then the web app turned into the full Mycelium dashboard: the serve
+  broker, Forage, context compaction, and a secret vault.
+
+  `aca27af` voice call mode · `161c169` improve voice call mode · `7aadb50` full dashboard ·
+  `8a2dedc` broker + Forage + compaction + vault
+</Update>
+
+<Update label="June 4" description="Leash — the on-device assistant" tags={["Leash", "Senses"]}>
+  Leash landed as an AI-SDK chat assistant with full media (vision / voice / image / TTS) and a
+  paper refactor, a GGML image-classification auto-tagger, read-aloud pause/restart controls, and
+  a fix to stop the Bare runtime from crashing the client bundle.
+
+  `4501ba0` Leash on-device assistant · `8ef7bb4` image auto-tagger · `2a1f9a0` read-aloud
+  pause/restart · `52dc38d` stop Bare crashing the bundle
+</Update>
+
+<Update label="June 3" description="The Understory + SDK 0.12 multimedia" tags={["Senses", "Understory"]}>
+  The local AI newspaper shipped (live front page, edition pagination, ⌘K search), the SDK moved
+  0.11 → 0.12 with new model-constant shims, and the media stack landed: Flux2-klein hero art,
+  on-device TTS read-aloud, and Parakeet diarization.
+
+  `ef15a9b` Understory newspaper · `445d532` SDK 0.11→0.12 · `5a586fc` Flux2-klein hero art ·
+  `fb8095c` on-device TTS · `b2deef6` Parakeet diarization
+</Update>
+
+<Update label="June 2" description="Capability gossip, failover & on-device OCR" tags={["Mesh", "Senses"]}>
+  The mesh gained gossiped device capabilities, failover provider selection with a hub heartbeat,
+  and a blind-pairing allow-list. On-device OCR was proven and wired: an image directory becomes
+  retrievable `kind:photo` nodes, with the detector + recognizer warm-cached for offline use.
+
+  `d1551d4` capability gossip · `866b81f` failover selection · `29bb9af` blind-pairing allow-list ·
+  `3241d9b` OCR spike GO · `ef7914b` photo OCR connector · `7951322` senses:photo gate
+</Update>
+
+<Update label="June 1" description="Week-1 vertical slice + CRDT mesh" tags={["Senses", "Mind", "Mesh"]}>
+  The biggest single day (19 commits). The week-1 slice: a real `search_graph` tool loop, a
+  GraphStore + RAG index over local files, a two-model proposer/critic council delegated over P2P,
+  voice ingestion via STT, and airplane-mode acceptance. Then the week-2 CRDT mesh: MeshGraph over
+  Autobase + Hyperbee with blind-pairing graph sync, incremental embed-delta, and a hub/edge
+  pair-replicate path.
+
+  `f5fba27` search_graph loop · `01c8456` GraphStore + RAG · `32d951a` 2-model council ·
+  `fac0880` delegated council over P2P · `673ec1a` voice STT · `d5f618d` merge week-1 slice ·
+  `54c4ebb` MeshGraph over Autobase · `dd174d1` edge pair + replicate · `64cb9e7` merge CRDT sync
+</Update>
+
+<Update label="May 31" description="Spike — all four primitives GO" tags={["Spike"]}>
+  The de-risking spike. Proved on-device inference + embeddings, on-device RAG, encrypted P2P
+  delegated compute, and on-device LoRA — all real, all GO. Codebase then cleaned to real-only.
+
+  `2b69868` scaffold + spike · `1a61f7d` all four primitives GO · `90853cb` clean to real-only
+</Update>

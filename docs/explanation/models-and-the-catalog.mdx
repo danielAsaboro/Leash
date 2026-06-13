@@ -1,0 +1,70 @@
+---
+title: "Models and the catalog"
+description: "Why there's a 729-model catalog, what an alias is, and how compute and context-size choices trade off against your RAM."
+---
+
+QVAC ships a large constant catalog of models. Leash exposes it as one filterable browser and
+lets you decide which models to serve, how to run them, and which to share with the mesh. This
+page explains the model layer's concepts. For the steps, see
+[Use the model catalog](/guides/use-the-model-catalog); for the exact aliases and variables,
+see [Models and aliases](/reference/models-and-aliases).
+
+## Catalog versus served aliases
+
+There are two distinct layers, and keeping them apart avoids confusion:
+
+- **The catalog** is the full set of models the SDK knows about — 729+ entries surfaced from
+  `@qvac/ai-sdk-provider`. Most are not downloaded and not running; they are just *available*.
+- **A served alias** is a model you have configured into the local serve under a short name —
+  `qwen3-4b`, `gte-large`, `medpsy`, and so on. Leash's routes target aliases, never raw catalog
+  ids, so swapping the model behind an alias never touches the calling code.
+
+The Models tab is one browser over both layers, faceted by status (configured, downloaded,
+available) and kind (text, image, speech, embedding, OCR, translation). A couple of families
+(`gpt`, `bitnet`) are hidden from the "available" residual to keep the list to models that fit
+the product — though a configured or cached one still shows.
+
+## Why aliases and preload
+
+An alias decouples the *role* ("the chat model") from the *weight* ("Qwen3-4B Q4_K_M"). Routes
+ask for the role; configuration binds the role to a weight. `preload: true` tells the serve to
+warm that weight at startup so the first request doesn't pay a cold-load penalty. This is also
+the unit the mesh advertises: a peer shares *aliases it can actually serve*, and a borrow
+targets an alias.
+
+## Compute: CPU or GPU
+
+Each model can be pinned to **CPU** or **GPU**, or left at the SDK default (GPU on Apple
+Silicon's Metal backend). The tradeoff is straightforward: GPU is faster but contends for the
+same scarce accelerator every other warm model wants; CPU frees the GPU at the cost of latency.
+On a single-GPU machine running several models, moving a low-priority model to CPU can keep the
+chat model responsive.
+
+## Context size and the RAM-fit tradeoff
+
+A model's **context size** is how many tokens it can hold at once. Bigger context means longer
+conversations and more retrieved evidence per turn — but the KV cache grows with it, and that
+memory is real. Leash exposes context size as a slider (roughly 1k–32k) and re-estimates the
+device fit live as you drag it, flagging the result as *fits*, *tight*, or *too big* for your
+RAM. The default chat model runs at 32,768 tokens; a vision or specialist model runs smaller
+because its turns are shorter and its weights leave less headroom.
+
+Model lifecycle changes — adding a model, flipping compute, resizing context — apply when the
+serve next loads the model, not instantly, because the serve has no live-reload for a model
+already resident.
+
+## Sharing to the mesh
+
+Sharing is per-model and opt-in at the alias level. A device advertises the aliases it is
+willing to serve to peers; a deny-set withholds specific models while sharing the rest. Sharing
+a model is what makes it borrowable — the other side of
+[modality borrowing](/explanation/modality-borrowing) and
+[delegated inference](/explanation/how-the-mesh-routes-work).
+
+## A note on the specialist models
+
+The served set is chosen for a 32 GB consumer device: `qwen3-4b` for chat and tools,
+`gte-large` for embeddings, `qwen3vl` for vision, `parakeet` for speech-to-text, `supertonic`
+for text-to-speech, and `medpsy` (QVAC's MedGemma 4B) routed automatically on health intent.
+That last one is why the same product can address the hackathon's Psy-Models angle without a
+separate build — the specialist is just another served alias.

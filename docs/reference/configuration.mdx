@@ -20,12 +20,12 @@ prefers `.json` and would shadow the wrapper.
 
 | Alias | Model | ctx_size | Role |
 |---|---|---|---|
-| `qwen3-4b` | Qwen3-4B Q4_K_M | 16384 | chat + agent driver (tools on, dynamic) |
-| `gte-large` | GTE-Large FP16 | — | embeddings (RAG, effort routing) |
-| `medpsy` | MedPsy 1.7B (custom src) | 8192 | health specialist |
-| `qwen3vl` | Qwen3VL-2B + mmproj | 8192 | vision |
-| `parakeet` | Parakeet TDT 0.6B | — | speech-to-text |
-| `supertonic` | Supertonic TTS | — | text-to-speech |
+| `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | 32768 | chat + agent driver (tools on, dynamic); `default: true` |
+| `gte-large` | `GTE_LARGE_FP16` | — | embeddings (RAG, effort routing, skill matching) |
+| `medpsy` | `MEDGEMMA_4B_IT_Q4_1` | 8192 | health specialist (QVAC MedGemma; tools on, dynamic) |
+| `qwen3vl` | `QWEN3VL_2B_MULTIMODAL_Q4_K` + mmproj | 8192 | vision |
+| `parakeet` | `PARAKEET_TDT_0_6B_V3_Q8_0` | — | speech-to-text |
+| `supertonic` | `TTS_EN_SUPERTONIC_Q8_0` | — | text-to-speech (`voice: F1`, `ttsSpeed: 1.05`) |
 
 <Note>
 The serve's built-in `ctx_size` default is `1024`. The committed chat and health aliases
@@ -44,14 +44,14 @@ override it because tool-carrying turns need larger budgets.
 | `LEASH_COMPUTER_MODEL` | chat model | computer-use driver alias |
 | `LEASH_UTILITY_MODEL` | chat model | background maintenance alias |
 | `LEASH_IMAGE_MODEL` | `sd` | diffusion alias for `generate_image` |
-| `LEASH_CHAT_CTX` | `16384` | chat history budget |
+| `LEASH_CHAT_CTX` | `32768` | chat history budget (must track the served `qwen3-4b` ctx_size) |
 | `LEASH_STT_MODEL` | `parakeet` | speech-to-text alias |
 | `LEASH_TTS_MODEL` | `supertonic` | text-to-speech alias |
 | `LEASH_COMPUTER_ROOT` | home directory | jail root for file tools |
 | `LEASH_COMMAND_ALLOW` | unset | comma-separated first-token allowlist for `run_command` (guard-rail) |
 | `LEASH_MCP_SERVERS` | empty | comma-separated MCP server URLs (read-only rows) |
-| `LEASH_HA_URL` / `LEASH_HA_TOKEN` | empty | Home Assistant (configure via Settings → Secrets) |
-| `LEASH_SEARXNG_URL` | empty | SearXNG for deep research (configure via Settings → Secrets) |
+| `LEASH_HA_URL` / `LEASH_HA_TOKEN` | empty | Home Assistant (configure via the Settings secret vault) |
+| `LEASH_SEARXNG_URL` | empty | SearXNG for deep research (configure via the Settings secret vault) |
 | `LEASH_ELICIT_TIMEOUT_MS` | `120000` | unanswered in-chat form → cancel |
 | `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | screen-watcher trail location |
 | `LEASH_NOTES_DIR` | `data/notes` | notes directory used for graph retrieval |
@@ -100,18 +100,26 @@ settlement rail to use it.
 | `HYPHA_ECONOMY_MAX_PER_TX` | `5000` | max µ-units per settlement transaction |
 | `HYPHA_ECONOMY_MAX_PER_HOUR` | `20000` | rolling hourly spend ceiling (µ-units) |
 | `HYPHA_ECONOMY_MAX_PER_COUNTERPARTY` | `10000` | cumulative cap per peer wallet (µ-units) |
-| `HYPHA_ECONOMY_METERED` | `0` | `1` enables streaming chunk-by-chunk settlement |
+| `HYPHA_ECONOMY_METERED` | `0` | `1` enables streaming chunk-by-chunk settlement; unset = single settle on close |
+| `HYPHA_ECONOMY_CHUNK_TOKENS` | `64` | tokens per authorization rung in metered mode |
+| `HYPHA_ECONOMY_ADVANCE_WINDOW_MS` | `20000` | idle watchdog before a metered session force-settles |
+| `HYPHA_ECONOMY_IDENTITY_BINDING` | `0` | `1` advertises a wallet↔provider-key identity proof |
+| `HYPHA_ECONOMY_VERIFY_RECEIPTS` | `0` | `1` verifies counterparty receipts on-chain |
 | **Plasma (EVM)** | | |
 | `HYPHA_ECONOMY_PLASMA_RPC_URL` | empty | EVM RPC endpoint (e.g. `http://127.0.0.1:8545`) |
-| `HYPHA_ECONOMY_PLASMA_MNEMONIC` | empty | BIP39 mnemonic for the payout wallet |
+| `HYPHA_ECONOMY_PLASMA_MNEMONIC` | empty | BIP39 mnemonic for the payout wallet (quote multi-word values) |
 | `HYPHA_ECONOMY_PLASMA_ASSET_MINT` | empty | stablecoin contract address |
 | `HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL` | `USDT` | asset ticker shown in the ledger |
-| `HYPHA_ECONOMY_PLASMA_NETWORK_ID` | `eip155:9745` | CAIP-2 network identifier |
+| `HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS` | `6` | asset decimals (µ-units when 6) |
+| `HYPHA_ECONOMY_PLASMA_NETWORK_ID` | `eip155:9745` | CAIP-2 network id; default is Plasma mainnet, the live demo uses testnet `eip155:9746` |
 | **Solana** | | |
 | `HYPHA_ECONOMY_SOLANA_RPC_URL` | empty | Solana RPC endpoint |
 | `HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE` | empty | path to keypair JSON |
+| `HYPHA_ECONOMY_SOLANA_SECRET_KEY` | empty | inline secret key (alternative to the file) |
 | `HYPHA_ECONOMY_SOLANA_ASSET_MINT` | empty | SPL token mint address |
 | `HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL` | `USDT` | asset ticker shown in the ledger |
+| `HYPHA_ECONOMY_SOLANA_ASSET_DECIMALS` | `6` | asset decimals |
+| `HYPHA_ECONOMY_SOLANA_NETWORK_ID` | `solana:5eykt4Us…` | CAIP-2 network id (mainnet by default) |
 
 ## Research, watch, and newsroom variables
 

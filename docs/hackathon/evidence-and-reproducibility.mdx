@@ -1,0 +1,69 @@
+---
+title: "Evidence & reproducibility"
+description: "Spike gates with real numbers, JSONL audit records, airplane-mode acceptance, and licensing — with pointers into submission/."
+---
+
+This page summarizes the verification evidence and points at where it lives. Per the repo's
+docs/evidence boundary, the raw bundle stays in `submission/`; the numbers below are quoted from
+`submission/SPIKE_RESULTS.md` (run 2026-05-31 on `@qvac/sdk@0.11.0`, Apple-Silicon Mac, Metal GPU).
+
+## The four spike gates — all GO
+
+The build was gated on a de-risking spike that proved each core primitive end-to-end before any
+product work. All four passed.
+
+### A — On-device inference + embeddings
+
+- Warm chat (Llama 3.2 1B): **TTFT 56 ms**, **70.6 tok/s** (cold first-load TTFT 466 ms).
+- Embeddings (`gte-large`): a **1024-dim** vector in ~84 ms.
+- Device-fit sweep: Qwen3-600M **113.7 tok/s**, Llama 1B **74.7 tok/s**, Qwen3-4B **24.1 tok/s**.
+
+### B — On-device RAG (grounded, cited)
+
+- 3 docs → 7 chunks; retrieval latency **23 ms**; top-chunk relevance **0.768**.
+- The grounded answer cited the source; the no-context answer correctly declined — measurably
+  different outputs.
+
+### C — Encrypted P2P delegated compute
+
+- Provider registration (cold DHT): **4.57 s**; round-trip **1.27 s**; **TTFT 257 ms**;
+  **45.4 tok/s** on the provider's GPU.
+- Noise-encrypted transport (Holepunch/Hyperswarm).
+
+### D — On-device LoRA (QVAC Fabric)
+
+- Fine-tune completed in **152.7 s**; train acc **0.86**, val acc **0.85**; **20 MB** adapter.
+- Loaded via `modelConfig.lora`; base vs adapter answers differed — behavior changed.
+
+## Structured audit log
+
+Every spike and runtime flow emits **JSONL** audit records (`mycelium/spike/lib/audit-log.ts`),
+capturing at least what the hackathon requires — model loads/unloads and per-call performance:
+timestamp, source, event, `modelId`, `device`, `prompt`, `tokens`, `ttftMs`, `tokensPerSecond`,
+`durationMs`. Records land under `spike/logs/` and per-app `logs/`. Worked examples are in
+`submission/evidence/` (e.g. the KV-cache session log and the cross-host settlement records).
+
+## Airplane-mode acceptance
+
+The project treats **"works in airplane mode"** as a release gate. The first run warm-caches
+model weights and bootstraps the DHT online; after that, local chat, retrieval, and on-device
+mesh operations run with no network. The non-AI remote calls are enumerated in
+[QVAC-only proof](/hackathon/qvac-only-proof).
+
+## Out-of-the-box setup
+
+The run path is documented in [How to run Leash locally](/guides/run-leash-locally) and the
+[Quickstart](/quickstart); ports and processes are in
+[Runtime ports and processes](/reference/runtime-ports-and-processes). The serve config
+(`qvac.config.base.json`) is machine-neutral (`~/`-relative paths), so a fresh clone resolves the
+default `~/.qvac` cache without edits.
+
+## Demo video and licensing
+
+- **Demo video:** the capture plan and script live in `submission/submission-video-script.md` and
+  `submission/submission-video-capture.md`, with a raw delegated-compute take in
+  `submission/evidence/`. The final ≤5-minute unlisted cut is a tracked submission step
+  **(hold link until uploaded).**
+- **License:** **Apache-2.0** across the workspace (root `LICENSE` and every `package.json`).
+
+For the full milestone history, see [the changelog](/reference/changelog).

@@ -24,6 +24,13 @@ description: "Commands, ports, health checks, and roles for the current Mycelium
 | Hub | `npm run hub` | none | original strong-brain app |
 | Edge Node | `npm run ask -- "<question>"` | none | original weak-consumer app |
 
+## Other surfaces
+
+| Surface | Start command | Port | Purpose |
+|---|---|---|---|
+| Desktop app | `npm run dev -w @mycelium/desktop` | none (Electron window) | offline on-device chat client; runs inference via `@qvac/sdk` |
+| Landing page | served by the web app | `6801` (route `/`) | the useleash.xyz broadsheet marketing front page; the app lives at `/chat`, `/brain`, `/economy`, … |
+
 ## Health and inspection endpoints
 
 | Endpoint | Owner | Use |

@@ -59,13 +59,21 @@ Use **Brain → Models** when you need to:
 
 Open `/settings` when you need to manage the machine rather than the assistant prompt.
 
-The main tabs are:
+Settings is a tabbed console with four tabs:
 
-- **Storage** for model cache and app-data cleanup
-- **Devices** for mesh membership, invites, PIN pairing, disconnect, and reset
-- **Secrets** for Home Assistant and SearXNG credentials
-- **Permissions** for microphone, screen recording, and accessibility
-- **About** for build and license identity
+- **Storage** — a two-column model-cache browser (with multi-select delete) on one side and
+  per-category app-data cleanup on the other. Clearing data never touches device identity, mesh
+  membership, the economy ledger, or secrets.
+- **Devices** — your mesh memberships as collapsible meshes; expand one to see its devices
+  (compute class, RAM, power, inflight, last-seen) and advertised models. "Invite a device" is
+  scoped to a mesh and offers a **QR code + sync key** for LAN pairing, plus disconnect/restore
+  and creator-gated delete.
+- **Permissions** — live browser-capability status for microphone, camera, and screen share,
+  each with a Request button.
+- **About** — build and license identity.
+
+Credentials such as Home Assistant and SearXNG live in the encrypted secret vault (see
+[Configuration](/reference/configuration)).
 
 ## Use the right surface for the job
 
