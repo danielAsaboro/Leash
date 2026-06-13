@@ -35,6 +35,9 @@ interface DelegationTarget {
 export interface PeerView {
   deviceId: string;
   displayName: string;
+  /** Truncated (16-char) provider public key — the SAME prefix `MeshEvent.peer` carries, so a
+   *  live-mesh viz can match a routing event to the exact node it lit up. Absent on a pre-viz peer. */
+  peerId?: string;
   computeClass: string;
   ramMB: number;
   powerState: string;
@@ -305,6 +308,7 @@ export class WarmPool {
         return {
           deviceId: c.deviceId,
           displayName: c.displayName,
+          peerId: c.providerPublicKey!.slice(0, 16),
           computeClass: c.computeClass,
           ramMB: c.ramMB,
           powerState: c.powerState,

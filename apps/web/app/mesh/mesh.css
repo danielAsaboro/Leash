@@ -1,0 +1,534 @@
+/* ───────────────────────── Mesh Monitor ─────────────────────────
+   The mesh topology, in the paper's world. Cream sheet, paper node cards with
+   hairline rules, ink telemetry — the broadsheet design system, not a separate
+   dark surface. Wires rest as faint rules and ink up sage as inference routes
+   across the fabric; faults flash brick. Status is carried by ring weight +
+   motion, not a foreign palette.                                              */
+
+.mesh-monitor {
+  /* Local aliases → the real broadsheet tokens. Components reference --mesh-*. */
+  --mesh-paper: var(--color-paper);
+  --mesh-line: var(--color-rule);
+  --mesh-line-strong: var(--color-rule-strong);
+  --mesh-grid: color-mix(in srgb, var(--color-rule-strong) 60%, transparent);
+  --mesh-text: var(--color-ink);
+  --mesh-text-dim: var(--color-muted);
+  --mesh-wire: var(--color-rule-strong);
+  --mesh-glow: var(--color-sage-deep); /* running / in-flight — the heat */
+  --mesh-sage: var(--color-sage); /* healthy / warm / settled */
+  --mesh-brick: var(--color-brick); /* fault */
+  --mesh-faint: var(--color-faint); /* offline / muted */
+
+  position: fixed;
+  inset: 0;
+  left: var(--leash-rail-w);
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(255, 255, 255, 0.6), transparent 60%),
+    radial-gradient(140% 120% at 50% 120%, rgba(120, 110, 80, 0.08), transparent 55%),
+    var(--color-cream);
+  color: var(--mesh-text);
+  font-family: var(--font-body);
+  overflow: hidden;
+  z-index: 20;
+}
+
+/* ── HUD header ─────────────────────────────────────────────────────────── */
+.mesh-hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 6;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 18px 24px;
+  background: linear-gradient(180deg, var(--color-cream) 0%, color-mix(in srgb, var(--color-cream) 55%, transparent) 65%, transparent 100%);
+  pointer-events: none;
+}
+.mesh-hud-kicker {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 500;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--color-sage-deep);
+}
+.mesh-hud-h1 {
+  margin-top: 4px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--color-ink);
+}
+.mesh-hud-back {
+  display: inline-block;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  pointer-events: auto;
+  text-decoration: none;
+}
+.mesh-hud-back:hover { color: var(--color-sage-deep); }
+
+/* ── index / picker ───────────────────────────────────────────────────────── */
+.mesh-index {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 120px 24px 40px;
+  overflow-y: auto;
+}
+.mesh-index-lede {
+  font-family: var(--font-body);
+  font-style: italic;
+  font-size: 0.92rem;
+  color: var(--color-muted);
+  margin-bottom: 20px;
+}
+.mesh-index-note {
+  max-width: 380px;
+  text-align: center;
+  padding: 26px 28px;
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  background: var(--color-paper);
+}
+.mesh-card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 820px;
+}
+.mesh-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-rule);
+  border-radius: 6px;
+  background: var(--color-paper);
+  box-shadow: 0 8px 24px -18px rgba(25, 23, 18, 0.4);
+  text-decoration: none;
+  color: var(--color-ink);
+  transition: border-color 200ms ease, box-shadow 200ms ease, transform 200ms ease;
+}
+.mesh-card:hover {
+  border-color: var(--color-sage);
+  box-shadow: 0 12px 30px -16px rgba(44, 90, 57, 0.4);
+  transform: translateY(-2px);
+}
+.mesh-card-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mesh-card-name {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.18rem;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+.mesh-card-vis {
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid var(--color-rule);
+  color: var(--color-muted);
+}
+.mesh-card-vis.is-public {
+  color: var(--color-sage-deep);
+  border-color: color-mix(in srgb, var(--color-sage) 50%, transparent);
+  background: color-mix(in srgb, var(--color-sage) 10%, transparent);
+}
+.mesh-card-id {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--color-faint);
+}
+.mesh-card-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-rule);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  color: var(--color-muted);
+}
+.mesh-card-foot strong { color: var(--color-ink); font-weight: 700; }
+.mesh-card-tag {
+  font-size: 0.54rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--color-sage) 12%, transparent);
+  color: var(--color-sage-deep);
+}
+.mesh-card-tag.is-dim { background: color-mix(in srgb, var(--color-ink) 6%, transparent); color: var(--color-muted); }
+.mesh-card-go { margin-left: auto; color: var(--color-sage-deep); font-weight: 600; }
+.mesh-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  list-style: none;
+  padding: 8px 13px;
+  border: 1px solid var(--mesh-line);
+  border-radius: 4px;
+  background: var(--mesh-paper);
+  pointer-events: auto;
+}
+.mesh-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mesh-text-dim);
+}
+
+/* ── status dot ───────────────────────────────────────────────────────────── */
+.mesh-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: 0 0 0 0 currentColor;
+}
+.mesh-dot.is-legend.is-running { background: var(--mesh-glow); }
+.mesh-dot.is-legend.is-warm { background: var(--mesh-sage); }
+.mesh-dot.is-legend.is-idle { background: var(--mesh-sage); opacity: 0.5; }
+.mesh-dot.is-legend.is-offline { background: var(--mesh-faint); }
+.mesh-dot.is-legend.is-failed { background: var(--mesh-brick); }
+.mesh-dot.is-pulse {
+  color: var(--mesh-glow);
+  animation: mesh-pulse 1.5s ease-in-out infinite;
+}
+@keyframes mesh-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--mesh-glow) 55%, transparent); }
+  50% { box-shadow: 0 0 0 5px transparent; }
+}
+
+/* ── canvas ───────────────────────────────────────────────────────────────── */
+.mesh-canvas {
+  position: absolute;
+  inset: 0;
+}
+.mesh-canvas .react-flow { background: transparent; }
+.mesh-canvas .react-flow__attribution { display: none; }
+.mesh-canvas .react-flow__controls {
+  border: 1px solid var(--mesh-line);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 6px 20px -12px rgba(25, 23, 18, 0.35);
+  margin: 16px;
+}
+.mesh-canvas .react-flow__controls-button {
+  background: var(--mesh-paper);
+  border-bottom: 1px solid var(--mesh-line);
+  color: var(--mesh-text-dim);
+}
+.mesh-canvas .react-flow__controls-button:hover { background: var(--color-cream); }
+.mesh-canvas .react-flow__controls-button svg { fill: var(--color-ink-soft); }
+
+.mesh-handle { opacity: 0; pointer-events: none; width: 1px; height: 1px; }
+
+/* ── node cards ───────────────────────────────────────────────────────────── */
+.mesh-node {
+  font-family: var(--font-mono);
+  color: var(--mesh-text);
+  user-select: none;
+}
+
+.mesh-device {
+  width: 210px;
+  border: 1px solid var(--ring, var(--mesh-line));
+  border-radius: 6px;
+  background: var(--mesh-paper);
+  box-shadow: 0 8px 24px -16px rgba(25, 23, 18, 0.45);
+  transition: border-color 320ms ease, box-shadow 320ms ease;
+  overflow: hidden;
+}
+.mesh-device.is-offline {
+  border-style: dashed;
+  border-color: var(--mesh-line);
+  opacity: 0.62;
+  filter: grayscale(0.5);
+}
+.mesh-device.is-running {
+  border-color: var(--mesh-glow);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--mesh-glow) 30%, transparent),
+    0 10px 30px -14px color-mix(in srgb, var(--mesh-sage) 55%, transparent);
+}
+.mesh-device.is-warm { border-color: color-mix(in srgb, var(--mesh-sage) 60%, var(--mesh-line)); }
+.mesh-device.is-failed {
+  border-color: var(--mesh-brick);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--mesh-brick) 28%, transparent), 0 10px 30px -16px rgba(25, 23, 18, 0.45);
+  animation: mesh-flash 0.6s ease;
+}
+@keyframes mesh-flash {
+  0% { background: color-mix(in srgb, var(--mesh-brick) 12%, var(--mesh-paper)); }
+  100% { background: var(--mesh-paper); }
+}
+
+.mesh-node-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--mesh-line);
+  background: color-mix(in srgb, var(--color-sage) 4%, transparent);
+}
+.mesh-node-name {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--color-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mesh-node-status {
+  font-size: 0.54rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.mesh-node-body { padding: 10px 12px 11px; display: flex; flex-direction: column; gap: 8px; }
+.mesh-spec {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  color: var(--mesh-text-dim);
+  letter-spacing: 0.03em;
+}
+.mesh-spec-sep { opacity: 0.45; }
+
+.mesh-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.mesh-chip {
+  font-size: 0.6rem;
+  letter-spacing: 0.01em;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--mesh-line);
+  background: color-mix(in srgb, var(--color-ink) 3%, transparent);
+  color: var(--color-ink-soft);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mesh-chip.is-warm {
+  border-color: color-mix(in srgb, var(--mesh-sage) 55%, transparent);
+  color: var(--color-sage-deep);
+  background: color-mix(in srgb, var(--color-sage) 12%, transparent);
+}
+.mesh-chip.is-more { color: var(--mesh-text-dim); opacity: 0.7; }
+
+.mesh-node-foot { font-size: 0.62rem; letter-spacing: 0.02em; }
+.mesh-foot-live { color: var(--color-sage-deep); font-weight: 600; }
+.mesh-foot-fail { color: var(--mesh-brick); }
+.mesh-foot-dim { color: var(--mesh-faint); }
+
+/* ── self / hub node ──────────────────────────────────────────────────────── */
+.mesh-self {
+  position: relative;
+  width: 182px;
+  padding: 18px 18px 16px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--mesh-sage) 55%, var(--mesh-line));
+  background: var(--mesh-paper);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--mesh-sage) 14%, transparent),
+    0 16px 44px -20px rgba(25, 23, 18, 0.5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  overflow: hidden;
+}
+.mesh-self-halo {
+  position: absolute;
+  inset: -40%;
+  background: radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--mesh-sage) 18%, transparent), transparent 60%);
+  opacity: 0.5;
+  transition: opacity 400ms ease, background 400ms ease;
+  pointer-events: none;
+}
+.mesh-self.is-busy .mesh-self-halo {
+  opacity: 0.95;
+  background: radial-gradient(circle at 50% 36%, color-mix(in srgb, var(--mesh-glow) 22%, transparent), transparent 62%);
+  animation: mesh-breathe 2.4s ease-in-out infinite;
+}
+@keyframes mesh-breathe {
+  0%, 100% { opacity: 0.55; }
+  50% { opacity: 1; }
+}
+.mesh-self-kicker {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-sage-deep);
+}
+.mesh-self-name {
+  position: relative;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.22rem;
+  line-height: 1.05;
+  color: var(--color-ink);
+}
+.mesh-self-mesh {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  color: var(--mesh-text-dim);
+  margin-bottom: 8px;
+}
+.mesh-self-stats {
+  position: relative;
+  display: flex;
+  gap: 18px;
+  padding: 9px 0;
+  border-top: 1px solid var(--mesh-line);
+  border-bottom: 1px solid var(--mesh-line);
+  width: 100%;
+  justify-content: center;
+}
+.mesh-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.mesh-stat-num { font-family: var(--font-display); font-size: 1.4rem; font-weight: 900; color: var(--color-ink); line-height: 1; }
+.mesh-stat-den { font-size: 0.8rem; color: var(--mesh-faint); font-weight: 500; }
+.mesh-stat-lab { font-size: 0.5rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--mesh-text-dim); }
+.mesh-self-wallet {
+  position: relative;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.54rem;
+  letter-spacing: 0.06em;
+  color: var(--mesh-faint);
+}
+
+/* ── wire label ───────────────────────────────────────────────────────────── */
+.mesh-wire-note {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.03em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--mesh-paper);
+  border: 1px solid var(--mesh-line);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* ── activity ticker ──────────────────────────────────────────────────────── */
+.mesh-ticker {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 6;
+  width: 344px;
+  max-width: calc(100vw - var(--leash-rail-w) - 32px);
+  border: 1px solid var(--mesh-line);
+  border-radius: 6px;
+  background: var(--mesh-paper);
+  box-shadow: 0 16px 44px -22px rgba(25, 23, 18, 0.5);
+  overflow: hidden;
+}
+.mesh-ticker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--mesh-line);
+  font-family: var(--font-mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mesh-text-dim);
+}
+.mesh-ticker-conn { margin-left: auto; color: var(--mesh-faint); letter-spacing: 0.1em; }
+.mesh-ticker-list { list-style: none; margin: 0; padding: 4px 0; max-height: 236px; overflow-y: auto; }
+.mesh-ticker-empty { padding: 14px 13px; font-family: var(--font-body); font-size: 0.74rem; line-height: 1.5; color: var(--mesh-faint); }
+.mesh-ticker-row {
+  display: grid;
+  grid-template-columns: auto auto auto 1fr;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 13px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  border-left: 2px solid transparent;
+  animation: mesh-row-in 0.3s ease;
+}
+@keyframes mesh-row-in {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: none; }
+}
+.mesh-ticker-row.is-route { border-left-color: var(--mesh-glow); }
+.mesh-ticker-row.is-done { border-left-color: var(--mesh-sage); }
+.mesh-ticker-row.is-fail { border-left-color: var(--mesh-brick); }
+.mesh-ticker-time { color: var(--mesh-faint); font-variant-numeric: tabular-nums; }
+.mesh-ticker-verb { text-transform: uppercase; letter-spacing: 0.07em; font-size: 0.56rem; }
+.mesh-ticker-verb.is-route { color: var(--color-sage-deep); }
+.mesh-ticker-verb.is-done { color: var(--mesh-sage); }
+.mesh-ticker-verb.is-fail { color: var(--mesh-brick); }
+.mesh-ticker-peer { color: var(--color-ink); font-weight: 600; }
+.mesh-ticker-detail { color: var(--mesh-text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── overlays ─────────────────────────────────────────────────────────────── */
+.mesh-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--color-cream) 60%, transparent);
+}
+.mesh-overlay-soft { background: transparent; pointer-events: none; align-items: end; padding-bottom: 92px; }
+.mesh-overlay-card {
+  max-width: 372px;
+  padding: 22px 24px;
+  border: 1px solid var(--mesh-line);
+  border-radius: 6px;
+  background: var(--mesh-paper);
+  box-shadow: 0 16px 44px -22px rgba(25, 23, 18, 0.5);
+  text-align: center;
+}
+.mesh-overlay-title { font-family: var(--font-display); font-weight: 800; font-size: 1.15rem; color: var(--color-ink); margin: 6px 0; }
+.mesh-overlay-body { font-family: var(--font-body); font-size: 0.78rem; line-height: 1.55; color: var(--mesh-text-dim); }
+.mesh-overlay-hint { margin-top: 8px; font-family: var(--font-mono); font-size: 0.6rem; color: var(--mesh-faint); letter-spacing: 0.05em; }
+
+@media (max-width: 720px) {
+  .mesh-monitor { left: 0; }
+  .mesh-hud-h1 { font-size: 1.5rem; }
+  .mesh-ticker { width: calc(100vw - 32px); }
+}

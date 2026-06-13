@@ -74,6 +74,19 @@ function EconomyIcon() {
   );
 }
 
+function MeshIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <circle cx="12" cy="12" r="2.4" />
+      <circle cx="5" cy="5.5" r="1.9" />
+      <circle cx="19" cy="5.5" r="1.9" />
+      <circle cx="5" cy="18.5" r="1.9" />
+      <circle cx="19" cy="18.5" r="1.9" />
+      <path d="M10.3 10.4 6.3 6.8M13.7 10.4l4-3.6M10.3 13.6l-4 3.6M13.7 13.6l4 3.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -90,6 +103,7 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
   { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
+  { href: "/mesh", label: "Mesh", Icon: MeshIcon, isActive: (p) => p.startsWith("/mesh") },
   { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
 ];
 
