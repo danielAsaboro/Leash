@@ -81,7 +81,8 @@
     "tag-photos": "tsx apps/web/scripts/tag-photos.mts",
     "broker": "tsx apps/leash-broker/src/main.ts",
     "hypha": "tsx apps/hypha/src/main.ts",
-    "mcp": "tsx apps/leash-mcp/src/main.ts"
+    "mcp": "tsx apps/leash-mcp/src/main.ts",
+    "tools-mcp": "tsx apps/leash-tools-mcp/src/main.ts"
   },
   "dependencies": {
     "@qvac/sdk": "^0.12.0",

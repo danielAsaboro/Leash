@@ -14,12 +14,7 @@ import { serveStatus } from "../../lib/leash/serve-control.ts";
 import { getPrompts } from "../../lib/leash/prompts-store.ts";
 import { disabledTools, askFirstOverrides, DEFAULT_ASK_FIRST } from "../../lib/leash/tool-config.ts";
 import { leashTools } from "../../lib/leash/tools.ts";
-import { taskTools } from "../../lib/leash/task-tools.ts";
-import { memoryTools } from "../../lib/leash/memory-tools.ts";
-import { skillTools } from "../../lib/leash/skill-tools.ts";
-import { researchTools } from "../../lib/leash/research-tools.ts";
-import { computerTools } from "../../lib/leash/computer-tools.ts";
-import { buildBashTools, BASH_TOOL_NAMES, bashScopeNote } from "../../lib/leash/bash-tools.ts";
+import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, bashScopeNote } from "../../lib/leash/tool-lanes.ts";
 import { computerModelInfo } from "../../lib/leash/computer-model.ts";
 import { leashMcpTools, mcpServerStatuses, mcpToolIcons } from "../../lib/leash/mcp.ts";
 import { DashShell, DashCard, Stat, Row } from "../../components/dash.tsx";
@@ -39,9 +34,9 @@ const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "growth",
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, bash, off, ask, computerNote, toolIcons] = await Promise.all([leashMcpTools(), buildBashTools(), disabledTools(), askFirstOverrides(), computerModelInfo(), mcpToolIcons()]);
-  const registry = { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...computerTools, ...bash, ...mcp };
-  const computerNames = new Set(Object.keys(computerTools));
+  const [mcp, off, ask, computerNote, toolIcons] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides(), computerModelInfo(), mcpToolIcons()]);
+  // Capability tools (incl. Computer + Files) now arrive via the leash-tools-mcp groups in `mcp`.
+  const registry = { ...leashTools, ...mcp };
   const mcpNames = new Set(Object.keys(mcp));
   const bashNote = bashScopeNote();
   return Object.entries(registry).map(([name, t]) => ({
@@ -51,7 +46,7 @@ async function toolRows(): Promise<ToolRow[]> {
     askFirst: ask[name] ?? DEFAULT_ASK_FIRST.has(name),
     askFirstDefault: DEFAULT_ASK_FIRST.has(name),
     // The computer-use rows show which model drives them; the bash rows note the sandbox scope.
-    ...(computerNames.has(name) ? { infoNote: computerNote } : BASH_TOOL_NAMES.has(name) ? { infoNote: bashNote } : {}),
+    ...(COMPUTER_TOOL_NAMES.has(name) ? { infoNote: computerNote } : BASH_TOOL_NAMES.has(name) ? { infoNote: bashNote } : {}),
     // MCP tools get an icon slot; populate the real icon where the server advertised one.
     ...(mcpNames.has(name) ? { mcp: true } : {}),
     ...(toolIcons[name] ? { iconDataUri: toolIcons[name] } : {}),

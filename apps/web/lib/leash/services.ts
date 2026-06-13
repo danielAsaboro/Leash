@@ -31,7 +31,7 @@ export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, 
 /** Touched by leash-cron every tick. */
 export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
 
-export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker" | "hypha" | "leash-mcp";
+export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker" | "hypha" | "leash-mcp" | "leash-tools-mcp";
 
 /** Where the broker listens (probe target for its health). */
 const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
@@ -39,6 +39,7 @@ const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
 const HYPHA_PORT = Number(process.env["HYPHA_PORT"] ?? 11437);
 /** Where the Leash MCP server (mesh-pairing tools) listens (probe target for its health). */
 const LEASH_MCP_PORT = Number(process.env["LEASH_MCP_PORT"] ?? 11439);
+const LEASH_TOOLS_MCP_PORT = Number(process.env["LEASH_TOOLS_MCP_PORT"] ?? 11440);
 
 interface ServiceDef {
   name: Exclude<ServiceName, "qvac-serve">;
@@ -188,6 +189,27 @@ const DEFS: ServiceDef[] = [
         if (!r.ok) return { fresh: false, detail: "not answering" };
         const s = (await r.json()) as { sessions?: number };
         return { fresh: true, detail: `${s.sessions ?? 0} session(s)` };
+      } catch {
+        return { fresh: null, detail: "not running" };
+      }
+    },
+  },
+  {
+    name: "leash-tools-mcp",
+    label: "Tool Servers",
+    command: ["npx", "tsx", "apps/leash-tools-mcp/src/main.ts"],
+    procMatch: "apps/leash-tools-mcp/src/main.ts",
+    readyProbe: true,
+    // ONE daemon hosting every tool group as its own MCP server; supervised through the
+    // per-group built-in toggles in Brain → MCP (reference-counted — see mcp-lifecycle.ts).
+    internal: true,
+    blurb: `MCP daemon (:${LEASH_TOOLS_MCP_PORT}) hosting the Leash tool groups (Home Assistant, Feed, Memory, Tasks, Context, Photos, Image) — each a separately-toggleable MCP server.`,
+    freshness: async () => {
+      try {
+        const r = await fetch(`http://127.0.0.1:${LEASH_TOOLS_MCP_PORT}/health`, { signal: AbortSignal.timeout(1500) });
+        if (!r.ok) return { fresh: false, detail: "not answering" };
+        const s = (await r.json()) as { sessions?: number; groups?: unknown[] };
+        return { fresh: true, detail: `${s.groups?.length ?? 0} group(s), ${s.sessions ?? 0} session(s)` };
       } catch {
         return { fresh: null, detail: "not running" };
       }

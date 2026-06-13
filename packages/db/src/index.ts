@@ -18,8 +18,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** dist/index.js → packages/db ; src/index.ts → packages/db (both resolve the same). */
 const PKG_ROOT = join(here, "..");
 /** The one physical database, shared by web + daemon. */
-export const DB_PATH = join(PKG_ROOT, "prisma", "newsroom.db");
-const DATASOURCE_URL = `file:${DB_PATH}`;
+export const DB_PATH = process.env.LEASH_DB_PATH ?? join(PKG_ROOT, "prisma", "newsroom.db");
+const DATASOURCE_URL = process.env.DATABASE_URL ?? `file:${DB_PATH}`;
 
 const globalForPrisma = globalThis as unknown as { __myceliumPrisma?: PrismaClient };
 

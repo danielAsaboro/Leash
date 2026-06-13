@@ -5,9 +5,11 @@
   "license": "Apache-2.0",
   "scripts": {
     "brand:icons": "tsx scripts/generate-brand-assets.ts",
-    "dev": "next dev -p 6801",
+    "dev": "LEASH_SERVER_CMD='npx next dev' PORT=6801 node server-launch.mjs",
     "build": "next build",
-    "start": "next start -p 6801"
+    "postbuild": "node scripts/stage-launcher.mjs",
+    "start": "LEASH_SERVER_CMD='npx next start' PORT=6801 node server-launch.mjs",
+    "migrate:user": "tsx scripts/migrate-to-user.mts"
   },
   "dependencies": {
     "@ai-sdk/mcp": "^1.0.46",

@@ -21,6 +21,9 @@
       "path": "packages/db"
     },
     {
+      "path": "packages/leash-core"
+    },
+    {
       "path": "apps/hub"
     },
     {
@@ -40,6 +43,9 @@
     },
     {
       "path": "apps/hypha"
+    },
+    {
+      "path": "apps/leash-tools-mcp"
     }
   ]
 }

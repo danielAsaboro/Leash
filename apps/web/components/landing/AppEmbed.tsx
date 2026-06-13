@@ -1,13 +1,39 @@
+"use client";
+import { useState } from "react";
+
 /**
- * A live in-app preview — the real Leash route embedded in a broadsheet "photo" frame, scaled down
- * and non-interactive. The app is always reachable (locally, or via tunnel at useleash.xyz), so the
- * preview IS the actual app layout, never a screenshot to capture or a file to 404.
+ * A static in-app screenshot of a Leash component, in a broadsheet "photo" frame.
+ *
+ * It is deliberately NOT a live `<iframe>` of the route: the dashboard is gated
+ * behind the password lock, so embedding it would either break (redirect to
+ * /login) or punch a hole in the lock. Screenshots live at
+ * `public/landing/<slug>.png` (one per component); until a PNG is dropped in, a
+ * captioned placeholder renders via `onError` — never a 404 or a live embed.
+ *
+ * `route` is kept as the API (e.g. "/chat") and maps to a slug ("chat") so the
+ * landing markup is unchanged; capture component shots to `public/landing/<slug>.png`.
  */
-export function AppEmbed({ route, caption }: { route: string; caption: string }) {
+export function AppEmbed({ route, caption, plate }: { route: string; caption: string; plate?: string }) {
+  const slug = route.replace(/^\//, "").replace(/\//g, "-") || "home";
+  const [ok, setOk] = useState(true);
   return (
     <figure className="landing-figure">
       <div className="landing-figure-frame landing-embed">
-        <iframe src={route} title={caption} className="landing-embed-iframe" loading="lazy" tabIndex={-1} scrolling="no" />
+        {plate ? <span className="landing-figure-plate">Plate №&thinsp;{plate}</span> : null}
+        {ok ? (
+          <img
+            src={`/landing/${slug}.png`}
+            alt={caption}
+            className="landing-embed-shot"
+            loading="lazy"
+            onError={() => setOk(false)}
+          />
+        ) : (
+          <div className="landing-embed-placeholder" aria-hidden>
+            <span className="landing-embed-placeholder-title">{caption.split("—")[0].trim()}</span>
+            <span className="landing-embed-placeholder-route">{route}</span>
+          </div>
+        )}
       </div>
       <figcaption className="landing-figure-cap">{caption}</figcaption>
     </figure>

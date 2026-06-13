@@ -13,12 +13,7 @@ process.env["LEASH_DEBUG_LOOP"] = process.env["LEASH_DEBUG_LOOP"] ?? "1";
 import { CHAT_MODEL } from "../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../lib/leash/agent.ts";
 import { leashTools } from "../lib/leash/tools.ts";
-import { taskTools } from "../lib/leash/task-tools.ts";
-import { memoryTools } from "../lib/leash/memory-tools.ts";
-import { skillTools, skillsSystemSection, activeSkillsSection } from "../lib/leash/skill-tools.ts";
-import { researchTools } from "../lib/leash/research-tools.ts";
-import { computerTools } from "../lib/leash/computer-tools.ts";
-import { buildBashTools } from "../lib/leash/bash-tools.ts";
+import { skillsSystemSection, activeSkillsSection } from "../lib/leash/skill-tools.ts";
 import { buildSkillRunner } from "../lib/leash/skill-runner.ts";
 import { leashMcpTools } from "../lib/leash/mcp.ts";
 import { getPrompt } from "../lib/leash/prompts-store.ts";
@@ -32,7 +27,7 @@ async function main() {
   const prompt = process.argv.slice(2).join(" ").trim() || "Research the best smart light bulbs of 2026 with sources, then create a task to compare the top two options.";
   const id = "loop-probe";
 
-  const baseTools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await buildBashTools()), ...(await leashMcpTools()) };
+  const baseTools = { ...leashTools, ...(await leashMcpTools()) };
   const tools = { ...baseTools, ...buildSkillRunner(baseTools) };
   const enabledTools = withApprovalGates(await filterEnabledTools(tools));
 

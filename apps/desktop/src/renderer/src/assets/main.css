@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+/* ───────────────────────── Design tokens ─────────────────────────
+   "The Understory" broadsheet theme, ported from apps/web/app/globals.css so
+   the desktop client shares Mycelium's visual identity. Cream paper, ink, sage
+   green, a brick rule. Three voices: Fraunces (display), Newsreader (body),
+   IBM Plex Mono (labels/telemetry). Fonts are bundled via @fontsource (imported
+   in main.tsx) — never fetched, so airplane-mode rendering is preserved. */
+@theme {
+  --color-cream: #f1efe6;
+  --color-paper: #f7f5ed;
+  --color-ink: #191712;
+  --color-ink-soft: #3b382f;
+  --color-muted: #6c685c;
+  --color-faint: #9b9588;
+  --color-rule: #d4cfbf;
+  --color-rule-strong: #b9b2a0;
+  --color-sage: #3f7d4e;
+  --color-sage-deep: #2c5a39;
+  --color-brick: #ad3322;
+  --color-control: #15140f;
+  --color-control-2: #1f1d16;
+  --color-control-line: #34301f;
+  --color-glow: #79b985;
+
+  --font-display: 'Fraunces', 'Times New Roman', serif;
+  --font-body: 'Newsreader', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', monospace;
+
+  --tracking-label: 0.18em;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* Chat content is selectable even though the chrome isn't. */
+  .selectable {
+    user-select: text;
+  }
+}

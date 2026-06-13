@@ -17,6 +17,13 @@
  */
 export function stripMarkdownForSpeech(text: string): string {
   let s = text ?? "";
+  // Supertonic TTS returns HTTP 500 on a literal "<" or ">" (verified against the serve).
+  // Reasoning models also sometimes leak `<think>…</think>` tags into the answer. So, FIRST:
+  // drop whole reasoning blocks, then any HTML/XML-ish tags (incl. a lone leaked `</think>`),
+  // then replace any surviving stray angle brackets with a space so the serve never 500s.
+  s = s.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  s = s.replace(/<[^>]*>/g, "");
+  s = s.replace(/[<>]/g, " ");
   // Fenced code blocks ```lang\n…``` → keep the inner text, drop the fences + language tag.
   s = s.replace(/```[^\n]*\n?([\s\S]*?)```/g, "$1");
   s = s.replace(/```/g, ""); // any stray / unclosed fence

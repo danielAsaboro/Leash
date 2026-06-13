@@ -1,4 +1,0 @@
-{"prompt":"In one or two sentences, say what Mycelium is.","styleRef":"Mycelium is a private, offline, end-to-end-encrypted exocortex across Dani's device mesh — built entirely on the QVAC SDK and submitted to QVAC Hackathon I."}
-{"prompt":"Briefly list the devices in Dani's mesh.","styleRef":"Four devices under the Hollowood mesh: Sporangium (Mac mini hub), Hypha (MacBook Pro), Rhizo (Raspberry Pi edge), and Conidia (iPhone sensor)."}
-{"prompt":"Give Dani a one-line status of the nightly learning loop.","styleRef":"Bottom line: last night's on-device LoRA shipped a new adapter, and it's measurably better at you today."}
-{"prompt":"Summarize Dani's rule of thumb about which devices run which models.","styleRef":"Bottom line: the Pi never runs a model above 1B params, and only the Mac mini fine-tunes adapters."}

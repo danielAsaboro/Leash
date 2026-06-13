@@ -41,6 +41,8 @@ const HOW = [
   { n: "04", h: "On-device fine-tuning", b: "LoRA adapters (QVAC Fabric) personalize the model without sending a byte off-device." },
 ];
 
+const WORDMARK = "LEASH".split("");
+
 export default function Landing() {
   return (
     <div className="landing">
@@ -61,32 +63,48 @@ export default function Landing() {
       {/* Front-page masthead */}
       <div id="top" className="landing-masthead">
         <span className="landing-masthead-side">Vol. I · No. 1</span>
-        <h1 className="landing-wordmark">LEASH</h1>
+        <h1 className="landing-wordmark" aria-label="Leash">
+          {WORDMARK.map((c, i) => (
+            <span key={i} className="landing-wordmark-char" style={{ animationDelay: `${0.12 + i * 0.08}s` }}>
+              {c}
+            </span>
+          ))}
+        </h1>
         <span className="landing-masthead-side landing-masthead-side-r">On-device · Private · Est. 2026</span>
       </div>
       <div className="landing-rule-thick" />
+      <div className="landing-dateline">
+        <span className="landing-dateline-end">Late Edition</span>
+        <span className="landing-dateline-mid">Private · On-device · Encrypted end-to-end · No cloud, ever</span>
+        <span className="landing-dateline-end landing-dateline-r">Price: your privacy, kept</span>
+      </div>
       <div className="landing-rule-thin" />
 
       {/* Hero */}
       <section className="landing-hero">
-        <p className="landing-kicker kicker kicker-sage">The private exocortex</p>
-        <h2 className="landing-headline">Your mind, on your own devices.</h2>
-        <p className="landing-dek">
+        <p className="landing-kicker kicker kicker-sage rise" style={{ animationDelay: "0.5s" }}>The private exocortex</p>
+        <h2 className="landing-headline rise" style={{ animationDelay: "0.6s" }}>Your mind, on your own devices.</h2>
+        <p className="landing-dek rise" style={{ animationDelay: "0.72s" }}>
           Leash is a private assistant grounded in your own data — your notes, your files, your world. It runs entirely on your devices.
           No cloud. No leak. Powered by your personal mesh.
         </p>
-        <div className="landing-cta-row">
-          <a href="#waitlist" className="landing-btn landing-btn-primary">Join the waitlist</a>
-          <Link href="/chat" className="landing-btn">Open Leash</Link>
+        <div className="landing-cta-row rise" style={{ animationDelay: "0.84s" }}>
+          <a href="#waitlist" className="landing-btn landing-btn-primary">
+            Join the waitlist<span className="landing-btn-arrow" aria-hidden>→</span>
+          </a>
+          <Link href="/chat" className="landing-btn">
+            Open Leash<span className="landing-btn-arrow" aria-hidden>→</span>
+          </Link>
         </div>
       </section>
 
       <div className="landing-rule-thin" />
 
       {/* Three pillars */}
-      <section className="landing-pillars">
-        {PILLARS.map((p) => (
+      <section className="landing-pillars landing-reveal">
+        {PILLARS.map((p, i) => (
           <div key={p.kicker} className="landing-pillar">
+            <span className="landing-pillar-folio">{String(i + 1).padStart(2, "0")}</span>
             <h3 className="landing-pillar-kicker">{p.kicker}</h3>
             <p className="landing-pillar-body">{p.body}</p>
           </div>
@@ -96,21 +114,21 @@ export default function Landing() {
       <div className="landing-rule-thin" />
 
       {/* The figures — in-app screenshots */}
-      <section className="landing-figures">
+      <section className="landing-figures landing-reveal">
         <p className="landing-section-kicker kicker">Inside Leash</p>
         <div className="landing-figures-grid">
-          <AppEmbed route="/chat" caption="Chats — your assistant, grounded in your data, with a visible plan." />
-          <AppEmbed route="/settings" caption="Mesh — your devices, paired and sharing models & compute." />
-          <AppEmbed route="/brain" caption="Models — what you run locally, and what you can borrow." />
+          <AppEmbed plate="I" route="/chat" caption="Chats — your assistant, grounded in your data, with a visible plan." />
+          <AppEmbed plate="II" route="/mesh" caption="Mesh — your devices, paired and sharing models & compute." />
+          <AppEmbed plate="III" route="/brain" caption="Models — what you run locally, and what you can borrow." />
         </div>
       </section>
 
       <div className="landing-rule-thick" />
 
       {/* Feature spread — the Agent Economy */}
-      <section className="landing-economy">
+      <section className="landing-economy landing-reveal">
         <div className="landing-economy-copy">
-          <p className="landing-section-kicker kicker kicker-sage">The feature</p>
+          <p className="landing-section-kicker landing-section-kicker-left kicker kicker-sage">The feature</p>
           <h2 className="landing-economy-head">An economy of agents.</h2>
           <p className="landing-economy-dek">Your devices form a market for intelligence.</p>
           <p className="landing-economy-body">
@@ -118,15 +136,17 @@ export default function Landing() {
             device on the mesh and <strong>pays per token</strong>, <strong>settled on-chain</strong> (x402-style machine payments). Providers
             earn; small hardware runs big models. A real machine-to-machine economy, live across your own devices.
           </p>
-          <Link href="/economy" className="landing-btn">See the economy</Link>
+          <Link href="/economy" className="landing-btn">
+            See the economy<span className="landing-btn-arrow" aria-hidden>→</span>
+          </Link>
         </div>
-        <AppEmbed route="/economy" caption="Economy — paid, on-chain-settled compute between your agents." />
+        <AppEmbed plate="IV" route="/economy" caption="Economy — paid, on-chain-settled compute between your agents." />
       </section>
 
       <div className="landing-rule-thick" />
 
       {/* …and more */}
-      <section className="landing-more">
+      <section className="landing-more landing-reveal">
         <p className="landing-section-kicker kicker">…and more</p>
         <div className="landing-more-grid">
           {MORE.map((m) => (
@@ -141,7 +161,7 @@ export default function Landing() {
       <div className="landing-rule-thin" />
 
       {/* How it works / QVAC */}
-      <section className="landing-how">
+      <section className="landing-how landing-reveal">
         <p className="landing-section-kicker kicker">How it works</p>
         <div className="landing-how-grid">
           {HOW.map((s) => (
@@ -158,7 +178,7 @@ export default function Landing() {
       <div className="landing-rule-thick" />
 
       {/* Waitlist */}
-      <section id="waitlist" className="landing-waitlist">
+      <section id="waitlist" className="landing-waitlist landing-reveal">
         <h2 className="landing-waitlist-head">Put your AI on a leash.</h2>
         <p className="landing-waitlist-dek">Private, on-device, yours. Join the waitlist and we’ll let you in.</p>
         <WaitlistForm />

@@ -15,13 +15,9 @@ import { z } from "zod";
 import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
 import { leashTools } from "../../../../lib/leash/tools.ts";
-import { taskTools } from "../../../../lib/leash/task-tools.ts";
-import { memoryTools } from "../../../../lib/leash/memory-tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
-import { skillTools, skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
-import { researchTools } from "../../../../lib/leash/research-tools.ts";
-import { computerTools } from "../../../../lib/leash/computer-tools.ts";
-import { buildBashTools, BASH_TOOL_NAMES } from "../../../../lib/leash/bash-tools.ts";
+import { skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
+import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES } from "../../../../lib/leash/tool-lanes.ts";
 import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skill-runner.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
@@ -160,9 +156,10 @@ export async function POST(req: Request): Promise<Response> {
   // doesn't immediately end this one (this turn IS that follow-up).
   clearInterject(id);
 
-  // Task/memory tools are per-request factories: writes get stamped with this chat's id.
-  // This is the FULL registry — used for message validation; `streamText` gets the filtered set.
-  const baseTools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await buildBashTools()), ...(await leashMcpTools()) };
+  // The FULL registry — used for message validation; `streamText` gets the filtered set.
+  // Capability tools (search_graph, ha_*, remember/recall, tasks, photos, image, feed) now
+  // arrive via `leashMcpTools()` from the toggleable leash-tools-mcp groups, not in-process.
+  const baseTools = { ...leashTools, ...(await leashMcpTools()) };
   // Plan mode (`submit_plan`): built unconditionally so stored plan-mode threads validate on any
   // turn; only handed to the AGENT when this turn is in plan mode (below). `getTask`/`getWriter` are
   // getters because the tool is built before the task text + response writer exist; `execute` (which
@@ -214,10 +211,13 @@ export async function POST(req: Request): Promise<Response> {
   // enabled) → the computer driver; else medical/wellbeing → MedPsy specialist; else generalist.
   const off = await disabledTools();
   const imageTurn = isImageTurn(validated);
-  const computerEnabled = Object.keys(computerTools).some((name) => !off.has(name));
+  // Computer/Files now live in toggleable leash-tools-mcp groups: a lane is available only when
+  // its tools are present in the merged registry this turn (i.e. its group is enabled) and not disabled.
+  const available = new Set(Object.keys(baseTools));
+  const computerEnabled = [...COMPUTER_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
   // Files (sandboxed retrieval) takes precedence over computer for read/search intents
   // ("prefer bash tool over ours"); real writes/GUI/shell still fall through to computer.
-  const filesEnabled = [...BASH_TOOL_NAMES].some((name) => !off.has(name));
+  const filesEnabled = [...BASH_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
   const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
   const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
   const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);

@@ -65,6 +65,8 @@ export async function POST(req: Request): Promise<Response> {
       /* non-JSON error body */
     }
     const code = detail.error?.code ?? `http_${upstream.status}`;
+    // Concise server-side breadcrumb (no user content) for future TTS triage.
+    console.error(`[speak] serve error ${upstream.status} (${code})`);
     const message =
       code === "model_not_found"
         ? `The voice model "${ttsModel}" isn't loaded. Add it to qvac.config.base.json → serve.models and restart \`npm run qvac\`.`

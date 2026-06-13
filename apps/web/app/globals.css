@@ -852,9 +852,31 @@
     pointer-events: none;
     background: var(--color-paper);
   }
-  /* A faint scrim + zoom on hover hints these are live, not flat images. */
+  /* Static component screenshot filling the frame (top-anchored crop). Replaces the
+     old live iframe — the dashboard is gated, so the landing shows shots, not embeds. */
+  .landing-embed-shot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: top center;
+    background: var(--color-paper);
+  }
+  /* Shown until a screenshot PNG exists at public/landing/<slug>.png. */
+  .landing-embed-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--font-display);
+    font-size: 1.1rem;
+    color: var(--color-faint);
+    background: color-mix(in srgb, var(--color-sage) 4%, var(--color-paper));
+  }
   .landing-embed::after {
-    content: "live";
+    content: "preview";
     position: absolute;
     top: 0.4rem;
     right: 0.5rem;
@@ -1070,6 +1092,220 @@
       display: none;
     }
   }
+
+  /* ───────── Landing elevation: motion, atmosphere, contrast & editorial detail ─────────
+     The base landing rules above are correct-but-static; this block layers in the app's
+     "rise" reveal vocabulary, fixes washed-out (faint) text, gives the buttons real
+     presence, and adds the broadsheet furniture (dateline, plates, folios). Every
+     override sits after the base rules so source order wins; all of it degrades to a
+     fully-visible static page (reduced-motion + no scroll-timeline support). */
+
+  /* Atmosphere — the sheet reads as paper on a desk: a top press-glow over paper, framed
+     by a hairline + soft drop shadow so the cream body grain shows in the margins. */
+  .landing {
+    position: relative;
+    background:
+      radial-gradient(120% 60% at 50% -8%, color-mix(in srgb, var(--color-sage) 7%, transparent), transparent 60%),
+      var(--color-paper);
+    box-shadow: 0 0 0 1px var(--color-rule), 0 30px 80px -60px rgba(25, 23, 18, 0.5);
+  }
+
+  /* Masthead wordmark — printed letter by letter on load. */
+  .landing-wordmark { display: inline-flex; }
+  .landing-wordmark-char {
+    display: inline-block;
+    animation: risechar 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+  @keyframes risechar {
+    from { opacity: 0; transform: translateY(0.4em) scaleY(1.12); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Dateline strip under the masthead — the broadsheet's signature furniture. */
+  .landing-dateline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.5rem 0;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+  .landing-dateline-mid { color: var(--color-sage-deep); text-align: center; }
+  .landing-dateline-r { text-align: right; }
+  @media (max-width: 640px) {
+    .landing-dateline-end { display: none; }
+  }
+
+  /* Contrast fix — these were --color-faint (#9b9588) and washed out on paper. */
+  .landing-masthead-side { color: var(--color-muted); }
+  .landing-footer-meta { color: var(--color-muted); }
+  .landing-how-n { color: var(--color-sage-deep); font-weight: 600; }
+
+  /* Section kickers — readable ink-soft, flanked by drawn hairlines. */
+  .landing-section-kicker {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.9rem;
+    color: var(--color-ink-soft);
+  }
+  .landing-section-kicker::before,
+  .landing-section-kicker::after {
+    content: "";
+    height: 1px;
+    width: clamp(1.5rem, 12vw, 5rem);
+    background: linear-gradient(90deg, transparent, var(--color-rule-strong));
+  }
+  .landing-section-kicker::after {
+    background: linear-gradient(90deg, var(--color-rule-strong), transparent);
+  }
+  .landing-section-kicker-left { justify-content: flex-start; }
+  .landing-section-kicker-left::before { display: none; }
+
+  /* Buttons — clear borders + presence (the secondary button was near-invisible). */
+  .landing-btn {
+    gap: 0.45rem;
+    border-color: var(--color-ink-soft);
+    box-shadow: 0 1px 0 rgba(25, 23, 18, 0.04);
+    transition: background 0.18s, color 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+  }
+  .landing-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -12px rgba(25, 23, 18, 0.55);
+  }
+  .landing-btn-arrow {
+    display: inline-block;
+    transition: transform 0.18s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .landing-btn:hover .landing-btn-arrow { transform: translateX(4px); }
+  /* The primary CTA is an <a>; `.landing a { color: inherit }` (0,1,1) outranks the base
+     `.landing-btn-primary` color (0,1,0) and was painting the label ink-on-ink (invisible).
+     Raise specificity to 0,2,0 so the cream label wins. */
+  .landing .landing-btn-primary,
+  .landing .landing-btn-primary:hover { color: var(--color-cream); }
+
+  /* Nav + footer links — an underline that draws in on hover. */
+  .landing-topnav a:not(.landing-topnav-cta),
+  .landing-footer-nav a { position: relative; }
+  .landing-topnav a:not(.landing-topnav-cta)::after,
+  .landing-footer-nav a::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 100%; bottom: -3px;
+    height: 1px;
+    background: var(--color-sage-deep);
+    transition: right 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .landing-topnav a:not(.landing-topnav-cta):hover::after,
+  .landing-footer-nav a:hover::after { right: 0; }
+
+  /* Pillars — a faint sage folio numeral above each. */
+  .landing-pillar { position: relative; }
+  .landing-pillar-folio {
+    display: block;
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 2.2rem;
+    line-height: 1;
+    color: color-mix(in srgb, var(--color-sage) 22%, transparent);
+    margin-bottom: 0.35rem;
+  }
+
+  /* Figures — engraved plate frames that lift on hover; placeholders get a plate label
+     and a slow scan so they read as intentional prints, not empty boxes. */
+  .landing-figure-frame { transition: transform 0.25s, box-shadow 0.25s; }
+  .landing-figure:hover .landing-figure-frame {
+    transform: translateY(-3px);
+    box-shadow: 0 18px 40px -28px rgba(25, 23, 18, 0.6);
+  }
+  .landing-figure-plate {
+    position: absolute;
+    top: 0.5rem; left: 0.55rem;
+    z-index: 2;
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-muted);
+    background: color-mix(in srgb, var(--color-paper) 82%, transparent);
+    padding: 0.12rem 0.4rem;
+    border: 1px solid var(--color-rule);
+  }
+  .landing-embed-placeholder {
+    flex-direction: column;
+    gap: 0.45rem;
+    background:
+      repeating-linear-gradient(0deg, transparent, transparent 22px, color-mix(in srgb, var(--color-sage) 5%, transparent) 23px),
+      color-mix(in srgb, var(--color-sage) 5%, var(--color-paper));
+    overflow: hidden;
+  }
+  .landing-embed-placeholder::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(100deg, transparent 30%, color-mix(in srgb, var(--color-glow) 20%, transparent) 50%, transparent 70%);
+    transform: translateX(-100%);
+    animation: plateScan 5s ease-in-out infinite;
+  }
+  @keyframes plateScan {
+    0%, 100% { transform: translateX(-100%); }
+    55%, 72% { transform: translateX(100%); }
+  }
+  .landing-embed-placeholder-title {
+    z-index: 1;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--color-ink-soft);
+  }
+  .landing-embed-placeholder-route {
+    z-index: 1;
+    font-family: var(--font-mono);
+    font-size: 0.6rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-sage-deep);
+  }
+
+  /* Figures layout — the base 3-up grid crushed the 1440×1048 shots into illegible
+     thumbnails. Give them room: a full-bleed lead plate, then the rest as a 2-up below,
+     each frame ~matching the screenshot's native ratio so cover barely crops. */
+  .landing-figures-grid { gap: 1.8rem 1.6rem; }
+  @media (min-width: 801px) {
+    .landing-figures-grid { grid-template-columns: 1fr 1fr; }
+    .landing-figure:first-child { grid-column: 1 / -1; }
+  }
+  .landing-figure:first-child .landing-figure-frame { aspect-ratio: 16 / 10; }
+  .landing-figure:not(:first-child) .landing-figure-frame { aspect-ratio: 4 / 3; }
+  /* Show the top of the UI rather than a center slice. */
+  .landing-embed-shot { object-position: top center; }
+
+  /* …and more — items take a sage rule + name on hover. */
+  .landing-more-item { transition: border-color 0.18s; }
+  .landing-more-name { transition: color 0.18s; }
+  .landing-more-item:hover { border-top-color: var(--color-sage-deep); }
+  .landing-more-item:hover .landing-more-name { color: var(--color-sage-deep); }
+
+  /* Scroll-driven section reveals — progressive enhancement, visible by default. */
+  @media (prefers-reduced-motion: no-preference) {
+    @supports (animation-timeline: view()) {
+      .landing-reveal {
+        animation: rise linear both;
+        animation-timeline: view();
+        animation-range: entry 2% cover 18%;
+      }
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .landing-wordmark-char,
+    .landing-reveal,
+    .landing-embed-placeholder::before { animation: none !important; }
+  }
+
   .leash-rail {
     position: fixed;
     top: 0;

@@ -32,9 +32,7 @@ import { chatModel, medpsyModel, visionModel, computerModel } from "./provider.t
 import { repairLeashToolCall } from "./json-repair.ts";
 import { DATA_DIR } from "./json-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
-import { computerTools } from "./computer-tools.ts";
-import { BASH_TOOL_NAMES } from "./bash-tools.ts";
-import { MCP_ADMIN_TOOL_NAMES } from "./mcp-admin-tools.ts";
+import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lanes.ts";
 
 /** A skill can't reintroduce the 4096-ctx overflow: its declared toolset is truncated here. */
 const SKILL_TOOLS_CAP = 18;
@@ -70,8 +68,6 @@ export type LeashCallOptions = z.infer<typeof leashCallOptionsSchema>;
 function samplingFor(thinking: boolean | undefined): { temperature: number; topP: number } {
   return thinking ? { temperature: 0.6, topP: 0.95 } : { temperature: 0.7, topP: 0.8 };
 }
-
-const COMPUTER_NAMES = new Set(Object.keys(computerTools));
 
 /**
  * Skill-system tools — kept available even when an active skill overrides the toolset, so a
@@ -111,8 +107,8 @@ function resolveActiveTools(names: string[], options: LeashCallOptions): string[
   }
 
   if (options.route === "files") return names.filter((n) => BASH_TOOL_NAMES.has(n));
-  if (options.route === "computer") return names.filter((n) => COMPUTER_NAMES.has(n));
-  return names.filter((n) => !COMPUTER_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n));
+  if (options.route === "computer") return names.filter((n) => COMPUTER_TOOL_NAMES.has(n));
+  return names.filter((n) => !COMPUTER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n));
 }
 
 /** Schema-count guard (LEASH_DEBUG_TOOLS=1): log the active toolset so a route can be checked against the ~22-schema cap. */

@@ -5,10 +5,6 @@
  * MCP) so the dashboard shows what chat truly has.
  */
 import { leashTools } from "../../../../lib/leash/tools.ts";
-import { taskTools } from "../../../../lib/leash/task-tools.ts";
-import { memoryTools } from "../../../../lib/leash/memory-tools.ts";
-import { skillTools } from "../../../../lib/leash/skill-tools.ts";
-import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { disabledTools, setDisabledTools, askFirstOverrides, setAskFirst, DEFAULT_ASK_FIRST } from "../../../../lib/leash/tool-config.ts";
 
@@ -16,8 +12,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 async function registry() {
-  // chatId only stamps task writes; "dashboard" is a fine placeholder for listing.
-  return { ...leashTools, ...taskTools("dashboard"), ...memoryTools("dashboard"), ...skillTools, ...researchTools, ...(await leashMcpTools()) };
+  // Capability tools (search_graph, ha_*, tasks, memory, …) come via leashMcpTools() from the
+  // toggleable leash-tools-mcp groups; in-process holds just MCP-admin + skills + research.
+  return { ...leashTools, ...(await leashMcpTools()) };
 }
 
 async function view(): Promise<Response> {

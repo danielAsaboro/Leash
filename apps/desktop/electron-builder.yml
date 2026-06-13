@@ -1,0 +1,66 @@
+appId: com.mycelium.desktop
+productName: Leash
+# Restores the standalone server's node_modules that extraResources drops (see the hook).
+afterPack: build/after-pack.cjs
+# Pinned explicitly: electron is hoisted to the monorepo-root node_modules, so
+# electron-builder can't infer the version from the app's (ranged) package.json.
+# Keep in sync with the electron devDependency.
+electronVersion: 39.8.10
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+# Ship the Leash dashboard as a self-contained Next standalone server (built by
+# `apps/web` with output:'standalone') plus the qvac.config the serve needs. The
+# heavy QVAC inference runtime + model weights are NOT bundled — fetched on first
+# run (npx @qvac/cli serve + ~/.qvac downloads), keeping the dmg small.
+extraResources:
+  # Includes the staged supervisor (server-launch.mjs + lib/leash/scope.mjs under apps/web/).
+  - from: ../web/.next/standalone
+    to: leash
+  - from: ../../qvac.config.mjs
+    to: leash-config/qvac.config.mjs
+  - from: ../../qvac.config.base.json
+    to: leash-config/qvac.config.base.json
+  # Empty (schema-only) DB copied into a fresh install's db path on first run.
+  - from: resources/newsroom-template.db
+    to: newsroom-template.db
+win:
+  executableName: leash
+  target:
+    - nsis
+nsis:
+  artifactName: ${productName}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+mac:
+  category: public.app-category.productivity
+  entitlementsInherit: build/entitlements.mac.plist
+  target:
+    - dmg
+    - zip
+  extendInfo:
+    - NSCameraUsageDescription: Application requests access to the device's camera.
+    - NSMicrophoneUsageDescription: Application requests access to the device's microphone.
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  notarize: false
+dmg:
+  artifactName: ${productName}-${version}.${ext}
+linux:
+  target:
+    - AppImage
+    - deb
+  maintainer: mycelium
+  category: Utility
+appImage:
+  artifactName: ${productName}-${version}.${ext}
+npmRebuild: false

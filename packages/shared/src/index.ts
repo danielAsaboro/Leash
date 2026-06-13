@@ -310,3 +310,8 @@ export type { ChatTurn, KvResolution } from "./kv-sessions.ts";
 // The context-graph node type — the unit replicated across the mesh (Week-2). Lives
 // here (dependency-free) so both senses and mesh use it without a dependency cycle.
 export type { GraphNode, GraphNodeInput } from "./graph.ts";
+
+// Framework-agnostic chat primitives — shared by apps/desktop (and a future
+// apps/mobile) so the chat message model + history builder need no rewrite.
+export { DEFAULT_SYSTEM_PROMPT, buildHistory } from "./chat.ts";
+export type { ChatMessage } from "./chat.ts";
