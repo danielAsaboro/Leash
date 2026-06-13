@@ -15,6 +15,31 @@ import type { ServiceName } from "./services.ts";
 import type { McpServerEntry, McpTransport } from "./mcp-config.ts";
 
 const LEASH_MCP_PORT = Number(process.env["LEASH_MCP_PORT"] ?? 11439);
+const LEASH_TOOLS_MCP_PORT = Number(process.env["LEASH_TOOLS_MCP_PORT"] ?? 11440);
+const TOOLS_MCP_HEALTH = `http://127.0.0.1:${LEASH_TOOLS_MCP_PORT}/health`;
+
+/**
+ * The tool groups hosted by the ONE `leash-tools-mcp` daemon — each a built-in MCP server
+ * the user toggles independently in Brain → MCP. id/label/blurb MIRROR `@mycelium/leash-core`'s
+ * `TOOL_GROUPS` (kept as plain data here so the web bundle doesn't pull the daemon's group
+ * code + its prisma/provider deps). Add a group → add a row here and in `groups/index.ts`.
+ * They SHARE `service: "leash-tools-mcp"`, so the daemon is reference-counted: it starts when
+ * the first group turns on and stops when the last turns off (see mcp-lifecycle.ts).
+ */
+const TOOLS_MCP_GROUPS: { id: string; name: string; description: string }[] = [
+  { id: "home-assistant", name: "Home Assistant", description: "Control smart-home devices (lights, switches, fans, covers, scenes) over Home Assistant's LAN API." },
+  { id: "feed", name: "Feed", description: "Search the user's auto-written on-device daily paper (The Understory)." },
+  { id: "memory", name: "Memory", description: "Save and recall typed memories about the user (preferences, facts, goals, people, routines)." },
+  { id: "tasks", name: "Tasks", description: "Create, list, and update tasks on the user's to-do list." },
+  { id: "context", name: "Context", description: "Search the user's private context graph (notes, files, memories, past chats) and read their live screen activity." },
+  { id: "photos", name: "Photos", description: "List the user's images and their on-device auto-tags." },
+  { id: "image", name: "Image", description: "Generate images from text, fully on-device." },
+  { id: "research", name: "Research", description: "Run a deep, multi-source WEB research run in the background (needs network)." },
+  { id: "skills", name: "Skills", description: "Load the user's skills on demand and run their bundled scripts (read_skill, read_skill_file, run_skill_script)." },
+  { id: "computer", name: "Computer Use", description: "See and act on this Mac: screenshot, approval-gated run_command (the real-disk executor), and mouse/keyboard." },
+  { id: "files", name: "Files", description: "Sandboxed read-only file retrieval (grep/find/cat/jq) over a snapshot of the user's files." },
+  { id: "mcp-admin", name: "MCP", description: "Install and register OTHER MCP servers from a URL or by hand (install_mcp_repo, upsert_mcp_server)." },
+];
 
 export interface McpBuiltin {
   /** Stable id (also the key under `builtins` in the store). */
@@ -42,6 +67,16 @@ export const MCP_BUILTINS: McpBuiltin[] = [
     healthUrl: `http://127.0.0.1:${LEASH_MCP_PORT}/health`,
     defaultEnabled: false,
   },
+  ...TOOLS_MCP_GROUPS.map((g): McpBuiltin => ({
+    id: `builtin:tools-${g.id}`,
+    name: g.name,
+    description: g.description,
+    url: `http://127.0.0.1:${LEASH_TOOLS_MCP_PORT}/mcp/${g.id}`,
+    transport: "http",
+    service: "leash-tools-mcp",
+    healthUrl: TOOLS_MCP_HEALTH,
+    defaultEnabled: false,
+  })),
 ];
 
 export function builtinById(id: string): McpBuiltin | undefined {

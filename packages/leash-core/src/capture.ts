@@ -10,7 +10,6 @@
  * `CaptureError` signals a permission/empty-frame problem (the tool surfaces the
  * hint as honest text instead of crashing the turn).
  */
-import "server-only";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, unlink, mkdir } from "node:fs/promises";

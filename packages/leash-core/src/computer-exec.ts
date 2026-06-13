@@ -21,7 +21,6 @@
  *
  * Limits mirror `skill-exec.ts` (same caps, same stripped env, same kill discipline).
  */
-import "server-only";
 import { spawn } from "node:child_process";
 import { readFile, writeFile, mkdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";

@@ -118,6 +118,45 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
   }
 }
 
+/**
+ * Leash tool groups (the `leash-tools-mcp` daemon) return MCP `structuredContent`
+ * ({ sources, …extras like `task`/`url` }) alongside the text content. The default
+ * `@ai-sdk/mcp` tool `execute` returns the RAW result (`{ content, structuredContent }`),
+ * but the chat UI reads citation chips off `output.sources` — the shape the old in-process
+ * tools returned. So we wrap each tool: lift `structuredContent`'s keys to the top level
+ * plus a flattened `text`, while KEEPING `content` so the SDK's `toModelOutput` still feeds
+ * the model the human text. Tools WITHOUT structuredContent (external MCP servers) pass
+ * through untouched.
+ */
+type RawMcpResult = { content?: Array<{ type?: string; text?: string }>; structuredContent?: Record<string, unknown>; isError?: boolean };
+
+function liftStructuredSources(tools: ToolSet): ToolSet {
+  const out: ToolSet = {};
+  for (const [name, t] of Object.entries(tools)) {
+    const tool = t as { execute?: (args: unknown, opts: unknown) => Promise<unknown> };
+    const origExecute = tool.execute;
+    if (typeof origExecute !== "function") {
+      out[name] = t;
+      continue;
+    }
+    out[name] = {
+      ...t,
+      execute: async (args: unknown, opts: unknown) => {
+        const result = await origExecute.call(tool, args, opts);
+        const r = result as RawMcpResult;
+        if (!r || typeof r !== "object" || r.structuredContent == null || typeof r.structuredContent !== "object") {
+          return result; // external tool (no structured payload) — leave untouched
+        }
+        const text = Array.isArray(r.content)
+          ? r.content.filter((c) => c?.type === "text" && typeof c.text === "string").map((c) => c.text as string).join("\n")
+          : "";
+        return { ...r.structuredContent, text, content: r.content, ...(r.isError ? { isError: true } : {}) };
+      },
+    } as ToolSet[string];
+  }
+  return out;
+}
+
 async function connectOne(entry: McpServerEntry): Promise<void> {
   let client: MCPClient | undefined;
   // A package-manager launcher (`npx -y <pkg>`) DOWNLOADS the package on its first run, which
@@ -148,7 +187,7 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
     // `as ToolSet`: the discovered tools ARE a valid ToolSet at runtime; the cast bridges a
     // compile-time generic-variance skew (FlexibleSchema<unknown> vs <never>) in the pinned
     // @ai-sdk/mcp ↔ provider-utils types. Surfaced after a node_modules re-resolve.
-    const tools = (await withTimeout(client.tools(), connectTimeout, `discover tools from ${entry.name}`)) as ToolSet;
+    const tools = liftStructuredSources((await withTimeout(client.tools(), connectTimeout, `discover tools from ${entry.name}`)) as ToolSet);
     // Best-effort: harvest the icons the server advertises on serverInfo + each tool. Cosmetic —
     // a slow or dead icon host must NEVER fail or stall the connection beyond this bound.
     let iconDataUri: string | undefined;

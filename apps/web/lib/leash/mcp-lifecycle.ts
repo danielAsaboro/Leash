@@ -13,8 +13,8 @@
  * avoid an import cycle — this is the one place that imports all three + the supervisor.
  */
 import "server-only";
-import { builtinById } from "./mcp-builtins.ts";
-import { setBuiltinEnabled } from "./mcp-store.ts";
+import { builtinById, MCP_BUILTINS } from "./mcp-builtins.ts";
+import { setBuiltinEnabled, listMcpServers } from "./mcp-store.ts";
 import { startService, forceStopService } from "./services.ts";
 import type { McpServerEntry } from "./mcp-config.ts";
 
@@ -57,9 +57,18 @@ export async function toggleBuiltin(id: string, enabled: boolean): Promise<Built
     return { server };
   }
 
-  // Authoritative stop: the toggle is now the only lifecycle control (no Services card), so
-  // kill EVERY copy of the daemon — including one started outside the dashboard / orphaned.
-  // Safe here: the leash-mcp daemon is a plain localhost HTTP server (no GPU, no long lock).
+  // Reference-counted stop: a daemon may back SEVERAL built-ins (the leash-tools-mcp daemon
+  // hosts one MCP server per tool group). Only stop it once the LAST built-in sharing this
+  // `service` is off — otherwise just persist disabled and let the next reconcile close this
+  // group's connection (its tools go offline; sibling groups keep working).
+  const siblings = MCP_BUILTINS.filter((x) => x.service === b.service && x.id !== b.id);
+  if (siblings.length > 0) {
+    const servers = await listMcpServers();
+    const anySiblingOn = siblings.some((s) => servers.find((e) => e.id === s.id)?.enabled);
+    if (anySiblingOn) return { server }; // daemon still needed by another group
+  }
+  // Authoritative stop: kill EVERY copy of the daemon — including one started outside the
+  // dashboard / orphaned. Safe here: these daemons are plain localhost HTTP servers (no GPU).
   const stopped = await forceStopService(b.service);
   return stopped.ok ? { server } : { server, warning: `${b.name} is off, but stopping its daemon failed: ${stopped.error}` };
 }

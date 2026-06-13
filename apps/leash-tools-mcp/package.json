@@ -1,0 +1,17 @@
+{
+  "name": "@mycelium/leash-tools-mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Leash tools MCP daemon (:11440) — hosts each Leash capability family (Home Assistant, Feed, Memory, Tasks, Context, Photos, Image) as its own MCP server on its own /mcp/<group> path, so each toggles on/off independently in Brain → MCP.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "tsx src/main.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@mycelium/leash-core": "*",
+    "zod": "^4.4.3"
+  }
+}
