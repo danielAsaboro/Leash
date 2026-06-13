@@ -3,6 +3,7 @@ import { fraunces, newsreader, plexMono } from "./fonts.ts";
 import { LeashRail } from "../components/LeashRail.tsx";
 import { SearchPalette } from "../components/SearchPalette.tsx";
 import { OfflineHud } from "../components/OfflineHud.tsx";
+import { Toaster } from "../components/Toast.tsx";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <div className="leash-content relative z-10">{children}</div>
         <SearchPalette />
         <OfflineHud />
+        <Toaster />
       </body>
     </html>
   );

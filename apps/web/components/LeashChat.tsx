@@ -1,16 +1,30 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import { BrainIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DotIcon, ListChecksIcon, PhoneIcon, RefreshCcwIcon, SparklesIcon, SquareIcon, Volume2Icon, XIcon } from "lucide-react";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
+import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from "@/components/ai-elements/chain-of-thought";
+import { Sources, SourcesTrigger, SourcesContent, Source } from "@/components/ai-elements/sources";
+import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion";
+import { SpeechInput } from "@/components/ai-elements/speech-input";
+import { Context, ContextTrigger, ContextContent, ContextContentHeader, ContextContentBody } from "@/components/ai-elements/context";
+import { Queue, QueueSection, QueueSectionTrigger, QueueSectionLabel, QueueSectionContent, QueueList, QueueItem, QueueItemContent, QueueItemActions, QueueItemAction } from "@/components/ai-elements/queue";
+import { Checkpoint, CheckpointIcon, CheckpointTrigger } from "@/components/ai-elements/checkpoint";
+import { InlineCitation, InlineCitationCard, InlineCitationCardBody, InlineCitationSource, InlineCitationQuote } from "@/components/ai-elements/inline-citation";
+import { HoverCardTrigger } from "@/components/ui/hover-card";
+import { Badge } from "@/components/ui/badge";
 import { PromptInput, PromptInputProvider, PromptInputBody, PromptInputTextarea, PromptInputFooter, PromptInputTools, PromptInputSubmit, PromptInputActionMenu, PromptInputActionMenuTrigger, PromptInputActionMenuContent, PromptInputActionAddAttachments, usePromptInputController, usePromptInputAttachments } from "@/components/ai-elements/prompt-input";
-import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
+import { Reasoning, ReasoningTrigger, ReasoningContent, useReasoning } from "@/components/ai-elements/reasoning";
 import { Loader } from "@/components/ai-elements/loader";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import { ToolView } from "./leash-tools.tsx";
+import { toolMeta, toolName, ToolCard, collectSources } from "./leash-tools.tsx";
+import { PlanCard } from "./PlanCard.tsx";
 import { SkillEventCard } from "./SkillEventCard.tsx";
+import type { PlanData } from "@/lib/leash/types";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
 import { MessageFeedback } from "./MessageFeedback.tsx";
@@ -34,7 +48,6 @@ const SUGGESTIONS = ["What's in today's paper?", "What did I note about the mesh
 
 const isToolPart = (p: Part): boolean => typeof p?.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool");
 const isSkillPart = (p: Part): p is { type: "data-skill"; data: LeashSkillEvent } => p?.type === "data-skill";
-const isStepStart = (p: Part): boolean => p?.type === "step-start";
 
 /** "qwen3-4b · 142 tok · 18 tok/s" from message metadata, once finished. */
 function telemetry(md: LeashMetadata | undefined): string | null {
@@ -44,39 +57,206 @@ function telemetry(md: LeashMetadata | undefined): string | null {
   return [md.effort, md.model ?? "on-device", `${md.totalTokens} tok`, tps ? `${tps} tok/s` : ""].filter(Boolean).join(" · ");
 }
 
-interface AssistantStep {
-  index: number;
-  parts: Part[];
+/**
+ * Split an assistant message's parts into a ChainOfThought *timeline* (reasoning / tool /
+ * skill / intermediate-text nodes) and the *final answer* (trailing text). The answer is
+ * the run of text parts after the last non-text part — that's what renders below the
+ * timeline as the response, so the connecting spine terminates at the answer. With no
+ * non-text part at all, everything is the answer (a plain reply, no timeline).
+ */
+interface TimelineNode {
+  kind: "reasoning" | "tool" | "skill" | "text" | "plan";
+  part: Part;
+  idx: number;
 }
-
-function splitAssistantParts(parts: Part[]): { prelude: Part[]; steps: AssistantStep[] } {
-  const prelude: Part[] = [];
-  const steps: AssistantStep[] = [];
-  let current: AssistantStep | null = null;
-
-  for (const part of parts) {
-    if (isStepStart(part)) {
-      current = { index: steps.length + 1, parts: [] };
-      steps.push(current);
-      continue;
-    }
-    if (current) current.parts.push(part);
-    else prelude.push(part);
-  }
-
-  if (steps.length === 0 && prelude.length > 0) {
-    return { prelude: [], steps: [{ index: 1, parts: prelude }] };
-  }
-
-  return { prelude, steps };
-}
-
-function stepHasVisibleContent(step: AssistantStep): boolean {
-  return step.parts.some((p) => {
-    if (p?.type === "text" || p?.type === "reasoning") return typeof p.text === "string" && p.text.trim().length > 0;
-    if (isSkillPart(p) || isToolPart(p)) return true;
-    return false;
+const isPlanPart = (p: Part): boolean => p?.type === "data-plan";
+/** A submit_plan tool part renders as a Plan card only while proposed/rejected — once approved the
+ *  `data-plan` execution part owns the card (so we don't show two). */
+const isPlanTool = (p: Part): boolean => isToolPart(p) && toolName(p) === "submit_plan";
+function buildTimeline(parts: Part[]): { nodes: TimelineNode[]; answer: string } {
+  const items: TimelineNode[] = [];
+  parts.forEach((p, idx) => {
+    if (p?.type === "reasoning") items.push({ kind: "reasoning", part: p, idx });
+    else if (isPlanPart(p)) items.push({ kind: "plan", part: p, idx });
+    else if (isToolPart(p)) items.push({ kind: "tool", part: p, idx });
+    else if (isSkillPart(p)) items.push({ kind: "skill", part: p, idx });
+    else if (p?.type === "text") items.push({ kind: "text", part: p, idx });
   });
+  let lastNonText = -1;
+  for (let i = items.length - 1; i >= 0; i--) {
+    if (items[i]!.kind !== "text") {
+      lastNonText = i;
+      break;
+    }
+  }
+  const answerOf = (slice: TimelineNode[]) => slice.map((n) => n.part.text ?? "").join("");
+  if (lastNonText === -1) return { nodes: [], answer: answerOf(items) };
+  return { nodes: items.slice(0, lastNonText + 1), answer: answerOf(items.slice(lastNonText + 1)) };
+}
+
+/** Reasoning trigger inner content (no brain icon — the step already carries it on the spine). */
+function ThinkingLabel() {
+  const { isStreaming, isOpen, duration } = useReasoning();
+  return (
+    <>
+      {isStreaming || duration === 0 ? (
+        <Shimmer duration={1}>Thinking…</Shimmer>
+      ) : duration === undefined ? (
+        <span>Thought process</span>
+      ) : (
+        <span>Thought for {duration}s</span>
+      )}
+      <ChevronDownIcon className={cn("size-3.5 transition-transform", isOpen ? "rotate-180" : "rotate-0")} />
+    </>
+  );
+}
+
+/** A reasoning part as a timeline node: brain icon on the spine + a collapsible "Thought for Ns". */
+function ReasoningStep({ text, live }: { text: string; live: boolean }) {
+  const streaming = live && !text.trim();
+  return (
+    <ChainOfThoughtStep
+      icon={BrainIcon}
+      status={streaming ? "active" : "complete"}
+      label={
+        <Reasoning className="mb-0" isStreaming={streaming} defaultOpen={false}>
+          <ReasoningTrigger className="text-current">
+            <ThinkingLabel />
+          </ReasoningTrigger>
+          <ReasoningContent>{text}</ReasoningContent>
+        </Reasoning>
+      }
+    />
+  );
+}
+
+/** Build a proposed/rejected PlanData from a submit_plan tool part's input (for the approval card). */
+function planFromTool(part: Part): PlanData {
+  const input = (part.input ?? {}) as { title?: string; steps?: string[] };
+  const steps = Array.isArray(input.steps) ? input.steps : [];
+  const id = String(part.toolCallId ?? "plan");
+  return {
+    id,
+    ...(input.title ? { title: input.title } : {}),
+    status: part.state === "output-denied" ? "rejected" : "proposed",
+    steps: steps.map((text, i) => ({ id: `${id}-s${i}`, text, status: "pending" })),
+  };
+}
+
+/** Render one timeline node as a ChainOfThought step (its card nests as the step's children). */
+function renderTimelineNode(node: TimelineNode, live: boolean, approval?: ApprovalHandle) {
+  const key = `n-${node.idx}`;
+  // Plan mode: the executing plan (data-plan part) renders the live Plan card.
+  if (node.kind === "plan") {
+    return (
+      <ChainOfThoughtStep key={key} icon={ListChecksIcon} label={<span>Plan</span>}>
+        <PlanCard plan={node.part.data as PlanData} />
+      </ChainOfThoughtStep>
+    );
+  }
+  // The proposed plan (submit_plan, approval-requested) renders the Plan card WITH the approve/
+  // reject/adjust gate; once approved/executed the data-plan node above owns the card, so render null.
+  if (node.kind === "tool" && isPlanTool(node.part)) {
+    const st = node.part.state as string;
+    if (st !== "approval-requested" && st !== "output-denied") return null;
+    const handle = approval;
+    const apprId = node.part.approval?.id as string | undefined;
+    const respond = (approved: boolean, reason?: string) => handle?.respond({ id: apprId!, approved, ...(reason ? { reason } : {}) });
+    const actionable = !!handle && !!apprId && st === "approval-requested";
+    return (
+      <ChainOfThoughtStep key={key} icon={ListChecksIcon} label={<span>{st === "output-denied" ? "Plan rejected" : "Plan proposed — review"}</span>}>
+        <PlanCard
+          plan={planFromTool(node.part)}
+          {...(actionable
+            ? {
+                onApprove: () => respond(true),
+                onReject: () => respond(false, "rejected by user"),
+                onAdjust: (note: string) => respond(false, `Adjust the plan and submit a new one: ${note}`),
+              }
+            : {})}
+        />
+      </ChainOfThoughtStep>
+    );
+  }
+  if (node.kind === "reasoning") return <ReasoningStep key={key} text={node.part.text ?? ""} live={live} />;
+  if (node.kind === "skill") {
+    return <ChainOfThoughtStep key={key} icon={SparklesIcon} label={<SkillEventCard event={node.part.data} />} />;
+  }
+  if (node.kind === "tool") {
+    const m = toolMeta(node.part);
+    return (
+      <ChainOfThoughtStep key={key} icon={m.icon} status={m.status} label={<span className={m.error ? "text-[color:var(--color-brick)]" : undefined}>{m.label}</span>}>
+        <ToolCard part={node.part} approval={approval} />
+      </ChainOfThoughtStep>
+    );
+  }
+  // Intermediate text (a plain-sentence node, like the reference's DotIcon step).
+  if (!node.part.text?.trim()) return null;
+  return <ChainOfThoughtStep key={key} icon={DotIcon} label={<MessageResponse>{node.part.text}</MessageResponse>} />;
+}
+
+/** One cited source as an InlineCitation hover pill (`[N]` badge → title/url/snippet card). A
+ *  custom trigger avoids the upstream `new URL()` that would throw on url-less private notes. */
+function CitationPill({ n, source }: { n: number; source: { title: string; snippet?: string; url?: string } }) {
+  return (
+    <InlineCitation className="cite-pill-wrap">
+      <InlineCitationCard>
+        <HoverCardTrigger asChild>
+          <Badge variant="secondary" className="cite-pill rounded-full">
+            {n}
+          </Badge>
+        </HoverCardTrigger>
+        <InlineCitationCardBody>
+          <div className="cite-body">
+            <InlineCitationSource title={source.title} {...(source.url ? { url: source.url } : {})} />
+            {source.snippet ? <InlineCitationQuote>{source.snippet}</InlineCitationQuote> : null}
+          </div>
+        </InlineCitationCardBody>
+      </InlineCitationCard>
+    </InlineCitation>
+  );
+}
+
+/**
+ * The answer text + a graceful inline-citation strip. If the model emitted `[N]` markers that map
+ * to this message's numbered RAG sources, render those as hover-card pills beneath the answer
+ * (the markers stay in the prose, reading naturally). No valid markers → just the answer, unchanged
+ * — so this never regresses a normal reply. Block-level markdown rules out true in-sentence pills.
+ */
+function CitedAnswer({ text, sources }: { text: string; sources: Array<{ kind: string; title: string; snippet: string; url?: string }> }) {
+  const cited: number[] = [];
+  if (sources.length) {
+    const seen = new Set<number>();
+    for (const m of text.matchAll(/\[(\d+)\]/g)) {
+      const n = Number(m[1]);
+      if (n >= 1 && n <= sources.length && !seen.has(n)) {
+        seen.add(n);
+        cited.push(n);
+      }
+    }
+    cited.sort((a, b) => a - b);
+  }
+  return (
+    <>
+      <MessageResponse>{text}</MessageResponse>
+      {cited.length > 0 && (
+        <div className="cited-strip" aria-label="Cited sources">
+          {cited.map((n) => (
+            <CitationPill key={n} n={n} source={sources[n - 1]!} />
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Is the message's last timeline node already showing an active/streaming affordance? */
+function lastNodeActive(nodes: TimelineNode[], live: boolean): boolean {
+  const last = nodes[nodes.length - 1];
+  if (!last) return false;
+  if (last.kind === "tool") return toolMeta(last.part).status === "active";
+  if (last.kind === "reasoning") return live && !(last.part.text ?? "").trim();
+  return false;
 }
 
 /**
@@ -117,80 +297,40 @@ async function normalizeImageFiles(files: any[]): Promise<any[]> {
   );
 }
 
-/** 🎙 Voice input — record → WAV → on-device transcribe → drop the text into the composer. */
+/**
+ * 🎙 Voice input — AI Elements `SpeechInput`, forced ON-DEVICE: record → WAV → on-device
+ * transcribe (`/api/leash/transcribe`, Parakeet) → drop the text into the composer. The
+ * component is configured to use MediaRecorder (never the browser Web Speech API, which would
+ * ship audio to Google's cloud — see speech-input.tsx). Failures surface inline via `onError`.
+ */
 function MicButton({ disabled }: { disabled: boolean }) {
   const controller = usePromptInputController();
-  const [recording, setRecording] = useState(false);
-  const [transcribing, setTranscribing] = useState(false);
-  // Honest failure reason (permission / offline / model / no-speech) instead of a silent boolean.
   const [micError, setMicError] = useState<string | null>(null);
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const chunksRef = useRef<Blob[]>([]);
 
-  const toggle = async () => {
-    if (recording) {
-      recorderRef.current?.stop();
-      return;
-    }
-    setMicError(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const rec = new MediaRecorder(stream);
-      chunksRef.current = [];
-      rec.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      rec.onstop = async () => {
-        stream.getTracks().forEach((t) => t.stop());
-        setRecording(false);
-        const raw = new Blob(chunksRef.current, { type: rec.mimeType || "audio/webm" });
-        if (raw.size === 0) {
-          setMicError("No audio captured.");
-          return;
-        }
-        setTranscribing(true);
-        try {
-          const wav = await blobToWav(raw);
+  return (
+    <>
+      <SpeechInput
+        size="icon"
+        disabled={disabled}
+        aria-label="Record voice input (on-device transcription)"
+        title="Speak — on-device transcription"
+        className="chat-mic-el size-9"
+        onSpeechError={(m) => setMicError(m)}
+        onAudioRecorded={async (blob) => {
+          setMicError(null);
+          const wav = await blobToWav(blob);
           const fd = new FormData();
           fd.append("file", wav, "speech.wav");
           const res = await fetch("/api/leash/transcribe", { method: "POST", body: fd });
           const data = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
           if (!res.ok) throw new Error(data.error || `Transcription failed (HTTP ${res.status}).`);
-          const text = (data.text ?? "").trim();
-          if (text) {
-            const cur = controller.textInput.value;
-            controller.textInput.setInput(cur ? `${cur} ${text}` : text);
-          } else {
-            setMicError("No speech detected — try again.");
-          }
-        } catch (err) {
-          setMicError(err instanceof Error ? err.message : "Transcription failed.");
-        } finally {
-          setTranscribing(false);
-        }
-      };
-      recorderRef.current = rec;
-      rec.start();
-      setRecording(true);
-    } catch (err) {
-      // getUserMedia rejection: most often a denied permission.
-      const denied = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "SecurityError");
-      setMicError(denied ? "Microphone permission denied — allow it in your browser." : "Couldn't access the microphone.");
-    }
-  };
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={disabled || transcribing}
-        aria-label={recording ? "Stop recording" : "Record voice input"}
-        title={recording ? "Stop & transcribe" : transcribing ? "Transcribing…" : micError ? micError : "Speak"}
-        className={`chat-mic${recording ? " chat-mic-on" : ""}${micError ? " chat-mic-err" : ""}`}
-      >
-        {recording ? "● Rec" : transcribing ? "Transcribing…" : micError ? "🎙 ⚠" : "🎙"}
-      </button>
+          return (data.text ?? "").trim();
+        }}
+        onTranscriptionChange={(text) => {
+          const cur = controller.textInput.value;
+          controller.textInput.setInput(cur ? `${cur} ${text}` : text);
+        }}
+      />
       {micError && (
         <span className="chat-mic-msg" role="status" title={micError}>
           {micError}
@@ -249,7 +389,38 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       .then((d: { elicitations?: ElicitationView[] }) => setElicitations((prev) => (prev.length === 0 ? (d.elicitations ?? []) : prev)))
       .catch(() => {}); // best-effort seed — the stream's data-elicitation parts are the live path
   }, []);
-  const { messages, sendMessage, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
+  // Plan mode — a per-conversation toggle (persisted in localStorage). When on, the turn is sent
+  // with `plan: true`; the route makes the model draft a plan you approve before it runs. A ref
+  // mirrors it so the transport (built once) reads the live value.
+  const [planMode, setPlanMode] = useState(false);
+  const planModeRef = useRef(false);
+  // Restore the per-conversation toggle on mount / id change (client only). A remount (e.g. a
+  // soft refresh after a turn) re-runs this and re-reads the saved value, so the toggle survives.
+  useEffect(() => {
+    let on = false;
+    try {
+      on = window.localStorage.getItem(`leash-plan-${id}`) === "1";
+    } catch {
+      /* private mode — default off */
+    }
+    setPlanMode(on);
+    planModeRef.current = on;
+  }, [id]);
+  // Plain handler — NOT a side-effect inside the setState updater (dev Strict Mode invokes updaters
+  // twice, which previously double-wrote localStorage and could flip the saved value). `planModeRef`
+  // is the source of truth for the toggle's current value (kept in sync below).
+  const togglePlanMode = () => {
+    const next = !planModeRef.current;
+    planModeRef.current = next;
+    setPlanMode(next);
+    try {
+      window.localStorage.setItem(`leash-plan-${id}`, next ? "1" : "0");
+    } catch {
+      /* private mode / quota — the in-memory ref still drives this session */
+    }
+  };
+
+  const { messages, sendMessage, setMessages, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
     id,
     messages: initialMessages,
     // Tool approvals ("Ask first" tools): once every approval card on the last assistant
@@ -259,11 +430,12 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       api: "/api/leash/chat",
       // Send only the last message + trigger; the server rebuilds history from the store.
       prepareSendMessagesRequest: ({ id, messages, trigger, messageId, body }) => {
-        if (trigger === "regenerate-message") return { body: { id, trigger, messageId } };
+        const plan = planModeRef.current;
+        if (trigger === "regenerate-message") return { body: { id, trigger, messageId, plan } };
         // `voice: true` (set by the call overlay via sendMessage's body option) routes this turn
         // to the chat route's fast path (/no_think + 2-step tools). Text composer sends no body.
         const voice = (body as { voice?: boolean } | undefined)?.voice ?? false;
-        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice } };
+        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice, plan } };
       },
     }),
     experimental_throttle: 50,
@@ -276,6 +448,19 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   });
   const busy = status === "submitted" || status === "streaming";
 
+  // Context-window meter: each turn re-sends the whole thread, so the most recent assistant
+  // turn's `totalTokens` (prompt history + its completion) is the best client-side proxy for
+  // how full the model's window currently is. Window = qwen3-4b's 32768 (tracks the serve's
+  // ctx_size in qvac.config.base.json). No cost — it's all on-device.
+  const CONTEXT_WINDOW = 32768;
+  const usedTokens = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const m = messages[i];
+      if (m?.role === "assistant" && m.metadata?.totalTokens) return m.metadata.totalTokens;
+    }
+    return 0;
+  })();
+
   // Pending indicator (AI Elements Loader): `status === "submitted"` alone is not
   // enough here — the route emits its `start` part immediately, flipping status to
   // "streaming" while the on-device serve is still PREFILLING (10-30 s with zero
@@ -284,29 +469,66 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   // moment the first real part lands.
   const last = messages[messages.length - 1];
   const lastAssistantParts = ((last?.parts as any[]) ?? []) as Part[];
-  const lastAssistantSteps = last?.role === "assistant" ? splitAssistantParts(lastAssistantParts) : null;
+  // Show the pending loader while busy AND the streaming assistant message has nothing
+  // visible yet (no non-empty text/reasoning, no tool, no skill). A bare `step-start`
+  // doesn't count — the loader stays until a real part lands, then an in-timeline active
+  // node takes over.
   const assistantVisible =
     last?.role === "assistant" &&
-    lastAssistantParts.some(
-      (p) =>
-        ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) ||
-        (typeof p?.type === "string" && p.type.startsWith("tool-")) ||
-        p?.type === "dynamic-tool" ||
-        p?.type === "data-skill" ||
-        p?.type === "step-start",
-    );
-  const activeStepWaiting =
-    !!busy &&
-    !!lastAssistantSteps &&
-    lastAssistantSteps.steps.length > 0 &&
-    !stepHasVisibleContent(lastAssistantSteps.steps[lastAssistantSteps.steps.length - 1]!);
-  const awaitingModel = busy && !assistantVisible && !activeStepWaiting;
+    lastAssistantParts.some((p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || isToolPart(p) || isSkillPart(p));
+  const awaitingModel = busy && !assistantVisible;
+  // Prompt queue — on a slow on-device model, let the user stack follow-ups WHILE a turn is
+  // generating; they auto-send one at a time as each turn finishes (drained below). Each carries
+  // its (already PNG-normalized) files so a queued image turn still routes to the vision model.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [queued, setQueued] = useState<Array<{ id: string; text: string; files?: any[] }>>([]);
+  const drainingRef = useRef(false);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ask = async (text: string, files?: any[]) => {
     const t = text.trim();
     // Re-encode non-PNG/JPEG images (e.g. webp) to PNG — the vision model can't decode them.
     const norm = files && files.length ? await normalizeImageFiles(files) : undefined;
-    if ((t || (norm && norm.length)) && !busy) void sendMessage({ text: t, ...(norm && norm.length ? { files: norm } : {}) });
+    if (!t && !(norm && norm.length)) return;
+    if (busy) {
+      // Mid-generation: queue it (visible), and ask the running turn to YIELD at its next step
+      // boundary so this follow-up sends as a normal turn sooner instead of waiting for the whole
+      // multi-step turn to finish. The drain effect (on idle) actually sends it.
+      setQueued((q) => [...q, { id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${q.length}`, text: t, ...(norm && norm.length ? { files: norm } : {}) }]);
+      void fetch("/api/leash/chat/interject", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      return;
+    }
+    void sendMessage({ text: t, ...(norm && norm.length ? { files: norm } : {}) });
+  };
+
+  // Drain the queue when the current turn finishes: send ALL queued follow-ups as a SINGLE normal
+  // chat message (text joined by blank lines, any images combined) — one visible turn, one reply.
+  // The ref guards the gap between sendMessage and the async status flip so we never double-send.
+  useEffect(() => {
+    if (status === "ready" && queued.length > 0 && !drainingRef.current) {
+      drainingRef.current = true;
+      const all = queued;
+      setQueued([]);
+      const text = all.map((q) => q.text).filter(Boolean).join("\n");
+      const files = all.flatMap((q) => q.files ?? []);
+      void sendMessage({ text, ...(files.length ? { files } : {}) });
+    } else if (status !== "ready") {
+      drainingRef.current = false;
+    }
+  }, [status, queued, sendMessage]);
+
+  // Checkpoint revert: drop this turn and everything after it (keep `index` messages), both
+  // client-side (setMessages) and in the store (so the transport's rebuilt history matches).
+  // Destructive — guarded by a confirm and only offered when idle.
+  const restoreTo = async (index: number) => {
+    if (busy) return;
+    if (!window.confirm("Restore to here? This permanently deletes this turn and everything after it.")) return;
+    setMessages(messages.slice(0, index));
+    try {
+      await fetch(`/api/leash/chats/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keep: index }) });
+    } catch {
+      /* client already reverted; the store write is best-effort and retried on next send */
+    }
   };
 
   return (
@@ -317,27 +539,37 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
             <ConversationEmptyState title="Ask Leash anything." description="Grounded in your private notes and The Understory — all on-device.">
               <p className="chat-empty-title">Ask Leash anything.</p>
               <p className="chat-empty-sub">Grounded in your private notes and The Understory — all on-device. Home &amp; Activity arrive once configured.</p>
-              <div className="chat-suggest">
+              <Suggestions className="mt-6 justify-center">
                 {SUGGESTIONS.map((s) => (
-                  <button key={s} type="button" onClick={() => ask(s)}>
-                    {s}
-                  </button>
+                  <Suggestion key={s} suggestion={s} onClick={(text) => ask(text)} />
                 ))}
-              </div>
+              </Suggestions>
             </ConversationEmptyState>
           ) : (
             messages.map((m, idx) => (
-              <MessageView
-                key={m.id}
-                message={m}
-                streaming={busy}
-                onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined}
-                chatId={id}
-                prompt={precedingUserText(messages, idx)}
-                // Approval cards are actionable only on the LAST message of an idle chat —
-                // historical cards render as inert chips.
-                approval={idx === messages.length - 1 && status === "ready" ? { respond: addToolApprovalResponse } : undefined}
-              />
+              <Fragment key={m.id}>
+                {/* Checkpoint restore point — before each user turn after the first, when idle.
+                    Restoring truncates the conversation to just before this turn. */}
+                {m.role === "user" && idx > 0 && status === "ready" && (
+                  <Checkpoint className="chat-checkpoint">
+                    <CheckpointIcon />
+                    <CheckpointTrigger tooltip="Restore the conversation to just before this turn (deletes later turns)" onClick={() => void restoreTo(idx)}>
+                      Restore to here
+                    </CheckpointTrigger>
+                  </Checkpoint>
+                )}
+                <MessageView
+                  message={m}
+                  streaming={busy}
+                  live={busy && idx === messages.length - 1}
+                  onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined}
+                  chatId={id}
+                  prompt={precedingUserText(messages, idx)}
+                  // Approval cards are actionable only on the LAST message of an idle chat —
+                  // historical cards render as inert chips.
+                  approval={idx === messages.length - 1 && status === "ready" ? { respond: addToolApprovalResponse } : undefined}
+                />
+              </Fragment>
             ))
           )}
 
@@ -371,6 +603,32 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       </Conversation>
 
       <div className="chat-composer">
+        {/* Prompt queue — follow-ups you sent while the model was busy, auto-sent one at a time. */}
+        {queued.length > 0 && (
+          <Queue className="chat-queue mx-auto max-w-[760px]">
+            <QueueSection>
+              <QueueSectionTrigger>
+                <QueueSectionLabel count={queued.length} label={queued.length === 1 ? "queued message" : "queued messages"} icon={<ClockIcon className="size-4" />} />
+              </QueueSectionTrigger>
+              <QueueSectionContent>
+                <QueueList>
+                  {queued.map((q) => (
+                    <QueueItem key={q.id}>
+                      <div className="flex items-start gap-2">
+                        <QueueItemContent className="!line-clamp-2 whitespace-normal">{q.text || "(image)"}</QueueItemContent>
+                        <QueueItemActions>
+                          <QueueItemAction aria-label="Remove from queue" onClick={() => setQueued((qq) => qq.filter((x) => x.id !== q.id))}>
+                            <XIcon className="size-3.5" />
+                          </QueueItemAction>
+                        </QueueItemActions>
+                      </div>
+                    </QueueItem>
+                  ))}
+                </QueueList>
+              </QueueSectionContent>
+            </QueueSection>
+          </Queue>
+        )}
         {/* Provider gives us a controller (for the mic to drop text into the box) + shared attachments. */}
         <PromptInputProvider>
           <PromptInput className="chat-composer-inner mx-auto max-w-[760px]" accept="image/*" onSubmit={(message) => ask(message.text ?? "", message.files)}>
@@ -390,16 +648,40 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 </PromptInputActionMenu>
                 {/* 🎙 Voice input → on-device transcription → text dropped into the box to review/send. */}
                 <MicButton disabled={busy} />
-                {/* 📞 Call → hands-free, audio-only voice loop over the SAME conversation. */}
+                {/* 📞 Call → hands-free, audio-only voice loop over the SAME conversation. Icon-only, label on hover. */}
                 <button
                   type="button"
                   onClick={() => setCallOpen(true)}
-                  aria-label="Start hands-free voice call"
+                  aria-label="Call — hands-free voice mode"
                   title="Call — hands-free voice mode"
-                  className="chat-mic chat-call-btn"
+                  className="chat-mic chat-icon-btn"
                 >
-                  📞 Call
+                  <PhoneIcon className="size-4" />
                 </button>
+                {/* Plan mode toggle — when on, the assistant drafts a plan you approve before it runs. Icon-only, label on hover. */}
+                <button
+                  type="button"
+                  onClick={togglePlanMode}
+                  aria-pressed={planMode}
+                  aria-label={planMode ? "Plan mode on" : "Plan mode off"}
+                  title={planMode ? "Plan mode ON — the assistant plans, you approve, then it runs each step" : "Plan mode OFF — turn on to plan-then-approve before acting"}
+                  className={`chat-mic chat-icon-btn chat-plan-btn${planMode ? " is-on" : ""}`}
+                >
+                  <ListChecksIcon className="size-4" />
+                </button>
+                {/* Context-window meter (on-device, no cost) — shows how full the model's 32k
+                    window is, from the latest turn's token count. */}
+                {usedTokens > 0 && (
+                  <Context maxTokens={CONTEXT_WINDOW} usedTokens={usedTokens}>
+                    <ContextTrigger className="chat-context" />
+                    <ContextContent>
+                      <ContextContentHeader />
+                      <ContextContentBody>
+                        <p className="text-muted-foreground text-xs">On-device · qwen3-4b · no API cost</p>
+                      </ContextContentBody>
+                    </ContextContent>
+                  </Context>
+                )}
               </PromptInputTools>
               {/* Stop while generating (status === streaming/submitted), else submit. */}
               <PromptInputSubmit status={status} onStop={stop} />
@@ -439,28 +721,7 @@ function precedingUserText(messages: LeashUIMessage[], idx: number): string {
   return "";
 }
 
-function renderAssistantPart(part: Part, index: number, streaming: boolean, approval?: ApprovalHandle) {
-  if (part.type === "reasoning") {
-    return (
-      <Reasoning key={index} isStreaming={streaming && !part.text} defaultOpen={false}>
-        <ReasoningTrigger />
-        <ReasoningContent>{part.text ?? ""}</ReasoningContent>
-      </Reasoning>
-    );
-  }
-  if (part.type === "text") {
-    return <MessageResponse key={index}>{part.text ?? ""}</MessageResponse>;
-  }
-  if (isSkillPart(part)) {
-    return <SkillEventCard key={index} event={part.data} />;
-  }
-  if (isToolPart(part)) {
-    return <ToolView key={index} part={part} approval={approval} />;
-  }
-  return null;
-}
-
-function MessageView({ message, streaming, onRegenerate, approval, chatId, prompt }: { message: LeashUIMessage; streaming: boolean; onRegenerate?: () => void; approval?: ApprovalHandle; chatId?: string; prompt?: string }) {
+function MessageView({ message, streaming, live, onRegenerate, approval, chatId, prompt }: { message: LeashUIMessage; streaming: boolean; live?: boolean; onRegenerate?: () => void; approval?: ApprovalHandle; chatId?: string; prompt?: string }) {
   const { role } = message;
   const parts = message.parts as Part[];
   // Read-aloud is a small state machine: idle → loading (synthesizing) → playing → idle.
@@ -468,6 +729,18 @@ function MessageView({ message, streaming, onRegenerate, approval, chatId, promp
   // surface an inline, actionable message instead of silently resetting.
   const [ttsState, setTtsState] = useState<"idle" | "loading" | "playing">("idle");
   const [ttsError, setTtsError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  // The ChainOfThought timeline: open while this message streams, auto-collapse ~1.2s after
+  // it finishes (mirrors the Reasoning element's auto-close). Historical messages start closed.
+  const [cotOpen, setCotOpen] = useState(!!live);
+  useEffect(() => {
+    if (live) {
+      setCotOpen(true);
+      return;
+    }
+    const t = setTimeout(() => setCotOpen(false), 1200);
+    return () => clearTimeout(t);
+  }, [live]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -526,6 +799,17 @@ function MessageView({ message, streaming, onRegenerate, approval, chatId, promp
     }
   };
 
+  /** Copy the answer text to the clipboard (with a brief ✓ confirmation). */
+  const copy = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable (insecure context) — silently no-op */
+    }
+  };
+
   if (role === "user") {
     const text = parts.filter((p: Part) => p.type === "text").map((p: Part) => p.text ?? "").join("");
     const images = parts.filter((p: Part) => p.type === "file" && typeof p.url === "string" && String(p.mediaType ?? "").startsWith("image/"));
@@ -536,71 +820,82 @@ function MessageView({ message, streaming, onRegenerate, approval, chatId, promp
             // eslint-disable-next-line @next/next/no-img-element
             <img key={i} src={p.url} alt={p.filename ?? "attachment"} className="chat-attached-img" />
           ))}
-          {text}
+          {/* Preserve line breaks — a combined-queue message puts each follow-up on its own line. */}
+          <span className="whitespace-pre-wrap">{text}</span>
         </MessageContent>
       </Message>
     );
   }
 
   const meta = telemetry(message.metadata);
-  const answerText = parts.filter((p: Part) => p.type === "text").map((p: Part) => p.text ?? "").join("");
-  const { prelude, steps } = splitAssistantParts(parts);
+  const isLive = !!live;
+  const { nodes, answer } = buildTimeline(parts);
+  const answerText = answer;
+  const sources = collectSources(parts);
+  // While streaming with no answer yet and the last node isn't already showing an active
+  // affordance, append a "Thinking…" node so the spine has a live tail (the pending step).
+  const showPending = isLive && !answerText.trim() && !lastNodeActive(nodes, isLive);
+  // Keep the timeline open whenever an approval is actionable on it — auto-collapse would
+  // otherwise hide the Approve/Deny buttons on the last idle message.
+  const hasPendingApproval = nodes.some((n) => n.kind === "tool" && n.part.state === "approval-requested");
+  const timelineOpen = cotOpen || hasPendingApproval;
 
   return (
     <Message from="assistant">
       <MessageContent>
-        {prelude.map((p: Part, i: number) => renderAssistantPart(p, i, streaming, approval))}
-        {steps.map((step) => {
-          const empty = step.parts.length === 0 || !stepHasVisibleContent(step);
-          return (
-            <section key={`step-${step.index}`} className="chat-step">
-              <div className="chat-step-kicker">Step {step.index}</div>
-              <div className="chat-step-body">
-                {step.parts.map((p: Part, i: number) => renderAssistantPart(p, i, streaming, approval))}
-                {streaming && empty && (
-                  <div className="chat-step-pending" role="status" aria-live="polite">
-                    <Loader size={14} />
-                    <Shimmer as="span" duration={1.2}>
-                      Thinking…
-                    </Shimmer>
-                  </div>
-                )}
-              </div>
-            </section>
-          );
-        })}
+        {nodes.length > 0 && (
+          <ChainOfThought className="my-1" open={timelineOpen} onOpenChange={setCotOpen}>
+            <ChainOfThoughtHeader>{isLive ? <Shimmer duration={1.4}>Working…</Shimmer> : `Worked through ${nodes.length} step${nodes.length === 1 ? "" : "s"}`}</ChainOfThoughtHeader>
+            <ChainOfThoughtContent>
+              {nodes.map((n) => renderTimelineNode(n, isLive, approval))}
+              {showPending && <ChainOfThoughtStep icon={DotIcon} status="active" label={<Shimmer as="span" duration={1.2}>Thinking…</Shimmer>} />}
+            </ChainOfThoughtContent>
+          </ChainOfThought>
+        )}
+
+        {answerText.trim() && <CitedAnswer text={answerText} sources={sources} />}
+
+        {/* RAG grounding aggregated from this message's tool outputs (notes / paper). */}
+        {sources.length > 0 && (
+          <Sources>
+            <SourcesTrigger count={sources.length} />
+            <SourcesContent>
+              {sources.map((s, i) => (
+                <Source key={i} href={s.url ?? undefined} title={s.title} />
+              ))}
+            </SourcesContent>
+          </Sources>
+        )}
 
         <div className="chat-foot">
           {meta && <span className="chat-meta">{meta}</span>}
-          {answerText && (
-            <button
-              type="button"
-              className={`chat-regen${ttsState !== "idle" ? " is-active" : ""}${ttsError ? " is-err" : ""}`}
-              onClick={() => void speak(answerText)}
-              title={
-                ttsState === "loading"
-                  ? "Synthesizing… click to cancel"
-                  : ttsState === "playing"
-                    ? "Stop"
-                    : "Read aloud (on-device TTS)"
-              }
-            >
-              {ttsState === "loading" ? "⏳ Synthesizing… (cancel)" : ttsState === "playing" ? "■ Stop" : "🔊 Read aloud"}
-            </button>
+          {answerText.trim() && (
+            <MessageActions>
+              <MessageAction
+                tooltip={ttsState === "loading" ? "Synthesizing… click to cancel" : ttsState === "playing" ? "Stop" : "Read aloud (on-device TTS)"}
+                onClick={() => void speak(answerText)}
+                className={ttsError ? "text-[color:var(--color-brick)]" : ttsState !== "idle" ? "text-[color:var(--color-sage-deep)]" : undefined}
+              >
+                {ttsState === "loading" ? <Loader size={14} /> : ttsState === "playing" ? <SquareIcon className="size-4" /> : <Volume2Icon className="size-4" />}
+              </MessageAction>
+              <MessageAction tooltip={copied ? "Copied" : "Copy answer"} onClick={() => void copy(answerText)}>
+                {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+              </MessageAction>
+              {onRegenerate && (
+                <MessageAction tooltip="Regenerate" onClick={onRegenerate}>
+                  <RefreshCcwIcon className="size-4" />
+                </MessageAction>
+              )}
+            </MessageActions>
           )}
           {ttsError && (
             <span className="chat-tts-err" role="status" title={ttsError}>
               ⚠ {ttsError}
             </span>
           )}
-          {onRegenerate && (
-            <button type="button" className="chat-regen" onClick={onRegenerate} title="Regenerate">
-              ↻ Regenerate
-            </button>
-          )}
           {/* Layer-4 feedback: 👍/👎 (+ correction) → data/leash-feedback.jsonl for the
               nightly LoRA. Separate fetch — never touches the streaming/useChat path. */}
-          {answerText && !streaming && <MessageFeedback messageId={message.id} chatId={chatId} prompt={prompt ?? ""} answer={answerText} />}
+          {answerText.trim() && !streaming && <MessageFeedback messageId={message.id} chatId={chatId} prompt={prompt ?? ""} answer={answerText} />}
         </div>
       </MessageContent>
     </Message>

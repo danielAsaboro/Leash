@@ -932,29 +932,6 @@
     margin-top: 0.7rem;
     color: var(--color-muted);
   }
-  .chat-suggest {
-    margin-top: 1.6rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    justify-content: center;
-  }
-  .chat-suggest button {
-    font-family: var(--font-body);
-    font-size: 0.92rem;
-    color: var(--color-ink-soft);
-    padding: 0.45rem 0.85rem;
-    background: var(--color-paper);
-    border: 1px solid var(--color-rule);
-    border-radius: 999px;
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-  .chat-suggest button:hover {
-    border-color: var(--color-rule-strong);
-    background: var(--color-cream);
-  }
-
   .chat-msg {
     display: flex;
     flex-direction: column;
@@ -1133,6 +1110,19 @@
     cursor: pointer;
   }
   .chat-mic:disabled { opacity: 0.55; cursor: default; }
+  /* Icon-only composer action (Call, Plan) — square hit area, label on hover via title. */
+  .chat-icon-btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    padding: 0;
+    justify-content: center;
+    color: var(--color-muted);
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+  }
+  .chat-icon-btn:hover {
+    color: var(--color-ink);
+    border-color: var(--color-rule-strong);
+  }
   .chat-mic-on {
     border-color: #b4322a;
     color: #b4322a;
@@ -1231,43 +1221,6 @@
     white-space: pre-wrap;
   }
 
-  .chat-step {
-    position: relative;
-    margin: 0.2rem 0 0.6rem;
-    padding-left: 1rem;
-  }
-  .chat-step::before {
-    content: "";
-    position: absolute;
-    left: 0.15rem;
-    top: 1.05rem;
-    bottom: 0.15rem;
-    width: 1px;
-    background: linear-gradient(to bottom, var(--color-rule-strong), transparent);
-  }
-  .chat-step-kicker {
-    margin-bottom: 0.45rem;
-    font-family: var(--font-mono);
-    font-size: 0.56rem;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--color-faint);
-  }
-  .chat-step-body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-  .chat-step-pending {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-height: 1.6rem;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: var(--color-sage-deep);
-  }
-
   /* Assistant footer: telemetry caption + regenerate, revealed on hover. */
   .chat-foot {
     margin-top: 0.4rem;
@@ -1298,6 +1251,204 @@
   /* Keep the read-aloud control visible while it's working/erroring (not just on hover). */
   .chat-regen.is-active { opacity: 1; color: var(--color-sage-deep); }
   .chat-regen.is-err { opacity: 1; color: var(--color-brick); }
+  /* Checkpoint restore divider between turns — subtle, revealed/usable on hover. */
+  .chat-checkpoint {
+    margin: 0.3rem 0;
+    opacity: 0.45;
+    transition: opacity 0.15s;
+  }
+  .chat-checkpoint:hover {
+    opacity: 1;
+  }
+  .chat-checkpoint :last-child[data-orientation="horizontal"],
+  .chat-checkpoint > [role="separator"] {
+    flex: 1;
+  }
+
+  /* Toasts (bottom-right) — success/failure notifications. */
+  .toaster {
+    position: fixed;
+    bottom: 1.25rem;
+    right: 1.25rem;
+    z-index: 200;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    max-width: min(92vw, 380px);
+  }
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 10px;
+    background: var(--color-paper);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.12);
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    color: var(--color-ink);
+    animation: toast-in 0.18s ease-out;
+  }
+  @keyframes toast-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .toast-icon {
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .toast-success .toast-icon {
+    color: var(--color-sage-deep);
+  }
+  .toast-error {
+    border-color: var(--color-brick);
+  }
+  .toast-error .toast-icon {
+    color: var(--color-brick);
+  }
+  .toast-msg {
+    flex: 1;
+    min-width: 0;
+  }
+  .toast-x {
+    flex-shrink: 0;
+    display: inline-flex;
+    color: var(--color-faint);
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .toast-x:hover {
+    opacity: 1;
+    color: var(--color-ink);
+  }
+
+  /* Prompt queue above the composer (follow-ups stacked while the model is busy). */
+  .chat-queue {
+    margin-bottom: 0.5rem;
+    background: var(--color-paper);
+    border-color: var(--color-rule);
+  }
+
+  /* Plan-mode composer toggle — highlights sage when on. */
+  .chat-plan-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .chat-plan-btn.is-on {
+    color: var(--color-cream);
+    background: var(--color-sage-deep);
+    border-color: var(--color-sage-deep);
+  }
+
+  /* Inline-citation strip: numbered hover pills for the sources the answer actually cited. */
+  .cited-strip {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-top: 0.1rem;
+  }
+  .cite-pill-wrap {
+    display: inline-flex;
+  }
+  .cite-pill {
+    cursor: default;
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    min-width: 1.4rem;
+    justify-content: center;
+  }
+  .cite-body {
+    padding: 0.7rem 0.8rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  /* Plan-mode card (also reused read-only by the research view). */
+  .plan-card {
+    margin: 0.4rem 0;
+    border-color: var(--color-rule);
+    background: var(--color-paper);
+  }
+  .plan-card-titlewrap {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .plan-card-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .plan-steps {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+  /* Plan step rows are Queue todo items (.plan-step = QueueItem). Step number tint only. */
+  .plan-step-n {
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    color: var(--color-faint);
+  }
+  .plan-card-foot {
+    border-top: 1px solid var(--color-rule);
+    padding-top: 0.7rem;
+  }
+  .plan-gate {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    width: 100%;
+  }
+  .plan-adjust {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+  }
+  .plan-adjust-input {
+    width: 100%;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    padding: 0.5rem 0.6rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 8px;
+    background: var(--color-cream);
+    resize: vertical;
+  }
+  .plan-adjust-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  /* Task timeline rows: status glyph color (○ open · ◐ in-progress · ✓ done · ✕ dropped). */
+  .task-glyph {
+    font-family: var(--font-mono);
+    color: var(--color-faint);
+  }
+  .task-glyph[data-status="in_progress"] {
+    color: var(--color-sage-deep);
+  }
+  .task-glyph[data-status="done"] {
+    color: var(--color-sage-deep);
+  }
+  .task-glyph[data-status="dropped"] {
+    color: var(--color-brick);
+  }
+
   /* Inline read-aloud failure message. */
   .chat-tts-err {
     font-family: var(--font-mono);

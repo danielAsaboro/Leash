@@ -23,6 +23,7 @@ import { researchTools } from "../../../../lib/leash/research-tools.ts";
 import { computerTools } from "../../../../lib/leash/computer-tools.ts";
 import { buildBashTools, BASH_TOOL_NAMES } from "../../../../lib/leash/bash-tools.ts";
 import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skill-runner.ts";
+import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
@@ -31,6 +32,7 @@ import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
 import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
+import { interjectRequested, clearInterject } from "../../../../lib/leash/interject-store.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
 
 export const runtime = "nodejs";
@@ -147,17 +149,34 @@ const FILES_STEPS = 8;
  * register), so they get the most headroom regardless of the effort tier.
  */
 const SKILL_TOOL_STEPS = 12;
+/** Plan-mode agent budget: submit_plan call (pauses for approval) → execute → present the result. */
+const PLAN_STEPS = 4;
 
 export async function POST(req: Request): Promise<Response> {
-  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean };
-  const { id, trigger, messageId, message, voice } = body;
+  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean };
+  const { id, trigger, messageId, message, voice, plan } = body;
+
+  // A fresh turn STARTS here: clear any interject flag so a follow-up that ended the PREVIOUS turn
+  // doesn't immediately end this one (this turn IS that follow-up).
+  clearInterject(id);
 
   // Task/memory tools are per-request factories: writes get stamped with this chat's id.
   // This is the FULL registry — used for message validation; `streamText` gets the filtered set.
   const baseTools = { ...leashTools, ...taskTools(id), ...memoryTools(id), ...skillTools, ...researchTools, ...computerTools, ...(await buildBashTools()), ...(await leashMcpTools()) };
+  // Plan mode (`submit_plan`): built unconditionally so stored plan-mode threads validate on any
+  // turn; only handed to the AGENT when this turn is in plan mode (below). `getTask`/`getWriter` are
+  // getters because the tool is built before the task text + response writer exist; `execute` (which
+  // uses them) runs only after approval, by which point both are set.
+  const planId = createIdGenerator({ prefix: "plan", size: 16 })();
+  const planStream: { writer?: { write: (part: unknown) => void } } = {};
+  let planTask = "";
+  // The plan pipeline halts BETWEEN steps when the client stopped (`req.signal`) OR a follow-up is
+  // waiting to interject — never by aborting a decode (that wedges the qvac loop); it only gates
+  // whether the NEXT step launches.
+  const planTool = buildPlanTool({ registry: baseTools, getTask: () => planTask, getWriter: () => planStream.writer, getAbort: () => req.signal.aborted || interjectRequested(id), planId });
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself).
-  const tools = { ...baseTools, ...buildSkillRunner(baseTools) };
+  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...planTool };
 
   // Rebuild the working history from the store + the incoming trigger.
   const record = await loadRecord(id);
@@ -185,7 +204,7 @@ export async function POST(req: Request): Promise<Response> {
       messages,
       tools: tools as any,
       metadataSchema,
-      dataSchemas: { skill: skillDataSchema },
+      dataSchemas: { skill: skillDataSchema, plan: planDataSchema },
     })) as LeashUIMessage[];
   } catch (err) {
     console.error("leash: UI message validation failed, using raw history:", err);
@@ -204,6 +223,13 @@ export async function POST(req: Request): Promise<Response> {
   const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);
   const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : CHAT_MODEL;
 
+  // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
+  // job is to call `submit_plan` (approval-gated → the Plan card); on approval its `execute` runs the
+  // steps through the deterministic pipeline. Restricted to the plain chat turn — image/files/computer/
+  // health carry their own specialized toolsets + prompts, and a skill `steps:` pipeline (below) is a
+  // deterministic workflow already, so plan mode stands down for those.
+  const planMode = !!plan && !imageTurn && !filesTurn && !computerTurn && !health;
+
   // Dynamic effort: grade each non-image turn (text + voice) into a tier and derive its params
   // (tools on/off, step cap, `/no_think`, token ceiling). A spoken turn must answer in seconds,
   // so voice always runs `/no_think`; text keeps full `<think>` reasoning on the `deep` tier.
@@ -215,6 +241,7 @@ export async function POST(req: Request): Promise<Response> {
   // Prompts come from the store (dashboard override ?? code default; mtime-cached reads),
   // plus the skills section ("" when no skills — honest empty state).
   const lastText = lastUserText(validated);
+  planTask = lastText; // the overall task each approved plan step is executed against
   const [systemPrompt, skillsSection, activeSkills, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts()]);
   const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
   // Always advertise the skill catalog — even with a skill already active — so the model can
@@ -236,7 +263,13 @@ export async function POST(req: Request): Promise<Response> {
   // the per-turn FOCUSED TOOLSET (computer turns activate only the six computer tools —
   // 28 offered schemas overflow the serve's 4096-token prompt and hang the decode,
   // verified 2026-06-07) is `activeTools` in the agent's prepareCall (agent.ts).
-  const enabledTools = withApprovalGates(await filterEnabledTools(tools));
+  // Plan mode restricts the AGENT to just `submit_plan` (already approval-gated) so the 4B is forced
+  // to plan first; the approved steps execute against the FULL registry inside the tool. Otherwise
+  // the normal enabled/approval-gated toolset — with `submit_plan` EXCLUDED (it's in `tools` only so
+  // stored plan-mode threads validate; offering it every turn would invite spurious plans + eat the
+  // serve's 4096-token tool budget).
+  const agentTools = Object.fromEntries(Object.entries(tools).filter(([n]) => n !== "submit_plan"));
+  const enabledTools = planMode ? planTool : withApprovalGates(await filterEnabledTools(agentTools));
   // Tell the model about its computer-use powers only when they're actually active —
   // naming them every turn invites hallucinated <tool_call>s for absent tools.
   const computerNote = computerTurn
@@ -265,6 +298,18 @@ export async function POST(req: Request): Promise<Response> {
     !useNoThink && !imageTurn
       ? "Keep your private <think> reasoning BRIEF and focused — a few short sentences, not an essay — then write your actual answer. The answer matters more than the reasoning; never let thinking use up your whole response."
       : "";
+  // Plan mode: the model's ONE job is to draft a plan via submit_plan; the user approves it and the
+  // harness runs each step. After the steps run, present their combined result as your final answer.
+  const planNote = planMode
+    ? "PLAN MODE IS ON. Do NOT answer the request directly. Your ONLY action now is to call `submit_plan` with an ordered list of ATOMIC steps (one self-contained sub-task each) that together accomplish the request — even a simple request becomes a 1-step plan. The user will review and approve it, then each step runs in order; after they finish you present the combined result as your answer."
+    : "";
+  // Inline citations (graceful): when grounding an answer in retrieved sources, the model MAY tag
+  // facts with [1], [2], … numbered in the order it first used them — the UI turns valid markers into
+  // source pills. Optional, so it never forces behavior on a turn with no sources.
+  const citeNote =
+    !imageTurn && !computerTurn
+      ? "If you state a fact you got from a search result (your notes or the paper), you may cite it inline as [1], [2], … numbering the sources in the order you first use them. Only cite real retrieved sources; never invent citation numbers."
+      : "";
 
   // Context compaction (text turns only): when the thread outgrows the model's window,
   // summarize the oldest messages into a stored running summary and send only
@@ -285,7 +330,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -298,7 +343,7 @@ export async function POST(req: Request): Promise<Response> {
   // the 4B does one atomic sub-task per step and can't drop a dependent step (verified 2026-06-12:
   // pipeline 3/3 vs free-run ~1/3 on a dependent chain). The pipeline uses the skill's own declared
   // tools (approval-gated ones are skipped, like run_skill). Text turns only; image turns never match here.
-  const pipeline = !imageTurn ? activeSkills?.pipeline ?? null : null;
+  const pipeline = !imageTurn && !planMode ? activeSkills?.pipeline ?? null : null;
   if (pipeline) {
     let unsubscribePipe: (() => void) | undefined;
     const pipeStream = createUIMessageStream<LeashUIMessage>({
@@ -359,13 +404,13 @@ export async function POST(req: Request): Promise<Response> {
   // completion server-side (bounded by the tier's maxOutputTokens) and the next turn
   // queues briefly behind it — slow beats dead. Messages are compacted for the model
   // (summary + recent tail); the full thread is still saved via `originalMessages`.
-  const agent = buildLeashAgent(enabledTools);
+  const agent = buildLeashAgent(enabledTools, () => interjectRequested(id));
   const callOptions: LeashCallOptions = {
     route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : health ? "health" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.
-    steps: imageTurn || !cfg ? null : declaredSkillTools.length ? SKILL_TOOL_STEPS : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
+    steps: imageTurn || !cfg ? null : planMode ? PLAN_STEPS : declaredSkillTools.length ? SKILL_TOOL_STEPS : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
     maxOutputTokens: imageTurn || !cfg ? null : cfg.maxOutputTokens,
     ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
@@ -389,6 +434,8 @@ export async function POST(req: Request): Promise<Response> {
     originalMessages: validated,
     generateId: createIdGenerator({ prefix: "msg", size: 16 }),
     execute: async ({ writer }) => {
+      // Plan-mode `submit_plan.execute` streams `data-plan` step status through this writer.
+      planStream.writer = writer as unknown as { write: (part: unknown) => void };
       unsubscribe = subscribeElicitations((ev) => {
         try {
           writer.write({ type: "data-elicitation", data: ev, transient: true });

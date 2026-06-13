@@ -56,7 +56,7 @@ export const leashCallOptionsSchema = z.object({
   /**
    * Whether `<think>` reasoning is ON for this turn (deep text). Drives sampling per Qwen3's
    * best practices: thinking → temp 0.6 / topP 0.95; non-thinking (/no_think) → temp 0.7 / topP 0.8
-   * (topK 20 both). The serve's default (temp ~0.1, near-greedy) is exactly what Qwen warns AGAINST
+   * The serve's default (temp ~0.1, near-greedy) is exactly what Qwen warns AGAINST
    * — "performance degradation and endless repetitions". Absent on vision (single-shot, own model).
    */
   thinking: z.boolean().optional(),
@@ -65,9 +65,10 @@ export const leashCallOptionsSchema = z.object({
 });
 export type LeashCallOptions = z.infer<typeof leashCallOptionsSchema>;
 
-/** Qwen3 sampling per thinking mode (Qwen3 best practices). topK/minP best-effort (provider may drop). */
-function samplingFor(thinking: boolean | undefined): { temperature: number; topP: number; topK: number } {
-  return thinking ? { temperature: 0.6, topP: 0.95, topK: 20 } : { temperature: 0.7, topP: 0.8, topK: 20 };
+/** Qwen3 sampling per thinking mode (Qwen3 best practices). `topK` is omitted: the qvac/qwen3-4b
+ *  provider doesn't support it (it dropped the value and logged an AI SDK warning every turn). */
+function samplingFor(thinking: boolean | undefined): { temperature: number; topP: number } {
+  return thinking ? { temperature: 0.6, topP: 0.95 } : { temperature: 0.7, topP: 0.8 };
 }
 
 const COMPUTER_NAMES = new Set(Object.keys(computerTools));
@@ -169,7 +170,7 @@ function continuationNudge(steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<{ to
  * Build the per-request agent over the gated+filtered registry. `prepareCall` does
  * the per-turn mapping the route used to inline around `streamText`.
  */
-export function buildLeashAgent(tools: ToolSet): ToolLoopAgent<LeashCallOptions, ToolSet> {
+export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean): ToolLoopAgent<LeashCallOptions, ToolSet> {
   const names = Object.keys(tools);
   // Per-request closure: the call's assembled system prompt, captured in prepareCall so prepareStep can
   // re-emit it (prepareStep's `system` override REPLACES the system for that step — we must re-include
@@ -198,7 +199,9 @@ export function buildLeashAgent(tools: ToolSet): ToolLoopAgent<LeashCallOptions,
         // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision
         // (qwen3vl, single-shot) keeps its own behavior; every text/tool route gets proper sampling.
         ...(options.route !== "vision" ? samplingFor(options.thinking) : {}),
-        ...(options.steps !== null ? { stopWhen: stepCountIs(options.steps) } : {}),
+        // Stop on the step cap OR when the user has a follow-up waiting (interject): the loop ends
+        // after the current step, the turn finishes cleanly, and the client sends the queued message.
+        ...(options.steps !== null ? { stopWhen: [stepCountIs(options.steps), ...(shouldYield ? [() => shouldYield()] : [])] } : {}),
         ...(options.maxOutputTokens !== null ? { maxOutputTokens: options.maxOutputTokens } : {}),
       };
     },

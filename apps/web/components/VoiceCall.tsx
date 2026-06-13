@@ -6,6 +6,7 @@ import { friendlyChatError } from "./LeashChat.tsx";
 import { blobToWav, makeAudioContext, playEarcon, VAD, VOICES, VOICE_VALUES, DEFAULT_VOICE } from "@/lib/leash/audio";
 import { stripMarkdownForSpeech, segmentSentences } from "@/lib/leash/speech-text";
 import { pickFillerPhrase } from "@/lib/leash/filler";
+import { Persona, type PersonaState } from "@/components/ai-elements/persona";
 
 /**
  * VoiceCall — Leash's hands-free, audio-only "call" mode.
@@ -102,6 +103,8 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
   const [assistantCaption, setAssistantCaption] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [voice, setVoice] = useState<string>(DEFAULT_VOICE);
+  // If the Rive persona fails to load (e.g. WebGL2 unavailable), fall back to the CSS orb.
+  const [personaFailed, setPersonaFailed] = useState(false);
 
   // Mirrors of state read inside the rAF loop / async callbacks (no stale closures, no re-render).
   const stateRef = useRef<CallState>("idle");
@@ -845,12 +848,27 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
   const isError = callState === "error" || callState === "denied";
   const showRetry = callState === "denied";
   const showResume = callState === "error";
+  // The on-device call avatar (Rive persona, vendored offline). Mirrors the call state machine.
+  const personaState: PersonaState =
+    callState === "speaking"
+      ? "speaking"
+      : callState === "thinking" || callState === "transcribing"
+        ? "thinking"
+        : callState === "listening" || callState === "capturing"
+          ? "listening"
+          : isError
+            ? "asleep"
+            : "idle";
 
   return (
     <div className="search-overlay" role="dialog" aria-modal="true" aria-label="Leash voice call">
       <div className="call-stage">
         <div className={`call-orb-wrap${isError ? " is-error" : ""}`}>
-          <div className={`call-orb ${orbClass}`} />
+          {personaFailed ? (
+            <div className={`call-orb ${orbClass}`} />
+          ) : (
+            <Persona state={personaState} variant="obsidian" className="call-persona size-40" onLoadError={() => setPersonaFailed(true)} />
+          )}
           <div ref={ringRef} className="call-orb-ring" />
         </div>
 

@@ -18,6 +18,17 @@ function fmtTask(t: LeashTask): string {
   return bits.join(" ") + (t.detail ? ` — ${t.detail}` : "");
 }
 
+/** Slim, UI-facing task row carried alongside `text` so the chat can render the official
+ *  `Task` component (instead of a JSON dump). Kept small — it rides in the tool result. */
+export interface TaskRow {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  detail?: string;
+}
+const slim = (t: LeashTask): TaskRow => ({ id: t.id, title: t.title, status: t.status, priority: t.priority, ...(t.detail ? { detail: t.detail } : {}) });
+
 /** The three task tools, bound to the current chat id. */
 export function taskTools(chatId: string) {
   return {
@@ -32,7 +43,7 @@ export function taskTools(chatId: string) {
       }),
       execute: async ({ title, detail, priority, tags }) => {
         const t = await createTask({ title, detail, priority, tags, source: "assistant", chatId });
-        return { text: `Created task: ${fmtTask(t)}`, sources: [] as LeashSource[] };
+        return { text: `Created task: ${fmtTask(t)}`, sources: [] as LeashSource[], task: slim(t) };
       },
     }),
 
@@ -51,6 +62,7 @@ export function taskTools(chatId: string) {
               ? `No ${status} tasks.`
               : "The task list is empty.",
           sources: [] as LeashSource[],
+          tasks: tasks.slice(0, 25).map(slim),
         };
       },
     }),
@@ -70,6 +82,7 @@ export function taskTools(chatId: string) {
         return {
           text: t ? `Updated: ${fmtTask(t)}` : `No task with id "${id}" — use list_tasks to find the right id.`,
           sources: [] as LeashSource[],
+          ...(t ? { task: slim(t) } : {}),
         };
       },
     }),

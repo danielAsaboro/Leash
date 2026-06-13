@@ -3,6 +3,33 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import type { ResearchStatus } from "../lib/leash/research-store.ts";
+import { PlanCard } from "./PlanCard.tsx";
+import type { PlanData, PlanStep, PlanStepStatus } from "../lib/leash/types.ts";
+
+/** The deep-research stages, in order — rendered as a read-only Plan (the run IS a plan). */
+const RESEARCH_STAGES = [
+  { key: "planning", label: "Plan the research strategy" },
+  { key: "searching", label: "Search the web" },
+  { key: "reading", label: "Read the sources" },
+  { key: "synthesizing", label: "Synthesize the findings" },
+] as const;
+
+/** Map a research run's live status onto the shared Plan card (stage = step, with a count note). */
+function researchToPlan(run: ResearchStatus): PlanData {
+  const terminal = run.state === "done" || run.state === "error";
+  const activeIdx = RESEARCH_STAGES.findIndex((s) => s.key === run.state); // -1 when done/error
+  const steps: PlanStep[] = RESEARCH_STAGES.map((stage, i) => {
+    let status: PlanStepStatus;
+    if (run.state === "error") status = "skipped";
+    else if (run.state === "done" || i < activeIdx) status = "done";
+    else if (i === activeIdx) status = "active";
+    else status = "pending";
+    const note =
+      stage.key === "searching" && run.queries.length ? `${run.queries.length} queries` : stage.key === "reading" && run.sources.length ? `${run.sources.length} sources` : undefined;
+    return { id: stage.key, text: stage.label, status, ...(note ? { note } : {}) };
+  });
+  return { id: run.id, title: run.question, status: run.state === "error" ? "failed" : run.state === "done" ? "done" : "running", steps };
+}
 
 /** Inline-format one line: **bold**, *italic*, [text](url), `code`. */
 function inline(text: string, keyBase: string): ReactNode[] {
@@ -213,6 +240,7 @@ export function ResearchDetail({ run, report }: { run: ResearchStatus; report: s
       <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 700, fontSize: "1.4rem" }}>{run.question}</h2>
       <Synapse run={run} />
       <MetaBar run={run} />
+      <PlanCard plan={researchToPlan(run)} />
       {run.note && <p className="kicker" style={{ color: "var(--color-faint)" }}>{run.note}</p>}
       {report ? (
         <article style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem", color: "var(--color-ink)" }}><ReportBody md={report} /></article>

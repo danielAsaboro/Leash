@@ -3,6 +3,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { toast } from "./Toast.tsx";
+import { ConfirmDialog } from "./ConfirmDialog.tsx";
 import type { ChatSummary, ConsolidationItem } from "../lib/leash/types";
 
 /**
@@ -49,13 +51,32 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
     }
   };
 
-  const del = async (id: string, e: React.MouseEvent) => {
+  // Deletion is gated by a real confirmation dialog (not the native confirm()). The button opens it;
+  // `confirmDelete` does the work, toasts the outcome, and — if the OPEN chat was deleted — starts a
+  // FRESH conversation (not `/chat`, which would resume the most recent existing one).
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; title: string } | null>(null);
+  const requestDelete = (id: string, title: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm("Delete this conversation?")) return;
-    // Deleting the OPEN chat navigates away instead of refreshing a dead thread.
-    const ok = await call(() => fetchWithTimeout(`/api/leash/chats/${id}`, { method: "DELETE" }), { refresh: id !== activeId });
-    if (ok && id === activeId) router.push("/chat");
+    setPendingDelete({ id, title });
+  };
+  const confirmDelete = async () => {
+    if (!pendingDelete || busy) return;
+    const { id: delId } = pendingDelete;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetchWithTimeout(`/api/leash/chats/${delId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setPendingDelete(null);
+      toast.success("Conversation deleted");
+      if (delId === activeId) router.push("/chat/new");
+      else router.refresh();
+    } catch {
+      toast.error("Couldn't delete the conversation — try again.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const rename = async (id: string, current: string, e: React.MouseEvent) => {
@@ -84,8 +105,10 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
       {dreams.length > 0 && (
         <div className="chat-dreams">
           <p className="chat-dreams-title kicker">To work on</p>
-          {dreams.map((d) => (
-            <div key={d.id} className="chat-dream" title={d.detail ?? ""}>
+          {dreams.map((d, i) => (
+            // Composite key: consolidation-store items can carry empty or duplicate ids (legacy
+            // migration stamped `id: d.id || generateId()`), so the index guarantees uniqueness.
+            <div key={`${d.id || "dream"}-${i}`} className="chat-dream" title={d.detail ?? ""}>
               <span className="chat-dream-dot" aria-hidden />
               <span className="chat-dream-text">{d.title}</span>
             </div>
@@ -97,8 +120,9 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
         {chats.length === 0 ? (
           <p className="chat-list-empty kicker">No conversations yet</p>
         ) : (
-          chats.map((c) => (
-            <div key={c.id} className={`chat-list-item ${c.id === activeId ? "is-active" : ""}`}>
+          chats.map((c, i) => (
+            // Composite key: guard against an empty/duplicate id in the stored list so React never warns.
+            <div key={`${c.id || "chat"}-${i}`} className={`chat-list-item ${c.id === activeId ? "is-active" : ""}`}>
               <Link href={`/chat/${c.id}`} className="chat-list-link">
                 <span className="chat-list-title">{c.title}</span>
                 <span className="chat-list-time" suppressHydrationWarning>
@@ -109,7 +133,7 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
                 <button type="button" onClick={(e) => void rename(c.id, c.title, e)} title="Rename" aria-label="Rename conversation" disabled={busy}>
                   ✎
                 </button>
-                <button type="button" onClick={(e) => void del(c.id, e)} title="Delete" aria-label="Delete conversation" disabled={busy}>
+                <button type="button" onClick={(e) => requestDelete(c.id, c.title, e)} title="Delete" aria-label="Delete conversation" disabled={busy}>
                   ×
                 </button>
               </span>
@@ -117,6 +141,19 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
           ))
         )}
       </nav>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        onOpenChange={(o) => {
+          if (!o) setPendingDelete(null);
+        }}
+        title="Delete conversation?"
+        description={pendingDelete ? <>“{pendingDelete.title}” and all its messages will be permanently deleted. This can’t be undone.</> : undefined}
+        confirmLabel="Delete"
+        destructive
+        busy={busy}
+        onConfirm={() => void confirmDelete()}
+      />
     </aside>
   );
 }

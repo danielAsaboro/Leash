@@ -145,7 +145,10 @@ async function connectOne(entry: McpServerEntry): Promise<void> {
           requestedSchema: request.params.requestedSchema,
         }) as Promise<ElicitResult>, // ElicitResultLike is the index-signature-free subset
     );
-    const tools = await withTimeout(client.tools(), connectTimeout, `discover tools from ${entry.name}`);
+    // `as ToolSet`: the discovered tools ARE a valid ToolSet at runtime; the cast bridges a
+    // compile-time generic-variance skew (FlexibleSchema<unknown> vs <never>) in the pinned
+    // @ai-sdk/mcp ↔ provider-utils types. Surfaced after a node_modules re-resolve.
+    const tools = (await withTimeout(client.tools(), connectTimeout, `discover tools from ${entry.name}`)) as ToolSet;
     // Best-effort: harvest the icons the server advertises on serverInfo + each tool. Cosmetic —
     // a slow or dead icon host must NEVER fail or stall the connection beyond this bound.
     let iconDataUri: string | undefined;

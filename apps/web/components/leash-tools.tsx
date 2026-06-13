@@ -1,6 +1,10 @@
 "use client";
 import Link from "next/link";
+import { ChevronDownIcon, ClockIcon, ImageIcon, ListTodoIcon, SearchIcon, WrenchIcon, type LucideIcon } from "lucide-react";
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
+import { Task, TaskTrigger, TaskContent, TaskItem } from "@/components/ai-elements/task";
+import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from "@/components/ai-elements/confirmation";
+import type { TaskRow } from "@/lib/leash/task-tools";
 
 /**
  * Generative UI for Leash's tools — renders each tool result as a bespoke broadsheet
@@ -16,7 +20,8 @@ import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from "@/componen
 type Part = any;
 type Source = { kind: "graph" | "paper"; title: string; snippet: string; url?: string };
 
-const toolName = (p: Part): string => (p.type === "dynamic-tool" ? String(p.toolName) : String(p.type).slice("tool-".length));
+export const toolName = (p: Part): string => (p.type === "dynamic-tool" ? String(p.toolName) : String(p.type).slice("tool-".length));
+const isTool = (p: Part): boolean => typeof p?.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool");
 
 const LOADING_LABEL: Record<string, string> = {
   search_graph: "Searching your notes…",
@@ -24,7 +29,63 @@ const LOADING_LABEL: Record<string, string> = {
   understory_search: "Searching the paper…",
   now: "Checking the time…",
   generate_image: "Painting your image (on-device)…",
+  list_tasks: "Reading your task list…",
+  create_task: "Adding a task…",
+  update_task: "Updating a task…",
 };
+
+/** Label once a tool has produced output — past-tense, for the collapsed timeline node. */
+const DONE_LABEL: Record<string, string> = {
+  search_graph: "Searched your notes",
+  understory_today: "Read today's paper",
+  understory_search: "Searched the paper",
+  now: "Checked the time",
+  generate_image: "Generated an image",
+  list_tasks: "Listed your tasks",
+  create_task: "Created a task",
+  update_task: "Updated a task",
+};
+
+const TOOL_ICON: Record<string, LucideIcon> = {
+  search_graph: SearchIcon,
+  understory_today: SearchIcon,
+  understory_search: SearchIcon,
+  now: ClockIcon,
+  generate_image: ImageIcon,
+  list_tasks: ListTodoIcon,
+  create_task: ListTodoIcon,
+  update_task: ListTodoIcon,
+};
+
+/** Icon + label + status for a tool's timeline node (the ChainOfThought step header). */
+export interface ToolNodeMeta {
+  icon: LucideIcon;
+  label: string;
+  status: "active" | "complete";
+  error: boolean;
+}
+
+export function toolMeta(part: Part): ToolNodeMeta {
+  const name = toolName(part);
+  const icon = TOOL_ICON[name] ?? WrenchIcon;
+  switch (part.state as string) {
+    case "input-streaming":
+    case "input-available":
+      return { icon, label: LOADING_LABEL[name] ?? `Running ${name}…`, status: "active", error: false };
+    case "approval-requested":
+      return { icon, label: `Approval needed · ${name}`, status: "active", error: false };
+    case "approval-responded":
+      return { icon, label: part.approval?.approved ? `Approved · ${name} — running…` : `Denied · ${name}`, status: "complete", error: false };
+    case "output-denied":
+      return { icon, label: `${name} — denied, not run`, status: "complete", error: true };
+    case "output-error":
+      return { icon, label: `${name} failed`, status: "complete", error: true };
+    case "output-available":
+      return { icon, label: DONE_LABEL[name] ?? `Ran ${name}`, status: "complete", error: false };
+    default:
+      return { icon, label: name, status: "complete", error: false };
+  }
+}
 
 /** Approval handle (mirrors LeashChat's) — present only when the card is actionable. */
 interface ApprovalHandle {
@@ -69,6 +130,90 @@ export function ToolView({ part, approval }: { part: Part; approval?: ApprovalHa
   if (name === "now") return <NowChip output={output} />;
   if (name === "generate_image") return <ImageCard output={output} />;
   return <GenericTool part={part} />;
+}
+
+/**
+ * The inner card body for a tool, to nest as the `children` of a ChainOfThought step
+ * (the step header carries the icon/label/status via `toolMeta`). Returns null for the
+ * pure-loading / responded / denied states — the node header already conveys those.
+ */
+export function ToolCard({ part, approval }: { part: Part; approval?: ApprovalHandle }) {
+  const name = toolName(part);
+  const state = part.state as string;
+  if (state === "input-streaming" || state === "input-available") return null;
+  if (state === "output-error") return <div className="tool-card tool-error-card">⚠ {String(part.errorText ?? "failed")}</div>;
+  if (state === "approval-requested") return <ApprovalCard name={name} part={part} approval={approval} />;
+  if (state === "approval-responded" || state === "output-denied") return null;
+  if (state !== "output-available") return null;
+  const output = part.output ?? {};
+  if (name === "list_tasks" || name === "create_task" || name === "update_task") return <TaskCard output={output} />;
+  if (name === "understory_today" || name === "understory_search") return <PaperCard output={output} />;
+  if (name === "search_graph") return <NotesCard output={output} />;
+  if (name === "now") return <NowChip output={output} />;
+  if (name === "generate_image") return <ImageCard output={output} />;
+  return <GenericTool part={part} />;
+}
+
+const TASK_GLYPH: Record<string, string> = { open: "○", in_progress: "◐", done: "✓", dropped: "✕" };
+
+/** The official AI Elements `Task` component, fed the structured rows the task tools now
+ *  return alongside `text`. Falls back to the `text` summary for older (pre-structured)
+ *  messages or single-task create/update results without rows. */
+function TaskCard({ output }: { output: { tasks?: TaskRow[]; task?: TaskRow; text?: string } }) {
+  const rows = output.tasks ?? (output.task ? [output.task] : []);
+  if (rows.length === 0) {
+    return (
+      <div className="tool-card">
+        <span className="tool-card-kicker kicker kicker-sage">✓ Tasks</span>
+        {output.text ? <span className="tool-note-snip">{output.text}</span> : null}
+      </div>
+    );
+  }
+  const title = rows.length === 1 ? rows[0]!.title : `${rows.length} tasks`;
+  return (
+    <Task defaultOpen>
+      <TaskTrigger title={title}>
+        <div className="group flex w-full cursor-pointer items-center gap-2 text-muted-foreground text-sm transition-colors hover:text-foreground">
+          <ListTodoIcon className="size-4" />
+          <p className="text-sm">{title}</p>
+          <ChevronDownIcon className="size-4 transition-transform group-data-[state=open]:rotate-180" />
+        </div>
+      </TaskTrigger>
+      <TaskContent>
+        {rows.map((t) => (
+          <TaskItem key={t.id}>
+            <span className="task-glyph" data-status={t.status} aria-hidden>
+              {TASK_GLYPH[t.status] ?? "•"}
+            </span>{" "}
+            {t.title}
+            {t.detail ? <span className="tool-note-snip"> — {t.detail}</span> : null}
+          </TaskItem>
+        ))}
+      </TaskContent>
+    </Task>
+  );
+}
+
+/**
+ * Aggregate the RAG sources already carried in this message's tool outputs (understory_* /
+ * search_graph), deduped by kind+title+url — for the collapsible `Sources` list under the
+ * answer. Reuses data we already render in the timeline cards.
+ */
+export function collectSources(parts: Part[]): Source[] {
+  const out: Source[] = [];
+  const seen = new Set<string>();
+  for (const p of parts) {
+    if (!isTool(p) || p.state !== "output-available") continue;
+    const srcs = (p.output?.sources ?? []) as Source[];
+    for (const s of srcs) {
+      if (!s || !s.title) continue;
+      const key = `${s.kind}:${s.title}:${s.url ?? ""}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(s);
+    }
+  }
+  return out;
 }
 
 function PaperCard({ output }: { output: { sources?: Source[] } }) {
@@ -137,24 +282,26 @@ function ApprovalCard({ name, part, approval }: { name: string; part: Part; appr
   const input = part.input ?? {};
   const pretty = JSON.stringify(input, null, 2);
   return (
-    <div className="tool-card tool-approval-card">
-      <span className="tool-card-kicker kicker kicker-sage">⏸ Approval needed · {name}</span>
-      <pre className="tool-approval-input">{pretty}</pre>
-      {approval && part.approval?.id ? (
-        <div className="tool-approval-actions">
-          <button type="button" className="tool-approve" onClick={() => approval.respond({ id: part.approval.id, approved: true })}>
-            ✓ Approve &amp; run
-          </button>
-          <button type="button" className="tool-deny" onClick={() => approval.respond({ id: part.approval.id, approved: false, reason: "denied by user" })}>
-            ✕ Deny
-          </button>
-        </div>
-      ) : (
-        <span className="kicker" style={{ color: "var(--color-faint)" }}>
-          awaiting a decision
-        </span>
-      )}
-    </div>
+    <Confirmation approval={part.approval} state={part.state} className="tool-approval-card">
+      <ConfirmationTitle>
+        <span className="tool-card-kicker kicker kicker-sage">⏸ Approval needed · {name}</span>
+      </ConfirmationTitle>
+      <ConfirmationRequest>
+        <pre className="tool-approval-input">{pretty}</pre>
+      </ConfirmationRequest>
+      <ConfirmationActions>
+        {approval && part.approval?.id ? (
+          <>
+            <ConfirmationAction variant="outline" onClick={() => approval.respond({ id: part.approval.id, approved: false, reason: "denied by user" })}>
+              ✕ Deny
+            </ConfirmationAction>
+            <ConfirmationAction onClick={() => approval.respond({ id: part.approval.id, approved: true })}>✓ Approve &amp; run</ConfirmationAction>
+          </>
+        ) : (
+          <span className="kicker" style={{ color: "var(--color-faint)" }}>awaiting a decision</span>
+        )}
+      </ConfirmationActions>
+    </Confirmation>
   );
 }
 

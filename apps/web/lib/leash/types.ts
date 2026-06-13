@@ -32,6 +32,27 @@ export interface LeashSkillEvent {
   skills: LeashSkillRef[];
 }
 
+/** One atomic step of a plan-mode plan, with its live execution status. */
+export type PlanStepStatus = "pending" | "active" | "done" | "failed" | "skipped";
+export interface PlanStep {
+  id: string;
+  text: string;
+  status: PlanStepStatus;
+  /** A short result digest (done) or error (failed). */
+  note?: string;
+}
+/**
+ * Persisted `data-plan` part: the plan-mode plan for an assistant turn. Proposed plans render
+ * from the `submit_plan` tool input (approval gate); once approved, the route streams this part
+ * (same `id`, reconciled in place) as the deterministic pipeline executes each step.
+ */
+export interface PlanData {
+  id: string;
+  title?: string;
+  status: "proposed" | "running" | "done" | "failed" | "rejected";
+  steps: PlanStep[];
+}
+
 /** A pending MCP elicitation (server→user form), surfaced as a transient data part. */
 export interface ElicitationView {
   id: string;
@@ -50,6 +71,7 @@ export type LeashElicitationEvent = { kind: "open"; elicitation: ElicitationView
 export type LeashDataParts = {
   elicitation: LeashElicitationEvent;
   skill: LeashSkillEvent;
+  plan: PlanData;
 };
 
 /** The Leash UI message, carrying `LeashMetadata` + typed data parts. */

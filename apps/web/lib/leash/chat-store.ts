@@ -104,6 +104,27 @@ export async function saveSummary(chatId: string, summary: string, summarizedThr
   await writeFile(chatFile(chatId), JSON.stringify(rec, null, 2));
 }
 
+/**
+ * Checkpoint revert: keep only the first `keep` messages, dropping everything after. The
+ * transport rebuilds each turn's history from this store, so truncating here is what makes a
+ * restore "stick" — the next message continues from the checkpoint. Returns the kept messages.
+ */
+export async function truncateChat(id: string, keep: number): Promise<LeashUIMessage[]> {
+  const rec = await loadRecord(id);
+  if (!rec) return [];
+  const kept = rec.messages.slice(0, Math.max(0, keep));
+  const record: ChatRecord = { ...rec, messages: kept, updatedAt: Date.now() };
+  // Drop stale compaction state if it now points past the truncated end (the compactor
+  // recomputes a fresh summary on the next over-window turn).
+  if (record.summarizedThrough && record.summarizedThrough > kept.length) {
+    delete record.summary;
+    delete record.summarizedThrough;
+  }
+  await ensureDir();
+  await writeFile(chatFile(id), JSON.stringify(record, null, 2));
+  return kept;
+}
+
 /** Delete a chat (no-op if already gone). */
 export async function deleteChat(id: string): Promise<void> {
   try {
