@@ -639,6 +639,437 @@
   .leash-content {
     padding-left: var(--leash-rail-w);
   }
+  /* The landing page is full-bleed — the app rail hides itself on `/`, so drop its offset. */
+  .leash-content:has(.landing) {
+    padding-left: 0;
+  }
+
+  /* ============================ Landing page (broadsheet front page) ============================ */
+  .landing {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 0 1.5rem 4rem;
+    color: var(--color-ink);
+    background: var(--color-paper);
+    font-family: var(--font-body);
+  }
+  .landing a {
+    color: inherit;
+    text-decoration: none;
+  }
+  /* Top nav */
+  .landing-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0 0.8rem;
+  }
+  .landing-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .landing-brand-mark {
+    width: 1.6rem;
+    height: 1.6rem;
+  }
+  .landing-brand-word {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: -0.01em;
+  }
+  .landing-topnav {
+    display: flex;
+    align-items: center;
+    gap: 1.4rem;
+    font-size: 0.92rem;
+    color: var(--color-ink-soft);
+  }
+  .landing-topnav a:hover {
+    color: var(--color-sage-deep);
+  }
+  .landing-topnav-cta {
+    font-weight: 600;
+    color: var(--color-sage-deep) !important;
+  }
+  /* Masthead wordmark */
+  .landing-masthead {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    gap: 1.5rem;
+    padding: 1.2rem 0 0.4rem;
+    position: relative;
+  }
+  .landing-wordmark {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: clamp(3.5rem, 14vw, 9rem);
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+    text-align: center;
+  }
+  .landing-masthead-side {
+    font-family: var(--font-mono);
+    font-size: 0.62rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-faint);
+    padding-bottom: 0.9rem;
+    white-space: nowrap;
+  }
+  .landing-rule-thick {
+    height: 3px;
+    background: var(--color-ink);
+    margin: 0.2rem 0 2px;
+  }
+  .landing-rule-thin {
+    height: 1px;
+    background: var(--color-ink);
+    margin: 0 0 0;
+  }
+  /* Hero */
+  .landing-hero {
+    text-align: center;
+    padding: 2.4rem 0 2.2rem;
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .landing-kicker {
+    margin-bottom: 0.9rem;
+  }
+  .landing-headline {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(2.1rem, 6vw, 3.6rem);
+    line-height: 1.04;
+    letter-spacing: -0.015em;
+  }
+  .landing-dek {
+    margin: 1.1rem auto 0;
+    max-width: 560px;
+    font-size: 1.08rem;
+    line-height: 1.6;
+    color: var(--color-muted);
+  }
+  .landing-cta-row {
+    display: flex;
+    gap: 0.7rem;
+    justify-content: center;
+    margin-top: 1.6rem;
+    flex-wrap: wrap;
+  }
+  .landing-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.6rem 1.2rem;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    background: var(--color-paper);
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+  .landing-btn:hover {
+    background: var(--color-cream);
+    border-color: var(--color-ink);
+  }
+  .landing-btn-primary {
+    background: var(--color-ink);
+    color: var(--color-cream);
+    border-color: var(--color-ink);
+  }
+  .landing-btn-primary:hover {
+    background: var(--color-sage-deep);
+    border-color: var(--color-sage-deep);
+    color: var(--color-cream);
+  }
+  /* Section kicker */
+  .landing-section-kicker {
+    text-align: center;
+    margin-bottom: 1.4rem;
+    color: var(--color-faint);
+  }
+  /* Pillars */
+  .landing-pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    padding: 1.8rem 0;
+  }
+  .landing-pillar {
+    padding: 0 1.4rem;
+    border-left: 1px solid var(--color-rule);
+  }
+  .landing-pillar:first-child {
+    border-left: none;
+    padding-left: 0;
+  }
+  .landing-pillar-kicker {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-sage-deep);
+    margin-bottom: 0.5rem;
+  }
+  .landing-pillar-body {
+    font-size: 0.98rem;
+    line-height: 1.55;
+    color: var(--color-ink-soft);
+  }
+  /* Figures */
+  .landing-figures {
+    padding: 2.4rem 0;
+  }
+  .landing-figures-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.4rem;
+  }
+  .landing-figure {
+    margin: 0;
+  }
+  .landing-figure-frame {
+    border: 1px solid var(--color-rule-strong);
+    background: var(--color-paper);
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    position: relative;
+  }
+  /* Live app embed — the real route, rendered at 4× the frame width then scaled to fit, so the app
+     shows its desktop layout shrunk into the photo. Non-interactive (it's a preview, not a window). */
+  .landing-embed-iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 400%;
+    height: 400%;
+    transform: scale(0.25);
+    transform-origin: top left;
+    border: 0;
+    pointer-events: none;
+    background: var(--color-paper);
+  }
+  /* A faint scrim + zoom on hover hints these are live, not flat images. */
+  .landing-embed::after {
+    content: "live";
+    position: absolute;
+    top: 0.4rem;
+    right: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.55rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-faint);
+    background: color-mix(in srgb, var(--color-paper) 80%, transparent);
+    padding: 0.1rem 0.35rem;
+    border-radius: 4px;
+  }
+  .landing-figure-cap {
+    margin-top: 0.55rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+    color: var(--color-muted);
+    border-top: 1px solid var(--color-rule);
+    padding-top: 0.4rem;
+  }
+  /* Agent-economy spread */
+  .landing-economy {
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: 2.5rem;
+    align-items: center;
+    padding: 2.8rem 0;
+  }
+  .landing-economy-head {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin-top: 0.3rem;
+  }
+  .landing-economy-dek {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 1.25rem;
+    color: var(--color-sage-deep);
+    margin: 0.6rem 0 1rem;
+  }
+  .landing-economy-body {
+    font-size: 1.05rem;
+    line-height: 1.65;
+    color: var(--color-ink-soft);
+    margin-bottom: 1.4rem;
+  }
+  /* …and more */
+  .landing-more {
+    padding: 2.2rem 0;
+  }
+  .landing-more-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.9rem 1.6rem;
+  }
+  .landing-more-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    padding: 0.6rem 0;
+    border-top: 1px solid var(--color-rule);
+  }
+  .landing-more-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+  .landing-more-note {
+    font-size: 0.88rem;
+    color: var(--color-muted);
+  }
+  /* How it works */
+  .landing-how {
+    padding: 2.4rem 0;
+  }
+  .landing-how-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.6rem;
+  }
+  .landing-how-n {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-faint);
+  }
+  .landing-how-h {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin: 0.3rem 0 0.4rem;
+  }
+  .landing-how-b {
+    font-size: 0.92rem;
+    line-height: 1.5;
+    color: var(--color-muted);
+  }
+  .landing-how-foot {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 0.95rem;
+    color: var(--color-ink-soft);
+  }
+  /* Waitlist */
+  .landing-waitlist {
+    text-align: center;
+    padding: 3rem 0 2.4rem;
+    max-width: 620px;
+    margin: 0 auto;
+  }
+  .landing-waitlist-head {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    letter-spacing: -0.015em;
+  }
+  .landing-waitlist-dek {
+    margin: 0.8rem auto 1.5rem;
+    color: var(--color-muted);
+    font-size: 1.05rem;
+  }
+  .landing-waitlist-form {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .landing-waitlist-input {
+    flex: 1 1 260px;
+    max-width: 340px;
+    padding: 0.65rem 0.9rem;
+    border: 1px solid var(--color-rule-strong);
+    border-radius: 999px;
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+    background: var(--color-paper);
+  }
+  .landing-waitlist-input:focus-visible {
+    outline: none;
+    border-color: var(--color-sage-deep);
+  }
+  .landing-waitlist-btn {
+    padding: 0.65rem 1.3rem;
+    border: 1px solid var(--color-ink);
+    border-radius: 999px;
+    background: var(--color-ink);
+    color: var(--color-cream);
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .landing-waitlist-btn:hover:not(:disabled) {
+    background: var(--color-sage-deep);
+  }
+  .landing-waitlist-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  .landing-waitlist-done {
+    font-family: var(--font-display);
+    font-size: 1.3rem;
+    color: var(--color-sage-deep);
+  }
+  /* Footer */
+  .landing-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+    border-top: 3px solid var(--color-ink);
+    padding-top: 1.2rem;
+    margin-top: 1rem;
+  }
+  .landing-footer-mark {
+    font-family: var(--font-display);
+    font-weight: 900;
+    font-size: 1.2rem;
+    letter-spacing: 0.04em;
+  }
+  .landing-footer-nav {
+    display: flex;
+    gap: 1.2rem;
+    font-size: 0.9rem;
+    color: var(--color-ink-soft);
+  }
+  .landing-footer-nav a:hover {
+    color: var(--color-sage-deep);
+  }
+  .landing-footer-meta {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+    color: var(--color-faint);
+  }
+  @media (max-width: 800px) {
+    .landing-pillars,
+    .landing-figures-grid,
+    .landing-economy,
+    .landing-how-grid {
+      grid-template-columns: 1fr;
+      gap: 1.4rem;
+    }
+    .landing-pillar {
+      border-left: none;
+      padding: 0;
+    }
+    .landing-masthead-side {
+      display: none;
+    }
+  }
   .leash-rail {
     position: fixed;
     top: 0;

@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { LeashMark } from "./LeashMark.tsx";
+import { siteHome } from "../lib/site.ts";
 
 /**
  * The Leash shell's left rail — the app's primary nav.
@@ -93,10 +95,24 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
 
 export function LeashRail() {
   const pathname = usePathname() ?? "/";
+  // The logo points to the marketing home: the local landing in dev, the live domain in prod.
+  // Set post-mount (SSR can't read the host) so the href never mismatches at hydration.
+  const [home, setHome] = useState("https://useleash.xyz/");
+  useEffect(() => setHome(siteHome()), []);
+  const external = home.startsWith("http");
+
+  // The landing (`/`) IS the marketing home — it provides its own masthead, so the app rail hides there.
+  if (pathname === "/") return null;
 
   return (
     <nav className="leash-rail" aria-label="Leash">
-      <a href="https://useleash.xyz" target="_blank" rel="noopener noreferrer" className="leash-rail-mark" title="useleash.xyz" aria-label="useleash.xyz">
+      <a
+        href={home}
+        {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+        className="leash-rail-mark"
+        title={external ? "useleash.xyz" : "Leash home"}
+        aria-label="Leash home"
+      >
         <LeashMark className="leash-rail-mark-icon" cutoutColor="var(--color-ink)" />
       </a>
 
