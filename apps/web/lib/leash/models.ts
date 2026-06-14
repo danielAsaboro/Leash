@@ -8,7 +8,7 @@
  * lists READY models only.
  */
 import "server-only";
-import { readdir, realpath, stat } from "node:fs/promises";
+import { readdir, realpath, stat, rm } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join, dirname, basename } from "node:path";
 import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
@@ -450,6 +450,23 @@ export async function cancelDownload(name: string): Promise<boolean> {
     } catch {
       /* already gone */
     }
+  }
+  // Remove the partial weight file(s) — modelsInventory counts ANY file in QVAC_MODELS_DIR as
+  // on-disk, so an incomplete download left behind would masquerade as a "Downloaded" model. Clear
+  // the catalog cacheFile and any of its partials (`<file>.part`, `.<file>.tmp`, …) so a cancelled
+  // download fully disappears from the Models page (it stays in Tasks as a retryable "dropped" row).
+  try {
+    const cacheFile = (await readCatalog()).find((c) => c.name === name)?.cacheFile;
+    if (cacheFile) {
+      const onDisk = await readdir(QVAC_MODELS_DIR).catch(() => [] as string[]);
+      await Promise.all(
+        onDisk
+          .filter((f) => f === cacheFile || f.startsWith(`${cacheFile}.`) || f.startsWith(`.${cacheFile}`))
+          .map((f) => rm(join(QVAC_MODELS_DIR, f), { force: true })),
+      );
+    }
+  } catch {
+    /* advisory — never let cleanup break the cancel */
   }
   if (s) {
     try {
