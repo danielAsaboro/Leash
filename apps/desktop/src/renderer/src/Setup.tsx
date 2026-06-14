@@ -30,14 +30,16 @@ export function Setup(): React.JSX.Element {
       </p>
       <div className="flex gap-3">
         <button
-          className="rounded-lg border border-rule-strong bg-paper px-4 py-2 font-mono text-xs uppercase tracking-label"
+          className="rounded-lg border border-rule-strong bg-paper px-4 py-2 font-mono text-xs uppercase tracking-label disabled:opacity-40"
           onClick={useDefault}
+          disabled={busy}
         >
           Use default
         </button>
         <button
-          className="rounded-lg bg-sage-deep px-4 py-2 font-mono text-xs uppercase tracking-label text-cream"
+          className="rounded-lg bg-sage-deep px-4 py-2 font-mono text-xs uppercase tracking-label text-cream disabled:opacity-40"
           onClick={pick}
+          disabled={busy}
         >
           Choose folder…
         </button>

@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, net, ipcMain } from 'electron'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
 import { readInstall, saveInstall, chooseFolder, leashBaseFor } from './install'
+import { ensureRuntime, ensureDaemons, watchSystemControls } from './deps'
 import { homedir, userInfo } from 'os'
 import { spawn, type ChildProcess } from 'child_process'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
@@ -29,9 +30,16 @@ const DASH_URL = `${WEB_URL}/home`
 let mainWindow: BrowserWindow | null = null
 let supervisor: ChildProcess | null = null
 let quitting = false
+/** Path to the downloaded qvac CLI entry (set by ensureDeps before the serve starts). */
+let runtimeCliPath: string | null = null
 
 function sendStatus(text: string): void {
   mainWindow?.webContents.send('shell-status', text)
+}
+
+/** First-run progress for the download page. `pct: null` ⇒ indeterminate (verify/extract/boot). */
+function sendProgress(phase: string, pct: number | null): void {
+  mainWindow?.webContents.send('shell-progress', { phase, pct })
 }
 
 /** A PATH that includes the usual Node install locations — a Finder-launched app inherits only a
@@ -101,6 +109,11 @@ function startSupervisor(): void {
     env.LEASH_RUNTIME_SRC = join(process.resourcesPath, 'leash') // seeded → <base>/Leash/_runtime
     env.LEASH_QVAC_CONFIG_SRC = join(process.resourcesPath, 'leash-config')
     env.LEASH_DB_TEMPLATE = join(process.resourcesPath, 'newsroom-template.db')
+    // The arch-pruned qvac runtime is DOWNLOADED into the base dir after Setup (stub installer),
+    // not bundled — the serve runs it via Electron's Node, so the app needs no system Node and the
+    // DMG stays small. ensureDeps() populated runtimeCliPath before we got here.
+    if (runtimeCliPath) env.LEASH_QVAC_CLI = runtimeCliPath
+    env.LEASH_NODE_BIN = process.execPath // Electron binary; ELECTRON_RUN_AS_NODE makes it act as Node
   }
   if (!existsSync(launcher)) return sendStatus('Leash supervisor missing from the app — rebuild required.')
 
@@ -112,17 +125,69 @@ function startSupervisor(): void {
   })
 }
 
+/** Download the qvac runtime into the base dir if it isn't there yet (packaged stub installer). */
+async function ensureDeps(): Promise<void> {
+  if (is.dev) return // dev runs the serve via repo `npx @qvac/cli`
+  const cfg = readInstall()
+  if (!cfg) return
+  runtimeCliPath = await ensureRuntime(leashBaseFor(cfg.base), (p) => {
+    if (p.phase === 'download') {
+      sendStatus(`Downloading runtime… ${p.pct ?? 0}%`)
+      sendProgress('download', p.pct ?? 0)
+    } else if (p.phase === 'verify') {
+      sendStatus('Verifying runtime…')
+      sendProgress('verify', null)
+    } else if (p.phase === 'extract') {
+      sendStatus('Installing runtime…')
+      sendProgress('extract', null)
+    }
+  })
+}
+
 async function bringUpDashboard(): Promise<void> {
   try {
     sendStatus('Connecting to Leash…')
-    await waitForServer(2_000).catch(() => {
+    await waitForServer(2_000).catch(async () => {
+      await ensureDeps() // first run: fetch the runtime into the base dir, with progress
+      sendStatus('Starting the Leash dashboard…')
+      sendProgress('boot', null)
       startSupervisor()
       return waitForServer()
     })
     sendStatus('Loading…')
+    sendProgress('boot', null)
     await mainWindow?.loadURL(DASH_URL)
+    void fetchDaemonsInBackground() // non-blocking: dashboard is up; services become startable once it lands
   } catch (err) {
     sendStatus(`${(err as Error).message}`)
+  }
+}
+
+let retryWatcherStarted = false
+
+/** Fetch the on-demand daemon overlay (hypha, watcher, …) after the dashboard is up — non-blocking,
+ *  so first run stays fast. The Services tab reports "preparing" until the overlay is extracted.
+ *  Also starts the retry watcher so the dashboard's Downloads "retry" can re-trigger a failed fetch. */
+async function fetchDaemonsInBackground(): Promise<void> {
+  if (is.dev) return
+  const cfg = readInstall()
+  if (!cfg) return
+  const leashBase = leashBaseFor(cfg.base)
+
+  if (!retryWatcherStarted) {
+    retryWatcherStarted = true
+    watchSystemControls(leashBase, (name) => {
+      void (name === 'runtime'
+        ? ensureRuntime(leashBase, () => {})
+        : ensureDaemons(leashBase, () => {})
+      ).catch((err) => console.error(`[deps] retry of ${name} failed:`, (err as Error).message))
+    })
+  }
+
+  try {
+    await ensureDaemons(leashBase, () => {})
+  } catch (err) {
+    console.error('[daemons] background fetch failed:', (err as Error).message)
   }
 }
 
@@ -167,6 +232,10 @@ app.whenReady().then(() => {
   ipcMain.handle('install:resolved', (_e, base: string) => ({ leashBase: leashBaseFor(base) }))
   ipcMain.handle('install:save', (_e, base: string) => {
     saveInstall(base)
+    // Leave the Setup screen for the splash so the runtime-download progress (`shell-status`,
+    // "Downloading runtime… 93%") is actually visible — otherwise first-run sits on a dead
+    // "Starting…" button for the whole ~170 MB fetch and looks frozen.
+    mainWindow?.webContents.send('shell-route', 'splash')
     void bringUpDashboard()
   })
   createWindow()

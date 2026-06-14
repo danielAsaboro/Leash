@@ -17,6 +17,12 @@ const shellAPI = {
     const l = (_e: Electron.IpcRendererEvent, r: string): void => cb(r)
     ipcRenderer.on('shell-route', l)
     return () => ipcRenderer.removeListener('shell-route', l)
+  },
+  /** Structured first-run progress: phase + percent (null ⇒ indeterminate). Drives the download bar. */
+  onProgress: (cb: (p: { phase: string; pct: number | null }) => void): (() => void) => {
+    const l = (_e: Electron.IpcRendererEvent, p: { phase: string; pct: number | null }): void => cb(p)
+    ipcRenderer.on('shell-progress', l)
+    return () => ipcRenderer.removeListener('shell-progress', l)
   }
 }
 
