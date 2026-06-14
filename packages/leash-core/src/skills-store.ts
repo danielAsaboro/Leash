@@ -12,11 +12,11 @@
  * next save. Skills are SEPARATE from tools: a tool is executable; a skill is prose
  * (plus files) the model reads via `read_skill` when its description matches.
  *
- * SECURITY POSTURE — `enabled:` ABSENT in frontmatter ⇒ DISABLED. Imported/dropped-in
- * skills are third-party prompt input (and may carry scripts); they must be reviewed and
- * explicitly enabled in the dashboard before the model ever sees them. This flips any
- * pre-existing hand-dropped SKILL.md without an `enabled:` key to off — visible in the
- * dashboard, one-click re-enable.
+ * ENABLE MODEL (Agent-Skills standard) — a skill is ENABLED unless its frontmatter says
+ * `enabled: false`; an absent key ⇒ ON (the standard's default: skills are available, the
+ * dashboard toggles one off by writing `enabled: false`). SECURITY: imported/dropped-in skills
+ * are third-party prompt input (and may carry scripts), so the IMPORT flow writes `enabled: false`
+ * to quarantine them for review — built-in/hand-authored skills ship enabled.
  *
  * The frontmatter parser is hand-rolled (no YAML dep): `key: value` lines with optional
  * single/double quotes, `>`/`|` block scalars (incl. `-` chomping), and UNKNOWN KEYS
@@ -59,6 +59,14 @@ export interface Skill {
    * = the description alone represents the skill (existing behavior).
    */
   examples: string[];
+  /**
+   * Agent-Skills-standard `when_to_use:` — trigger phrases/contexts for when to invoke. Feeds the
+   * matcher exactly like `examples:` (each line is a routing utterance), and is the standard's way to
+   * express triggers (the Claude Code / agentskills.io format the dashboard's skills follow).
+   */
+  whenToUse: string;
+  /** True for skills that ship with the app (frontmatter `builtin: true`) vs. user-created/imported. */
+  builtin: boolean;
   /** Attachment paths relative to the skill folder (POSIX, e.g. `references/x.md`). */
   files: string[];
   /** Unknown frontmatter keys, round-tripped verbatim on save (spec fields survive edits). */
@@ -205,12 +213,18 @@ function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
     slug,
     name,
     description: fields["description"] ?? "",
-    enabled: fields["enabled"] === "true", // absent or anything else ⇒ disabled (see module header)
+    // Agent-Skills standard: a skill is ENABLED unless explicitly turned off. Only `enabled: false`
+    // disables (the dashboard writes that to toggle one off); absent ⇒ on. (Imported skills are
+    // quarantined by the import flow writing `enabled: false`, not by an absent-key default.)
+    enabled: fields["enabled"] !== "false",
     body: (m[2] as string).trim(),
-    // `tools`/`steps`/`examples` are round-tripped via `extras` (not KNOWN_KEYS); also surfaced parsed.
-    tools: parseToolList(fields["tools"]),
+    // Standard `allowed-tools:` is the tool list (legacy `tools:` still honored). `when_to_use:` and
+    // `examples:` both feed the matcher. All round-tripped via `extras` (not KNOWN_KEYS) and surfaced parsed.
+    tools: parseToolList(fields["allowed-tools"] ?? fields["tools"]),
     steps: parseLineList(fields["steps"], 12),
     examples: parseLineList(fields["examples"], 12),
+    whenToUse: fields["when_to_use"] ?? "",
+    builtin: fields["builtin"] === "true",
     files,
     extras,
   };
@@ -310,7 +324,7 @@ export async function saveSkill(input: { slug?: string; name: string; descriptio
   } catch {
     /* none existed */
   }
-  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["tools"]), steps: parseLineList(input.extras?.["steps"], 12), examples: parseLineList(input.extras?.["examples"], 12), files: await skillFiles(slug), extras: input.extras ?? {} };
+  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["allowed-tools"] ?? input.extras?.["tools"]), steps: parseLineList(input.extras?.["steps"], 12), examples: parseLineList(input.extras?.["examples"], 12), whenToUse: input.extras?.["when_to_use"] ?? "", builtin: input.extras?.["builtin"] === "true", files: await skillFiles(slug), extras: input.extras ?? {} };
 }
 
 /** Delete a skill — folder and/or legacy flat file (no-op if already gone). */

@@ -32,4 +32,21 @@ mkdirSync(join(dst, "lib", "leash"), { recursive: true });
 cpSync(join(web, "server-launch.mjs"), join(dst, "server-launch.mjs"));
 cpSync(join(web, "lib", "leash", "scope.mjs"), join(dst, "lib", "leash", "scope.mjs"));
 
-console.log("[stage-launcher] staged .next/static + public + supervisor into the standalone bundle");
+// 3. the SDK helper scripts (model catalog + download) — Next standalone only traces IMPORTED
+//    files, and these are SPAWNED (never imported), so they'd be absent. The API routes run them
+//    via the bundled qvac runtime (see lib/leash/runtime.ts). Without this the Models list is
+//    empty on a fresh install and downloads can't start.
+mkdirSync(join(dst, "scripts"), { recursive: true });
+for (const s of ["leash-model-catalog.mts", "leash-model-download.mts"]) {
+  cpSync(join(web, "scripts", s), join(dst, "scripts", s));
+}
+
+// 4. the committed built-in skills — shipped read-only, seeded into each user's skill store on
+//    first launch (see server-launch.mjs bootstrapScopeDir). Next standalone never traces them
+//    (they're data, not imported), so they'd be absent without this and a fresh install would have
+//    zero skills until the user authored some.
+if (existsSync(join(web, "builtin-skills"))) {
+  cpSync(join(web, "builtin-skills"), join(dst, "builtin-skills"), { recursive: true });
+}
+
+console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + built-in skills into the standalone bundle");

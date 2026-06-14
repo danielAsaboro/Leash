@@ -113,8 +113,10 @@ let skillEmbeddingsPromise: Promise<SkillEmbeddingCache> | null = null;
 /** A skill's routing utterances: its discovery text PLUS each declared example (capped). The matcher
  *  routes by MAX similarity to any of these (semantic-router style), so several concrete phrasings can
  *  represent the skill — not just its one description. */
-function skillUtterances(skill: { slug: string; name: string; description: string; examples?: string[] }): string[] {
-  return [discoveryText(skill), ...(skill.examples ?? [])].map((u) => u.trim()).filter(Boolean).slice(0, 8);
+function skillUtterances(skill: { slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }): string[] {
+  // Routing utterances = discovery text + the standard `when_to_use:` lines + any legacy `examples:`.
+  const whenLines = skill.whenToUse ? skill.whenToUse.split(/\r?\n/) : [];
+  return [discoveryText(skill), ...whenLines, ...(skill.examples ?? [])].map((u) => u.trim()).filter(Boolean).slice(0, 8);
 }
 
 function mentionsSkill(haystack: string, slug: string, name: string): boolean {
@@ -131,12 +133,12 @@ function tokenize(s: string): string[] {
   return (s.toLowerCase().match(/[a-z0-9][a-z0-9-]{1,}/g) ?? []).filter((t) => !STOP.has(t));
 }
 
-function lexicalScore(query: string, skill: { slug: string; name: string; description: string; examples?: string[] }): number {
+function lexicalScore(query: string, skill: { slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }): number {
   const q = new Set(tokenize(query));
   if (q.size === 0) return 0;
-  // Examples are routing utterances — fold them into the lexical target so a skill's concrete phrasings
-  // (e.g. "mark it done", "then complete it") count toward keyword overlap, not just its description.
-  const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description} ${(skill.examples ?? []).join(" ")}`));
+  // when_to_use + examples are routing utterances — fold them into the lexical target so a skill's
+  // concrete phrasings (e.g. "mark it done") count toward keyword overlap, not just its description.
+  const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description} ${skill.whenToUse ?? ""} ${(skill.examples ?? []).join(" ")}`));
   if (target.size === 0) return 0;
   let hits = 0;
   for (const t of q) if (target.has(t)) hits++;
@@ -145,7 +147,7 @@ function lexicalScore(query: string, skill: { slug: string; name: string; descri
   return coverage * 0.75 + precision * 0.25;
 }
 
-async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; description: string; examples?: string[] }>): Promise<SkillUtteranceEmbeddings[]> {
+async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }>): Promise<SkillUtteranceEmbeddings[]> {
   const spans = skills.map((s) => ({ slug: s.slug, utterances: skillUtterances(s) }));
   const key = JSON.stringify(spans);
   if (skillEmbeddingsPromise) {

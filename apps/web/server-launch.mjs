@@ -22,7 +22,7 @@
  *   MYCELIUM_SERVE_PORT   qvac serve port to reap on switch                          [default: 11435]
  */
 import { spawn, execFile } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync, readdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -51,6 +51,14 @@ const SERVER_CMD = process.env.LEASH_SERVER_CMD ?? "";
 const RUNTIME_SRC = process.env.LEASH_RUNTIME_SRC ?? "";
 const QVAC_CONFIG_SRC = process.env.LEASH_QVAC_CONFIG_SRC ?? REPO_ROOT;
 const DB_TEMPLATE = process.env.LEASH_DB_TEMPLATE ?? join(REPO_ROOT, "apps", "desktop", "resources", "newsroom-template.db");
+// Committed built-in skills (apps/web/builtin-skills). Packaged: staged into the standalone next to
+// server.js (stage-launcher step 4); dev: read straight from the repo. Seeded per-user on bootstrap.
+const BUILTIN_SKILLS_SRC =
+  RUNTIME_SRC && existsSync(join(RUNTIME_SRC, "apps", "web", "builtin-skills"))
+    ? join(RUNTIME_SRC, "apps", "web", "builtin-skills")
+    : existsSync(join(here, "builtin-skills"))
+      ? join(here, "builtin-skills")
+      : join(REPO_ROOT, "apps", "web", "builtin-skills");
 const DEFAULT_STANDALONE = join(here, ".next", "standalone");
 
 // ── active.json + registry ────────────────────────────────────────────────────────────
@@ -123,12 +131,42 @@ function seedRuntime() {
 function bootstrapScopeDir(scope) {
   for (const d of [scope.dataDir, join(scope.dbPath, ".."), sharedNpmCache(LEASH_BASE)]) mkdirSync(d, { recursive: true });
   if (existsSync(join(QVAC_CONFIG_SRC, "qvac.config.mjs")) && !existsSync(scope.configPath)) {
-    for (const f of ["qvac.config.mjs", "qvac.config.base.json"]) {
-      const src = join(QVAC_CONFIG_SRC, f);
-      if (existsSync(src)) cpSync(src, join(scope.scopeDir, f));
+    // Seed the .mjs wrapper verbatim, but seed base.json with an EMPTY serve set: a fresh user
+    // starts with NO models loaded or preloaded. We only RECOMMEND (Brain → Models lists the
+    // catalog); the user picks what to download, which then gets written into THIS config.
+    cpSync(join(QVAC_CONFIG_SRC, "qvac.config.mjs"), join(scope.scopeDir, "qvac.config.mjs"));
+    const baseSrc = join(QVAC_CONFIG_SRC, "qvac.config.base.json");
+    if (existsSync(baseSrc)) {
+      const cfg = JSON.parse(readFileSync(baseSrc, "utf-8"));
+      if (cfg.serve && typeof cfg.serve === "object") cfg.serve.models = {};
+      writeFileSync(join(scope.scopeDir, "qvac.config.base.json"), JSON.stringify(cfg, null, 2));
     }
   }
   if (existsSync(DB_TEMPLATE) && !existsSync(scope.dbPath)) cpSync(DB_TEMPLATE, scope.dbPath);
+  seedBuiltinSkills(scope);
+}
+
+/**
+ * Seed the committed built-in skills (apps/web/builtin-skills) into the user's skill store
+ * (`<dataDir>/leash-skills/<slug>`). Built-ins ship enabled-by-default and carry `builtin: true`;
+ * the store reads them exactly like user-authored skills. Seed-if-ABSENT only — we never clobber a
+ * slug the user already has, so editing or deleting a built-in sticks (an app update won't refresh
+ * an already-seeded built-in; acceptable — fresh installs are the case that must have skills).
+ */
+function seedBuiltinSkills(scope) {
+  if (!existsSync(BUILTIN_SKILLS_SRC)) return;
+  const skillsDst = join(scope.dataDir, "leash-skills");
+  mkdirSync(skillsDst, { recursive: true });
+  for (const slug of readdirSync(BUILTIN_SKILLS_SRC)) {
+    const src = join(BUILTIN_SKILLS_SRC, slug);
+    const dst = join(skillsDst, slug);
+    try {
+      if (!statSync(src).isDirectory() || existsSync(dst)) continue;
+      cpSync(src, dst, { recursive: true });
+    } catch {
+      /* skip a bad entry rather than abort the whole bootstrap */
+    }
+  }
 }
 
 // ── serve reaping ─────────────────────────────────────────────────────────────────────
