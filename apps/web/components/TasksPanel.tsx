@@ -1,11 +1,30 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlusIcon, CheckCheckIcon, RotateCcwIcon, Trash2Icon, XIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
-import type { LeashTask, TaskStatus, TaskPriority } from "../lib/leash/tasks-store.ts";
+import type { LeashTask, TaskStatus, TaskPriority, TaskSource } from "../lib/leash/tasks-store.ts";
+
+/* Live (system) rows that share the task list: downloads + services. A task with a different KIND. */
+type Dl = { name: string; kind?: "model" | "system"; label?: string; state: "starting" | "downloading" | "done" | "error" | "cancelled"; percentage: number; downloaded: number; total: number; error?: string; updatedAt: number };
+type Svc = { name: string; label: string; state: "running" | "external" | "stopped" | "starting" | "ready" | "unhealthy"; detail: string };
+
+/* Downloads/services ARE tasks with a kind — give them a task status so the page's status filter
+ * applies to them too (a cancelled/failed download → "dropped" + retryable; an active one →
+ * "in_progress"; a finished one → "done"). */
+const dlStatus = (s: Dl["state"]): TaskStatus => (s === "done" ? "done" : s === "error" || s === "cancelled" ? "dropped" : "in_progress");
+const svcStatus = (s: Svc["state"]): TaskStatus | null => (s === "unhealthy" ? "dropped" : s === "stopped" ? null : "in_progress");
+const SVC_VIEW: Record<Svc["state"], { text: string; tone: string } | null> = {
+  running: { text: "running", tone: "var(--color-sage-deep)" },
+  ready: { text: "ready", tone: "var(--color-sage-deep)" },
+  external: { text: "running (external)", tone: "var(--color-sage-deep)" },
+  starting: { text: "starting…", tone: "var(--color-muted)" },
+  unhealthy: { text: "unhealthy", tone: "var(--color-brick)" },
+  stopped: null,
+};
+const fmtBytes = (n: number): string => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(0)} MB` : `${(n / 1024).toFixed(0)} KB`);
 
 /**
  * The interactive task list (client): inline create, status cycling, priority,
@@ -30,13 +49,73 @@ function relTime(ms: number): string {
   return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
+export function TasksPanel({
+  tasks,
+  downloads: initialDownloads = [],
+  statusFilter,
+  sourceFilter,
+}: {
+  tasks: LeashTask[];
+  downloads?: Dl[];
+  statusFilter?: TaskStatus;
+  sourceFilter?: TaskSource;
+}) {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [detail, setDetail] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Live rows (downloads + active services) share the list. Poll here — on the Tasks page — so they
+  // keep updating no matter where you were, and a download/service is just a task with a `kind`.
+  const [downloads, setDownloads] = useState<Dl[]>(initialDownloads);
+  const [services, setServices] = useState<Svc[]>([]);
+  const [retrying, setRetrying] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    let alive = true;
+    const tick = async (): Promise<void> => {
+      try {
+        const [dr, sr] = await Promise.all([
+          fetchWithTimeout("/api/leash/downloads", { cache: "no-store" }, 4000),
+          fetchWithTimeout("/api/leash/services", { cache: "no-store" }, 4000),
+        ]);
+        if (alive && dr.ok) setDownloads(((await dr.json()) as { downloads: Dl[] }).downloads);
+        if (alive && sr.ok) setServices(((await sr.json()) as { services: Svc[] }).services ?? []);
+      } catch {
+        /* transient — next tick */
+      }
+    };
+    const id = setInterval(() => void tick(), 2000);
+    void tick();
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
+  const activeServices = services.filter((s) => SVC_VIEW[s.state] !== null);
+  const postDownload = (d: Dl, action: "retry" | "cancel"): Promise<unknown> =>
+    fetchWithTimeout("/api/leash/downloads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: d.name, kind: d.kind ?? "model", action }) }, 15000).catch(() => undefined);
+  const retryDownload = async (d: Dl): Promise<void> => {
+    const key = `${d.kind ?? "model"}:${d.name}`;
+    setRetrying((s) => new Set(s).add(key));
+    await postDownload(d, "retry");
+    setTimeout(() => setRetrying((s) => { const n = new Set(s); n.delete(key); return n; }), 4000);
+  };
+  const cancelDownload = async (d: Dl): Promise<void> => {
+    // Optimistically mark it cancelled (NOT remove it) — a cancelled download becomes a retryable
+    // "dropped" row, not a vanished one. The next poll confirms the persisted "cancelled" state.
+    setDownloads((ds) =>
+      ds.map((x) => (x.name === d.name && (x.kind ?? "model") === (d.kind ?? "model") ? { ...x, state: "cancelled" as const, error: "cancelled by you" } : x)),
+    );
+    await postDownload(d, "cancel");
+  };
+
+  // Downloads/services share the page's status filter (they're tasks-with-a-kind). They aren't
+  // task-SOURCED, so any active source filter hides them (source filters task origins, not infra).
+  const showLiveRows = !sourceFilter;
+  const visibleDownloads = downloads.filter((d) => showLiveRows && (!statusFilter || dlStatus(d.state) === statusFilter));
+  const visibleServices = activeServices.filter((s) => showLiveRows && (!statusFilter || svcStatus(s.state) === statusFilter));
 
   // Selection against the CURRENTLY LISTED (server-filtered) tasks only.
   const listedSelected = tasks.filter((t) => selected.has(t.id));
@@ -193,18 +272,96 @@ export function TasksPanel({ tasks }: { tasks: LeashTask[] }) {
       )}
 
       {/* List */}
-      {tasks.length === 0 ? (
+      {tasks.length === 0 && visibleDownloads.length === 0 && visibleServices.length === 0 ? (
         <p className="kicker py-8 text-center" style={{ color: "var(--color-faint)" }}>
           No tasks match — add one above, or ask Leash to &ldquo;remind me to…&rdquo; in chat.
         </p>
       ) : (
         <ul>
-          <li className="flex items-center gap-3 border-b py-2" style={{ borderColor: "var(--color-rule)" }}>
-            <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={busy} aria-label="Select all listed tasks" />
-            <span className="kicker" style={{ color: "var(--color-faint)" }}>
-              Select all ({tasks.length} listed)
-            </span>
-          </li>
+          {/* Live rows — a download/service is a task with a different KIND (same row style). */}
+          {visibleDownloads.map((d) => {
+            const key = `${d.kind ?? "model"}:${d.name}`;
+            const label = d.label ?? d.name;
+            const pct = Math.max(0, Math.min(100, Math.round(d.percentage || 0)));
+            const failed = d.state === "error";
+            const cancelled = d.state === "cancelled";
+            const done = d.state === "done";
+            const retryable = failed || cancelled; // both are "dropped" — offer a restart
+            const isRetrying = retrying.has(key);
+            return (
+              <li key={key} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: done || cancelled ? 0.55 : 1 }}>
+                <span className="kicker border px-2 py-1" style={{ borderColor: "var(--color-rule-strong)", color: failed ? "var(--color-brick)" : done ? "var(--color-sage-deep)" : "var(--color-muted)" }}>
+                  {failed ? "failed" : cancelled ? "cancelled" : done ? "done" : "downloading"}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: "1rem" }}>{label}</p>
+                  {!retryable && !done && (
+                    <div className="mt-1 h-1.5 w-full max-w-sm" style={{ background: "var(--color-rule)" }}>
+                      <div style={{ width: `${pct}%`, height: "100%", background: "var(--color-sage-deep)", transition: "width 0.3s" }} />
+                    </div>
+                  )}
+                  {retryable && d.error && (
+                    <p className="kicker mt-1" style={{ color: failed ? "var(--color-brick)" : "var(--color-muted)" }}>
+                      {d.error.slice(0, 140)}
+                    </p>
+                  )}
+                  <p className="kicker mt-1 flex flex-wrap gap-2" style={{ color: "var(--color-faint)" }}>
+                    <span>download · {d.kind ?? "model"}</span>
+                    {!retryable && !done && d.total > 0 && (
+                      <span>
+                        {pct}% · {fmtBytes(d.downloaded)} / {fmtBytes(d.total)}
+                      </span>
+                    )}
+                    <span suppressHydrationWarning>{relTime(d.updatedAt)}</span>
+                  </p>
+                </div>
+                {retryable ? (
+                  <button
+                    onClick={() => void retryDownload(d)}
+                    disabled={isRetrying}
+                    className="kicker flex items-center gap-1 border px-2 py-1 transition-opacity hover:opacity-70 disabled:opacity-40"
+                    style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+                  >
+                    <RotateCcwIcon size={13} /> {isRetrying ? "retrying…" : "retry"}
+                  </button>
+                ) : !done ? (
+                  <button
+                    onClick={() => void cancelDownload(d)}
+                    title="Cancel this download"
+                    className="kicker flex items-center gap-1 border px-2 py-1 transition-opacity hover:opacity-70"
+                    style={{ borderColor: "var(--color-rule-strong)", color: "var(--color-muted)" }}
+                  >
+                    <XIcon size={13} /> cancel
+                  </button>
+                ) : null}
+              </li>
+            );
+          })}
+          {visibleServices.map((s) => {
+            const v = SVC_VIEW[s.state]!;
+            return (
+              <li key={`svc:${s.name}`} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)" }}>
+                <span className="kicker border px-2 py-1" style={{ borderColor: "var(--color-rule-strong)", color: v.tone }}>
+                  {v.text}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p style={{ fontFamily: "var(--font-body)", fontSize: "1rem" }}>{s.label}</p>
+                  <p className="kicker mt-1 flex flex-wrap gap-2" style={{ color: "var(--color-faint)" }}>
+                    <span>service</span>
+                    {s.detail && <span>{s.detail.slice(0, 100)}</span>}
+                  </p>
+                </div>
+              </li>
+            );
+          })}
+          {tasks.length > 0 && (
+            <li className="flex items-center gap-3 border-b py-2" style={{ borderColor: "var(--color-rule)" }}>
+              <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={busy} aria-label="Select all listed tasks" />
+              <span className="kicker" style={{ color: "var(--color-faint)" }}>
+                Select all ({tasks.length} listed)
+              </span>
+            </li>
+          )}
           {tasks.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: t.status === "done" || t.status === "dropped" ? 0.55 : 1 }}>
               <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} disabled={busy} aria-label={`Select task: ${t.title}`} />

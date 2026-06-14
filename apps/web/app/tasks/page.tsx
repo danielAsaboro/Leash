@@ -10,6 +10,7 @@ import Link from "next/link";
 import { listTasks, TASK_STATUSES, type TaskStatus, type TaskSource } from "../../lib/leash/tasks-store.ts";
 import { getPipeline, getPipelineFacets, getDaemons } from "../../lib/queries.ts";
 import { cronRuns } from "../../lib/leash/schedules-store.ts";
+import { listAllDownloads } from "../../lib/leash/models.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { TasksPanel } from "../../components/TasksPanel.tsx";
 
@@ -78,7 +79,7 @@ async function TasksTab({ params }: { params: Record<string, string | string[] |
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
   const status = TASK_STATUSES.includes(one(params["status"]) as TaskStatus) ? (one(params["status"]) as TaskStatus) : undefined;
   const source = SOURCES.includes(one(params["source"]) as TaskSource) ? (one(params["source"]) as TaskSource) : undefined;
-  const tasks = await listTasks({ status, source });
+  const [tasks, downloads] = await Promise.all([listTasks({ status, source }), listAllDownloads()]);
 
   const qs = (next: { status?: TaskStatus; source?: TaskSource }): string => {
     const p = new URLSearchParams();
@@ -108,7 +109,7 @@ async function TasksTab({ params }: { params: Record<string, string | string[] |
           <FilterChip key={s} href={qs({ source: s })} label={s} active={source === s} />
         ))}
       </div>
-      <TasksPanel tasks={tasks} />
+      <TasksPanel tasks={tasks} downloads={downloads} statusFilter={status} sourceFilter={source} />
     </>
   );
 }

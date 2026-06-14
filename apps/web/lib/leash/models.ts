@@ -10,7 +10,7 @@
 import "server-only";
 import { readdir, realpath, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { join, basename } from "node:path";
+import { join, dirname, basename } from "node:path";
 import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
 import { estimateFit, type FitEstimate } from "./hwfit.ts";
 
@@ -36,10 +36,14 @@ export async function modelsDirLocation(): Promise<string> {
 
 /**
  * The serve's config DATA — the `serve.models` set Leash edits (load = config + restart).
- * NOTE: this is the machine-neutral base JSON behind `qvac.config.mjs` (which expands
- * `~/` paths for the CLI/SDK); Leash edits the JSON, the serve loads the wrapper.
+ * NOTE: Leash edits the machine-neutral base JSON; the serve loads `qvac.config.mjs` (the wrapper
+ * that expands `~/` paths and reads the base JSON beside it). QVAC_CONFIG_PATH points at the .mjs
+ * WRAPPER (what the CLI loads) — so we edit the `qvac.config.base.json` sibling, NOT the wrapper
+ * itself (writing JSON over the .mjs corrupts it → "Unexpected token ':'" on serve).
  */
-export const QVAC_CONFIG_FILE = process.env["QVAC_CONFIG_PATH"] ?? join(DATA_DIR, "..", "qvac.config.base.json");
+export const QVAC_CONFIG_FILE = process.env["QVAC_CONFIG_PATH"]
+  ? join(dirname(process.env["QVAC_CONFIG_PATH"]), "qvac.config.base.json")
+  : join(DATA_DIR, "..", "qvac.config.base.json");
 
 /** The SDK catalog dump written by `scripts/leash-model-catalog.mts` (spawned child). */
 export const CATALOG_FILE = process.env["LEASH_MODELS_CATALOG"] ?? join(DATA_DIR, "leash-models-catalog.json");
@@ -345,7 +349,11 @@ export const DOWNLOADS_DIR = process.env["LEASH_DOWNLOADS_DIR"] ?? join(DATA_DIR
 
 export interface DownloadStatus {
   name: string;
-  state: "starting" | "downloading" | "done" | "error";
+  /** model = weights (per-user, this process's child); system = runtime/daemon overlay (Electron main). */
+  kind?: "model" | "system";
+  /** Human label for the Downloads view (system downloads set this; models use `name`). */
+  label?: string;
+  state: "starting" | "downloading" | "done" | "error" | "cancelled";
   percentage: number;
   downloaded: number;
   total: number;
@@ -391,6 +399,73 @@ export async function listDownloads(): Promise<DownloadStatus[]> {
   return all.map(settle).sort((a, b) => b.startedAt - a.startedAt);
 }
 
+/** System (runtime / daemon overlay) downloads, written by the Electron main into <leashBase>/_deps/downloads.
+ *  Their state is authored by the main (it manages its own retries) — no pid-death settling here.
+ *  Anchored on LEASH_BASE_DIR (the canonical `<home>/Leash` the supervisor exports) — deps.ts writes to
+ *  `join(leashBase, "_deps", "downloads")`, so we must read the SAME dir (an earlier `join(LEASH_BASE,
+ *  "Leash", …)` double-counted the suffix → the dir never matched → mesh/runtime downloads were invisible). */
+export const SYSTEM_DOWNLOADS_DIR = process.env["LEASH_BASE_DIR"]
+  ? join(process.env["LEASH_BASE_DIR"], "_deps", "downloads")
+  : null;
+
+export async function listSystemDownloads(): Promise<DownloadStatus[]> {
+  if (!SYSTEM_DOWNLOADS_DIR) return [];
+  let files: string[] = [];
+  try {
+    files = (await readdir(SYSTEM_DOWNLOADS_DIR)).filter((f) => f.endsWith(".json"));
+  } catch {
+    return [];
+  }
+  const all = (await Promise.all(files.map((f) => readJson<DownloadStatus | null>(join(SYSTEM_DOWNLOADS_DIR, f), null)))).filter(
+    (s): s is DownloadStatus => s !== null,
+  );
+  return all.map((s) => ({ ...s, kind: "system" as const })).sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/** Model + system downloads, unified for the Tasks → Downloads view (newest first). */
+export async function listAllDownloads(): Promise<DownloadStatus[]> {
+  const [models, system] = await Promise.all([listDownloads(), listSystemDownloads()]);
+  return [...models.map((s) => ({ ...s, kind: "model" as const })), ...system].sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/** Ask the Electron main to retry/cancel a system download — writes a sentinel it polls for. */
+export async function requestSystemControl(name: string, op: "retry" | "cancel"): Promise<boolean> {
+  if (!SYSTEM_DOWNLOADS_DIR || !/^[a-z0-9-]+$/i.test(name)) return false;
+  try {
+    await writeJson(join(SYSTEM_DOWNLOADS_DIR, `${name}.${op}`), { at: Date.now() });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Cancel a model download: kill its detached child (pid in the status file) but KEEP a "cancelled"
+ *  record — a cancelled download stays in Tasks as a "dropped" row with a retry button, instead of
+ *  vanishing forever with no way to restart it. */
+export async function cancelDownload(name: string): Promise<boolean> {
+  const s = await readDownload(name);
+  if (s?.pid && downloadPidAlive(s.pid)) {
+    try {
+      process.kill(s.pid);
+    } catch {
+      /* already gone */
+    }
+  }
+  if (s) {
+    try {
+      await writeJson(join(DOWNLOADS_DIR, `${name}.json`), {
+        ...s,
+        state: "cancelled",
+        error: "cancelled by you",
+        updatedAt: Date.now(),
+      });
+    } catch {
+      /* advisory */
+    }
+  }
+  return true;
+}
+
 // ── qvac.config.base.json edits (the "load a model" half of the lifecycle) ──────────
 // There is NO HTTP load endpoint on the serve: loading = add the alias here +
 // restart the serve. Edits go through a promise-mutex with a FRESH read per edit
@@ -413,7 +488,9 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
     const config = await readJson<QvacConfig>(QVAC_CONFIG_FILE, {});
     config.serve ??= {};
     config.serve.models ??= {};
-    config.serve.models[alias] = { model: modelName, preload: true };
+    // First model added becomes the default → the chat targets it (see provider.resolvedChatAlias).
+    const hasDefault = Object.values(config.serve.models).some((m) => m && typeof m === "object" && (m as { default?: boolean }).default);
+    config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }) };
     await writeJson(QVAC_CONFIG_FILE, config);
     invalidateJsonCache(QVAC_CONFIG_FILE);
     return { ok: true };
