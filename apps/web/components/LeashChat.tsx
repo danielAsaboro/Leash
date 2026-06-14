@@ -24,6 +24,7 @@ import { Shimmer } from "@/components/ai-elements/shimmer";
 import { toolMeta, toolName, ToolCard, collectSources } from "./leash-tools.tsx";
 import { PlanCard } from "./PlanCard.tsx";
 import { SkillEventCard } from "./SkillEventCard.tsx";
+import { kindOf } from "../lib/leash/model-rows.ts";
 import type { PlanData } from "@/lib/leash/types";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
@@ -368,10 +369,10 @@ export function friendlyChatError(error: Error): string {
   const m = (error?.message ?? "").toLowerCase();
   if (!m) return "Something went wrong talking to the on-device model.";
   if (m.includes("fetch failed") || m.includes("econnrefused") || m.includes("failed to fetch") || m.includes("connect")) {
-    return "The on-device model service is offline. Start it with `npm run qvac`.";
+    return "The on-device model service isn’t running. Open Brain → Models and start Model Serve.";
   }
   if (m.includes("model_not_found") || m.includes("not available") || m.includes("not loaded")) {
-    return "The chat model isn't loaded — check qvac.config.base.json → serve.models and restart `npm run qvac`.";
+    return "No chat model is loaded. Open Brain → Models, download a chat model (e.g. Qwen3-4B), then load it / start Model Serve.";
   }
   return error.message;
 }
@@ -420,6 +421,50 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
     }
   };
 
+  // Chat model picker — the user chooses which CONFIGURED model drives this conversation (mirrors the
+  // AI Elements model-selector). A ref feeds the built-once transport so the choice rides every turn;
+  // empty = let the server pick the configured default (provider.resolvedChatAlias).
+  const [chatModels, setChatModels] = useState<{ alias: string; loaded: boolean }[]>([]);
+  const [chatModelAlias, setChatModelAlias] = useState("");
+  const chatModelRef = useRef("");
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/leash/models", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((inv: { configured?: { alias: string | null; loaded: boolean; isDefault: boolean; addon?: string | null }[] }) => {
+        if (!alive) return;
+        // Only CHAT models can drive a conversation — exclude mmproj projectors, embeddings, ASR/TTS,
+        // OCR, etc. (kindOf maps the catalog `addon`; multimodal VLMs are addon "llm" → "text", so
+        // they stay). Picking an mmproj as the chat model is why chat failed with "model isn't loaded".
+        const rows = (inv.configured ?? []).filter((r) => r.alias && kindOf(r.addon) === "text") as { alias: string; loaded: boolean; isDefault: boolean }[];
+        setChatModels(rows.map((r) => ({ alias: r.alias, loaded: r.loaded })));
+        let saved = "";
+        try {
+          saved = window.localStorage.getItem(`leash-model-${id}`) ?? "";
+        } catch {
+          /* private mode */
+        }
+        const pick = saved && rows.some((r) => r.alias === saved) ? saved : rows.find((r) => r.isDefault)?.alias ?? rows[0]?.alias ?? "";
+        setChatModelAlias(pick);
+        chatModelRef.current = pick;
+      })
+      .catch(() => {
+        /* offline / serve down — the picker just stays empty (server uses its default) */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+  const pickChatModel = (alias: string) => {
+    setChatModelAlias(alias);
+    chatModelRef.current = alias;
+    try {
+      window.localStorage.setItem(`leash-model-${id}`, alias);
+    } catch {
+      /* private mode — the ref still drives this session */
+    }
+  };
+
   const { messages, sendMessage, setMessages, status, error, regenerate, stop, addToolApprovalResponse } = useChat<LeashUIMessage>({
     id,
     messages: initialMessages,
@@ -431,11 +476,12 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       // Send only the last message + trigger; the server rebuilds history from the store.
       prepareSendMessagesRequest: ({ id, messages, trigger, messageId, body }) => {
         const plan = planModeRef.current;
-        if (trigger === "regenerate-message") return { body: { id, trigger, messageId, plan } };
+        const model = chatModelRef.current || undefined; // user-chosen chat model (input picker)
+        if (trigger === "regenerate-message") return { body: { id, trigger, messageId, plan, model } };
         // `voice: true` (set by the call overlay via sendMessage's body option) routes this turn
         // to the chat route's fast path (/no_think + 2-step tools). Text composer sends no body.
         const voice = (body as { voice?: boolean } | undefined)?.voice ?? false;
-        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice, plan } };
+        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice, plan, model } };
       },
     }),
     experimental_throttle: 50,
@@ -669,6 +715,36 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 >
                   <ListChecksIcon className="size-4" />
                 </button>
+                {/* Model picker — choose which configured model drives this conversation (per-turn,
+                    persisted per chat). Empty list = serve down / nothing configured. */}
+                {chatModels.length > 0 ? (
+                  <select
+                    value={chatModelAlias}
+                    onChange={(e) => pickChatModel(e.target.value)}
+                    aria-label="Chat model"
+                    title="Chat model for this conversation"
+                    className="chat-mic chat-icon-btn"
+                    style={{ width: "auto", padding: "0 0.5rem", fontFamily: "var(--font-mono)", fontSize: "0.72rem" }}
+                  >
+                    {chatModels.map((m) => (
+                      <option key={m.alias} value={m.alias}>
+                        {m.alias}
+                        {m.loaded ? "" : " · load"}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  // No CHAT model configured (e.g. only an mmproj/embedding present) — point the user
+                  // at where to fix it instead of silently offering nothing.
+                  <a
+                    href="/brain?tab=models"
+                    title="No chat model configured — add one in Brain → Models"
+                    className="chat-mic chat-icon-btn"
+                    style={{ width: "auto", padding: "0 0.5rem", fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--color-brick)" }}
+                  >
+                    no chat model · add ↗
+                  </a>
+                )}
                 {/* Context-window meter (on-device, no cost) — shows how full the model's 32k
                     window is, from the latest turn's token count. */}
                 {usedTokens > 0 && (
@@ -677,7 +753,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                     <ContextContent>
                       <ContextContentHeader />
                       <ContextContentBody>
-                        <p className="text-muted-foreground text-xs">On-device · qwen3-4b · no API cost</p>
+                        <p className="text-muted-foreground text-xs">On-device · {chatModelAlias || "default"} · no API cost</p>
                       </ContextContentBody>
                     </ContextContent>
                   </Context>
