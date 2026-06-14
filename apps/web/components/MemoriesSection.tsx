@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appPrompt } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { LeashMemory, MemoryType } from "../lib/leash/memories-store.ts";
 
@@ -55,8 +56,8 @@ export function MemoriesSection({ memories }: { memories: LeashMemory[] }) {
   const retype = (m: LeashMemory, type: string) =>
     void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }));
 
-  const edit = (m: LeashMemory) => {
-    const text = prompt("Edit memory", m.text);
+  const edit = async (m: LeashMemory) => {
+    const text = await appPrompt("Edit memory", m.text);
     if (text == null || !text.trim()) return;
     void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }));
   };

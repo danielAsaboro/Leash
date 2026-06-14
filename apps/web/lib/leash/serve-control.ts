@@ -18,7 +18,7 @@
  */
 import "server-only";
 import { spawn, execFile } from "node:child_process";
-import { openSync, closeSync } from "node:fs";
+import { openSync, closeSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson, DATA_DIR } from "./json-store.ts";
 import { QVAC_OPENAI_URL, liveModels } from "./models.ts";
@@ -29,6 +29,20 @@ const PIDFILE = process.env["LEASH_SERVE_PIDFILE"] ?? join(DATA_DIR, "leash-serv
 const LOGFILE = process.env["LEASH_SERVE_LOG"] ?? join(DATA_DIR, "leash-serve.log");
 /** Port from QVAC_OPENAI_URL (default 11435). */
 const PORT = Number(new URL(QVAC_OPENAI_URL).port || 11435);
+
+/**
+ * Entry shim for the PACKAGED serve (Electron-as-Node). Under ELECTRON_RUN_AS_NODE,
+ * `process.versions.electron` is set but `process.defaultApp` is undefined, so commander
+ * (in @qvac/cli) reads argv as a packaged-electron app and slices only argv[0] — mistaking
+ * the cli's own path for the command (`error: unknown command '…/@qvac/cli/dist/index.js'`).
+ * Marking `defaultApp` restores the node-style exe+script slice; then we import the real
+ * (ESM) cli unchanged. Spawned as the entry so the path is a spawn arg (space-safe), not in
+ * NODE_OPTIONS. The dev/`npx` path never hits this.
+ */
+const SERVE_SHIM = `import { pathToFileURL } from "node:url";
+try { Object.defineProperty(process, "defaultApp", { value: true, configurable: true }); } catch {}
+await import(pathToFileURL(process.env.LEASH_QVAC_CLI).href);
+`;
 
 export type ServeState = "stopped" | "starting" | "ready" | "unhealthy";
 
@@ -102,10 +116,29 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
   // spawn — the detached child keeps its own copy (no held handle in Next).
   const log = openSync(LOGFILE, "a");
   try {
-    const child = spawn("npx", ["@qvac/cli", "serve", "openai", "--port", String(PORT)], {
+    // Packaged desktop: run the BUNDLED qvac CLI with Electron's own Node (LEASH_QVAC_CLI +
+    // LEASH_NODE_BIN set by the shell) — no system Node, no `npx` download. Dev: fall back to npx.
+    const bundledCli = process.env["LEASH_QVAC_CLI"];
+    const nodeBin = process.env["LEASH_NODE_BIN"] ?? process.execPath;
+    let cmd: string;
+    let args: string[];
+    if (bundledCli) {
+      // Bundled: run the cli through the defaultApp shim (see SERVE_SHIM) so commander parses argv
+      // correctly under ELECTRON_RUN_AS_NODE. The shim imports the cli from $LEASH_QVAC_CLI (in env).
+      const shim = join(DATA_DIR, "qvac-serve-shim.mjs");
+      writeFileSync(shim, SERVE_SHIM);
+      cmd = nodeBin;
+      args = [shim, "serve", "openai", "--port", String(PORT)];
+    } else {
+      cmd = "npx";
+      args = ["@qvac/cli", "serve", "openai", "--port", String(PORT)];
+    }
+    const child = spawn(cmd, args, {
       cwd: ROOT, // load-bearing: the CLI resolves qvac.config.* (the .mjs wrapper) upward from cwd
       detached: true,
       stdio: ["ignore", log, log],
+      // ELECTRON_RUN_AS_NODE makes the Electron binary behave as Node for the bundled CLI.
+      env: bundledCli ? { ...process.env, ELECTRON_RUN_AS_NODE: "1" } : process.env,
     });
     child.unref();
     if (child.pid === undefined) return { ok: false, error: "spawn returned no pid" };

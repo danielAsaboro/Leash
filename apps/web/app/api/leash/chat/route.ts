@@ -12,7 +12,7 @@
  */
 import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
-import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL } from "../../../../lib/leash/provider.ts";
+import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
 import { leashTools } from "../../../../lib/leash/tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
@@ -149,8 +149,10 @@ const SKILL_TOOL_STEPS = 12;
 const PLAN_STEPS = 4;
 
 export async function POST(req: Request): Promise<Response> {
-  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean };
+  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string };
   const { id, trigger, messageId, message, voice, plan } = body;
+  // User-chosen chat model alias from the input picker (validated against the regex in the schema).
+  const chosenModel = typeof body.model === "string" && /^[a-z0-9][a-z0-9-]{0,40}$/.test(body.model) ? body.model : undefined;
 
   // A fresh turn STARTS here: clear any interject flag so a follow-up that ended the PREVIOUS turn
   // doesn't immediately end this one (this turn IS that follow-up).
@@ -221,7 +223,9 @@ export async function POST(req: Request): Promise<Response> {
   const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
   const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
   const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);
-  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : CHAT_MODEL;
+  // The model actually driving this turn (for telemetry) — chat uses the user-chosen alias, else the
+  // configured default; NOT the hardcoded CHAT_MODEL (which is just the last-resort fallback).
+  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : chosenModel ?? resolvedChatAlias();
 
   // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
   // job is to call `submit_plan` (approval-gated → the Plan card); on approval its `execute` runs the
@@ -350,7 +354,7 @@ export async function POST(req: Request): Promise<Response> {
       originalMessages: validated,
       generateId: createIdGenerator({ prefix: "msg", size: 16 }),
       execute: async ({ writer }) => {
-        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: CHAT_MODEL, ...(tier ? { effort: tier } : {}) } });
+        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}) } });
         unsubscribePipe = subscribeElicitations((ev) => {
           try {
             writer.write({ type: "data-elicitation", data: ev, transient: true });
@@ -415,6 +419,8 @@ export async function POST(req: Request): Promise<Response> {
     ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
+    // User-chosen chat model (from the input picker) — applied on text routes only (agent.ts).
+    ...(chosenModel ? { model: chosenModel } : {}),
     system,
   };
   const result = await agent.stream({ messages: modelInput, options: callOptions });

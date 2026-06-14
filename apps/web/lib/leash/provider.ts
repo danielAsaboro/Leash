@@ -13,6 +13,8 @@
  * instead of leaking into the answer text.
  */
 import "server-only";
+import { readFileSync } from "node:fs";
+import { join, dirname } from "node:path";
 import { createQvac } from "@qvac/ai-sdk-provider";
 import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel, type LanguageModelV2Middleware } from "ai";
 import { Agent, fetch as undiciFetch } from "undici";
@@ -73,12 +75,37 @@ export const qvacBackground = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qv
  *  the chat model so nothing changes until the user adds a small reasoning-off alias. */
 export const UTILITY_MODEL = process.env["LEASH_UTILITY_MODEL"] ?? CHAT_MODEL;
 
+/** The base.json the serve loads (the .mjs wrapper's data file), beside QVAC_CONFIG_PATH (the wrapper). */
+const CFG_FILE = process.env["QVAC_CONFIG_PATH"] ? join(dirname(process.env["QVAC_CONFIG_PATH"]), "qvac.config.base.json") : null;
+
+/**
+ * The chat alias the user ACTUALLY has configured — the model with `default: true`, else the first
+ * configured model, else the built-in CHAT_MODEL. Read per call (the config is tiny) so adding a
+ * model in the dashboard makes chat use it on the next turn. Without this, chat asked for a fixed
+ * "qwen3-4b" and broke whenever the user loaded a differently-named model.
+ */
+export function resolvedChatAlias(): string {
+  if (process.env["LEASH_CHAT_MODEL"]) return process.env["LEASH_CHAT_MODEL"] as string;
+  if (CFG_FILE) {
+    try {
+      const cfg = JSON.parse(readFileSync(CFG_FILE, "utf8")) as { serve?: { models?: Record<string, { default?: boolean } | string> } };
+      const models = cfg.serve?.models ?? {};
+      const keys = Object.keys(models);
+      const def = keys.find((k) => typeof models[k] === "object" && (models[k] as { default?: boolean }).default);
+      return def ?? keys[0] ?? CHAT_MODEL;
+    } catch {
+      /* fall through */
+    }
+  }
+  return CHAT_MODEL;
+}
+
 /** The chat model with `<think>` reasoning extracted into reasoning parts.
  *  `label` tags the loop-diagnostic log line (LEASH_DEBUG_LOOP) so the main chat loop and a
  *  run_skill sub-agent are distinguishable in a multi-step transcript. Defaults to "chat". */
-export function chatModel(label = "chat"): LanguageModel {
+export function chatModel(label = "chat", alias?: string): LanguageModel {
   return wrapLanguageModel({
-    model: qvac(CHAT_MODEL),
+    model: qvac(alias || resolvedChatAlias()),
     middleware: chatMiddleware(label),
   });
 }
@@ -86,7 +113,7 @@ export function chatModel(label = "chat"): LanguageModel {
 /** The chat model tagged BACKGROUND priority (compaction, summaries) — yields to interactive. */
 export function chatModelBackground(): LanguageModel {
   return wrapLanguageModel({
-    model: qvacBackground(UTILITY_MODEL),
+    model: qvacBackground(process.env["LEASH_UTILITY_MODEL"] ?? resolvedChatAlias()),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }
@@ -102,7 +129,7 @@ export function medpsyModel(): LanguageModel {
 /** The computer-use driver — orchestrates the computer tools (the screenshot tool's VLM perceives). */
 export function computerModel(): LanguageModel {
   return wrapLanguageModel({
-    model: qvac(COMPUTER_MODEL),
+    model: qvac(process.env["LEASH_COMPUTER_MODEL"] ?? resolvedChatAlias()),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }

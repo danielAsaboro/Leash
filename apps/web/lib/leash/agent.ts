@@ -60,6 +60,12 @@ export const leashCallOptionsSchema = z.object({
   thinking: z.boolean().optional(),
   /** The fully-assembled system prompt for this turn. */
   system: z.string(),
+  /** User-chosen chat model alias (from the chat input model picker). Overrides the default chat
+   *  model on text routes only — vision/computer/health keep their dedicated models. */
+  model: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{0,40}$/)
+    .optional(),
 });
 export type LeashCallOptions = z.infer<typeof leashCallOptionsSchema>;
 
@@ -189,7 +195,7 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean): To
       currentRoute = options.route;
       return {
         ...settings,
-        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : chatModel(),
+        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : chatModel("chat", options.model),
         instructions: options.system,
         activeTools,
         // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision

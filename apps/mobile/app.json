@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "Leash",
+    "slug": "leash",
+    "scheme": "leash",
+    "version": "0.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.mycelium.leash",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.mycelium.leash"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        { "android": { "minSdkVersion": 29 } }
+      ],
+      "@qvac/sdk/expo-plugin"
+    ]
+  }
+}

@@ -15,6 +15,12 @@ files:
   - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # Build-only / generated dirs — must NOT be packed into app.asar (the runtime is downloaded
+  # after Setup, the tarballs are release assets, dist is the build output).
+  - '!qvac-runtime/**'
+  - '!dist-deps/**'
+  - '!dist/**'
+  - '!scripts/**'
 asarUnpack:
   - resources/**
 # Ship the Leash dashboard as a self-contained Next standalone server (built by
@@ -25,6 +31,8 @@ extraResources:
   # Includes the staged supervisor (server-launch.mjs + lib/leash/scope.mjs under apps/web/).
   - from: ../web/.next/standalone
     to: leash
+  # NOTE: the arch-pruned QVAC runtime is NOT bundled — it's downloaded into the user's base dir
+  # after Setup (stub installer; see src/main/deps.ts + scripts/build-deps-tarballs.sh).
   - from: ../../qvac.config.mjs
     to: leash-config/qvac.config.mjs
   - from: ../../qvac.config.base.json

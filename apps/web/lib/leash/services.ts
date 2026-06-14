@@ -20,13 +20,35 @@
 import "server-only";
 import { spawn, execFileSync } from "node:child_process";
 import { openSync, closeSync, statSync, existsSync, readFileSync, mkdirSync, rmSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { readJson, writeJson, DATA_DIR } from "./json-store.ts";
 import { ACTIVITY_LOG } from "./graph.ts";
 import { prisma } from "../db.ts";
+import { daemonsRoot, daemonsReady, spawnDaemon } from "./daemons.ts";
 import { serveStatus, startServe, stopServe } from "./serve-control.ts";
 
 const ROOT = join(DATA_DIR, "..");
+
+/**
+ * The Mycelium monorepo root — where the daemons' `apps/<x>/src/main.ts` live, so they can be
+ * spawned with `npx tsx`. Resolved by walking up from this module (works under `npm run dev`).
+ * In a PACKAGED build (the desktop DMG ships only the Next standalone bundle, not the daemon
+ * source) this is null, and the services are reported as unavailable instead of crash-spawning a
+ * `tsx apps/hypha/src/main.ts` that doesn't exist. NOTE: distinct from ROOT (the per-user *data*
+ * dir) — daemons run from the code root but inherit the user-scoped env (HYPHA_DATA_DIR, …).
+ */
+const CODE_ROOT: string | null = (() => {
+  let dir = dirname(fileURLToPath(import.meta.url)); // apps/web/lib/leash
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, "apps", "hypha", "src", "main.ts"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return null;
+})();
+
 export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, "leash-services");
 /** Touched by leash-cron every tick. */
 export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
@@ -387,14 +409,37 @@ export async function startService(name: ServiceName): Promise<{ ok: boolean; er
   if (status.state === "running") return { ok: false, error: `${def.label} is already running (pid ${status.pid})` };
   if (status.state === "external") return { ok: false, error: `${def.label} appears to be running outside the dashboard — stop it there first` };
 
-  if (name === "leash-cron" && !existsSync(join(ROOT, "apps", "leash-cron", "src", "main.ts"))) {
-    return { ok: false, error: "leash-cron isn't built yet" };
+  // The daemon entry, e.g. "apps/hypha/src/main.ts" (all daemons are spawned as `npx tsx <entry>`).
+  const srcRel = def.command[0] === "npx" && def.command[1] === "tsx" ? def.command[2] : null;
+
+  // PACKAGED: run from the on-demand "leash-daemons" overlay via the bundled runtime (no system
+  // node/npx). DEV: `npx tsx <entry>` from the monorepo (CODE_ROOT).
+  const overlay = daemonsRoot();
+  if (overlay) {
+    if (!srcRel) return { ok: false, error: `${def.label} has no script entry to run.` };
+    if (!daemonsReady()) {
+      return { ok: false, error: `${def.label} is still being set up — the daemon bundle is downloading in the background. Try again in a moment.` };
+    }
+    if (!existsSync(join(overlay, srcRel))) {
+      return { ok: false, error: `${def.label} isn't in the daemon bundle (missing ${srcRel}).` };
+    }
+  } else {
+    if (!CODE_ROOT) {
+      return { ok: false, error: `${def.label} isn't available in this build — it runs from the Mycelium repo, which isn't bundled in the app.` };
+    }
+    if (srcRel && !existsSync(join(CODE_ROOT, srcRel))) {
+      return { ok: false, error: `${def.label} isn't available in this build (missing ${srcRel}).` };
+    }
   }
+
   mkdirSync(SERVICES_DIR, { recursive: true });
   // Truncate ("w") so each Start/Restart begins with a clean log — old runs' noise is cleared.
   const log = openSync(logFile(name), "w");
   try {
-    const child = spawn(def.command[0] as string, def.command.slice(1), { cwd: ROOT, detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } });
+    // The daemon inherits the user-scoped env. Packaged → bundled-runtime launch; dev → npx tsx.
+    const child = overlay
+      ? spawnDaemon(srcRel as string, { detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } })
+      : spawn(def.command[0] as string, def.command.slice(1), { cwd: CODE_ROOT as string, detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } });
     child.unref();
     if (child.pid === undefined) return { ok: false, error: "spawn returned no pid" };
     await writeJson(pidFile(name), { pid: child.pid, startedAt: Date.now() } satisfies PidRecord);

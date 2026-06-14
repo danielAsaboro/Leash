@@ -3,16 +3,11 @@
  * tsx child (survives Next dev restarts; the SDK lives in the child, never in Next).
  * `GET ?name=X` — poll one status file. `GET` (no name) — all download states.
  */
-import { spawn } from "node:child_process";
-import { join } from "node:path";
-import { DATA_DIR } from "../../../../../lib/leash/json-store.ts";
 import { readCatalog, readDownload, listDownloads, downloadPidAlive } from "../../../../../lib/leash/models.ts";
+import { spawnHelperScript } from "../../../../../lib/leash/runtime.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const ROOT = join(DATA_DIR, "..");
-const SCRIPT = join(ROOT, "apps", "web", "scripts", "leash-model-download.mts");
 
 export async function GET(req: Request): Promise<Response> {
   const name = new URL(req.url).searchParams.get("name");
@@ -36,8 +31,9 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   // Detached + unref: the download keeps going if Next dev restarts; state lives in
-  // the status file, not in a held process handle (stateless supervision).
-  const child = spawn("npx", ["tsx", SCRIPT, name], { cwd: ROOT, detached: true, stdio: "ignore" });
+  // the status file, not in a held process handle (stateless supervision). In the packaged
+  // app this runs via the bundled qvac runtime (no system node/npx) — see lib/leash/runtime.ts.
+  const child = spawnHelperScript("leash-model-download.mts", [name], { detached: true, stdio: "ignore" });
   child.unref();
   return Response.json({ ok: true, pid: child.pid }, { status: 202 });
 }
