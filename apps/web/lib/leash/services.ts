@@ -53,7 +53,7 @@ export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, 
 /** Touched by leash-cron every tick. */
 export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
 
-export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "leash-broker" | "hypha" | "leash-mcp" | "leash-tools-mcp";
+export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "mcp-cron" | "leash-broker" | "hypha" | "leash-mcp" | "leash-tools-mcp";
 
 /** Where the broker listens (probe target for its health). */
 const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
@@ -62,6 +62,10 @@ const HYPHA_PORT = Number(process.env["HYPHA_PORT"] ?? 11437);
 /** Where the Leash MCP server (mesh-pairing tools) listens (probe target for its health). */
 const LEASH_MCP_PORT = Number(process.env["LEASH_MCP_PORT"] ?? 11439);
 const LEASH_TOOLS_MCP_PORT = Number(process.env["LEASH_TOOLS_MCP_PORT"] ?? 11440);
+/** Where the mcp-cron scheduling engine listens (localhost-only; the cron-client connects over Streamable HTTP). */
+const MCP_CRON_PORT = Number(process.env["LEASH_CRON_MCP_PORT"] ?? 11448);
+/** mcp-cron's SQLite result/task store, scoped to this user's data dir (NOT the ~/.mcp-cron default). */
+const MCP_CRON_DB = process.env["LEASH_CRON_DB"] ?? join(DATA_DIR, "mcp-cron.db");
 
 interface ServiceDef {
   name: Exclude<ServiceName, "qvac-serve">;
@@ -151,6 +155,30 @@ const DEFS: ServiceDef[] = [
     freshness: async () => {
       const { fresh, ageMs } = mtimeWithin(CRON_HEARTBEAT, 2 * 60 * 1000);
       return { fresh, detail: `heartbeat ${ago(ageMs)}` };
+    },
+  },
+  {
+    name: "mcp-cron",
+    label: "Scheduler",
+    // The scheduling ENGINE — a detached Streamable-HTTP MCP daemon (jolks/mcp-cron, launched via
+    // `npx -y mcp-cron`, NOT `npx tsx`). Bound to localhost; the cron-client owns the connection.
+    // Tasks it runs INHERIT this daemon's env (proven in spike/09-mcp-cron.ts), so the scope env
+    // (LEASH_DATA_DIR / LEASH_WEB_PORT / LEASH_INTERNAL_TOKEN_FILE …) reaches every scheduled
+    // shell task with zero per-task plumbing. No --log-file: in HTTP mode stdout is NOT the
+    // protocol channel, so we let the supervisor capture it into the Services log tail.
+    command: ["npx", "-y", "mcp-cron", "--transport", "http", "--address", "127.0.0.1", "--port", String(MCP_CRON_PORT), "--db-path", MCP_CRON_DB],
+    procMatch: "mcp-cron",
+    readyProbe: true,
+    blurb: `Scheduling engine (:${MCP_CRON_PORT}) — runs the assistant's jobs, heartbeats, and tasks on real cron schedules, with a queryable SQLite run history.`,
+    freshness: async () => {
+      // mcp-cron exposes no /health route — any HTTP response on the MCP endpoint means the
+      // listener is up (a GET without an MCP session is rejected, but it still answers).
+      try {
+        const r = await fetch(`http://127.0.0.1:${MCP_CRON_PORT}/`, { method: "GET", signal: AbortSignal.timeout(1500) });
+        return { fresh: r.status > 0, detail: `listening on :${MCP_CRON_PORT}` };
+      } catch {
+        return { fresh: null, detail: "not running" };
+      }
     },
   },
   {
