@@ -13,6 +13,7 @@ import { homedir } from "node:os";
 import { join, dirname, basename } from "node:path";
 import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
 import { estimateFit, type FitEstimate } from "./hwfit.ts";
+import { ASSISTANT_KIT, kitRoleOf, type KitRole, type KitRoleName } from "./kit.ts";
 
 /** Where `qvac serve openai` listens (same default as the provider). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
@@ -127,6 +128,8 @@ export interface CatalogModel {
   cacheFile?: string;
   /** Device-fit verdict (added by `catalogWithFit`, not in the on-disk dump). */
   fit?: FitEstimate;
+  /** Assistant-Kit role this SKU fills, if any (added by `catalogWithFit`, not in the on-disk dump). */
+  role?: KitRoleName;
 }
 
 interface CatalogFile {
@@ -156,6 +159,7 @@ export async function catalogWithFit(): Promise<CatalogModel[]> {
   return (await readCatalog()).map((c) => ({
     ...c,
     fit: estimateFit({ expectedSize: c.expectedSize, params: c.params, quantization: c.quantization }),
+    ...(kitRoleOf(c.name) ? { role: kitRoleOf(c.name) } : {}),
   }));
 }
 
@@ -508,6 +512,49 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
     // First model added becomes the default → the chat targets it (see provider.resolvedChatAlias).
     const hasDefault = Object.values(config.serve.models).some((m) => m && typeof m === "object" && (m as { default?: boolean }).default);
     config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }) };
+    await writeJson(QVAC_CONFIG_FILE, config);
+    invalidateJsonCache(QVAC_CONFIG_FILE);
+    return { ok: true };
+  });
+}
+
+/**
+ * Wire the whole Assistant Kit's aliases into qvac.config.base.json in one atomic edit.
+ *
+ * Validates EVERY referenced SKU (each role's primary weight + the vision mmproj projection)
+ * exists in the SDK catalog first — all-or-nothing — so a half-resolved kit never writes a broken
+ * alias. The vision role's `projectionModelSrc` is computed from the projection SKU's on-disk cache
+ * filename (`~/.qvac/models/<cacheFile>`), which is exactly the bare-mmproj wiring the kit exists to
+ * fix. The `chat` role becomes the served default UNLESS the user already has a default configured
+ * (non-destructive, mirroring addModelToConfig). Weights are downloaded separately (the dashboard
+ * queues them via /models/download); this only edits the config the serve loads on its next restart.
+ */
+export async function addModelKit(roles: KitRole[] = ASSISTANT_KIT): Promise<{ ok: boolean; error?: string }> {
+  const catalog = await readCatalog();
+  const has = (n: string): boolean => catalog.some((c) => c.name === n);
+  for (const r of roles) {
+    if (!/^[a-z0-9][a-z0-9-]{0,32}$/.test(r.alias)) return { ok: false, error: `bad kit alias "${r.alias}"` };
+    if (!has(r.model)) return { ok: false, error: `"${r.model}" is not in the SDK catalog` };
+    if (r.projection && !has(r.projection)) return { ok: false, error: `"${r.projection}" is not in the SDK catalog` };
+  }
+  return withConfigLock(async () => {
+    const config = await readJson<QvacConfig>(QVAC_CONFIG_FILE, {});
+    config.serve ??= {};
+    config.serve.models ??= {};
+    for (const r of roles) {
+      const cfg: Record<string, unknown> = { ...(r.config ?? {}) };
+      if (r.projection) {
+        const mm = catalog.find((c) => c.name === r.projection);
+        if (mm?.cacheFile) cfg["projectionModelSrc"] = `~/.qvac/models/${mm.cacheFile}`;
+      }
+      config.serve.models[r.alias] = { model: r.model, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) };
+    }
+    // chat becomes the default only if nothing in the final config already claims it (preserve user intent).
+    const anyDefault = Object.values(config.serve.models).some((m) => m && typeof m === "object" && (m as ServeModelEntry).default);
+    if (!anyDefault) {
+      const chat = roles.find((r) => r.role === "chat");
+      if (chat) (config.serve.models[chat.alias] as ServeModelEntry).default = true;
+    }
     await writeJson(QVAC_CONFIG_FILE, config);
     invalidateJsonCache(QVAC_CONFIG_FILE);
     return { ok: true };

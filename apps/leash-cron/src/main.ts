@@ -30,6 +30,11 @@ const STATE_FILE = process.env["LEASH_CRON_STATE_FILE"] ?? join(DATA, "leash-cro
 const RUNS_FILE = process.env["LEASH_CRON_RUNS_FILE"] ?? join(DATA, "leash-cron-runs.jsonl");
 const TASKS_FILE = process.env["LEASH_TASKS_FILE"] ?? join(DATA, "leash-tasks.json");
 const HEARTBEAT = process.env["LEASH_CRON_HEARTBEAT"] ?? join(DATA, "leash-services", "leash-cron.heartbeat");
+/** Shared internal token for server-to-server POSTs to the web (resolved from the SAME data dir as
+ *  the schedule file, which the web also writes to — so cron and web always read the same secret). */
+const TOKEN_FILE = process.env["LEASH_INTERNAL_TOKEN_FILE"] ?? join(dirname(SCHEDULE_FILE), ".leash-internal-token");
+/** Where the web app listens (localhost). Heartbeat schedules POST here. */
+const WEB_BASE = process.env["LEASH_WEB_BASE"] ?? `http://127.0.0.1:${process.env["LEASH_WEB_PORT"] ?? process.env["PORT"] ?? "6801"}`;
 
 const TICK_MS = 30_000;
 /** Scripts we may spawn — mirror of the web's JOB_ALLOWLIST (schedules-store.ts). */
@@ -51,10 +56,11 @@ interface ScheduleEntry {
   id: string;
   name: string;
   enabled: boolean;
-  kind: "job" | "task";
+  kind: "job" | "task" | "heartbeat";
   schedule: ScheduleShape;
   job?: { script: string; args?: string[] };
   task?: { title: string; detail?: string; priority?: string; tags?: string[] };
+  heartbeat?: { activeHours?: { start: string; end: string }; maxPerDay?: number };
 }
 
 interface ScheduleState {
@@ -205,6 +211,51 @@ function fireTask(entry: ScheduleEntry): { ok: boolean; error?: string } {
   return { ok: true };
 }
 
+/** Read the shared internal token (server-to-server auth). Empty string until the web app seeds it. */
+function internalToken(): string {
+  try {
+    return readFileSync(TOKEN_FILE, "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+/** Is `now` within the local active-hours window? Inclusive start, exclusive end; tolerates a window
+ *  that wraps midnight (start > end). A missing window means "always active". */
+function withinActiveHours(hb: ScheduleEntry["heartbeat"], now: number): boolean {
+  const w = hb?.activeHours;
+  if (!w) return true;
+  const mins = (s: string): number => {
+    const [h, m] = s.split(":").map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+  const d = new Date(now);
+  const cur = d.getHours() * 60 + d.getMinutes();
+  const start = mins(w.start);
+  const end = mins(w.end);
+  return start <= end ? cur >= start && cur < end : cur >= start || cur < end;
+}
+
+/** Fire a heartbeat: POST to the web's autonomous heartbeat route and relay its verdict to the run log. */
+async function fireHeartbeat(entry: ScheduleEntry): Promise<{ ok: boolean; outputTail?: string; error?: string }> {
+  if (!withinActiveHours(entry.heartbeat, Date.now())) return { ok: true, outputTail: "outside active hours — skipped" };
+  const tok = internalToken();
+  if (!tok) return { ok: false, error: `no internal token at ${TOKEN_FILE} — is the web app running/seeded?` };
+  try {
+    const res = await fetch(`${WEB_BASE}/api/leash/heartbeat`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "x-leash-internal": tok },
+      body: JSON.stringify({ maxPerDay: entry.heartbeat?.maxPerDay }),
+    });
+    if (!res.ok) return { ok: false, error: `web returned ${res.status}` };
+    const body = (await res.json()) as { ok?: boolean; suppressed?: boolean; proposal?: string | null; error?: string };
+    if (body.error) return { ok: false, error: body.error };
+    return { ok: true, outputTail: body.suppressed ? "HEARTBEAT_OK (silent)" : (body.proposal ?? "").slice(0, 1500) };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+}
+
 // ── The tick ─────────────────────────────────────────────────────────────────────
 
 /** Serializes job execution so two slow jobs never stack on the serve. */
@@ -240,7 +291,7 @@ async function tick(): Promise<void> {
     console.log(`▶ firing "${entry.name}" (${entry.kind})`);
     let result: { ok: boolean; exitCode?: number; outputTail?: string; error?: string };
     try {
-      result = entry.kind === "job" ? await fireJob(entry) : fireTask(entry);
+      result = entry.kind === "job" ? await fireJob(entry) : entry.kind === "heartbeat" ? await fireHeartbeat(entry) : fireTask(entry);
     } catch (err) {
       result = { ok: false, error: String(err) };
     }

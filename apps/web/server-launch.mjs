@@ -23,6 +23,7 @@
  */
 import { spawn, execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync, readdirSync, statSync } from "node:fs";
+import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -127,6 +128,25 @@ function seedRuntime() {
   cpSync(RUNTIME_SRC, dst, { recursive: true });
   return dst;
 }
+/**
+ * Read (or seed) the shared internal token for this scope — `<dataDir>/.leash-internal-token`.
+ * cron reads the same file to authorize its POSTs to /api/leash/heartbeat. Seed-if-absent so the
+ * value is stable across restarts (and across the web ↔ cron processes that share this data dir).
+ */
+function ensureInternalToken(dataDir) {
+  const file = join(dataDir, ".leash-internal-token");
+  try {
+    const existing = readFileSync(file, "utf-8").trim();
+    if (existing) return existing;
+  } catch {
+    /* not seeded yet */
+  }
+  const token = randomBytes(24).toString("hex");
+  mkdirSync(dataDir, { recursive: true });
+  writeFileSync(file, token, { mode: 0o600 });
+  return token;
+}
+
 /** Make a user scope runnable: dirs, shared npm cache, qvac.config, empty-DB template. */
 function bootstrapScopeDir(scope) {
   for (const d of [scope.dataDir, join(scope.dbPath, ".."), sharedNpmCache(LEASH_BASE)]) mkdirSync(d, { recursive: true });
@@ -144,6 +164,32 @@ function bootstrapScopeDir(scope) {
   }
   if (existsSync(DB_TEMPLATE) && !existsSync(scope.dbPath)) cpSync(DB_TEMPLATE, scope.dbPath);
   seedBuiltinSkills(scope);
+  seedConstitution(scope);
+}
+
+/**
+ * Seed the three constitution markdown files (soul / goals / heartbeat) on a fresh scope.
+ * Seed-if-ABSENT only — never clobber a user's edits. These steer the proactive assistant:
+ * soul + goals fold into every chat turn; heartbeat.md is the autonomous loop's checklist
+ * (seeded with the two flagship checks: deadline-vs-distraction and research scout).
+ */
+function seedConstitution(scope) {
+  const seeds = {
+    "soul.md":
+      "# Soul\n\nWho you are — the assistant uses this to understand your context and voice.\n\n" +
+      "- **Name:** \n- **Role / what you do:** \n- **How you like to work:** \n- **What matters to you:** \n",
+    "goals.md":
+      "# Goals\n\nWhere you're going. Keep it to **five or fewer** — everything the assistant notices is\njudged against \"does this serve these goals?\"\n\n" +
+      "1. \n2. \n3. \n",
+    "heartbeat.md":
+      "# Heartbeat\n\nWhat the assistant watches each cycle. Each `## check` is evaluated against your recent\nactivity + goals; it stays silent unless something genuinely warrants your attention.\n\n" +
+      "## Deadline vs. distraction\nIf I have a deadline today and recent activity shows I've been on something off-goal\n(social media, unrelated browsing) for a while, nudge me — name the deadline and the distraction.\n\n" +
+      "## Research scout\nWhen recent activity shows I'm researching a topic, surface one genuinely useful resource or\nnote I already have on it. Never re-suggest something I've already seen.\n",
+  };
+  for (const [name, content] of Object.entries(seeds)) {
+    const p = join(scope.dataDir, name);
+    if (!existsSync(p)) writeFileSync(p, content);
+  }
 }
 
 /**
@@ -225,10 +271,14 @@ async function spawnScoped() {
   // Bind localhost-only by default (Next standalone/`next dev` otherwise listen on 0.0.0.0, exposing
   // the dashboard to the whole LAN). Set HOSTNAME=0.0.0.0 explicitly to serve other devices.
   const hostname = process.env.HOSTNAME ?? "127.0.0.1";
+  // Shared secret for server-to-server internal routes (cron/leash-watch → /api/leash/heartbeat).
+  // Seeded into the scope's data dir; cron reads the same file. Injected into the web env so the
+  // middleware can authorize the header without a session (see middleware.ts INTERNAL_ROUTES).
+  const internalToken = ensureInternalToken(scope.dataDir);
   console.log(`[launch] Leash → ${newUserId ?? "(bootstrap)"} on ${hostname}:${WEB_PORT} — data: ${scope.dataDir}`);
   child = spawn(cmd, cmdArgs, {
     cwd,
-    env: { ...process.env, PORT: String(WEB_PORT), HOSTNAME: hostname, NODE_ENV: nodeEnv, ...userEnv(LEASH_BASE, scope) },
+    env: { ...process.env, PORT: String(WEB_PORT), HOSTNAME: hostname, NODE_ENV: nodeEnv, LEASH_INTERNAL_TOKEN: internalToken, ...userEnv(LEASH_BASE, scope) },
     stdio: "inherit",
   });
   child.on("exit", () => {

@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, net, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, net, ipcMain, Notification } from 'electron'
 import { join, resolve } from 'path'
 import { existsSync } from 'fs'
 import { readInstall, saveInstall, chooseFolder, leashBaseFor } from './install'
@@ -227,6 +227,19 @@ function createWindow(): void {
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.mycelium.desktop')
   app.on('browser-window-created', (_, window) => optimizer.watchWindowShortcuts(window))
+  // Proactive OS notifications: the dashboard rail forwards genuinely-new heartbeat alerts here.
+  // Clicking the toast focuses the window and routes to the feed. Fire-and-forget (renderer dedups).
+  ipcMain.on('notify:show', (_e, n: { title: string; body: string; tag?: string }) => {
+    if (!Notification.isSupported() || !n?.title) return
+    const toast = new Notification({ title: String(n.title).slice(0, 120), body: String(n.body ?? '').slice(0, 240) })
+    toast.on('click', () => {
+      if (!mainWindow) return
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.focus()
+      void mainWindow.webContents.loadURL(`${WEB_URL}/notifications`)
+    })
+    toast.show()
+  })
   ipcMain.handle('install:get', () => readInstall()?.base ?? null)
   ipcMain.handle('install:choose', () => chooseFolder())
   ipcMain.handle('install:resolved', (_e, base: string) => ({ leashBase: leashBaseFor(base) }))

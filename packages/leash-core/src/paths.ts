@@ -46,3 +46,12 @@ export const GEN_DIR = process.env["LEASH_GEN_DIR"] ?? join(REPO_ROOT, "apps", "
 
 /** `data/leash-photo-tags.json` — on-device photo classifications (`npm run tag-photos`). */
 export const PHOTO_TAGS = process.env["LEASH_PHOTO_TAGS"] ?? join(DATA_DIR, "leash-photo-tags.json");
+
+/**
+ * The "constitution" — three editable markdown files the proactive assistant judges everything
+ * against. `soul.md` = who the user is; `goals.md` = where they're going (≤5 goals); `heartbeat.md`
+ * = what to watch each cycle. Per-user-scoped via the LEASH_*_FILE env vars (see scope.mjs userEnv).
+ */
+export const SOUL_FILE = process.env["LEASH_SOUL_FILE"] ?? join(DATA_DIR, "soul.md");
+export const GOALS_FILE = process.env["LEASH_GOALS_FILE"] ?? join(DATA_DIR, "goals.md");
+export const HEARTBEAT_FILE = process.env["LEASH_HEARTBEAT_FILE"] ?? join(DATA_DIR, "heartbeat.md");

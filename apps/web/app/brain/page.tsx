@@ -27,10 +27,12 @@ import { MemoryLanding } from "../../components/MemoryLanding.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
 import { ForagePanel } from "../../components/ForagePanel.tsx";
 import { McpPanel } from "../../components/McpPanel.tsx";
+import { ProactivityPanel } from "../../components/ProactivityPanel.tsx";
+import { getConstitution } from "../../lib/leash/constitution.ts";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "growth", "forage"] as const;
+const TABS = ["memory", "skills", "tools", "mcp", "prompts", "models", "growth", "forage", "proactivity"] as const;
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
@@ -133,6 +135,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
         );
       })()}
       {tab === "forage" && <ForagePanel result={await forage()} />}
+      {tab === "proactivity" && <ProactivityPanel constitution={await getConstitution()} />}
     </DashShell>
   );
 }

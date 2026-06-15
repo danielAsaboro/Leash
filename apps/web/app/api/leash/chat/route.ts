@@ -22,6 +22,7 @@ import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skil
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
+import { getConstitution } from "../../../../lib/leash/constitution.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
 import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
@@ -246,8 +247,12 @@ export async function POST(req: Request): Promise<Response> {
   // plus the skills section ("" when no skills — honest empty state).
   const lastText = lastUserText(validated);
   planTask = lastText; // the overall task each approved plan step is executed against
-  const [systemPrompt, skillsSection, activeSkills, prefs] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts()]);
+  const [systemPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts(), getConstitution()]);
   const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
+  // The constitution (soul + goals) makes EVERY turn goal-aware, not just heartbeats. Bounded by the
+  // store's per-file cap. Trimmed so an unedited/empty file contributes nothing to the prompt.
+  const soulSection = constitution.soul.trim() ? "Who you're assisting (their soul.md):\n" + constitution.soul.trim() : "";
+  const goalsSection = constitution.goals.trim() ? "Their goals (goals.md) — weigh your help against these:\n" + constitution.goals.trim() : "";
   // Always advertise the skill catalog — even with a skill already active — so the model can
   // ORCHESTRATE: discover and load OTHER skills mid-flow with read_skill (multi-skill workflows).
   // When a skill is auto-active its body is already injected (activeSkills.section); the catalog
@@ -334,7 +339,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
     .filter(Boolean)
     .join(" ");
 

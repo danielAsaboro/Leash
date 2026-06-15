@@ -86,6 +86,9 @@ export function userEnv(leashBase, scope) {
     LEASH_MODELS_CATALOG: join(scope.dataDir, "leash-models-catalog.json"),
     LEASH_PHOTOS_DIR: join(scope.dataDir, "photos"),
     LEASH_PHOTO_TAGS: join(scope.dataDir, "leash-photo-tags.json"),
+    LEASH_SOUL_FILE: join(scope.dataDir, "soul.md"),
+    LEASH_GOALS_FILE: join(scope.dataDir, "goals.md"),
+    LEASH_HEARTBEAT_FILE: join(scope.dataDir, "heartbeat.md"),
     npm_config_cache: sharedNpmCache(leashBase),
   };
   if (scope.userId !== BOOTSTRAP_USER) env.LEASH_ACTIVE_USER = scope.userId;

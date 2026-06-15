@@ -33,14 +33,24 @@ export type ScheduleShape =
   | { type: "daily"; at: string } // "HH:MM" local
   | { type: "weekly"; day: number; at: string }; // day 0=Sun … 6=Sat
 
+/** Tuning for a `heartbeat` schedule — the autonomous proactive turn (see /api/leash/heartbeat). */
+export interface HeartbeatConfig {
+  /** Local active-hours window "HH:MM"–"HH:MM"; outside it the heartbeat stays silent. */
+  activeHours?: { start: string; end: string };
+  /** Per-day notification budget — the loop stops surfacing once this many fire today. */
+  maxPerDay?: number;
+}
+
 export interface ScheduleEntry {
   id: string;
   name: string;
   enabled: boolean;
-  kind: "job" | "task";
+  kind: "job" | "task" | "heartbeat";
   schedule: ScheduleShape;
   job?: { script: JobScript; args?: string[] };
   task?: { title: string; detail?: string; priority?: "low" | "normal" | "high"; tags?: string[] };
+  /** Present for `kind: "heartbeat"` — drives the autonomous proactive loop. */
+  heartbeat?: HeartbeatConfig;
   createdAt: number;
   updatedAt: number;
 }
@@ -57,7 +67,7 @@ export interface CronRun {
   id: string;
   scheduleId: string;
   name: string;
-  kind: "job" | "task";
+  kind: "job" | "task" | "heartbeat";
   startedAt: number;
   finishedAt: number;
   ok: boolean;
@@ -75,7 +85,7 @@ function withLock<T>(fn: () => Promise<T>): Promise<T> {
 
 function valid(entry: Partial<ScheduleEntry>): entry is ScheduleEntry {
   if (!entry || typeof entry.id !== "string" || typeof entry.name !== "string") return false;
-  if (entry.kind !== "job" && entry.kind !== "task") return false;
+  if (entry.kind !== "job" && entry.kind !== "task" && entry.kind !== "heartbeat") return false;
   const s = entry.schedule as ScheduleShape | undefined;
   if (!s) return false;
   if (s.type === "once" && !s.at) return false;
@@ -85,6 +95,7 @@ function valid(entry: Partial<ScheduleEntry>): entry is ScheduleEntry {
   if (entry.kind === "job" && !JOB_ALLOWLIST.includes(entry.job?.script as JobScript)) return false;
   if (entry.kind === "job" && entry.job?.script === "research" && !entry.job?.args?.[0]?.trim()) return false; // research needs a question
   if (entry.kind === "task" && !entry.task?.title?.trim()) return false;
+  // heartbeat entries carry no job/task payload — the schedule shape (interval/daily) is enough.
   return true;
 }
 
@@ -114,6 +125,16 @@ export async function listSchedules(): Promise<ScheduleEntry[]> {
         kind: "job",
         schedule: { type: "daily", at: "03:30" },
         job: { script: "evolve" },
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: generateId(),
+        name: "Heartbeat — proactive check against your goals",
+        enabled: true,
+        kind: "heartbeat",
+        schedule: { type: "interval", minutes: 30 },
+        heartbeat: { activeHours: { start: "09:00", end: "22:00" }, maxPerDay: 12 },
         createdAt: now,
         updatedAt: now,
       },

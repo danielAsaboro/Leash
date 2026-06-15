@@ -23,7 +23,10 @@ const shellAPI = {
     const l = (_e: Electron.IpcRendererEvent, p: { phase: string; pct: number | null }): void => cb(p)
     ipcRenderer.on('shell-progress', l)
     return () => ipcRenderer.removeListener('shell-progress', l)
-  }
+  },
+  /** Show a native OS notification for a proactive alert (fire-and-forget). The dashboard's rail
+   *  calls this for genuinely-new heartbeat notifications; clicking the toast focuses the window. */
+  notify: (n: { title: string; body: string; tag?: string }): void => ipcRenderer.send('notify:show', n)
 }
 
 export type ShellAPI = typeof shellAPI

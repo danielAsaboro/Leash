@@ -27,6 +27,7 @@ import { appPrompt } from "../lib/prompt.ts";
 import type { ModelsInventory, CatalogModel } from "../lib/leash/models.ts";
 import type { FitEstimate } from "../lib/leash/hwfit.ts";
 import { buildModelRows, modelState, type ModelKind, type ModelCategory, type ModelState, type TaggedRow } from "../lib/leash/model-rows.ts";
+import { ASSISTANT_KIT, kitModels } from "../lib/leash/kit.ts";
 import { FilterChipBar, type FilterChip } from "./FilterChipBar.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { CtxSizeControl } from "./CtxSizeControl.tsx";
@@ -459,6 +460,38 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
     </tr>
   );
 
+  // Assistant Kit status — a kit SKU is "present" once it's downloaded or configured (any non-available
+  // row), and "in flight" while its download runs. Derived from the same merged list the table shows.
+  const presentSkus = useMemo(() => new Set(allRows.filter((r) => r.category !== "available").map((r) => r.name)), [allRows]);
+  const downloadingSkus = useMemo(() => new Set(downloads.filter((d) => d.state === "downloading" || d.state === "starting").map((d) => d.name)), [downloads]);
+  const kitMissing = kitModels().filter((m) => !presentSkus.has(m));
+  const kitBytes = ASSISTANT_KIT.reduce((s, r) => s + r.bytes, 0);
+  const downloadKit = async (): Promise<void> => {
+    // Wire the aliases first — a cheap config edit (reads the catalog, never touches the registry).
+    await call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "kit" }) }, TIMEOUT.heavy));
+    // Then download weights ONE AT A TIME. The QVAC registry corestore is single-process: firing every
+    // weight at once makes the download children contend on its fd-lock and abort each other. Chain on
+    // each SKU's status file — start it, wait until it leaves the active state, then the next.
+    for (const sku of kitMissing) {
+      startDownload(sku);
+      await new Promise<void>((resolve) => {
+        const t = setInterval(() => {
+          void fetchWithTimeout(`/api/leash/models/download?name=${encodeURIComponent(sku)}`, { cache: "no-store" }, TIMEOUT.probe)
+            .then((r) => (r.ok ? (r.json() as Promise<DownloadStatus>) : null))
+            .then((s) => {
+              if (s && s.state !== "downloading" && s.state !== "starting") {
+                clearInterval(t);
+                resolve();
+              }
+            })
+            .catch(() => {
+              /* keep polling */
+            });
+        }, 2500);
+      });
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       {error && (
@@ -475,6 +508,53 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
       <p className="kicker" style={{ color: "var(--color-faint)" }}>
         Disk cache {fmtBytes(inventory.totalDiskBytes)} · catalog {inventory.catalogCount} models · serve control lives under Services
       </p>
+
+      {/* Assistant Kit — one-click set-up of the recommended on-device fleet (two-tier: a small
+          classifier triages every heartbeat, the 4B chat model acts on escalation). Downloading the
+          set queues every weight (incl. the vision mmproj — the bare-mmproj bug this fixes) and wires
+          the chat/classifier/embed/vision aliases in one config edit. */}
+      <section className="border p-4" style={{ borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }}>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <span className="kicker kicker-sage">Assistant Kit</span>
+            <p className="mt-1" style={{ fontSize: "0.85rem", color: "var(--color-muted)" }}>
+              The recommended on-device fleet for the proactive assistant — {fmtBytes(kitBytes)} total.
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={busy || kitMissing.length === 0}
+            onClick={() => void downloadKit()}
+            className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70 disabled:opacity-40"
+            style={{ borderColor: "var(--color-ink)", background: "var(--color-ink)", color: "var(--color-cream)", whiteSpace: "nowrap" }}
+          >
+            <DownloadIcon size={13} className="mr-1 inline" />
+            {kitMissing.length === 0 ? "Set installed" : "Download the set"}
+          </button>
+        </div>
+        <ul className="flex flex-col gap-1.5">
+          {ASSISTANT_KIT.map((r) => {
+            const skus = r.projection ? [r.model, r.projection] : [r.model];
+            const present = skus.every((s) => presentSkus.has(s));
+            const inFlight = skus.some((s) => downloadingSkus.has(s));
+            const wired = inventory.configured.some((c) => c.alias === r.alias);
+            const state = inFlight ? "downloading…" : present && wired ? "ready" : present ? "downloaded" : "not downloaded";
+            const color = state === "ready" ? "var(--color-sage-deep)" : state === "downloading…" ? "#b8860b" : "var(--color-faint)";
+            return (
+              <li key={r.role} className="flex items-center justify-between gap-3 border-b py-1" style={{ borderColor: "var(--color-rule)" }}>
+                <div className="flex min-w-0 items-baseline gap-2">
+                  <span className="kicker" style={{ minWidth: 72, color: "var(--color-ink)" }}>{r.role}</span>
+                  <span className="truncate" style={{ fontSize: "0.8rem", color: "var(--color-muted)" }}>{r.powers}</span>
+                </div>
+                <div className="flex items-center gap-3 whitespace-nowrap">
+                  <span className="kicker" style={{ color: "var(--color-faint)" }}>{fmtBytes(r.bytes)}</span>
+                  <span className="kicker" style={{ minWidth: 92, textAlign: "right", color }}>{state}</span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </section>
 
       {/* One filterable browser: status × kind facets + name search over the merged list. */}
       <section className="flex flex-col gap-3">

@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { LogOut } from "lucide-react";
 import { LeashMark } from "./LeashMark.tsx";
 import { siteHome } from "../lib/site.ts";
@@ -96,6 +96,15 @@ function MeshIcon() {
   );
 }
 
+function BellIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
+      <path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.3 20a2 2 0 0 0 3.4 0" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function SettingsIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -111,10 +120,16 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/feed", label: "Feed", Icon: PaperIcon, isActive: (p) => p.startsWith("/feed") },
   { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
   { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
+  { href: "/notifications", label: "Alerts", Icon: BellIcon, isActive: (p) => p.startsWith("/notifications") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
   { href: "/mesh", label: "Mesh", Icon: MeshIcon, isActive: (p) => p.startsWith("/mesh") },
   { href: "/services", label: "Services", Icon: ServicesIcon, isActive: (p) => p.startsWith("/services") },
 ];
+
+/** The desktop shell bridge (preload-exposed; undefined in a plain browser). */
+interface ShellBridge {
+  notify?: (n: { title: string; body: string; tag?: string }) => void;
+}
 
 export function LeashRail() {
   const pathname = usePathname() ?? "/";
@@ -123,6 +138,39 @@ export function LeashRail() {
   const [home, setHome] = useState("https://useleash.xyz/");
   useEffect(() => setHome(siteHome()), []);
   const external = home.startsWith("http");
+
+  // Proactive notifications: poll the unread feed globally so the bell badge updates on any page and
+  // (on desktop) genuinely-new items fire an OS toast via the preload bridge. The first poll PRIMES
+  // the seen-set without toasting, so opening the app doesn't replay a backlog of older alerts.
+  const [unread, setUnread] = useState(0);
+  const seen = useRef<Set<string>>(new Set());
+  const primed = useRef(false);
+  useEffect(() => {
+    let alive = true;
+    const tick = async (): Promise<void> => {
+      try {
+        const r = await fetch("/api/leash/notifications?unread=1&limit=10", { cache: "no-store" });
+        if (!r.ok || !alive) return;
+        const data = (await r.json()) as { notifications: { id: string; title: string; body: string; why?: string }[]; unreadCount: number };
+        setUnread(data.unreadCount ?? 0);
+        const bridge = (window as unknown as { shell?: ShellBridge }).shell;
+        for (const n of data.notifications ?? []) {
+          if (seen.current.has(n.id)) continue;
+          if (primed.current && bridge?.notify) bridge.notify({ title: n.title, body: n.why ? `${n.title} — ${n.why}` : n.body.slice(0, 140), tag: n.id });
+          seen.current.add(n.id);
+        }
+        primed.current = true;
+      } catch {
+        /* transient — next tick retries */
+      }
+    };
+    void tick();
+    const id = setInterval(() => void tick(), 15_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, []);
 
   // The landing (`/`) IS the marketing home — it provides its own masthead, so the app rail hides there.
   if (pathname === "/") return null;
@@ -142,10 +190,33 @@ export function LeashRail() {
       <div className="leash-rail-nav">
         {ITEMS.map(({ href, label, Icon, isActive }) => {
           const active = isActive(pathname);
+          const badge = href === "/notifications" && unread > 0;
           return (
-            <Link key={href} href={href} className={`leash-rail-item ${active ? "is-active" : ""}`} aria-current={active ? "page" : undefined}>
+            <Link key={href} href={href} className={`leash-rail-item ${active ? "is-active" : ""}`} aria-current={active ? "page" : undefined} style={badge ? { position: "relative" } : undefined}>
               <Icon />
               <span>{label}</span>
+              {badge && (
+                <span
+                  aria-label={`${unread} unread`}
+                  style={{
+                    position: "absolute",
+                    top: 2,
+                    right: 8,
+                    minWidth: 16,
+                    height: 16,
+                    padding: "0 4px",
+                    borderRadius: 8,
+                    background: "var(--color-brick)",
+                    color: "var(--color-cream)",
+                    fontSize: "0.6rem",
+                    lineHeight: "16px",
+                    textAlign: "center",
+                    fontFamily: "var(--font-mono)",
+                  }}
+                >
+                  {unread > 9 ? "9+" : unread}
+                </span>
+              )}
             </Link>
           );
         })}

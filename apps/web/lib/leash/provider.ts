@@ -60,6 +60,13 @@ export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
  * pointed at the broker (:11436) — the broker availability-routes the turn over the mesh.
  */
 export const COMPUTER_MODEL = process.env["LEASH_COMPUTER_MODEL"] ?? CHAT_MODEL;
+/**
+ * Small fast triage model alias for the proactive heartbeat — runs cheaply every cycle to
+ * decide silence vs. escalate before the 4B chat model is ever woken. Defaults to the
+ * `classifier` alias (installed by the Assistant Kit, a ~1.7B instruct); falls back to the
+ * resolved chat alias when no dedicated classifier is configured (see resolvedClassifierAlias).
+ */
+export const CLASSIFIER_MODEL = process.env["LEASH_CLASSIFIER_MODEL"] ?? "classifier";
 
 /**
  * Priority-tagged provider instances. The `x-leash-priority` header is consumed by the
@@ -130,6 +137,32 @@ export function medpsyModel(): LanguageModel {
 export function computerModel(): LanguageModel {
   return wrapLanguageModel({
     model: qvac(process.env["LEASH_COMPUTER_MODEL"] ?? resolvedChatAlias()),
+    middleware: extractReasoningMiddleware({ tagName: "think" }),
+  });
+}
+
+/**
+ * The classifier alias the user ACTUALLY has configured. Prefers an explicit env override, then
+ * the `classifier` alias if it exists in the served config (Assistant Kit installs it), else falls
+ * back to the resolved chat alias so triage still works on the 4B before the kit is downloaded.
+ */
+export function resolvedClassifierAlias(): string {
+  if (process.env["LEASH_CLASSIFIER_MODEL"]) return process.env["LEASH_CLASSIFIER_MODEL"] as string;
+  if (CFG_FILE) {
+    try {
+      const cfg = JSON.parse(readFileSync(CFG_FILE, "utf8")) as { serve?: { models?: Record<string, unknown> } };
+      if (cfg.serve?.models && Object.prototype.hasOwnProperty.call(cfg.serve.models, "classifier")) return "classifier";
+    } catch {
+      /* fall through to chat alias */
+    }
+  }
+  return resolvedChatAlias();
+}
+
+/** The small triage model for proactive heartbeats — `<think>` reasoning split out like the chat model. */
+export function classifierModel(): LanguageModel {
+  return wrapLanguageModel({
+    model: qvacInline(resolvedClassifierAlias()),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }

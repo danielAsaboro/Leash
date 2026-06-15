@@ -52,9 +52,20 @@ export interface McpBuiltin {
   service: ServiceName;
   /** Liveness probe — polled until ready when the built-in is turned on. */
   healthUrl: string;
-  /** Enabled state on a fresh install (OFF — turning it on is the explicit opt-in that spawns the daemon). */
+  /** Enabled state on a fresh install. The CORE assistant groups (the senses + memory + tasks the
+   *  chat and the proactive heartbeat depend on) are ON by default — built-in, the user never starts
+   *  them — so the daemon is always up; everything else is opt-in. See ALWAYS_ON_GROUPS below. */
   defaultEnabled: boolean;
 }
+
+/**
+ * Tool groups ON by a fresh install — the daemon must always be up for the assistant to function:
+ * `context` (search_graph + live activity), `memory` (remember/recall), `tasks` (create/list), and
+ * `feed` (the daily paper). These ARE the proactive heartbeat's propose-only tools, so a fresh user's
+ * heartbeat works out of the box. The heavier / privileged / setup-requiring groups (home-assistant,
+ * photos, image, research, computer, files, mcp-admin, skills) stay opt-in.
+ */
+const ALWAYS_ON_GROUPS = new Set(["context", "memory", "tasks", "feed"]);
 
 export const MCP_BUILTINS: McpBuiltin[] = [
   {
@@ -75,7 +86,7 @@ export const MCP_BUILTINS: McpBuiltin[] = [
     transport: "http",
     service: "leash-tools-mcp",
     healthUrl: TOOLS_MCP_HEALTH,
-    defaultEnabled: false,
+    defaultEnabled: ALWAYS_ON_GROUPS.has(g.id),
   })),
 ];
 

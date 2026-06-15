@@ -16,6 +16,8 @@ import type { ToolSet } from "ai";
 import { createMCPClient, ElicitationRequestSchema, type ElicitResult, type MCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import { listMcpServers, type McpServerEntry } from "./mcp-store.ts";
+import { builtinById } from "./mcp-builtins.ts";
+import { startService } from "./services.ts";
 import { MCP_REPOS_DIR } from "./mcp-install.ts";
 import { requestElicitation, cancelElicitationsFor } from "./elicitations.ts";
 import { parseIcons, resolveBestIcon, resolveUserIcon } from "./mcp-icons.ts";
@@ -252,6 +254,27 @@ async function closeOne(id: string): Promise<void> {
   console.log(`leash mcp: closed ${conn.entry.name} (${connectTarget(conn.entry)})`);
 }
 
+/** Per-service last auto-start attempt (throttle). Built-in daemons are "always up" — the user never
+ *  starts them — so reconcile spawns an enabled built-in's daemon when it isn't running, but bounded
+ *  so a hot read path (every chat turn calls leashMcpTools) can't hammer startService. */
+const builtinStartAttempt = new Map<string, number>();
+const BUILTIN_START_COOLDOWN_MS = 30_000;
+
+/** If this enabled entry is a built-in whose daemon isn't up, start it (idempotent — startService
+ *  refuses when already running / overlay still downloading; connect retries on the next reconcile). */
+async function ensureBuiltinDaemon(entry: McpServerEntry): Promise<void> {
+  const builtin = builtinById(entry.id);
+  if (!builtin) return;
+  const last = builtinStartAttempt.get(builtin.service) ?? 0;
+  if (Date.now() - last < BUILTIN_START_COOLDOWN_MS) return;
+  builtinStartAttempt.set(builtin.service, Date.now());
+  try {
+    await startService(builtin.service);
+  } catch {
+    /* already running, or the daemon overlay is still downloading — the next reconcile retries */
+  }
+}
+
 /** Reconcile live connections against the store snapshot (serialized — one at a time). */
 async function reconcile(): Promise<void> {
   if (registry.reconciling) return registry.reconciling;
@@ -262,11 +285,12 @@ async function reconcile(): Promise<void> {
     for (const id of [...registry.connections.keys()]) {
       if (!desiredById.has(id)) await closeOne(id);
     }
-    // Connect new ones (respecting the failure cool-down).
+    // Connect new ones (respecting the failure cool-down). Built-ins auto-start their daemon first.
     for (const entry of desired) {
       if (registry.connections.has(entry.id)) continue;
       const failed = registry.failures.get(entry.id);
       if (failed && Date.now() - failed.at < FAILURE_TTL_MS) continue;
+      await ensureBuiltinDaemon(entry);
       await connectOne(entry);
     }
   })();
