@@ -1,27 +1,45 @@
 /**
- * Schedule definitions (server-only) — `data/leash-schedule.json`, WEB-OWNED.
+ * Schedule definitions (server-only) — backed by the mcp-cron scheduling engine.
  *
- * The cron daemon (`apps/leash-cron`) only READS this file; it writes its own
- * `leash-cron-state.json` (lastRun/nextRun per schedule) and appends run records to
- * `leash-cron-runs.jsonl`. Split ownership = no cross-process write contention.
- * Timing logic (next-run computation) lives in the DAEMON — the dashboard displays
- * the daemon's own numbers instead of re-deriving them.
+ * This module's PUBLIC API is unchanged from the leash-cron era (listSchedules /
+ * createSchedule / updateSchedule / deleteSchedule / cronState / cronRuns + the same
+ * types), so the dashboard, the schedules routes, and the tasks page don't change. What
+ * changed is the BACKEND: instead of a hand-rolled `leash-schedule.json` + a polling
+ * daemon, each schedule is an mcp-cron task (see cron-client.ts):
  *
- * A schedule fires either a JOB (allowlisted npm script, spawned detached by the
- * daemon) or a TASK (a row appended to the shared task store) — per the house
- * taxonomy: services produce tasks.
+ *   · the Leash ScheduleShape  → a 6-field cron expression (toCron)
+ *   · the Leash kind+payload   → a shell command (buildCommand): a job runs `npm run …`,
+ *                                a heartbeat runs leash-fire-heartbeat.mts (POSTs the
+ *                                existing /api/leash/heartbeat), a task runs
+ *                                leash-append-task.mts (appends to the task store)
+ *   · the full ScheduleEntry   → JSON in the mcp-cron task's `description` field, so a
+ *                                listing reconstructs the exact entry (single source of
+ *                                truth — no sidecar file). The mcp-cron task `id` IS the
+ *                                ScheduleEntry id; `enabled` is the mcp-cron task's flag.
+ *
+ * mcp-cron's run history (SQLite) replaces leash-cron-state.json / -runs.jsonl. All AI
+ * stays in Leash on @qvac/sdk — `add_ai_task` is NEVER used (hard rule #1).
  */
 import "server-only";
-import { generateId } from "ai";
-import { join } from "node:path";
-import { readFile } from "node:fs/promises";
-import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { DATA_DIR } from "./json-store.ts";
+import { cronList, cronGet, cronAdd, cronUpdate, cronRemove, cronResults, type CronTask } from "./cron-client.ts";
 
+/** apps/web/lib/leash → monorepo root. The mcp-cron daemon runs from here (dev), but commands
+ *  use absolute paths + `npm --prefix` so they don't depend on the daemon's cwd. */
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
+
+/**
+ * @deprecated leash-cron-era file paths. The schedules + run history now live in mcp-cron's
+ * SQLite store, not these files. Kept exported only for the one-time leash-schedule.json
+ * migration (Task 8) and back-compat; nothing in the live path reads them.
+ */
 export const SCHEDULE_FILE = process.env["LEASH_SCHEDULE_FILE"] ?? join(DATA_DIR, "leash-schedule.json");
 export const CRON_STATE_FILE = process.env["LEASH_CRON_STATE_FILE"] ?? join(DATA_DIR, "leash-cron-state.json");
 export const CRON_RUNS_FILE = process.env["LEASH_CRON_RUNS_FILE"] ?? join(DATA_DIR, "leash-cron-runs.jsonl");
 
-/** Scripts the cron daemon may spawn (root package.json scripts; extend deliberately).
+/** Scripts the scheduler may spawn (root package.json scripts; extend deliberately).
  *  `research` is special: it takes a question via `job.args[0]` and spawns the research
  *  child rather than an npm script. */
 export const JOB_ALLOWLIST = ["dream", "tag-photos", "research", "evolve"] as const;
@@ -55,14 +73,14 @@ export interface ScheduleEntry {
   updatedAt: number;
 }
 
-/** Cron-owned per-schedule state (read-only here). */
+/** Per-schedule state (lastRun/nextRun) — read from mcp-cron, display only. */
 export interface CronScheduleState {
   lastRun?: number;
   lastOk?: boolean;
   nextRun?: number;
 }
 
-/** One run record from leash-cron-runs.jsonl (read-only here). */
+/** One run record (mapped from mcp-cron's SQLite result rows). */
 export interface CronRun {
   id: string;
   scheduleId: string;
@@ -76,12 +94,7 @@ export interface CronRun {
   error?: string;
 }
 
-let mutex: Promise<unknown> = Promise.resolve();
-function withLock<T>(fn: () => Promise<T>): Promise<T> {
-  const run = mutex.then(fn, fn);
-  mutex = run.catch(() => undefined);
-  return run;
-}
+// ── validation (unchanged contract) ────────────────────────────────────────────────
 
 function valid(entry: Partial<ScheduleEntry>): entry is ScheduleEntry {
   if (!entry || typeof entry.id !== "string" || typeof entry.name !== "string") return false;
@@ -93,121 +106,239 @@ function valid(entry: Partial<ScheduleEntry>): entry is ScheduleEntry {
   if (s.type === "daily" && !/^\d{2}:\d{2}$/.test(s.at)) return false;
   if (s.type === "weekly" && (!/^\d{2}:\d{2}$/.test(s.at) || !(s.day >= 0 && s.day <= 6))) return false;
   if (entry.kind === "job" && !JOB_ALLOWLIST.includes(entry.job?.script as JobScript)) return false;
-  if (entry.kind === "job" && entry.job?.script === "research" && !entry.job?.args?.[0]?.trim()) return false; // research needs a question
+  if (entry.kind === "job" && entry.job?.script === "research" && !entry.job?.args?.[0]?.trim()) return false;
   if (entry.kind === "task" && !entry.task?.title?.trim()) return false;
-  // heartbeat entries carry no job/task payload — the schedule shape (interval/daily) is enough.
   return true;
 }
 
-/** All schedule definitions (mtime-cached; seeded on first load — see below). */
-export async function listSchedules(): Promise<ScheduleEntry[]> {
-  const raw = await readJsonCached<unknown>(SCHEDULE_FILE, null);
-  if (raw === null) {
-    // First load: seed the REAL nightly jobs — dream (consolidate chats) then evolve
-    // (the Layer-4 LoRA loop). Both daily at 03:30; cron serializes jobs, so they run
-    // back-to-back while the GPU is idle (it never kills a mid-generation worker).
-    const now = Date.now();
-    const seeds: ScheduleEntry[] = [
-      {
-        id: generateId(),
-        name: "Dream — consolidate chats into tasks",
-        enabled: true,
-        kind: "job",
-        schedule: { type: "daily", at: "03:30" },
-        job: { script: "dream" },
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: generateId(),
-        name: "Evolve — nightly on-device LoRA (better at you)",
-        enabled: true,
-        kind: "job",
-        schedule: { type: "daily", at: "03:30" },
-        job: { script: "evolve" },
-        createdAt: now,
-        updatedAt: now,
-      },
-      {
-        id: generateId(),
-        name: "Heartbeat — proactive check against your goals",
-        enabled: true,
-        kind: "heartbeat",
-        schedule: { type: "interval", minutes: 30 },
-        heartbeat: { activeHours: { start: "09:00", end: "22:00" }, maxPerDay: 12 },
-        createdAt: now,
-        updatedAt: now,
-      },
-    ];
-    await writeJson(SCHEDULE_FILE, seeds);
-    invalidateJsonCache(SCHEDULE_FILE);
-    return seeds;
+// ── ScheduleShape ↔ cron expression (6-field, seconds-first — robfig/cron/v3) ──────
+
+function pad(n: number): string {
+  return String(n);
+}
+
+function toCron(shape: ScheduleShape): string {
+  switch (shape.type) {
+    case "interval": {
+      const m = Math.max(1, Math.floor(shape.minutes));
+      if (m < 60) return `0 */${m} * * * *`; // every m minutes at :00s
+      const h = Math.max(1, Math.floor(m / 60));
+      return `0 0 */${h} * * *`; // ≥60min → hour granularity (the minute offset is dropped)
+    }
+    case "daily": {
+      const [hh, mm] = shape.at.split(":").map(Number);
+      return `0 ${pad(mm ?? 0)} ${pad(hh ?? 0)} * * *`;
+    }
+    case "weekly": {
+      const [hh, mm] = shape.at.split(":").map(Number);
+      return `0 ${pad(mm ?? 0)} ${pad(hh ?? 0)} * * ${shape.day}`;
+    }
+    case "once": {
+      // mcp-cron has no one-shot; encode the exact minute. Spent `once` entries are reaped
+      // (disabled) in listSchedules once they've fired, so the annual re-fire never happens.
+      const d = new Date(shape.at);
+      return `0 ${d.getMinutes()} ${d.getHours()} ${d.getDate()} ${d.getMonth() + 1} *`;
+    }
   }
-  return Array.isArray(raw) ? (raw as Partial<ScheduleEntry>[]).filter(valid) : [];
+}
+
+// ── kind+payload → shell command ───────────────────────────────────────────────────
+
+/** Single-quote a shell argument (POSIX): wrap in '…' and escape embedded quotes. */
+function q(s: string): string {
+  return `'${String(s).replace(/'/g, "'\\''")}'`;
+}
+
+const HEARTBEAT_SCRIPT = join(REPO_ROOT, "apps", "web", "scripts", "leash-fire-heartbeat.mts");
+const APPEND_TASK_SCRIPT = join(REPO_ROOT, "apps", "web", "scripts", "leash-append-task.mts");
+const RESEARCH_SCRIPT = join(REPO_ROOT, "apps", "web", "scripts", "leash-research.mts");
+
+function buildCommand(entry: Pick<ScheduleEntry, "kind" | "job" | "task" | "heartbeat" | "id">): string {
+  if (entry.kind === "job") {
+    const script = entry.job?.script as JobScript;
+    if (script === "research") {
+      // research takes a question + a run id. The command is static, so the run id is fixed per
+      // schedule (recurring research re-uses it — acceptable for this rare case; ad-hoc research
+      // is the common path). NOT an npm script.
+      const rid = `cron-${entry.id}`;
+      return `npx tsx ${q(RESEARCH_SCRIPT)} ${q(rid)} ${q(entry.job?.args?.[0]?.slice(0, 500) ?? "")}`;
+    }
+    // `npm --prefix <root>` so it doesn't depend on the daemon's cwd.
+    return `npm --prefix ${q(REPO_ROOT)} run ${script}`;
+  }
+  if (entry.kind === "heartbeat") {
+    const max = entry.heartbeat?.maxPerDay != null ? String(entry.heartbeat.maxPerDay) : "-";
+    const start = entry.heartbeat?.activeHours?.start ?? "-";
+    const end = entry.heartbeat?.activeHours?.end ?? "-";
+    return `npx tsx ${q(HEARTBEAT_SCRIPT)} ${q(max)} ${q(start)} ${q(end)}`;
+  }
+  // task
+  const t = entry.task;
+  return `npx tsx ${q(APPEND_TASK_SCRIPT)} ${q(t?.title ?? "")} ${q(t?.detail ?? "")} ${q(t?.priority ?? "")} ${q((t?.tags ?? []).join(","))}`;
+}
+
+// ── ScheduleEntry ↔ mcp-cron task `description` (the metadata channel) ──────────────
+
+interface Meta {
+  v: 1;
+  kind: ScheduleEntry["kind"];
+  name: string;
+  shape: ScheduleShape;
+  job?: ScheduleEntry["job"];
+  task?: ScheduleEntry["task"];
+  heartbeat?: HeartbeatConfig;
+  createdAt: number;
+  updatedAt: number;
+}
+
+function encodeMeta(entry: ScheduleEntry): string {
+  const m: Meta = {
+    v: 1,
+    kind: entry.kind,
+    name: entry.name,
+    shape: entry.schedule,
+    ...(entry.job ? { job: entry.job } : {}),
+    ...(entry.task ? { task: entry.task } : {}),
+    ...(entry.heartbeat ? { heartbeat: entry.heartbeat } : {}),
+    createdAt: entry.createdAt,
+    updatedAt: entry.updatedAt,
+  };
+  return JSON.stringify(m);
+}
+
+/** Reconstruct a ScheduleEntry from an mcp-cron task. Returns null for foreign (non-Leash) tasks. */
+function toEntry(t: CronTask): ScheduleEntry | null {
+  if (!t.description) return null;
+  let m: Meta;
+  try {
+    m = JSON.parse(t.description) as Meta;
+  } catch {
+    return null;
+  }
+  if (!m || m.v !== 1 || !m.shape || !m.kind) return null;
+  const entry: ScheduleEntry = {
+    id: t.id,
+    name: m.name || t.name,
+    enabled: t.enabled,
+    kind: m.kind,
+    schedule: m.shape,
+    ...(m.job ? { job: m.job } : {}),
+    ...(m.task ? { task: m.task } : {}),
+    ...(m.heartbeat ? { heartbeat: m.heartbeat } : {}),
+    createdAt: m.createdAt ?? 0,
+    updatedAt: m.updatedAt ?? 0,
+  };
+  return valid(entry) ? entry : null;
+}
+
+// ── public API (unchanged shapes) ───────────────────────────────────────────────────
+
+/** All schedule definitions (reconstructed from mcp-cron). Reaps spent `once` entries. */
+export async function listSchedules(): Promise<ScheduleEntry[]> {
+  const tasks = await cronList();
+  const out: ScheduleEntry[] = [];
+  for (const t of tasks) {
+    const entry = toEntry(t);
+    if (!entry) continue;
+    // Reap a spent one-shot: a `once` schedule that has fired (status set) gets disabled, so it
+    // never re-fires on the annual cron recurrence and the UI shows it as done.
+    if (entry.schedule.type === "once" && entry.enabled && t.lastStatus !== undefined) {
+      await cronUpdate(t.id, { enabled: false }).catch(() => {});
+      entry.enabled = false;
+    }
+    out.push(entry);
+  }
+  return out;
 }
 
 /** Create a schedule entry. */
 export async function createSchedule(input: Omit<ScheduleEntry, "id" | "createdAt" | "updatedAt">): Promise<ScheduleEntry | null> {
-  const entry: ScheduleEntry = { ...input, id: generateId(), createdAt: Date.now(), updatedAt: Date.now() };
-  if (!valid(entry)) return null;
-  return withLock(async () => {
-    const all = await listSchedules();
-    await writeJson(SCHEDULE_FILE, [...all, entry]);
-    invalidateJsonCache(SCHEDULE_FILE);
-    return entry;
+  const now = Date.now();
+  // a provisional entry (id filled by mcp-cron) for validation + command/meta building
+  const provisional: ScheduleEntry = { ...input, id: "pending", createdAt: now, updatedAt: now };
+  if (!valid(provisional)) return null;
+  const added = await cronAdd({
+    name: input.name,
+    schedule: toCron(input.schedule),
+    command: buildCommand(provisional),
+    enabled: input.enabled,
+    description: encodeMeta(provisional),
   });
+  if (!added) return null;
+  // The command for `research` bakes the id; re-write it now that we have the real id, and
+  // stamp the meta with the real id is unnecessary (meta has no id — id IS the task id).
+  if (input.kind === "job" && input.job?.script === "research") {
+    const cmd = buildCommand({ ...provisional, id: added.id });
+    if (cmd !== added.command) await cronUpdate(added.id, { command: cmd }).catch(() => {});
+  }
+  return toEntry(added) ?? { ...provisional, id: added.id, enabled: added.enabled };
 }
 
 /** Patch a schedule entry (returns null if unknown/invalid). */
 export async function updateSchedule(id: string, patch: Partial<Omit<ScheduleEntry, "id" | "createdAt">>): Promise<ScheduleEntry | null> {
-  return withLock(async () => {
-    const all = await listSchedules();
-    const idx = all.findIndex((e) => e.id === id);
-    if (idx === -1) return null;
-    const next = { ...(all[idx] as ScheduleEntry), ...patch, id, updatedAt: Date.now() };
-    if (!valid(next)) return null;
-    all[idx] = next;
-    await writeJson(SCHEDULE_FILE, all);
-    invalidateJsonCache(SCHEDULE_FILE);
-    return next;
+  const current = await cronGet(id);
+  const existing = current ? toEntry(current) : null;
+  if (!existing) return null;
+  const next: ScheduleEntry = { ...existing, ...patch, id, updatedAt: Date.now() };
+  if (!valid(next)) return null;
+  const updated = await cronUpdate(id, {
+    name: next.name,
+    schedule: toCron(next.schedule),
+    command: buildCommand(next),
+    description: encodeMeta(next),
+    enabled: next.enabled,
   });
+  return updated ? (toEntry(updated) ?? next) : null;
 }
 
 /** Delete a schedule entry. */
 export async function deleteSchedule(id: string): Promise<boolean> {
-  return withLock(async () => {
-    const all = await listSchedules();
-    const next = all.filter((e) => e.id !== id);
-    if (next.length === all.length) return false;
-    await writeJson(SCHEDULE_FILE, next);
-    invalidateJsonCache(SCHEDULE_FILE);
-    return true;
-  });
+  return cronRemove(id);
 }
 
-/** The daemon's per-schedule state (lastRun/nextRun) — display only. */
+/** Per-schedule state (lastRun/nextRun) from mcp-cron — display only. */
 export async function cronState(): Promise<Record<string, CronScheduleState>> {
-  const raw = await readJson<Record<string, CronScheduleState>>(CRON_STATE_FILE, {});
-  return raw && typeof raw === "object" ? raw : {};
+  const tasks = await cronList();
+  const out: Record<string, CronScheduleState> = {};
+  for (const t of tasks) {
+    if (!t.description) continue; // only Leash-managed tasks
+    const st: CronScheduleState = {};
+    if (t.nextRun !== undefined) st.nextRun = t.nextRun;
+    // mcp-cron stamps lastRun on add; only treat it as a real run once a status exists.
+    if (t.lastStatus !== undefined) {
+      if (t.lastRun !== undefined) st.lastRun = t.lastRun;
+      st.lastOk = t.lastStatus === "ok";
+    }
+    out[t.id] = st;
+  }
+  return out;
 }
 
-/** Recent cron runs, newest first (lenient JSONL read). */
+/** Recent runs across all schedules, newest first (mapped from mcp-cron's SQLite history). */
 export async function cronRuns(limit = 30): Promise<CronRun[]> {
-  let raw: string;
-  try {
-    raw = await readFile(CRON_RUNS_FILE, "utf8");
-  } catch {
-    return [];
-  }
-  const out: CronRun[] = [];
-  for (const line of raw.split("\n")) {
-    const s = line.trim();
-    if (!s) continue;
-    try {
-      out.push(JSON.parse(s) as CronRun);
-    } catch {
-      /* torn line */
-    }
-  }
-  return out.reverse().slice(0, limit);
+  const tasks = (await cronList()).filter((t) => t.description); // Leash-managed only
+  const perTask = await Promise.all(
+    tasks.map(async (t) => {
+      const meta = toEntry(t);
+      const rows = await cronResults(t.id, limit);
+      return rows.map(
+        (r): CronRun => ({
+          id: `${t.id}-${r.finishedAt}`,
+          scheduleId: t.id,
+          name: meta?.name ?? t.name,
+          kind: meta?.kind ?? "job",
+          startedAt: r.startedAt,
+          finishedAt: r.finishedAt,
+          ok: r.ok,
+          ...(r.exitCode !== undefined ? { exitCode: r.exitCode } : {}),
+          ...(r.output ? { outputTail: r.output.slice(0, 1500) } : {}),
+          ...(r.error ? { error: r.error } : {}),
+        }),
+      );
+    }),
+  );
+  return perTask
+    .flat()
+    .sort((a, b) => b.finishedAt - a.finishedAt)
+    .slice(0, limit);
 }

@@ -155,6 +155,8 @@ export interface CronTask {
   schedule: string;
   command: string;
   enabled: boolean;
+  /** Free-form metadata channel — schedules-store stores its Leash ScheduleEntry JSON here. */
+  description?: string;
   /** epoch ms (absent when never run / not yet scheduled). */
   lastRun?: number;
   nextRun?: number;
@@ -175,6 +177,7 @@ function mapTask(t: any): CronTask {
     schedule: String(t?.schedule ?? ""),
     command: String(t?.command ?? ""),
     enabled: !!t?.enabled,
+    ...(typeof t?.description === "string" && t.description ? { description: t.description } : {}),
     lastRun: ms(t?.lastRun),
     nextRun: ms(t?.nextRun),
     lastStatus: t?.status === "completed" ? "ok" : t?.status === "failed" ? "error" : undefined,
@@ -191,8 +194,13 @@ export async function cronGet(id: string): Promise<CronTask | null> {
   return !r.isError && r.json ? mapTask(r.json) : null;
 }
 
-export async function cronAdd(input: { name: string; schedule: string; command: string; enabled: boolean }): Promise<CronTask | null> {
-  const added = await call("add_task", { name: input.name, schedule: input.schedule, command: input.command });
+export async function cronAdd(input: { name: string; schedule: string; command: string; enabled: boolean; description?: string }): Promise<CronTask | null> {
+  const added = await call("add_task", {
+    name: input.name,
+    schedule: input.schedule,
+    command: input.command,
+    ...(input.description !== undefined ? { description: input.description } : {}),
+  });
   const id = added.json?.id as string | undefined;
   if (added.isError || !id) return null;
   // add_task creates the task DISABLED — apply the desired state, then re-read for nextRun.
@@ -200,11 +208,12 @@ export async function cronAdd(input: { name: string; schedule: string; command: 
   return (await cronGet(id)) ?? mapTask({ ...added.json, enabled: input.enabled });
 }
 
-export async function cronUpdate(id: string, patch: Partial<Pick<CronTask, "name" | "schedule" | "command" | "enabled">>): Promise<CronTask | null> {
+export async function cronUpdate(id: string, patch: Partial<Pick<CronTask, "name" | "schedule" | "command" | "enabled" | "description">>): Promise<CronTask | null> {
   const fields: Record<string, unknown> = {};
   if (patch.name !== undefined) fields["name"] = patch.name;
   if (patch.schedule !== undefined) fields["schedule"] = patch.schedule;
   if (patch.command !== undefined) fields["command"] = patch.command;
+  if (patch.description !== undefined) fields["description"] = patch.description;
   if (Object.keys(fields).length > 0) {
     const r = await call("update_task", { id, ...fields });
     if (r.isError) return null;
@@ -218,8 +227,17 @@ export async function cronRemove(id: string): Promise<boolean> {
   return !r.isError;
 }
 
+export interface CronResult {
+  startedAt: number;
+  finishedAt: number;
+  ok: boolean;
+  exitCode?: number;
+  output: string;
+  error?: string;
+}
+
 /** Recent run rows for a task, newest first. Empty when the task has never run (mcp-cron throws there). */
-export async function cronResults(id: string, limit = 30): Promise<{ ts: number; ok: boolean; output: string }[]> {
+export async function cronResults(id: string, limit = 30): Promise<CronResult[]> {
   let r: CallOut;
   try {
     r = await call("get_task_result", { id, limit });
@@ -228,12 +246,20 @@ export async function cronResults(id: string, limit = 30): Promise<{ ts: number;
   }
   if (r.isError) return []; // "resource not found" — no rows yet
   const rows = Array.isArray(r.json) ? r.json : r.json ? [r.json] : [];
+  const ms = (v: unknown): number => Date.parse(typeof v === "string" ? v : "") || 0;
   return rows
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((x: any) => ({
-      ts: Date.parse(x?.end_time || x?.start_time || "") || 0,
-      ok: x?.exit_code === 0,
-      output: String(x?.output || x?.error || ""),
-    }))
-    .sort((a: { ts: number }, b: { ts: number }) => b.ts - a.ts);
+    .map((x: any) => {
+      const started = ms(x?.start_time);
+      const finished = ms(x?.end_time) || started;
+      return {
+        startedAt: started || finished,
+        finishedAt: finished,
+        ok: x?.exit_code === 0,
+        ...(typeof x?.exit_code === "number" ? { exitCode: x.exit_code as number } : {}),
+        output: String(x?.output ?? ""),
+        ...(x?.error ? { error: String(x.error) } : {}),
+      } satisfies CronResult;
+    })
+    .sort((a, b) => b.finishedAt - a.finishedAt);
 }

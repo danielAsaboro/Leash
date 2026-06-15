@@ -3,7 +3,7 @@
  * heartbeat cadence. It reuses the EXISTING server-to-server surface unchanged: POST
  * `/api/leash/heartbeat` with the shared internal token. No new auth, no new route.
  *
- *   npx tsx apps/web/scripts/leash-fire-heartbeat.mts [maxPerDay]
+ *   npx tsx apps/web/scripts/leash-fire-heartbeat.mts [maxPerDay|-] [activeStart HH:MM|-] [activeEnd HH:MM|-]
  *
  * Env it relies on (all inherited from the mcp-cron daemon, which inherits the web
  * process's scope env — proven in spike/09-mcp-cron.ts):
@@ -11,9 +11,11 @@
  *   · LEASH_WEB_PORT / PORT  — where the web app listens (default 6801)
  *   · LEASH_DATA_DIR         — for the token-file fallback (<data>/.leash-internal-token)
  *
- * The active-hours gate and per-day budget stay INSIDE the heartbeat route/loop — this
- * script just triggers it, exactly as leash-cron's fireHeartbeat did. Exit 0 on a 2xx
- * (incl. a silent/suppressed turn), 1 on failure, so the run history records ok/error.
+ * The ACTIVE-HOURS gate lives here (ported verbatim from leash-cron's withinActiveHours):
+ * mcp-cron fires the bare cron cadence, and this script no-ops (exit 0, "skipped") outside
+ * the window — exactly as leash-cron did when it ticked. The per-day budget (maxPerDay)
+ * is enforced INSIDE the heartbeat route. Exit 0 on a 2xx (incl. a silent/suppressed turn
+ * or an active-hours skip), 1 on failure, so the run history records ok/error.
  */
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -36,7 +38,32 @@ function internalToken(): string {
   }
 }
 
-const maxPerDay = Number(process.argv[2] ?? "") || undefined;
+const arg = (i: number): string | undefined => {
+  const v = process.argv[i];
+  return v && v !== "-" ? v : undefined;
+};
+const maxPerDay = Number(arg(2) ?? "") || undefined;
+const activeStart = arg(3);
+const activeEnd = arg(4);
+
+/** Local active-hours gate (ported from leash-cron): inclusive start, exclusive end, wraps midnight. */
+function withinActiveHours(start: string | undefined, end: string | undefined, now: number): boolean {
+  if (!start || !end) return true;
+  const mins = (s: string): number => {
+    const [h, m] = s.split(":").map(Number);
+    return (h ?? 0) * 60 + (m ?? 0);
+  };
+  const d = new Date(now);
+  const cur = d.getHours() * 60 + d.getMinutes();
+  const s = mins(start);
+  const e = mins(end);
+  return s <= e ? cur >= s && cur < e : cur >= s || cur < e;
+}
+
+if (!withinActiveHours(activeStart, activeEnd, Date.now())) {
+  process.stdout.write(`outside active hours (${activeStart}–${activeEnd}) — skipped\n`);
+  process.exit(0);
+}
 
 const tok = internalToken();
 if (!tok) {
