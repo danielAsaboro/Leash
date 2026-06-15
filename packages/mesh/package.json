@@ -18,7 +18,7 @@
   "dependencies": {
     "@mycelium/shared": "*",
     "@mycelium/senses": "*",
-    "@qvac/sdk": "^0.12.0",
+    "@qvac/sdk": "^0.13.0",
     "autobase": "^7.28",
     "blind-pairing": "^2.3",
     "b4a": "1.8.1",

@@ -13,7 +13,7 @@
     "@mycelium/mesh": "*",
     "@mycelium/senses": "*",
     "@mycelium/shared": "*",
-    "@qvac/sdk": "^0.12.0",
+    "@qvac/sdk": "^0.13.0",
     "bonjour-service": "^1.4.0",
     "hyperswarm": "^4.17.0"
   }

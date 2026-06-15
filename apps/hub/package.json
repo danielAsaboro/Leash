@@ -12,6 +12,6 @@
     "@mycelium/senses": "*",
     "@mycelium/mind": "*",
     "@mycelium/mesh": "*",
-    "@qvac/sdk": "^0.12.0"
+    "@qvac/sdk": "^0.13.0"
   }
 }

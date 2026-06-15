@@ -8,8 +8,8 @@
 set -euo pipefail
 
 CLI_VER="${QVAC_CLI_VERSION:-0.6.0}"
-SDK_VER="${QVAC_SDK_VERSION:-0.12.1}"
-PROVIDER_VER="${QVAC_PROVIDER_VERSION:-0.1.0}"   # @qvac/ai-sdk-provider — the model catalog (allModels) source
+SDK_VER="${QVAC_SDK_VERSION:-0.13.1}"
+PROVIDER_VER="${QVAC_PROVIDER_VERSION:-0.2.1}"   # @qvac/ai-sdk-provider — the model catalog (allModels) source
 ARCH_KEEP="${QVAC_PREBUILD_ARCH:-darwin-arm64}"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"   # apps/desktop
@@ -25,6 +25,22 @@ JSON
 
 # Prefer the local npm cache (the root install already populated it); fall back to the network.
 ( cd "$out" && npm install --no-audit --no-fund --prefer-offline --omit=dev 2>&1 | tail -3 )
+
+# Apply the leash @qvac/cli vision patch (OpenAI `image_url` content → SDK `attachments`) so the
+# PACKAGED serve does multimodal vision (screenshot description, image-in-chat). In dev this lands via
+# patch-package's postinstall; the runtime is a SEPARATE install patch-package never sees, so apply it
+# here against the bundled cli. Version-matched to @qvac/cli 0.6.0; --forward no-ops if already applied.
+repo="$(cd "$here/../.." && pwd)"
+cli_patch="$repo/patches/@qvac+cli+$CLI_VER.patch"
+if [ -f "$cli_patch" ] && [ -d "$out/node_modules/@qvac/cli" ]; then
+  if ( cd "$out" && patch -p1 --forward --silent < "$cli_patch" ); then
+    echo "[qvac-runtime] ✓ applied @qvac/cli vision patch (image_url → attachments)"
+  else
+    echo "[qvac-runtime] ⚠️  @qvac/cli vision patch did NOT apply — packaged vision will be off" >&2
+  fi
+else
+  echo "[qvac-runtime] ⚠️  cli patch ($cli_patch) or bundled cli missing — packaged vision unpatched" >&2
+fi
 
 echo "[qvac-runtime] pruning prebuilds to $ARCH_KEEP …"
 # Each engine has node_modules/@qvac/<eng>/prebuilds/<platform>/… — delete every platform but ours.

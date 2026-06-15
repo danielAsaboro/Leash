@@ -11,7 +11,7 @@
     "android": "expo run:android --device"
   },
   "dependencies": {
-    "@qvac/sdk": "^0.12.1",
+    "@qvac/sdk": "^0.13.0",
     "bare-rpc": "^1.3.2",
     "expo": "~54.0.0",
     "expo-status-bar": "~3.0.9",

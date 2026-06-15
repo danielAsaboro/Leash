@@ -11,8 +11,8 @@
   },
   "daemons": {
     "file": "leash-daemons-darwin-arm64.tar.gz",
-    "sha256": "71ed210b32925c93525c89046e75bcd4d76dfdc18495ca0f68424c62bd3ee1f5",
-    "bytes": 134093036,
+    "sha256": "781a00db97e18b0e4a29f0d7d7770ad2ab84a35775b3d28baaa439bf8a88e4f8",
+    "bytes": 146193170,
     "extractDir": "leash-daemons"
   }
 }
