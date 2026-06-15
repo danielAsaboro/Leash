@@ -18,6 +18,13 @@ const PUBLIC_PREFIX = ["/login", "/setup-password", "/api/leash/auth/", "/api/wa
 // to <data>/.leash-internal-token, which cron reads and sends as the `x-leash-internal` header.
 const INTERNAL_ROUTES = ["/api/leash/heartbeat"];
 
+// Routes reachable by EITHER a browser session (the dashboard) OR the shared internal token
+// (a server-to-server caller like the leash-tools-mcp "Scheduler" group). A matching token wins
+// immediately; a present-but-wrong token is rejected; NO token header falls through to session
+// auth. This lets the assistant schedule its own actions via the same store the dashboard uses,
+// without opening these routes to the public.
+const INTERNAL_OR_SESSION_PREFIX = ["/api/leash/schedules"];
+
 function isPublic(pathname: string): boolean {
   return PUBLIC_EXACT.includes(pathname) || PUBLIC_PREFIX.some((p) => pathname === p || pathname.startsWith(p));
 }
@@ -30,6 +37,13 @@ export function middleware(req: NextRequest): NextResponse {
   if (INTERNAL_ROUTES.includes(pathname)) {
     const tok = process.env["LEASH_INTERNAL_TOKEN"];
     if (tok) return req.headers.get("x-leash-internal") === tok ? NextResponse.next() : new NextResponse("forbidden", { status: 403 });
+  }
+  // Dual-auth routes: a valid internal token authorizes immediately; a wrong one is rejected; no
+  // token header falls through to the normal session checks below (so the dashboard still works).
+  if (INTERNAL_OR_SESSION_PREFIX.some((p) => pathname === p || pathname.startsWith(p))) {
+    const tok = process.env["LEASH_INTERNAL_TOKEN"];
+    const hdr = req.headers.get("x-leash-internal");
+    if (tok && hdr) return hdr === tok ? NextResponse.next() : new NextResponse("forbidden", { status: 403 });
   }
   if (!authEnabled()) return NextResponse.next();
   if (isPublic(pathname)) return NextResponse.next();

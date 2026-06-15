@@ -39,6 +39,7 @@ const TOOLS_MCP_GROUPS: { id: string; name: string; description: string }[] = [
   { id: "computer", name: "Computer Use", description: "See and act on this Mac: screenshot, approval-gated run_command (the real-disk executor), and mouse/keyboard." },
   { id: "files", name: "Files", description: "Sandboxed read-only file retrieval (grep/find/cat/jq) over a snapshot of the user's files." },
   { id: "mcp-admin", name: "MCP", description: "Install and register OTHER MCP servers from a URL or by hand (install_mcp_repo, upsert_mcp_server)." },
+  { id: "scheduler", name: "Scheduler", description: "Let the assistant schedule its own future actions — recurring reminders and allowlisted maintenance jobs (no arbitrary commands, no cloud AI tasks)." },
 ];
 
 export interface McpBuiltin {
