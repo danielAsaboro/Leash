@@ -84,7 +84,9 @@
     "prehypha": "find node_modules/bare-runtime-* node_modules/@qvac -type f -print0 2>/dev/null | xargs -0 cat >/dev/null 2>&1 || true",
     "hypha": "tsx apps/hypha/src/main.ts",
     "mcp": "tsx apps/leash-mcp/src/main.ts",
-    "tools-mcp": "tsx apps/leash-tools-mcp/src/main.ts"
+    "tools-mcp": "tsx apps/leash-tools-mcp/src/main.ts",
+    "telegram": "tsx apps/leash-telegram/src/main.ts",
+    "telegram:test": "tsx apps/leash-telegram/src/selftest.ts"
   },
   "dependencies": {
     "@qvac/sdk": "^0.13.0",

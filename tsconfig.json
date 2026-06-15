@@ -43,6 +43,9 @@
     },
     {
       "path": "apps/leash-tools-mcp"
+    },
+    {
+      "path": "apps/leash-telegram"
     }
   ]
 }

@@ -1,0 +1,17 @@
+{
+  "name": "@mycelium/leash-telegram",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "Apache-2.0",
+  "description": "Leash Telegram bridge — binds a Telegram bot (owner-only) to the local Leash agent (POST /api/leash/chat). Long-poll by default, or a Cloudflare-Tunnel webhook. Pure transport: inference stays on-device via QVAC, never a cloud AI API.",
+  "scripts": {
+    "build": "tsc -b",
+    "start": "tsx src/main.ts",
+    "test": "tsx src/selftest.ts"
+  },
+  "dependencies": {
+    "@mycelium/shared": "*",
+    "undici": "^8.3.0"
+  }
+}
