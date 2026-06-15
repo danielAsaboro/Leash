@@ -500,6 +500,15 @@ function withConfigLock<T>(fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
+/** Default context window for chat (text-generation) models. Embedding/speech/image/ocr/
+ *  transcription models keep the SDK default — they don't use a large generation context. */
+export const DEFAULT_CTX_SIZE = 32768;
+
+/** Whether a catalog model is a chat (text-generation) SKU — the only kind that gets DEFAULT_CTX_SIZE. */
+function isChatModel(catalog: CatalogModel[], modelName: string): boolean {
+  return catalog.find((c) => c.name === modelName)?.endpointCategory === "chat";
+}
+
 /** Add (or replace) one `serve.models` alias pointing at an SDK catalog constant. */
 export async function addModelToConfig(alias: string, modelName: string): Promise<{ ok: boolean; error?: string }> {
   if (!/^[a-z0-9][a-z0-9-]{0,32}$/.test(alias)) return { ok: false, error: "alias must be short lowercase [a-z0-9-]" };
@@ -511,7 +520,9 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
     config.serve.models ??= {};
     // First model added becomes the default → the chat targets it (see provider.resolvedChatAlias).
     const hasDefault = Object.values(config.serve.models).some((m) => m && typeof m === "object" && (m as { default?: boolean }).default);
-    config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }) };
+    // Chat models default to a 32768 context window; embeddings/etc. keep the SDK default.
+    const ctx = isChatModel(catalog, modelName) ? { config: { ctx_size: DEFAULT_CTX_SIZE } } : {};
+    config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }), ...ctx };
     await writeJson(QVAC_CONFIG_FILE, config);
     invalidateJsonCache(QVAC_CONFIG_FILE);
     return { ok: true };
@@ -547,6 +558,9 @@ export async function addModelKit(roles: KitRole[] = ASSISTANT_KIT): Promise<{ o
         const mm = catalog.find((c) => c.name === r.projection);
         if (mm?.cacheFile) cfg["projectionModelSrc"] = `~/.qvac/models/${mm.cacheFile}`;
       }
+      // Chat-category roles (chat/classifier/vision) default to a 32768 context window unless the
+      // role already pins one; embedding roles keep the SDK default.
+      if (cfg["ctx_size"] === undefined && isChatModel(catalog, r.model)) cfg["ctx_size"] = DEFAULT_CTX_SIZE;
       config.serve.models[r.alias] = { model: r.model, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) };
     }
     // chat becomes the default only if nothing in the final config already claims it (preserve user intent).
