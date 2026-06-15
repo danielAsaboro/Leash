@@ -62,12 +62,29 @@ export async function loadMemories(): Promise<LeashMemory[]> {
   return normalize(await readJsonCached<unknown>(MEMORIES_FILE, []));
 }
 
-/** Filtered memories, newest first. `q` is a case-insensitive substring match. */
+/** Common words dropped from a `q` so a natural-language query ("what does the user prefer?")
+ *  matches on its CONTENT words, not the filler. */
+const RECALL_STOPWORDS = new Set([
+  "the", "a", "an", "of", "to", "for", "and", "or", "is", "are", "was", "were", "be", "been",
+  "what", "who", "whom", "whose", "does", "do", "did", "my", "me", "you", "your", "yours",
+  "about", "that", "this", "these", "those", "its", "on", "in", "into", "with", "how",
+  "when", "where", "which", "why", "can", "could", "would", "should", "have", "has", "had",
+]);
+
+/** Filtered memories, newest first. `q` matches on the query's CONTENT WORDS (any-of), so a
+ *  natural-language question — what `recall` passes — finds the relevant memory; it falls back to a
+ *  substring match when the query has no content words (a short/keyword query like "ssd" still works). */
 export async function listMemories(filter: { type?: MemoryType; q?: string } = {}): Promise<LeashMemory[]> {
   const q = filter.q?.trim().toLowerCase();
+  const words = q ? [...new Set(q.split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !RECALL_STOPWORDS.has(w)))] : [];
+  const matches = (text: string): boolean => {
+    if (!q) return true;
+    const t = text.toLowerCase();
+    return words.length > 0 ? words.some((w) => t.includes(w)) : t.includes(q);
+  };
   return (await loadMemories())
     .filter((m) => !filter.type || m.type === filter.type)
-    .filter((m) => !q || m.text.toLowerCase().includes(q))
+    .filter((m) => matches(m.text))
     .sort((a, b) => b.updatedAt - a.updatedAt);
 }
 

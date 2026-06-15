@@ -504,9 +504,25 @@ function withConfigLock<T>(fn: () => Promise<T>): Promise<T> {
  *  transcription models keep the SDK default — they don't use a large generation context. */
 export const DEFAULT_CTX_SIZE = 32768;
 
-/** Whether a catalog model is a chat (text-generation) SKU — the only kind that gets DEFAULT_CTX_SIZE. */
-function isChatModel(catalog: CatalogModel[], modelName: string): boolean {
-  return catalog.find((c) => c.name === modelName)?.endpointCategory === "chat";
+/**
+ * The serve's TTS config branch requires a `ttsEngine` discriminator (+ language/voice); the SDK does
+ * NOT auto-populate it, so a speech model added without this `config` block FAILS to preload
+ * (`Invalid input: expected "supertonic"`). Derived from the model name (the on-device voices today).
+ */
+function defaultSpeechConfig(modelName: string): Record<string, unknown> | null {
+  if (/supertonic/i.test(modelName)) return { ttsEngine: "supertonic", language: "en", voice: "F1", ttsSpeed: 1.05, ttsNumInferenceSteps: 5 };
+  if (/chatterbox/i.test(modelName)) return { ttsEngine: "chatterbox", language: "en" };
+  return null;
+}
+
+/** The default per-model `config` block for a freshly-wired alias, by use-case: chat → a 32768
+ *  context window; speech (TTS) → the required engine config. Others (embeddings/image/transcription)
+ *  need none. */
+function defaultModelConfig(catalog: CatalogModel[], modelName: string): Record<string, unknown> | undefined {
+  const cat = catalog.find((c) => c.name === modelName)?.endpointCategory;
+  if (cat === "chat") return { ctx_size: DEFAULT_CTX_SIZE };
+  if (cat === "speech") return defaultSpeechConfig(modelName) ?? undefined;
+  return undefined;
 }
 
 /** Add (or replace) one `serve.models` alias pointing at an SDK catalog constant. */
@@ -520,9 +536,9 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
     config.serve.models ??= {};
     // First model added becomes the default → the chat targets it (see provider.resolvedChatAlias).
     const hasDefault = Object.values(config.serve.models).some((m) => m && typeof m === "object" && (m as { default?: boolean }).default);
-    // Chat models default to a 32768 context window; embeddings/etc. keep the SDK default.
-    const ctx = isChatModel(catalog, modelName) ? { config: { ctx_size: DEFAULT_CTX_SIZE } } : {};
-    config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }), ...ctx };
+    // Per-use-case defaults: chat → ctx_size 32768; speech → the required ttsEngine config.
+    const cfg = defaultModelConfig(catalog, modelName);
+    config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }), ...(cfg ? { config: cfg } : {}) };
     await writeJson(QVAC_CONFIG_FILE, config);
     invalidateJsonCache(QVAC_CONFIG_FILE);
     return { ok: true };
@@ -553,14 +569,13 @@ export async function addModelKit(roles: KitRole[] = ASSISTANT_KIT): Promise<{ o
     config.serve ??= {};
     config.serve.models ??= {};
     for (const r of roles) {
-      const cfg: Record<string, unknown> = { ...(r.config ?? {}) };
+      // Per-use-case defaults (chat → ctx_size 32768; speech → the required ttsEngine config), then
+      // the role's own config wins, then the computed mmproj projection path.
+      const cfg: Record<string, unknown> = { ...defaultModelConfig(catalog, r.model), ...(r.config ?? {}) };
       if (r.projection) {
         const mm = catalog.find((c) => c.name === r.projection);
         if (mm?.cacheFile) cfg["projectionModelSrc"] = `~/.qvac/models/${mm.cacheFile}`;
       }
-      // Chat-category roles (chat/classifier/vision) default to a 32768 context window unless the
-      // role already pins one; embedding roles keep the SDK default.
-      if (cfg["ctx_size"] === undefined && isChatModel(catalog, r.model)) cfg["ctx_size"] = DEFAULT_CTX_SIZE;
       config.serve.models[r.alias] = { model: r.model, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) };
     }
     // chat becomes the default only if nothing in the final config already claims it (preserve user intent).
