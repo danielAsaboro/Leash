@@ -72,6 +72,28 @@ if [ -f "$repo/packages/db/prisma/schema.prisma" ]; then
   fi
 fi
 
+# 4b. Vendor the mcp-cron scheduling-engine binary (Go) for this arch into the overlay. mcp-cron
+#     ships prebuilt per-arch binaries as npm packages (mcp-cron-<arch>), and ARCH_KEEP (e.g.
+#     darwin-arm64) is exactly that suffix. The packaged app has no system npx, so services.ts runs
+#     THIS vendored binary directly at <overlay>/mcp-cron/<bin> (dev still uses `npx -y mcp-cron`).
+echo "[leash-daemons] vendoring mcp-cron binary ($ARCH_KEEP) …"
+mcp_bin="mcp-cron"; case "$ARCH_KEEP" in windows-*) mcp_bin="mcp-cron.exe";; esac
+mcp_tmp="$(mktemp -d)"
+if ( cd "$mcp_tmp" && npm pack "mcp-cron-$ARCH_KEEP" >/dev/null 2>&1 ); then
+  tar -C "$mcp_tmp" -xzf "$mcp_tmp"/*.tgz
+  if [ -f "$mcp_tmp/package/bin/$mcp_bin" ]; then
+    mkdir -p "$out/mcp-cron"
+    cp "$mcp_tmp/package/bin/$mcp_bin" "$out/mcp-cron/$mcp_bin"
+    chmod +x "$out/mcp-cron/$mcp_bin"
+    echo "  ✓ vendored mcp-cron ($(du -h "$out/mcp-cron/$mcp_bin" | awk '{print $1}'))"
+  else
+    echo "  ⚠️ mcp-cron-$ARCH_KEEP has no bin/$mcp_bin — the scheduler won't run in the packaged app" >&2
+  fi
+else
+  echo "  ⚠️ npm pack mcp-cron-$ARCH_KEEP failed — the scheduler won't be bundled (needs network at build time)" >&2
+fi
+rm -rf "$mcp_tmp"
+
 # 5. Arch-prune native prebuilds (corestore/hyperswarm/sodium/etc. ship every platform).
 find "$out/node_modules" -type d -name prebuilds 2>/dev/null | while read -r pb; do
   for plat in "$pb"/*/; do [ "$(basename "$plat")" = "$ARCH_KEEP" ] || rm -rf "$plat"; done

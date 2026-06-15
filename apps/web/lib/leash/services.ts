@@ -424,19 +424,26 @@ export async function startService(name: ServiceName): Promise<{ ok: boolean; er
   if (status.state === "running") return { ok: false, error: `${def.label} is already running (pid ${status.pid})` };
   if (status.state === "external") return { ok: false, error: `${def.label} appears to be running outside the dashboard — stop it there first` };
 
-  // The daemon entry, e.g. "apps/hypha/src/main.ts" (all daemons are spawned as `npx tsx <entry>`).
+  // The daemon entry, e.g. "apps/hypha/src/main.ts" (tsx daemons are spawned as `npx tsx <entry>`).
   const srcRel = def.command[0] === "npx" && def.command[1] === "tsx" ? def.command[2] : null;
+  // mcp-cron is NOT a tsx daemon — it's a vendored Go binary (the npm package ships a prebuilt
+  // per-arch binary). Dev runs `npx -y mcp-cron`; packaged runs the binary the overlay bundles at
+  // <overlay>/mcp-cron/mcp-cron (see apps/desktop/scripts/build-leash-daemons.sh).
+  const isMcpCron = name === "mcp-cron";
 
   // PACKAGED: run from the on-demand "leash-daemons" overlay via the bundled runtime (no system
-  // node/npx). DEV: `npx tsx <entry>` from the monorepo (CODE_ROOT).
+  // node/npx). DEV: `npx tsx <entry>` (or `npx -y mcp-cron`) from the monorepo (CODE_ROOT).
   const overlay = daemonsRoot();
+  const mcpCronBin = overlay ? join(overlay, "mcp-cron", process.platform === "win32" ? "mcp-cron.exe" : "mcp-cron") : "";
   if (overlay) {
-    if (!srcRel) return { ok: false, error: `${def.label} has no script entry to run.` };
     if (!daemonsReady()) {
       return { ok: false, error: `${def.label} is still being set up — the daemon bundle is downloading in the background. Try again in a moment.` };
     }
-    if (!existsSync(join(overlay, srcRel))) {
-      return { ok: false, error: `${def.label} isn't in the daemon bundle (missing ${srcRel}).` };
+    if (isMcpCron) {
+      if (!existsSync(mcpCronBin)) return { ok: false, error: `${def.label} binary isn't in the daemon bundle (missing ${mcpCronBin}).` };
+    } else {
+      if (!srcRel) return { ok: false, error: `${def.label} has no script entry to run.` };
+      if (!existsSync(join(overlay, srcRel))) return { ok: false, error: `${def.label} isn't in the daemon bundle (missing ${srcRel}).` };
     }
   } else {
     if (!CODE_ROOT) {
@@ -451,9 +458,12 @@ export async function startService(name: ServiceName): Promise<{ ok: boolean; er
   // Truncate ("w") so each Start/Restart begins with a clean log — old runs' noise is cleared.
   const log = openSync(logFile(name), "w");
   try {
-    // The daemon inherits the user-scoped env. Packaged → bundled-runtime launch; dev → npx tsx.
+    // The daemon inherits the user-scoped env (so its tasks inherit the scope env — spike 09).
+    // Packaged: bundled-runtime launch (tsx daemons) or the vendored mcp-cron binary; dev: npx.
     const child = overlay
-      ? spawnDaemon(srcRel as string, { detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } })
+      ? isMcpCron
+        ? spawn(mcpCronBin, def.command.slice(3), { cwd: overlay, detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } })
+        : spawnDaemon(srcRel as string, { detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } })
       : spawn(def.command[0] as string, def.command.slice(1), { cwd: CODE_ROOT as string, detached: true, stdio: ["ignore", log, log], env: { ...def.env, ...process.env } });
     child.unref();
     if (child.pid === undefined) return { ok: false, error: "spawn returned no pid" };
