@@ -4,8 +4,8 @@
   "baseUrl": "https://github.com/danielAsaboro/leash-runtime/releases/download/v1",
   "runtime": {
     "file": "qvac-runtime-darwin-arm64.tar.gz",
-    "sha256": "a9cbc56f8bd4f78b80a718a54af9c37d5e184ed50d0087634805bb08e7341a5f",
-    "bytes": 181196798,
+    "sha256": "2db9b7eefa6af0e3ff241257dd6e8b1ddf3d930c6467ce50c2dc5c0fb7e14308",
+    "bytes": 154988029,
     "extractDir": "qvac-runtime",
     "cli": "qvac-runtime/node_modules/@qvac/cli/dist/index.js"
   },
