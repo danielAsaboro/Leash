@@ -1,5 +1,5 @@
 /**
- * Launch the dashboard-managed daemons (hypha, watcher, newsroom, leash-cron, leash-broker,
+ * Launch the dashboard-managed daemons (hypha, watcher, newsroom, mcp-cron, leash-broker,
  * leash-mcp, …) in the PACKAGED app. The daemon source + their @mycelium packages + extra deps
  * ship as an on-demand "leash-daemons" overlay that the Electron main downloads into
  * `<qvac-runtime>/leash-daemons/` (see deps.ts ensureDaemons). The daemons resolve `@qvac/sdk` +

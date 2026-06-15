@@ -7,7 +7,7 @@
  *
  *   · watcher     — `npm run watch` (screen observations → leash-activity.jsonl)
  *   · newsroom    — `npm run newsroom` (the paper's pipeline daemon)
- *   · leash-cron  — `npx tsx apps/leash-cron/src/main.ts` (the scheduler)
+ *   · mcp-cron    — `npx -y mcp-cron --transport http` (the scheduling engine)
  *   · qvac-serve  — supervised by `serve-control.ts` (port-probe health + the
  *                   inflight GPU guard); aggregated into the same status list here
  *
@@ -50,10 +50,8 @@ const CODE_ROOT: string | null = (() => {
 })();
 
 export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, "leash-services");
-/** Touched by leash-cron every tick. */
-export const CRON_HEARTBEAT = join(SERVICES_DIR, "leash-cron.heartbeat");
 
-export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "leash-cron" | "mcp-cron" | "leash-broker" | "hypha" | "leash-mcp" | "leash-tools-mcp";
+export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "mcp-cron" | "leash-broker" | "hypha" | "leash-mcp" | "leash-tools-mcp";
 
 /** Where the broker listens (probe target for its health). */
 const BROKER_PORT = Number(process.env["LEASH_BROKER_PORT"] ?? 11436);
@@ -144,17 +142,6 @@ const DEFS: ServiceDef[] = [
       } catch {
         return { fresh: null, detail: "newsroom.db unreachable" };
       }
-    },
-  },
-  {
-    name: "leash-cron",
-    label: "Cron",
-    command: ["npx", "tsx", "apps/leash-cron/src/main.ts"],
-    procMatch: "apps/leash-cron/src/main.ts",
-    blurb: "The scheduler — fires jobs (dream, tag-photos) and recurring tasks on time.",
-    freshness: async () => {
-      const { fresh, ageMs } = mtimeWithin(CRON_HEARTBEAT, 2 * 60 * 1000);
-      return { fresh, detail: `heartbeat ${ago(ageMs)}` };
     },
   },
   {

@@ -25,7 +25,7 @@ export default async function ServicesPage() {
       <div className="flex flex-col gap-5">
         {services.map((s) => (
           <ServiceCard key={s.name} service={s}>
-            {s.name === "leash-cron" && <SchedulesSection schedules={schedules} state={state} runs={runs} />}
+            {s.name === "mcp-cron" && <SchedulesSection schedules={schedules} state={state} runs={runs} />}
             {s.name === "hypha" && (
               <p className="kicker mt-3" style={{ color: "var(--color-faint)" }}>
                 Mesh peers, model sharing & device pairing live in{" "}

@@ -1,7 +1,7 @@
 /**
  * Heartbeat runtime state (server-only) — `data/leash-heartbeat-state.json`.
  *
- * Mirrors leash-cron-state.json's spirit (small JSON, atomic writes) but is WEB-owned: it holds the
+ * A small atomic JSON (scheduler-state in spirit) but WEB-owned: it holds the
  * proactive loop's memory between cycles — the per-day notification budget, per-check tier overrides
  * ("always do this" promotes ask→notify→auto for a recurring nudge), and recently-surfaced proposal
  * fingerprints so the same suggestion isn't repeated. All reads tolerate a missing/garbled file.

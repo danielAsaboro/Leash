@@ -9,7 +9,7 @@ import { inflightCount } from "../../../../lib/leash/inflight.ts";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NAMES: ServiceName[] = ["qvac-serve", "watcher", "newsroom", "leash-cron", "leash-broker", "hypha", "leash-mcp"];
+const NAMES: ServiceName[] = ["qvac-serve", "watcher", "newsroom", "mcp-cron", "leash-broker", "hypha", "leash-mcp"];
 
 export async function GET(): Promise<Response> {
   return Response.json({ services: await servicesStatus() });

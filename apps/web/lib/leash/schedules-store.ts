@@ -31,13 +31,11 @@ import { cronList, cronGet, cronAdd, cronUpdate, cronRemove, cronResults, type C
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "..");
 
 /**
- * @deprecated leash-cron-era file paths. The schedules + run history now live in mcp-cron's
- * SQLite store, not these files. Kept exported only for the one-time leash-schedule.json
- * migration (Task 8) and back-compat; nothing in the live path reads them.
+ * The legacy leash-cron schedule-definitions file. Schedules + run history now live in mcp-cron's
+ * SQLite store; this path is referenced ONLY by the one-time migration in schedule-seed.ts, which
+ * imports any pre-existing entries into mcp-cron and then renames the file to `.migrated`.
  */
 export const SCHEDULE_FILE = process.env["LEASH_SCHEDULE_FILE"] ?? join(DATA_DIR, "leash-schedule.json");
-export const CRON_STATE_FILE = process.env["LEASH_CRON_STATE_FILE"] ?? join(DATA_DIR, "leash-cron-state.json");
-export const CRON_RUNS_FILE = process.env["LEASH_CRON_RUNS_FILE"] ?? join(DATA_DIR, "leash-cron-runs.jsonl");
 
 /** Scripts the scheduler may spawn (root package.json scripts; extend deliberately).
  *  `research` is special: it takes a question via `job.args[0]` and spawns the research

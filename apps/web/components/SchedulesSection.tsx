@@ -5,9 +5,9 @@ import { fetchWithTimeout } from "../lib/http.ts";
 import type { ScheduleEntry, CronScheduleState, CronRun, JobScript } from "../lib/leash/schedules-store.ts";
 
 /**
- * Schedule CRUD (client) — lives on the Cron service card. Definitions are web-owned
- * (data/leash-schedule.json); timing numbers (last/next run) come from the daemon's
- * own state file and show "—" until the daemon has seen the entry.
+ * Schedule CRUD (client) — lives on the Scheduler service card. Definitions + timing
+ * (last/next run, run history) are served by the schedules API, which is backed by the
+ * mcp-cron engine; the UI shape is unchanged from the leash-cron era.
  */
 
 const JOBS: JobScript[] = ["dream", "tag-photos"];

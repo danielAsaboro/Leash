@@ -7,7 +7,7 @@
  * default: when nothing genuinely warrants the user's attention the model replies `HEARTBEAT_OK`,
  * which we suppress. Otherwise its drained (non-streamed) reply is the proposal.
  *
- * Fired by leash-cron (kind: "heartbeat") via POST /api/leash/heartbeat, or by a leash-watch
+ * Fired by the scheduler (mcp-cron, kind: "heartbeat") via POST /api/leash/heartbeat, or by a leash-watch
  * context-switch. Part 4 layers tier classification (auto/notify/ask) on `runHeartbeat`'s result;
  * Part 5 turns a non-suppressed proposal into a delivered notification.
  */

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Build the "leash-daemons" OVERLAY bundle: the dashboard-managed daemons (hypha, watcher, newsroom,
-# leash-cron, leash-broker, leash-mcp, leash-tools-mcp) + their @mycelium packages + the npm deps
+# leash-broker, leash-mcp, leash-tools-mcp) + their @mycelium packages + the npm deps
+# (the scheduling engine is the separate `mcp-cron` Go binary, packaged by Task 7, not a tsx daemon).
 # the base qvac-runtime DOESN'T already carry. Downloaded on-demand (like the runtime) and extracted
 # INTO <qvac-runtime>/.leash-daemons/ — so the daemons resolve @qvac/sdk + tsx from the runtime one
 # dir up (no duplicating the heavy @qvac engines) and their own deps from this overlay's node_modules.
@@ -15,7 +16,7 @@ here="$(cd "$(dirname "$0")/.." && pwd)"        # apps/desktop
 repo="$(cd "$here/../.." && pwd)"               # monorepo root
 out="$here/leash-daemons"
 
-DAEMONS=(hypha leash-watch newsroom leash-cron leash-broker leash-mcp leash-tools-mcp)
+DAEMONS=(hypha leash-watch newsroom leash-broker leash-mcp leash-tools-mcp)
 MYC=(shared senses mesh mind db leash-core)     # @mycelium/* the daemons import (prebuilt dist)
 
 echo "[leash-daemons] building overlay → $out (keep $ARCH_KEEP prebuilds)"

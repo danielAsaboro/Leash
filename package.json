@@ -77,7 +77,6 @@
     "web:build": "npm run build -w @mycelium/web",
     "web:start": "npm run start -w @mycelium/web",
     "qvac": "qvac serve openai --port 11435",
-    "cron": "tsx apps/leash-cron/src/main.ts",
     "dream": "tsx apps/web/scripts/dream.mts",
     "warm:media": "tsx apps/web/scripts/warm-media.ts",
     "tag-photos": "tsx apps/web/scripts/tag-photos.mts",

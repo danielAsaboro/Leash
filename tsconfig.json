@@ -36,9 +36,6 @@
       "path": "apps/leash-watch"
     },
     {
-      "path": "apps/leash-cron"
-    },
-    {
       "path": "apps/leash-broker"
     },
     {
