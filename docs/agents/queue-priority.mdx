@@ -1,0 +1,78 @@
+---
+title: Priority & aging
+description: Cross-alias priority tiers with anti-starvation aging, plus optional mesh overflow to a warm peer.
+---
+
+When two requests contend for the same model alias, the [broker](/agents/queue) picks the next one by **aged priority**: a fixed tier rank, lowered by one level for every aging interval the request has already waited.
+
+## The tiers
+
+Each request carries a priority via the `X-Leash-Priority` header (or a path-based default). Lower rank is served first.
+
+| Priority | Rank | Default for | Meaning |
+| --- | --- | --- | --- |
+| `interactive` | `0` | chat completions (any path not matched below) | A human is waiting on the token stream |
+| `inline` | `1` | `/embeddings` requests | RAG / indexing work inside a turn |
+| `background` | `2` | (explicit tag) | Compaction, dream, research children |
+
+```ts
+const RANK = { interactive: 0, inline: 1, background: 2 };
+```
+
+<Note>
+  When a client doesn't tag a request, the broker defaults by path: anything containing `/embeddings` is `inline`, everything else is `interactive`.
+</Note>
+
+## Aging (anti-starvation)
+
+A waiting request gains **one priority level per `AGING_MS`** it has waited. A `background` job (rank 2) that has waited two aging intervals reaches effective rank `0` — so a flood of interactive requests can never starve it forever.
+
+```
+effective_rank = RANK[priority] - floor(wait_ms / AGING_MS)
+```
+
+The waiter with the lowest effective rank wins; ties break **FIFO** (lowest sequence number first).
+
+<Tip>
+  Default `AGING_MS` is **8000** ms, tunable via `LEASH_BROKER_AGING_MS`. Shorter → background work surfaces sooner; longer → interactive latency stays tighter under load.
+</Tip>
+
+## Mesh overflow (optional)
+
+Overflow is **purely additive** and **off by default** — unset `LEASH_BROKER_HYPHA_URL` and the broker behaves exactly as a local-only queue. When set, a saturated or unavailable alias can be shed to a paired peer's local OpenAI shim instead of waiting on the single local GPU.
+
+The decision happens **before** taking a local slot — the whole point is to not queue locally when a warm peer can take it. Overflow only ever targets a peer that holds the alias **warm** (never pay cold-start on the request path), and only for chat completions.
+
+<CardGroup cols={2}>
+  <Card title="availabilityRouted" icon="route">
+    The alias isn't served locally at all → route to a warm peer that has it.
+  </Card>
+  <Card title="shed" icon="water">
+    The local alias queue is already ≥ `OVERFLOW_DEPTH` deep → shed the overflow to a warm peer.
+  </Card>
+</CardGroup>
+
+If a peer can't serve before the first byte, the broker **falls through** to local (never drops). If it breaks after bytes were sent, the response ends truthfully (it can't re-route mid-stream). The same wedge rule holds throughout: if the client leaves, keep draining the shim.
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `LEASH_BROKER_HYPHA_URL` | *(unset → off)* | Hypha shim URL; presence enables overflow |
+| `LEASH_BROKER_OVERFLOW_DEPTH` | `2` | Local queue depth that triggers a `shed` |
+| `LEASH_BROKER_AGING_MS` | `8000` | Aging interval for the local queue |
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="The broker" icon="diagram-project" href="/agents/queue">
+    Per-alias serialization and the wedge rule.
+  </Card>
+  <Card title="Delegation" icon="share-nodes" href="/agents/delegation">
+    Delegated compute over the mesh.
+  </Card>
+  <Card title="Mesh" icon="circle-nodes" href="/platforms/mesh">
+    How peers pair and advertise warm models.
+  </Card>
+  <Card title="Economy" icon="coins" href="/platforms/economy">
+    Pricing and routing across providers.
+  </Card>
+</CardGroup>

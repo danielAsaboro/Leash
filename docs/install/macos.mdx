@@ -1,0 +1,153 @@
+---
+title: "macOS"
+description: "Install and run Leash on macOS — the desktop app or headless from the repo."
+sidebarTitle: "macOS"
+---
+
+macOS is Leash's primary platform. Run it two ways: the **desktop app** (Electron, picks a data folder and supervises the daemons for you) or **headless** (run the web server straight from the repo — ideal for a Mac mini or a mesh provider).
+
+<Tabs>
+  <Tab title="Desktop app">
+    The desktop app wraps the Leash web UI in an Electron window and starts the supervised services for you. Its only persisted setting is the **base folder** you pick on first launch; everything per-user lives underneath it.
+
+    ### Requirements
+
+    - macOS 13 Ventura or later
+    - ~5 GB free disk for model weights (on the volume you choose during setup)
+    - Node.js 22+ (24 recommended) and npm 11 — only needed if you also run from the repo
+
+    ### First launch — the setup wizard
+
+    On first launch the app shows a native folder picker:
+
+    <Steps>
+      <Step title="Choose a base folder">
+        Pick any folder on any mounted volume (including an external SSD), or accept the default (your home directory). This is the **base**; Leash creates `<base>/Leash/<userId>/` underneath it.
+      </Step>
+      <Step title="Confirm">
+        The wizard shows the resolved Leash base (`<base>/Leash`) before writing it.
+      </Step>
+      <Step title="Grant macOS permissions">
+        Grant the permissions Leash needs at first use (table below). Chat works without any of them; the screen watcher and voice are opt-in.
+      </Step>
+    </Steps>
+
+    The choice is persisted to `~/Library/Application Support/Leash/install.json`:
+
+    ```json
+    { "version": 1, "base": "<the folder you chose>" }
+    ```
+
+    <Tip>
+      To redo the wizard, delete `~/Library/Application Support/Leash/install.json` and relaunch. An invalid or missing file simply re-shows setup.
+    </Tip>
+  </Tab>
+
+  <Tab title="Headless (from the repo)">
+    Useful for a Mac mini acting as a mesh provider, or for development.
+
+    <Steps>
+      <Step title="Get the repo">
+        Clone or rsync the repo to `~/mycelium`.
+      </Step>
+      <Step title="Install dependencies">
+        ```bash
+        cd ~/mycelium
+        npm install   # once, FOREGROUND only — never in background (races node_modules)
+        ```
+      </Step>
+      <Step title="Start the model serve">
+        ```bash
+        npm run qvac        # qvac serve openai on :11435 (reads qvac.config.mjs)
+        ```
+      </Step>
+      <Step title="Start the web server">
+        ```bash
+        npm run web:dev     # dev
+        # production: npm run web:build && npm run web:start
+        ```
+        The web UI is at <code>http://localhost:6801</code>.
+      </Step>
+      <Step title="(Optional) start the mesh daemon">
+        ```bash
+        npm run hypha       # control plane :11437, LAN pairing :11438
+        # or directly: npx tsx apps/hypha/src/main.ts
+        ```
+      </Step>
+    </Steps>
+
+    <Warning>
+      Never run `npm install` in the background — a concurrent install can race and empty `node_modules`.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## Data directory layout
+
+The base you pick maps to a per-user directory at `<base>/Leash/<userId>/`, created by the supervisor:
+
+```
+<base>/Leash/<userId>/
+├── soul.md                       # who you are (constitution)
+├── goals.md                      # your goals (constitution)
+├── heartbeat.md                  # heartbeat checklist (constitution)
+├── notes/                        # markdown notes (RAG-indexed)
+├── leash-chats/                  # one JSON per conversation
+├── leash-activity.jsonl          # screen-watcher trail
+├── leash-heartbeat-state.json    # heartbeat dedup state
+└── leash-audit.jsonl             # inference audit log
+```
+
+Model weights live separately in the SDK cache at `~/.qvac/models`, not under the base folder.
+
+## macOS permissions
+
+Leash requests these at first use. Grant them in **System Settings → Privacy & Security**.
+
+| Permission | Used for |
+|---|---|
+| Screen Recording | Screen watcher captures frames for the on-device VLM summary |
+| Accessibility | Screen watcher reads app/window titles; computer-use tools (`cliclick`) |
+| Microphone | Voice call (STT) |
+| Local Network | Hypha daemon discovers and connects to mesh peers on the LAN |
+
+<Note>
+  Chat, memory, research, and economy all work without any of these. Screen Recording, Accessibility, and Microphone gate only the screen watcher, computer use, and voice — each is opt-in.
+</Note>
+
+## Model cache on an external SSD
+
+GGUF weights are large. To keep them off the Mac SSD, symlink the SDK cache to an external drive:
+
+```bash
+mv ~/.qvac "/Volumes/Your SSD/ai models"
+ln -s "/Volumes/Your SSD/ai models" ~/.qvac
+```
+
+The SDK resolves its default `~/.qvac/...` paths and follows the symlink transparently — no config change.
+
+<Warning>
+  Never copy `~/.qvac` between machines with plain `rsync -a` or `cp`. macOS rsync strips xattrs, and corestore stamps a `device-file` xattr on each store; losing it bricks the store with "Invalid device file, was moved unsafely". Use `rsync -aX`, or just re-download models per machine (it's P2P anyway).
+</Warning>
+
+## Updating
+
+- **Desktop app** — auto-updates on launch.
+- **Headless** — pull the latest code (e.g. rsync from your build machine), then re-run `npm install` in the foreground if `package.json` changed.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" href="/quickstart" icon="rocket">
+    Send your first message and verify inference is local.
+  </Card>
+  <Card title="Desktop platform" href="/platforms/desktop" icon="desktop">
+    install.json, data layout, auto-update, permissions.
+  </Card>
+  <Card title="Models" href="/models/overview" icon="boxes-stacked">
+    Which models run where and how to configure them.
+  </Card>
+  <Card title="Ports & processes" href="/reference/runtime-ports-and-processes" icon="diagram-project">
+    Every local port, command, and health endpoint.
+  </Card>
+</CardGroup>

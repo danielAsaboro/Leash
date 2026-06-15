@@ -1,0 +1,114 @@
+---
+title: "macOS Desktop"
+description: "The Leash desktop app — an Electron wrapper around the web UI with a setup wizard, bundled daemons, and OS integration."
+sidebarTitle: "macOS Desktop"
+---
+
+The desktop app wraps the Leash web UI in an Electron window (macOS only) and supervises the local services for you. It is the easiest way to run Leash on a Mac.
+
+## What the desktop adds over headless
+
+| Capability | Headless | Desktop |
+|---|---|---|
+| Pick a data folder | Manual env setup | First-run native folder picker |
+| Start daemons | Manual `npm run …` | Supervised on launch |
+| OS permission prompts | Manual | Guided at first run |
+| OS notifications | — | Native toast |
+| Updates | Re-sync code + `npm install` | Built-in auto-update |
+
+## Setup wizard
+
+On first launch the app's only job is to persist which **base folder** you pick — all per-user scoping then lives in the shared supervisor.
+
+<Steps>
+  <Step title="Choose a base folder">
+    A native picker (`openDirectory`, with create-folder enabled). Choosing `default` resolves to your home directory; otherwise the chosen absolute path is used.
+  </Step>
+  <Step title="Confirm the resolved base">
+    The wizard shows `<base>/Leash` so you can confirm before it's written.
+  </Step>
+  <Step title="Grant permissions">
+    Grant the macOS permissions Leash needs (see below).
+  </Step>
+</Steps>
+
+The choice is written to `~/Library/Application Support/Leash/install.json`:
+
+```json
+{ "version": 1, "base": "<the folder you chose>" }
+```
+
+Only a well-formed config (`version === 1`, non-empty `base`) is accepted — anything else re-shows the wizard.
+
+<Tip>
+  To redo setup, delete `~/Library/Application Support/Leash/install.json` and relaunch.
+</Tip>
+
+## Data directory layout
+
+The supervisor creates a per-user directory at `<base>/Leash/<userId>/`:
+
+```
+<base>/Leash/<userId>/
+├── soul.md                       # who you are (constitution)
+├── goals.md                      # your goals (constitution)
+├── heartbeat.md                  # heartbeat checklist (constitution)
+├── notes/                        # markdown notes (RAG-indexed)
+├── leash-chats/                  # one JSON per conversation
+├── leash-activity.jsonl          # screen-watcher trail
+├── leash-heartbeat-state.json    # heartbeat dedup state
+└── leash-audit.jsonl             # inference audit log
+```
+
+Model weights are not stored here — they live in the SDK cache at `~/.qvac/models`.
+
+## macOS permissions
+
+Grant these in **System Settings → Privacy & Security**.
+
+| Permission | What uses it |
+|---|---|
+| Screen Recording | Screen watcher frames for the on-device VLM summary |
+| Accessibility | Screen watcher app/window titles; computer-use tools (`cliclick`) |
+| Microphone | Voice call (STT) |
+| Local Network | Hypha mesh daemon (P2P peer discovery on the LAN) |
+
+<Note>
+  Chat, memory, research, and economy work with none of these granted. Each gates only its opt-in feature.
+</Note>
+
+## Auto-update
+
+The desktop app checks for and applies updates on launch — no manual code re-sync or `npm install` needed (that's only for the headless path).
+
+## Model cache on an external SSD
+
+GGUF weights are large. Symlink the SDK cache to an external drive to keep them off the Mac SSD:
+
+```bash
+mv ~/.qvac "/Volumes/Your SSD/ai models"
+ln -s "/Volumes/Your SSD/ai models" ~/.qvac
+```
+
+The SDK follows the symlink transparently — no config change.
+
+<Warning>
+  Never copy `~/.qvac` between machines with plain `rsync -a` or `cp`. macOS rsync strips xattrs, and corestore stamps a `device-file` xattr per store; losing it bricks the store with "Invalid device file, was moved unsafely". Use `rsync -aX`, or re-download models per machine (it's P2P anyway).
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Install on macOS" href="/install/macos" icon="apple">
+    Desktop vs. headless, step by step.
+  </Card>
+  <Card title="Platforms overview" href="/platforms/overview" icon="layer-group">
+    All surfaces and the mesh.
+  </Card>
+  <Card title="Mesh" href="/platforms/mesh" icon="circle-nodes">
+    Pair a second device.
+  </Card>
+  <Card title="Ports & processes" href="/reference/runtime-ports-and-processes" icon="diagram-project">
+    Every port and command.
+  </Card>
+</CardGroup>

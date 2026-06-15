@@ -1,0 +1,70 @@
+---
+title: "Grounding & citations"
+description: "Retrieval over your private context graph, typed-memory recall, the live screen trail — and how source chips appear in answers."
+sidebarTitle: "Grounding"
+---
+
+Leash answers from *your* facts, not its priors. The context tool group gives the agent on-device retrieval over your private graph and your live screen activity — every passage it pulls becomes a citable source.
+
+## The context tools
+
+<CardGroup cols={3}>
+  <Card title="search_graph" icon="magnifying-glass">
+    RAG over your notes, files, voice memos, and past conversations.
+  </Card>
+  <Card title="active_context" icon="display">
+    What you're doing on screen **right now**.
+  </Card>
+  <Card title="activity_recent" icon="clock-rotate-left">
+    Your screen activity over the last N minutes.
+  </Card>
+</CardGroup>
+
+### search_graph
+
+The retrieval workhorse. The agent calls it whenever answering needs private facts about you, your devices, projects, preferences, or what was said in an earlier chat — instead of guessing.
+
+| Input | Type | Default |
+|-------|------|---------|
+| `query` | string (natural language) | required |
+| `topK` | int, 1–8 | 3 |
+
+Each hit returns the passage text plus a typed source (`Note · <source>`), and snippets are trimmed to ~200 chars for the citation chip.
+
+<Note>
+`search_graph` embeds the query on-device, so it **requires the `gte-large` embedding alias** to be served. Without it, retrieval is unavailable.
+</Note>
+
+### active_context & activity_recent
+
+Both read the on-device screen watcher (`npm run watch`, which needs Screen Recording permission):
+
+- **`active_context`** returns the most recent observed app, window, and one-line summary, with an "as of 12m ago" freshness label.
+- **`activity_recent`** takes a `minutes` window (1–1440, default 30) and returns a timeline of observed apps and tasks.
+
+If the watcher has recorded nothing yet, both tools say so and point you at `npm run watch` rather than fabricating activity.
+
+## Recall — typed memories
+
+Beyond graph search, the agent recalls **typed memories** (the durable facts it has consolidated about you). Memory retrieval and the graph feed the same answer: graph passages are the raw private corpus; typed memories are the distilled, categorized facts. See [Memory](/agents/memory) and [Memory types](/agents/memory-types).
+
+## How citations surface
+
+Every grounding tool returns `{ text, sources }`. The `sources` array (kind `graph`, a title, and a trimmed snippet) flows to the client as **source chips**, and the model is steered to cite them inline as `[Source N]` so a claim can be traced to the passage it came from. A turn that pulls nothing returns an empty source list — no chips, no invented citation.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Memory" icon="database" href="/agents/memory">
+    The typed-memory store the agent recalls from.
+  </Card>
+  <Card title="Memory types" icon="tags" href="/agents/memory-types">
+    The categories a fact can be filed under.
+  </Card>
+  <Card title="Context assembly" icon="layer-group" href="/agents/context">
+    Where the context tools sit in the active toolset.
+  </Card>
+  <Card title="Chat models" icon="microchip" href="/models/modality/chat">
+    The chat and embedding aliases behind retrieval.
+  </Card>
+</CardGroup>

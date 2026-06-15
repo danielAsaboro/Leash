@@ -1,13 +1,156 @@
 ---
 title: "Quickstart"
-description: "Compatibility page for the old quickstart route."
+description: "Install Leash, start the on-device serve and web app, and have your first grounded conversation — in about five minutes."
+sidebarTitle: "Quickstart"
 ---
 
-This route has been replaced by the tutorial-first docs structure.
+Leash runs entirely on your own machine. This guide gets the on-device model serve and the
+web app running, then walks you through a chat answer grounded in a note you control — all
+without a cloud AI API in the loop.
 
-Use [First local mesh](/tutorials/first-local-mesh) for the guided path, or jump
-straight to [How to run Leash locally](/guides/run-leash-locally) if you already know
-the basics.
+## What you need
 
-For the rest of the new structure, use the sidebar's `Tutorials`, `How-to Guides`,
-`Reference`, and `Explanation` groups.
+- **macOS on Apple Silicon** (M1 or later) is the reference setup. Linux runs headless; Windows is not yet supported.
+- **Node 22+** (24 recommended) and **npm 11+**.
+- **~5 GB of free disk** for the model weights downloaded on first run.
+- The `mycelium` repo checked out locally.
+
+<Tip>
+The very first run downloads model weights and bootstraps the mesh — this needs network.
+After that one-time warm-cache, local chat and retrieval work fully offline (airplane mode
+is an acceptance bar for the project).
+</Tip>
+
+## Set it up
+
+<Steps>
+  <Step title="Install dependencies">
+    From the repo root:
+
+    ```bash
+    cd mycelium
+    npm install
+    ```
+
+    <Warning>
+    Run `npm install` in the **foreground**, never in the background. A concurrent install
+    can race and empty `node_modules`.
+    </Warning>
+  </Step>
+
+  <Step title="Start the on-device serve">
+    In one terminal, start the QVAC model serve. It reads `qvac.config.mjs` and preloads the
+    configured model aliases:
+
+    ```bash
+    npm run qvac
+    ```
+
+    Wait for the preload to finish, then confirm it is answering on `:11435`:
+
+    ```bash
+    curl -s http://127.0.0.1:11435/v1/models | jq '.data[].id'
+    ```
+
+    You should see the served aliases — at minimum `chat` and `gte-large`.
+  </Step>
+
+  <Step title="Start the web app">
+    In a second terminal:
+
+    ```bash
+    npm run web:dev
+    ```
+
+    Then open **`http://localhost:6801`**. On first launch you'll complete a short setup
+    (choose your data folder), then land in the chat interface at `/chat`.
+  </Step>
+
+  <Step title="Add a note to ground an answer">
+    Drop a markdown note with a fact the model can't guess into your notes folder:
+
+    ```bash
+    mkdir -p data/notes
+    printf '# workshop\n\nThe test phrase is: cedar lanterns at low tide.\n' > data/notes/workshop.md
+    ```
+  </Step>
+
+  <Step title="Ask a grounded question">
+    In Leash chat, ask:
+
+    > What is the workshop test phrase in my notes?
+
+    Leash calls `search_graph` (RAG over your notes), retrieves the passage, and answers with
+    a **source chip** pointing back at `workshop.md`. The serve terminal shows the local
+    completion activity — proof the answer used on-device inference plus on-device retrieval.
+  </Step>
+</Steps>
+
+<Note>
+Want the proactive features (live screen activity for `active_context`, activity-aware voice
+fillers, the heartbeat)? Start the screen watcher in a third terminal: `npm run watch`, and
+grant **Screen Recording** in System Settings → Privacy & Security.
+</Note>
+
+## Get the full assistant kit
+
+The quickstart needs only `chat` + `gte-large`. To unlock voice, vision, and image
+generation, wire the full set of aliases in one step from **Brain → Models → Kit**:
+
+| Alias | Unlocks |
+|-------|---------|
+| `chat` | All text turns (required) |
+| `gte-large` | RAG search, memory, skill activation (required) |
+| `parakeet` | Voice call speech-to-text |
+| `supertonic` | Voice call text-to-speech |
+| `qwen3vl` | Screenshots and screen-watcher vision |
+| `sd` | On-device image generation |
+
+→ See [Models overview](/models/overview) for the alias system and hardware-fit math.
+
+## What's next
+
+<Columns cols={2}>
+  <Card title="Chat, grounded in your data" icon="messages-square" href="/channels/chat">
+    Source chips, plan mode, the model picker, and tool approvals.
+  </Card>
+  <Card title="Shape who the agent is" icon="brain" href="/agents/overview">
+    The constitution — soul, goals, and the proactive heartbeat.
+  </Card>
+  <Card title="Give it capabilities" icon="wrench" href="/capabilities/overview">
+    Tool groups, skills, and the built-in MCP server.
+  </Card>
+  <Card title="Pair a second device" icon="circle-nodes" href="/platforms/mesh">
+    Build the encrypted mesh and borrow inference from a peer.
+  </Card>
+</Columns>
+
+## Verify and troubleshoot
+
+<AccordionGroup>
+  <Accordion title="The chat hangs with no tokens">
+    The `qwen3-4b` serve hangs at zero tokens if a tool-enabled turn has **no** active tools
+    (all MCP groups disabled) or **too many** (>22 schemas overflow the prompt). Enable at
+    least one MCP group in Brain → MCP, and keep the active count ≤ 22. See
+    [General troubleshooting](/help/troubleshooting).
+  </Accordion>
+  <Accordion title="The serve exits immediately">
+    `qvac.config.base.json` must list at least one alias with its weight downloaded. Use
+    Brain → Models → Kit to generate a valid config, then restart `npm run qvac`.
+  </Accordion>
+  <Accordion title="Useful environment variables">
+    | Variable | Default | Purpose |
+    |----------|---------|---------|
+    | `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | Where the app calls the serve |
+    | `LEASH_DATA_DIR` | `<repo>/data` | Your per-user data directory |
+    | `QVAC_MODELS_DIR` | `~/.qvac/models` | Model weight cache |
+
+    Full list: [Environment variables](/help/environment-variables).
+  </Accordion>
+</AccordionGroup>
+
+## Related
+
+- [First local mesh](/tutorials/first-local-mesh) — the same path with deeper verification steps
+- [macOS install](/install/macos) — desktop app, data dir layout, permissions
+- [Runtime ports and processes](/reference/runtime-ports-and-processes) — every port and health check

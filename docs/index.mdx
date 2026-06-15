@@ -17,53 +17,51 @@ what makes it work.
 ## What you can do with it
 
 <CardGroup cols={2}>
-  <Card title="Chat, grounded in your data" icon="messages-square" href="/guides/chat">
+  <Card title="Chat, grounded in your data" icon="messages-square" href="/channels/chat">
     Ask questions answered from your notes, activity, and past chats — with source chips,
     plan mode, and tool approvals.
   </Card>
-  <Card title="Run a device mesh" icon="circle-nodes" href="/guides/mesh">
+  <Card title="Run a device mesh" icon="circle-nodes" href="/platforms/mesh">
     Pair your machines over an encrypted swarm and let heavy turns run on whichever peer
     has the model warm.
   </Card>
-  <Card title="Borrow a modality" icon="shuffle" href="/guides/borrow-a-modality-from-a-peer">
-    Borrow vision, embeddings, speech-to-text, or text-to-speech from a peer that serves
-    the model you lack.
+  <Card title="Talk and watch the screen" icon="mic" href="/channels/voice">
+    Hands-free voice calls with on-device STT and TTS, plus screen-aware computer use.
   </Card>
-  <Card title="Earn and spend compute" icon="coins" href="/guides/economy">
+  <Card title="Earn and spend compute" icon="coins" href="/platforms/economy">
     The mesh runs a micro-economy: serve inference to earn, borrow to spend, settled
     on-chain per completion.
   </Card>
-  <Card title="Browse the model catalog" icon="layers" href="/guides/use-the-model-catalog">
-    Filter a 729-model catalog, download a model, share it to the mesh, and tune its
+  <Card title="Browse the model catalog" icon="layers" href="/models/catalog">
+    Filter a large model catalog, download a model, share it to the mesh, and tune its
     CPU/GPU and context size to fit your RAM.
   </Card>
-  <Card title="Teach repeatable skills" icon="wand-sparkles" href="/guides/build-multi-skill-workflows">
-    Compose skills into multi-step workflows that the harness runs as focused sub-agents.
+  <Card title="Teach repeatable skills" icon="wand-sparkles" href="/capabilities/skills">
+    Compose skills the agent activates on its own, with their own focused toolsets.
   </Card>
-  <Card title="Operate the machine" icon="terminal" href="/guides/computer-use">
+  <Card title="Operate the machine" icon="terminal" href="/channels/computer-use">
     Read files, run commands, and drive the GUI — every side effect behind an approval card.
   </Card>
-  <Card title="Read your own paper" icon="newspaper" href="/guides/read-the-understory-feed">
-    The Understory is an autonomous local newsroom that researches, drafts, and publishes
-    about your world.
+  <Card title="Automate proactively" icon="bot" href="/agents/heartbeat">
+    The heartbeat checks your goals and activity on a timer and surfaces a nudge when it matters.
   </Card>
 </CardGroup>
 
 ## How it is built
 
 <CardGroup cols={2}>
-  <Card title="What Leash is" icon="dog" href="/explanation/what-mycelium-is">
-    The product and the engine: how Leash sits on top of the Mycelium runtime.
+  <Card title="What Leash is" icon="dog" href="/help/leash-lore">
+    The product and the engine: how Leash sits on top of the Mycelium runtime, and the
+    five layers — mesh, senses, mind, memory, clients.
   </Card>
-  <Card title="Architecture" icon="waypoints" href="/explanation/architecture">
-    The five layers — mesh, senses, mind, memory, clients — and how a request moves
-    through them.
+  <Card title="Where it runs" icon="server" href="/platforms/overview">
+    The surfaces (desktop, web, mobile) and the encrypted device mesh that links them.
   </Card>
-  <Card title="The agent economy" icon="receipt" href="/explanation/the-agent-economy">
-    Why machine-payable compute, and how x402 pre-auth, metering, and on-chain settlement fit.
+  <Card title="The agent economy" icon="receipt" href="/platforms/economy">
+    Why machine-payable compute, and how pre-auth, metering, and on-chain settlement fit.
   </Card>
-  <Card title="The skills harness" icon="boxes" href="/explanation/the-skills-harness">
-    Skills-first routing, RRF matching, sub-agent orchestration, and deterministic pipelines.
+  <Card title="The skills harness" icon="boxes" href="/capabilities/skills">
+    Skills-first routing, semantic activation, focused toolsets, and composition.
   </Card>
   <Card title="Workspace map" icon="folders" href="/reference/workspace-map">
     The monorepo: packages for shared logic, senses, mind, mesh, memory, and database, plus
@@ -121,8 +119,8 @@ material.
 
 ## Start here
 
-- Learn the local path: [First local mesh](/tutorials/first-local-mesh)
-- Run the main surface: [How to run Leash locally](/guides/run-leash-locally)
-- Have your first grounded conversation: [Chat, memory & recall](/guides/chat)
-- Add a second machine: [Pair a second device](/guides/pair-a-second-device)
-- Understand the system: [What Leash is](/explanation/what-mycelium-is)
+- Get running in five minutes: [Quickstart](/quickstart)
+- Learn the local path with deeper checks: [First local mesh](/tutorials/first-local-mesh)
+- Have your first grounded conversation: [Chat](/channels/chat)
+- Add a second machine: [Mesh](/platforms/mesh)
+- Understand the system: [Leash lore](/help/leash-lore)

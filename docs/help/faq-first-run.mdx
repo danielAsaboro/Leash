@@ -1,0 +1,77 @@
+---
+title: "First-run FAQ"
+description: "Getting past the first-run hurdles — model download, serve setup, and permissions."
+sidebarTitle: "First-run FAQ"
+---
+
+## The model is downloading — how long will this take?
+
+Depends on your internet and the model size:
+
+| Model | Size | Time (100 Mb/s) |
+|-------|------|-----------------|
+| qwen3-4b (chat) | ~2.5 GB | ~3 min |
+| gte-large (embeddings) | ~0.6 GB | ~1 min |
+| parakeet (STT) | ~0.7 GB | ~1 min |
+| supertonic (TTS) | ~0.5 GB | ~1 min |
+| qwen3vl (vision) | ~1.5 GB | ~2 min |
+
+Download progress is shown in Brain → Models → Catalog. After the first download, everything runs offline.
+
+## The serve starts but exits immediately
+
+Check `qvac.config.base.json` — it must have at least one alias entry:
+
+```json
+{
+  "serve": {
+    "models": {
+      "chat": {
+        "model": "QWEN3_4B_Q4_K_M",
+        "preload": true,
+        "default": true,
+        "config": { "ctx_size": 32768 }
+      }
+    }
+  }
+}
+```
+
+If the file is empty or missing the `serve.models` object, the serve has nothing to load and exits. Use **Brain → Models → Kit** to generate the full config automatically.
+
+## "serve is down" immediately on first open
+
+1. Run `qvac serve openai` in a terminal and watch for errors.
+2. If it fails with "model not found": the GGUF file isn't downloaded yet. Go to Brain → Models → Catalog, find `qwen3-4b`, and click Download.
+3. If it fails with a port conflict: something else is on `:11435`. Set `QVAC_OPENAI_URL` to a different port and update the serve command.
+
+## The first chat message takes a very long time
+
+Normal — the model loads lazily on first request (the "cold start"). On a Mac M1 with the model on an SSD, the first message takes 30–60 seconds. Subsequent messages are fast (the model stays loaded in KV memory).
+
+Enable `preload: true` for the `chat` alias to make it load at serve start instead.
+
+## macOS asked for Accessibility permission but I accidentally denied it
+
+Go to **System Settings → Privacy & Security → Accessibility**, find Leash or the Terminal, and enable it. For headless runs, add the terminal emulator you use.
+
+## No text appears after the cursor in voice call
+
+This means STT transcription returned empty. Causes:
+- `parakeet` alias isn't served — check Brain → Models
+- Mic permission denied — check System Settings → Privacy → Microphone
+- VAD fired too early or utterance was too quiet — speak louder or closer to the mic
+
+## Brain → Models → Catalog shows "loading..." forever
+
+The catalog fetch runs `qvac catalog` via a helper script. If the serve isn't running, the catalog can't list remote models. Start the serve first:
+
+```bash
+qvac serve openai
+```
+
+Then reload the catalog page.
+
+## Where is the data folder on the desktop app?
+
+The desktop wizard wrote it to `~/Library/Application Support/Leash/install.json`. Open that file to see the base path. The full data dir is `<base>/Leash/<userId>/`.

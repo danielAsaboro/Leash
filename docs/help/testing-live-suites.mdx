@@ -1,0 +1,77 @@
+---
+title: "Live test suites"
+description: "Running the spike and integration test suites against a live QVAC serve."
+sidebarTitle: "Live test suites"
+---
+
+Leash's integration tests run against a **live** QVAC serve — they are not unit tests with mocks. The serve must be running before you execute them.
+
+## Prerequisites
+
+```bash
+# 1. Start the serve
+qvac serve openai
+
+# 2. Wait for models to load
+curl http://127.0.0.1:11435/v1/models | jq '.data[].id'
+# Should show: ["chat", "gte-large", ...]
+```
+
+## Spike test suite
+
+The spike (`mycelium/spike/`) was the Day 1–3 proof-of-concept. Its tests verify the four primitives that gated Week 1:
+
+```bash
+cd mycelium/spike
+npm run test
+```
+
+Tests cover:
+- On-device inference + embeddings
+- On-device RAG (HyperDB graph store)
+- Encrypted P2P delegated compute
+- On-device LoRA (QVAC Fabric)
+
+Each test emits JSONL audit records to `spike/data/spike-audit.jsonl` — keep these as hackathon evidence.
+
+## Web API route tests
+
+```bash
+cd mycelium/apps/web
+npm run test
+```
+
+These hit the Next.js API routes directly (no browser) with a live serve. They cover:
+- `POST /api/leash/chat` — basic chat turn, tool-loop
+- `POST /api/leash/heartbeat` — heartbeat propose+classify
+- `GET /api/leash/models` — inventory list
+- `POST /api/leash/constitution` — read/write soul/goals/heartbeat
+
+## MCP daemon tests
+
+```bash
+cd mycelium/packages/leash-core
+npm run test
+```
+
+These start the `leash-tools-mcp` daemon and run MCP protocol calls through it:
+- Tool listing
+- Tool execution (memory, tasks, context)
+- Group enable/disable
+
+## Running a single test file
+
+```bash
+cd mycelium
+npx tsx --test spike/tests/inference.test.ts
+```
+
+## Interpreting failures
+
+**`serve is down` errors** — the test couldn't reach `http://127.0.0.1:11435`. Start `qvac serve openai`.
+
+**`model not READY` errors** — the alias the test needs isn't in the config or hasn't finished loading. Wait 60s and retry, or add the alias to `qvac.config.base.json`.
+
+**Timeout on first assertion** — cold start. The first inference call loads the model (30–60s). Re-run.
+
+**Embedding dimension mismatch** — the `gte-large` model changed or was swapped. Re-index: `npm run index`.

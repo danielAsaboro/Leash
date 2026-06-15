@@ -1,0 +1,100 @@
+---
+title: "Creating skills"
+description: "How to write a SKILL.md — the format, frontmatter fields, body conventions, and attachment layout."
+sidebarTitle: "Creating skills"
+---
+
+A skill is a directory under `data/skills/<slug>/` with a `SKILL.md` file at its root and optional attachment folders.
+
+## SKILL.md format
+
+```markdown
+---
+name: My Skill
+description: One-sentence description used for semantic activation matching.
+enabled: true
+allowed-tools: search_graph, recall, create_task
+when_to_use: When the user asks about X or wants to do Y.
+steps:
+  - Step one: do this
+  - Step two: then do that
+examples:
+  - "Show me my tasks for today"
+  - "Remind me every morning to review goals"
+---
+
+# My Skill
+
+The body of the skill — what the agent reads when this skill activates.
+
+Write clear, specific instructions. Be precise about which tools to call and what to return.
+
+## When the user asks X
+
+Call `search_graph` with the user's query. Summarize the top results.
+
+## When the user wants Y
+
+Call `create_task` with the extracted title and priority.
+```
+
+## Frontmatter fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Display name, also determines the slug |
+| `description` | Yes | Semantic activation signal — make it specific |
+| `enabled` | No | Default `true`; set `false` to ship disabled |
+| `allowed-tools` | No | Comma-separated tool names; overrides the route's default toolset when the skill activates |
+| `when_to_use` | No | Extra context for the activation classifier |
+| `steps` | No | Up to 12 ordered steps; surfaced in the Brain Skills panel |
+| `examples` | No | Up to 12 example user messages; used for semantic matching |
+| `builtin` | No | Set `true` for skills shipped with Leash (prevents deletion) |
+
+## The `allowed-tools` field
+
+When a skill declares `allowed-tools`, those tools become the **exact active toolset** for any turn where the skill is active — overriding the route's default.
+
+```markdown
+---
+allowed-tools: search_graph, recall, create_task
+---
+```
+
+The skill-system tools (`read_skill`, `read_skill_file`, `run_skill_script`, `run_skill`) are always included so a skill can compose with others.
+
+Cap: 18 tools max. If more are declared, the excess is truncated (a warning is logged).
+
+## Folder layout
+
+```
+data/skills/my-skill/
+  SKILL.md             # required
+  references/
+    style-guide.md     # read with read_skill_file
+    api-reference.md
+  scripts/
+    process.sh         # run with run_skill_script (approval-gated)
+  assets/
+    template.txt       # referenced by the skill body
+```
+
+## Composing skills
+
+A skill can load another skill mid-turn using the built-in skill-system tools:
+
+- `read_skill("other-slug")` — read another skill's body and description
+- `read_skill_file("other-slug", "references/guide.md")` — read an attachment from another skill
+- `run_skill_script("other-slug", "scripts/run.sh")` — run another skill's script
+
+This lets a skill delegate to a specialist without the harness pre-loading all skills.
+
+## Size limits
+
+- Each SKILL.md body: up to ~64 KB (practical limit — larger bodies cost more prompt tokens on activation)
+- Each attachment file (`references/`, `assets/`): read via `read_skill_file` at up to 64 KB per call
+- Total skill folder: no hard cap, but keep it navigable
+
+## Validation
+
+A skill slug must match `[a-z0-9][a-z0-9-]*` (lowercase alphanumeric with hyphens). Leash validates on save and import — an invalid name raises an error before writing.

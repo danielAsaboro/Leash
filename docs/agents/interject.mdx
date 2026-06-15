@@ -1,0 +1,73 @@
+---
+title: "Mid-turn interject"
+description: "Queue a follow-up while the agent is busy — a per-chat flag the agent loop reads at each step boundary, ending the running turn cleanly so your next message sends as a normal turn."
+sidebarTitle: "Interject"
+---
+
+Interject lets you steer a live turn. While the agent is mid-flight — looping over tool calls or grinding through a plan — you can queue a follow-up; the running turn finishes cleanly at its next step boundary, and your queued message then sends as a normal, visible turn.
+
+## The mechanism
+
+Interject is a **per-chat boolean**: "the user has a follow-up waiting; end the running turn at its next step boundary." It is a process-local in-memory set — fitting for a single-user, single-process on-device app, where the flag only matters for the few seconds a turn is live.
+
+<Steps>
+  <Step title="Client queues a message">
+    The user types while a turn is busy. The client `POST`s to `/api/leash/chat/interject`, which calls `requestInterject(chatId)` — adding the chat to the pending set.
+  </Step>
+  <Step title="The agent loop checks at each boundary">
+    The agent loop's `stopWhen` reads `interjectRequested(chatId)` **after each step**; the plan pipeline reads it **between steps**. When it fires, the turn finishes cleanly after the current step — no torn tool call, no half-written plan step.
+  </Step>
+  <Step title="The queued message sends as a normal turn">
+    Once the turn ends, the client's queue sends the waiting message as a normal, visible turn.
+  </Step>
+  <Step title="The route clears it at turn start">
+    Every turn calls `clearInterject(chatId)` at the start, so a stale flag never leaks into the turn it was meant to start.
+  </Step>
+</Steps>
+
+## API
+
+| Function | Role |
+|----------|------|
+| `requestInterject(chatId)` | Ask the chat's running turn to yield after its next step. |
+| `interjectRequested(chatId)` | Has an interject been requested? (read by `stopWhen` + the plan pipeline). |
+| `clearInterject(chatId)` | Clear the flag — called at the start of each turn, and once consumed. |
+
+The flag is set over HTTP via `POST /api/leash/chat/interject`; the rest is internal to the agent loop.
+
+## The cross-bundle globalThis singleton
+
+The pending set lives on `globalThis`, not as a plain module-level `Set` — and this detail is load-bearing:
+
+<Warning>
+Next bundles the `/interject` route and the `/chat` route **separately**. A plain module-level `Set` would be a **different instance** in each bundle — the flag would be set in one and read as `false` in the other, so interject would silently never fire.
+</Warning>
+
+```ts
+// Shared across route bundles (and survives dev HMR reloads):
+const g = globalThis as unknown as { __leashInterject?: Set<string> };
+const pending: Set<string> = (g.__leashInterject ??= new Set<string>());
+```
+
+The `globalThis` singleton is the same pattern Leash uses for elicitations, inflight tracking, and MCP — one shared instance across route bundles, surviving dev HMR reloads.
+
+<Note>
+Interject ends a turn at a **step boundary**, not by killing it. In-flight work for the current step completes; the loop just stops requesting the next step. That clean exit is why the queued message can follow as an ordinary turn.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Runtime" icon="gears" href="/agents/runtime">
+    The agent loop and its step boundaries.
+  </Card>
+  <Card title="Plan mode" icon="list-check" href="/agents/plan-mode">
+    The step pipeline interject reads between steps.
+  </Card>
+  <Card title="Queue" icon="layer-group" href="/agents/queue">
+    How queued messages are scheduled.
+  </Card>
+  <Card title="Sessions" icon="comments" href="/agents/sessions">
+    The chat the flag is keyed to.
+  </Card>
+</CardGroup>

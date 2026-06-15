@@ -1,0 +1,113 @@
+---
+title: "Node / tsx crash guide"
+description: "Diagnosing crashes in the Node.js and tsx runtime — the most common failure modes in the Leash stack."
+sidebarTitle: "Node / tsx crash guide"
+---
+
+Most Leash processes run via `npx tsx` (TypeScript execution in Node 24). This page covers the crashes you're most likely to hit.
+
+## `ERR_MODULE_NOT_FOUND` or import errors after `npm install`
+
+**Symptom:** A process starts and immediately throws `Cannot find module '@mycelium/leash-core'` or similar.
+
+**Cause:** `npm install` ran in the background or was interrupted, leaving `node_modules` in a broken state.
+
+**Fix:**
+```bash
+rm -rf node_modules
+npm install    # foreground, not &
+```
+
+<Warning>
+Never run `npm install` in the background (`npm install &` or with `run_in_background`). A concurrent install can race and empty `node_modules` while another process is reading it.
+</Warning>
+
+## `tsx` not found
+
+**Symptom:** `npx tsx ...` fails with "tsx not found" or `command not found: tsx`.
+
+**Fix:**
+```bash
+npm install    # from the monorepo root — tsx is a workspace devDependency
+```
+
+On mac3 and the Pro, Node 24 only resolves under a login shell. SSH commands must use `zsh -lc`:
+```bash
+ssh mac3 'zsh -lc "cd ~/mycelium && npx tsx apps/hypha/src/main.ts"'
+```
+A bare non-interactive SSH has no Node on PATH.
+
+## `ELECTRON_RUN_AS_NODE` / argv parsing issues
+
+**Symptom:** The desktop app's helper scripts fail with wrong argument parsing or "commander" errors.
+
+**Cause:** In the packaged desktop app, Electron runs as Node (`ELECTRON_RUN_AS_NODE=1`) but this confuses `tsx` / `commander`'s argv slice. The desktop app uses a shim that sets `process.defaultApp = true` before loading tsx.
+
+This is handled automatically in `apps/web/lib/leash/runtime.ts` — don't invoke helper scripts directly in the packaged app; use the `spawnHelperScript()` function.
+
+## Corestore "Invalid device file, was moved unsafely"
+
+**Symptom:** The QVAC SDK throws `Invalid device file, was moved unsafely` on startup.
+
+**Cause:** The `~/.qvac/` directory (or a corestore directory inside it) was copied with plain `rsync -a` or `cp`. macOS rsync strips xattrs. Corestore stamps a `device-file` xattr on each store's `<key>/CORESTORE` file; losing it invalidates the store.
+
+**Fix:** Delete the `CORESTORE` file inside the affected store directory — it's lossless (holds only device identity, not data; it's auto-recreated on next open):
+```bash
+find ~/.qvac -name CORESTORE -delete
+```
+
+**Prevention:** Always use `rsync -aX` when copying `~/.qvac` directories.
+
+## "File descriptor could not be locked" (registry corestore)
+
+**Symptom:** `qvac catalog` or a model download fails with "File descriptor could not be locked".
+
+**Cause:** The registry corestore is single-process. `qvac serve openai` holds the exclusive fd-lock while running (even if it never actively uses the registry — any preload that touched the registry keeps the lock). A concurrent download attempt can't acquire it.
+
+**Fix:**
+```bash
+# Stop the serve first
+pkill -f "qvac serve"
+
+# Then download
+qvac download QWEN3_4B_Q4_K_M
+
+# Then restart the serve
+qvac serve openai
+```
+
+## `EHOSTUNREACH` on mesh connections
+
+**Symptom:** Hypha logs `EHOSTUNREACH` immediately on startup; all mesh connections fail.
+
+**Cause:** macOS denies Local Network Access (LNA) to processes launched from background SSH sessions (the session exits, the LNA grant dies). hyperdht's LAN shortcut then fails and there's no relay fallback.
+
+**Fix:** Launch hypha session-attached (keep the SSH session open):
+```bash
+ssh -n -f pro 'zsh -lc "cd ~/mycelium && npx tsx apps/hypha/src/main.ts > /tmp/hypha.out 2>&1"'
+```
+
+## Port already in use (EADDRINUSE)
+
+**Symptom:** `npm run web:dev` fails with `EADDRINUSE` on port 6801.
+
+**Fix:** Kill the process holding the port:
+```bash
+lsof -ti:3000 | xargs kill
+```
+
+Or start on a different port:
+```bash
+PORT=6802 npm run web:dev
+```
+
+## "Arguments to path.resolve must be strings" in tsx watch mode
+
+**Symptom:** `tsx watch` throws this on certain file edits.
+
+**Cause:** A tsx version bug with certain import.meta.url usages in watch mode.
+
+**Fix:** Restart the process without watch mode during development:
+```bash
+npm run web:dev    # instead of tsx watch
+```

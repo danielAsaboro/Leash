@@ -1,0 +1,86 @@
+---
+title: "Mesh"
+description: "The Mycelium device mesh — encrypted P2P connections, inference routing, and model sharing."
+sidebarTitle: "Mesh"
+---
+
+The **Mycelium mesh** connects your devices over an encrypted [Hyperswarm](https://github.com/holepunchto/hyperswarm) DHT. Devices pair once; after that they discover each other automatically over the internet and your LAN.
+
+## What the mesh does
+
+- **Delegated inference** — borrow a model warm on another machine instead of loading it locally
+- **Tool forwarding** — route tool calls to the device that has the right capability
+- **Model sharing** — P2P weight distribution (pull a GGUF from a peer instead of downloading from a CDN)
+- **Economy** — optional micro-payment settlement for compute (see [Economy](/platforms/economy))
+
+## Architecture
+
+Each device runs a **hypha daemon** (`apps/hypha/src/main.ts`) that:
+
+1. Generates or loads a 64-hex device seed on first run (`data/hypha-seed.hex`)
+2. Joins the Hyperswarm DHT as a provider and/or consumer
+3. Advertises served model aliases and compute capabilities
+4. Accepts delegated completion requests from peers
+5. Routes local requests to the best available peer when the local serve lacks a model
+
+## Pairing devices
+
+Pairing uses a **capability-based invite** — no PIN, no shared secret in advance.
+
+**From the primary device** (Brain → Mesh → Invite):
+```
+POST /mesh/invite {meshId: "primary"}
+→ {"invite": "<capability blob>"}
+```
+
+**On the new device** (Brain → Mesh → Join):
+```
+POST /mesh/join {invite: "<capability blob>"}
+```
+
+The invite IS the capability — it proves the new device was authorized by the primary.
+
+<Warning>
+The programmatic invite/join only works for **fresh** devices. Re-pairing an existing device (e.g. one that previously paired and then got misconfigured) hangs — use the Leash PIN flow from the desktop app instead.
+</Warning>
+
+## DHT identity
+
+Each device's DHT identity is derived from its seed. The seed is the `QVAC_HYPERSWARM_SEED` environment variable (or loaded from `data/hypha-seed.hex`).
+
+**Never share the same seed across two devices** — two hyperdht servers under one keypair half-open every dial (the handshake succeeds against the wrong process). Each device needs a distinct seed.
+
+Derived seeds for non-DHT swarms use `sha256(seed + ":<role>")`.
+
+## LAN shortcut
+
+hyperdht detects when two peers are on the same LAN and uses a direct LAN connection instead of relaying through the DHT. This is faster but has a failure mode: if the LAN probe returns no response, hyperdht aborts the whole dial (no fallback to relay).
+
+To diagnose LAN connectivity:
+```bash
+HYPHA_DEBUG_LANPROBE=<peer-host:port> npx tsx apps/hypha/src/main.ts
+```
+This logs LAN reachability every 10s.
+
+## Launching hypha session-attached (macOS)
+
+macOS silently denies Local Network permissions to orphaned background processes — a `nohup … &` whose SSH session exits gets `EHOSTUNREACH` on ALL LAN traffic from t=0.
+
+Launch from the primary machine with SSH:
+```bash
+ssh -n -f pro 'zsh -lc "cd ~/mycelium && set -a && source data/.economy.cons.env && set +a && npx tsx apps/hypha/src/main.ts > /tmp/hypha.out 2>&1"'
+```
+
+The `ssh -n -f` process on the mini holds the session open and keeps the LNA permission alive.
+
+## Key environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QVAC_HYPERSWARM_SEED` | loaded from `data/hypha-seed.hex` | DHT identity seed (64 hex chars) |
+| `HYPHA_DATA_DIR` | `data/` | Where hypha stores its state |
+| `HYPHA_ECONOMY_ENABLED` | `0` | Enable micro-payment settlement |
+| `HYPHA_SHARE_MODELS` | `1` | Advertise cached models to mesh peers |
+| `HYPHA_KV_CACHE` | `1` | Cache KV sessions for delegated completions |
+| `HYPHA_RESILIENT_RECONNECT` | `0` | Auto-reconnect on device sleep/wake/network roam |
+| `HYPHA_TTFB_MS` | `60000` | Max wait for first delegated token before timeout |

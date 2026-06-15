@@ -1,0 +1,83 @@
+---
+title: "MCP"
+description: "The Model Context Protocol in Leash — the built-in leash-tools-mcp server, external http/sse/stdio servers, elicitations, MCP Admin, and tool icons."
+sidebarTitle: "MCP"
+---
+
+The **Model Context Protocol** is how tools reach the agent in Leash. One built-in daemon serves Leash's own 13 tool groups; you can connect any number of external MCP servers on top.
+
+<CardGroup cols={2}>
+  <Card title="Built-in server" icon="server">
+    `leash-tools-mcp` hosts all 13 tool groups, each toggleable in Brain → MCP.
+  </Card>
+  <Card title="External servers" icon="plug">
+    Add any http, sse, or stdio MCP server — its tools merge in on the next chat turn.
+  </Card>
+</CardGroup>
+
+## The built-in server: `leash-tools-mcp`
+
+`leash-tools-mcp` is a single supervised daemon that mounts each of Leash's 13 tool groups on its own route — `/mcp/memory`, `/mcp/computer`, `/mcp/home-assistant`, and so on. The web app auto-starts it (`npm run tools-mcp` runs it standalone); it's **reference-counted**, coming up when the first group turns on and going down when the last turns off.
+
+In **Brain → MCP**, each group shows as its own toggle. Turning a group off removes its schemas from the agent's active toolset on the next turn — no restart. The four core groups (`context`, `memory`, `tasks`, `feed`) are on by default; the rest are opt-in.
+
+<Note>
+There's also a second built-in, **Mesh Tools** (`leash-mcp`), which turns device pairing into in-chat flows — the pairing PIN is asked as an elicitation form. It's off by default.
+</Note>
+
+## Connecting external MCP servers
+
+Add a server in **Brain → MCP → Add server**. Three transports are supported:
+
+| Transport | How to configure | Notes |
+|-----------|------------------|-------|
+| `http` | Server URL (+ optional auth headers) | Streamable HTTP MCP. |
+| `sse` | Server URL (+ optional auth headers) | Server-Sent Events MCP. |
+| `stdio` | Command + args + optional cwd + env | A spawned local process. `npx`/`npm`/`bunx` launchers get a longer first-run connect budget (they download the package first). |
+
+Servers are stored in `data/leash-mcp.json`. The MCP layer reconciles live connections against that store on every read: a newly enabled server **connects on the next chat turn**, and a removed or disabled one is closed (its pending elicitations cancelled). A failed connect is remembered briefly so a dead server can't wedge chat on every turn.
+
+<Tip>
+Secret-bearing fields (auth header values, stdio env values) are never sent to the dashboard — only their *keys* are surfaced, so the UI can show "1 header" without leaking the token.
+</Tip>
+
+## Mind the active-schema cap
+
+Every connected MCP server's tools merge into the same active toolset as the built-in groups — and that toolset is capped at **~22 schemas**. Above it, the 4096-token prompt overflows on `qwen3-4b` and the decode hangs.
+
+<Warning>
+Each external server you enable spends schema slots against the ~22 cap. If you connect a large server, turn off built-in groups you don't need (or scope tools to a skill, where the cap is `SKILL_TOOLS_CAP = 18`) so the active set stays under the limit.
+</Warning>
+
+## Elicitations (server → user forms)
+
+Leash advertises the MCP **elicitation** capability to every server it connects. When a server needs input mid-call — an API key, a confirmation, a PIN — it sends an `elicitation/create` request, and Leash renders it as an in-chat form. You fill it in; the tool call resumes with your answer.
+
+Elicitations time out. If you don't respond in the window — or the server is disabled/removed before you answer — the request is cancelled and the tool call receives the cancellation.
+
+## MCP Admin (skill-gated)
+
+The **`mcp-admin`** group lets the assistant install and register *other* MCP servers from chat:
+
+| Tool | Approval | What it does |
+|------|----------|--------------|
+| `list_mcp_servers` | No | List the configured MCP servers and their status. |
+| `install_mcp_repo` | **Yes** | Install an MCP server from a repo/URL. |
+| `upsert_mcp_server` | **Yes** | Add or update a server entry by hand. |
+
+This group is **never always-on** — it only enters the toolset when a skill that explicitly lists its tools activates. That keeps management tooling off the main toolset so it never consumes schema slots on every turn. To install a server via chat, activate such a skill and ask Leash to set it up; or just use **Brain → MCP → Add server** directly.
+
+## Tool icons
+
+MCP servers can advertise icons on their `serverInfo` and on each tool (MCP spec SEP-973). On connect, Leash harvests them best-effort, fetches the chosen icon once, and caches it as an inline, **offline-safe** data URI — so later renders need no network (airplane mode reuses the cache). Icons appear in the **Brain → Tools** list and on approval cards. You can also set your own icon per server, which wins over the advertised one. Icon harvesting is purely cosmetic and is bounded so a slow or dead icon host can never stall a connection.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Capabilities overview" icon="layer-group" href="/capabilities/overview">
+    The 13 groups, approval gating, and the schema cap in one place.
+  </Card>
+  <Card title="MCP Admin tools" icon="screwdriver-wrench" href="/capabilities/tools/mcp-admin">
+    The skill-gated install/register tools in detail.
+  </Card>
+</CardGroup>

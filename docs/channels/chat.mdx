@@ -1,0 +1,105 @@
+---
+title: "Chat"
+description: "Leash's primary interaction channel — grounded text conversation with your data, on-device."
+sidebarTitle: "Chat"
+---
+
+Chat is Leash's main surface: a grounded text conversation with everything Leash knows about you — notes, memories, screen activity, tasks, photos, and research. Every token runs on-device through `@qvac/sdk`; no message ever leaves the machine.
+
+<Note>
+  Open the web app at [http://localhost:6801/chat](http://localhost:6801/chat). The serve (`npm run qvac`) must be up on `:11435` — the chat input shows live model status from `/v1/models`.
+</Note>
+
+## Starting a conversation
+
+<Steps>
+  <Step title="Open /chat">
+    Leash resumes your most recent thread, or starts a fresh one if none exists. Each thread is a persistent JSON file under `data/leash-chats/`.
+  </Step>
+  <Step title="Type or speak">
+    Send text, or tap the microphone to open the hands-free [voice call](/channels/voice) overlay — spoken turns land in the same thread.
+  </Step>
+  <Step title="Watch it ground itself">
+    On questions about your life or projects, Leash retrieves from memory before it answers, and shows you the sources it used.
+  </Step>
+</Steps>
+
+## What happens on each turn
+
+Every message flows through the same pipeline before a single token is streamed back:
+
+<Steps>
+  <Step title="Intent classification">
+    An embedding classifier scores your message and assigns an **effort tier** (`quick` / `standard` / `deep`) and an **intent route** (`chat`, `health`, `computer`, `files`, `vision`). The tier controls the step budget and how hard the model reasons; the route controls which toolset is offered.
+  </Step>
+  <Step title="System-prompt assembly">
+    `soul.md` + `goals.md` + active skills + the route's tool schemas are assembled into the system prompt for this turn. Tool descriptions are kept terse on purpose — the serve packs every offered tool schema into a 4096-token prompt budget.
+  </Step>
+  <Step title="ToolLoopAgent loop">
+    The `ToolLoopAgent` runs up to the tier's step budget, calling tools and accumulating their results. Memory tools, file tools, and (on the computer route) shell/GUI tools all run here.
+  </Step>
+  <Step title="Stream">
+    The answer streams token-by-token to the UI. Reasoning steps (`<think>…</think>`) render in a collapsible panel above the answer.
+  </Step>
+</Steps>
+
+## Memory and grounding
+
+When you ask about your life, projects, or past conversations, Leash calls its retrieval tools **before** answering:
+
+<CardGroup cols={2}>
+  <Card title="search_graph" icon="magnifying-glass">
+    RAG over your notes, memories, and screen activity — semantic search powered by the `gte-large` embedding model.
+  </Card>
+  <Card title="recall" icon="brain">
+    Pulls durable facts Leash has remembered about you into the turn's context.
+  </Card>
+</CardGroup>
+
+Grounded answers carry **source chips** showing exactly which notes or memories were retrieved — click one to open the source. To force grounding on a specific source, reference it directly: *"based on my notes…"* or name a project.
+
+<Tip>
+  Grounded chat depends on the `gte-large` alias. Without it, `search_graph` and `recall` can't compute embeddings and Leash falls back to ungrounded answers. See [Aliases](/models/aliases).
+</Tip>
+
+## Plan mode
+
+For multi-step tasks, Leash proposes an ordered **plan** and waits for your approval before executing. Once approved, each step runs in sequence and the plan card updates live as steps complete. You stay in control of anything with side effects.
+
+## Model picker
+
+The chat input has a **model picker** — choose which served chat alias drives text turns (you can configure several, e.g. a fast small model and a larger one). Vision, health, and computer routes ignore the picker; they always use their dedicated aliases (`qwen3vl`, `medpsy`/`chat`, `computer`).
+
+## Interject
+
+You can send a new message while Leash is mid-turn. The current step completes, the loop exits cleanly, and your new message runs next — nothing in the thread is lost.
+
+## Citations
+
+Tool results surface as inline **citation chips** on the answer. Click a chip to see the underlying source: a note title, a memory snippet, an article, a file path.
+
+## Keyboard shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Enter` | Send message |
+| `Shift+Enter` | New line |
+| `↑` | Edit last user message |
+| `/` | Focus model picker |
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Voice" icon="microphone" href="/channels/voice">
+    Hands-free call mode — same thread, on-device STT + TTS.
+  </Card>
+  <Card title="Computer Use" icon="desktop" href="/channels/computer-use">
+    Let Leash see and act on your Mac, behind approval cards.
+  </Card>
+  <Card title="Models overview" icon="cube" href="/models/overview">
+    How aliases, the serve, and hardware fit fit together.
+  </Card>
+  <Card title="Agents" icon="robot" href="/agents/overview">
+    The ToolLoopAgent and how the agent loop is wired.
+  </Card>
+</CardGroup>

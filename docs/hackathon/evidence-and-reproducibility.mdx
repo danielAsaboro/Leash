@@ -7,6 +7,27 @@ This page summarizes the verification evidence and points at where it lives. Per
 docs/evidence boundary, the raw bundle stays in `submission/`; the numbers below are quoted from
 `submission/SPIKE_RESULTS.md` (run 2026-05-31 on `@qvac/sdk@0.11.0`, Apple-Silicon Mac, Metal GPU).
 
+## Mandatory submission artifacts
+
+The rules enumerate a required artifact set. This is the honest status of each — capabilities that
+are shipped and documented vs. submission-packaging steps still open:
+
+| Required artifact | Status | Where |
+|---|---|---|
+| QVAC SDK for all inference/embeddings/RAG/multimodal | Shipped | [QVAC-only proof](/hackathon/qvac-only-proof) |
+| Apache-2.0 license | Shipped | root `LICENSE` + every `package.json` |
+| Public GitHub repo | Shipped | the repository |
+| Reproducibility / out-of-the-box run path | Shipped | [Quickstart](/quickstart), [macOS install](/install/macos) |
+| Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL) | `spike/lib/audit-log.ts`, `submission/evidence/` |
+| Hardware specs + system-profiler screenshots | **Pending** (packaging) | tracked in `submission/` |
+| Structured remote-API-call disclosure file | **Pending** (packaging) | non-AI calls enumerated in `submission/day7-audit.md` |
+| Demo video (≤5 min, unlisted) | **Pending** (final cut) | script in `submission/submission-video-script.md` |
+
+<Warning>
+Pages in this section never claim a pending artifact as done. The underlying *capability* is shipped
+and documented; the "pending" rows are the final packaging steps tracked in `submission/`.
+</Warning>
+
 ## The four spike gates — all GO
 
 The build was gated on a de-risking spike that proved each core primitive end-to-end before any
@@ -52,8 +73,8 @@ mesh operations run with no network. The non-AI remote calls are enumerated in
 
 ## Out-of-the-box setup
 
-The run path is documented in [How to run Leash locally](/guides/run-leash-locally) and the
-[Quickstart](/quickstart); ports and processes are in
+The run path is documented in the [Quickstart](/quickstart) and
+[macOS install](/install/macos); ports and processes are in
 [Runtime ports and processes](/reference/runtime-ports-and-processes). The serve config
 (`qvac.config.base.json`) is machine-neutral (`~/`-relative paths), so a fresh clone resolves the
 default `~/.qvac` cache without edits.

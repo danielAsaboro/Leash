@@ -1,0 +1,95 @@
+---
+title: "Skills"
+description: "User-authored instruction documents that give Leash repeatable, composable workflows."
+sidebarTitle: "Skills"
+---
+
+A **skill** is a folder the user gives Leash. Its `SKILL.md` file describes what the skill does and contains the step-by-step instructions the agent follows. Leash reads the matching skill before acting on any request that fits the description, then follows the instructions exactly — no improvisation.
+
+## Skill structure
+
+```
+my-skill/
+  SKILL.md          ← required: description + instructions
+  references/       ← optional: docs the agent loads with read_skill_file
+    airlines.md
+    pricing.md
+  scripts/          ← optional: executables the agent runs with run_skill_script
+    fetch.sh
+    process.py
+  assets/           ← optional: templates, data files
+    template.md
+```
+
+### SKILL.md format
+
+```markdown
+---
+name: Trip planning
+description: When the user asks to plan a trip or a travel itinerary.
+tools:
+  - search_graph
+  - create_task
+---
+
+1. Ask the user for destination, dates, and budget if not provided.
+2. Call read_skill_file with file: "references/airlines.md" to load route options.
+3. Search notes for any relevant past trips: call search_graph with "travel [destination]".
+4. Draft an itinerary and present it.
+5. Create a task for each booking action: call create_task.
+```
+
+The `tools:` frontmatter list overrides the agent's default toolset for this skill's turns — only those tools (plus the skill-system tools) are active. This prevents overflow and focuses the agent.
+
+## How activation works
+
+Every turn, the agent checks all enabled skill descriptions via **semantic matching** (RRF over embeddings). When a match scores above the threshold:
+
+1. The skill slug appears in the system prompt catalog.
+2. The agent calls `read_skill` with that slug before responding.
+3. The skill's body is injected into the prompt for that turn.
+4. The skill's declared `tools:` become the active toolset.
+
+You can also activate a skill explicitly: `@trip-planning plan my Tokyo trip` or `use the trip-planning skill for this`.
+
+## Importing skills
+
+**From a local folder:** Brain → Skills → Import folder. Point at any directory containing a `SKILL.md`.
+
+**From GitHub:** Brain → Skills → Import from GitHub. Paste a repo URL — Leash clones the `SKILL.md` and attached files.
+
+**From text:** Brain → Skills → New skill. Paste or type a `SKILL.md` directly.
+
+## Composing skills
+
+A skill can invoke another skill mid-turn with `run_skill`:
+
+```markdown
+3. For the visa requirements step, run the visa-check skill:
+   call run_skill with skill: "visa-check" and task: "check visa requirements for [destination] from [origin]"
+4. Incorporate the visa-check result into the itinerary.
+```
+
+`run_skill` spawns the sub-skill as its own agent turn and hands the result back. The outer skill continues with the result as context.
+
+## Bundled scripts
+
+Scripts in `scripts/` are executables (shell, Python, etc.) that the agent can run with `run_skill_script`. This is approval-gated — the user sees the command before it executes.
+
+```markdown
+2. Run the fetch script to pull live prices:
+   call run_skill_script with skill: "trip-planning", script: "scripts/fetch.sh", args: ["Tokyo", "2026-09-01"]
+```
+
+## Enabling and disabling
+
+Brain → Skills shows all imported skills with a toggle. Disabled skills are invisible to the agent — their descriptions are excluded from the system prompt catalog.
+
+## The skill-system tools
+
+These tools are always available, even when a skill's `tools:` override is active, so skills can compose:
+
+- `read_skill` — load another skill's instructions
+- `read_skill_file` — read an attachment from any skill
+- `run_skill_script` — run any skill's bundled script
+- `run_skill` — invoke another skill as a sub-agent

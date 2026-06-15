@@ -1,0 +1,106 @@
+---
+title: "Skills tools"
+description: "read_skill, read_skill_file, run_skill_script — the agent's runtime interface to the skills system."
+sidebarTitle: "Skills"
+---
+
+The **skills** tool group is the agent's runtime interface to the skills system. These tools are always in the active tool set regardless of which other tools are enabled — they're how one skill can compose with another mid-turn.
+
+## read_skill
+
+Load the full instructions of a skill by its slug.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `skill` | string | Yes | The skill's slug, exactly as it appears in the system prompt (e.g. `"trip-planning"`) |
+
+**Returns:** The skill's full body text with a note listing any attached files (docs) and bundled scripts. Ends with `"Now follow these instructions directly in your own answer."` — the skill body is instructions for the agent, not a callable tool.
+
+Returns `"No skill named '...'. Available: slug-a, slug-b."` if the slug isn't found.
+Returns `"The skill '...' is currently disabled."` if the skill exists but is off.
+
+**When the agent calls it:**
+- Whenever a user message matches a skill's semantic description
+- When the user explicitly invokes a skill with `@slug`
+- Mid-turn when a skill's instructions tell it to load another skill
+
+**Example:**
+```
+User: Plan a trip to Tokyo.
+Agent: [reads system prompt — sees "trip-planning" skill listed]
+       [calls read_skill(skill="trip-planning")]
+       Skill "Trip Planning" instructions:
+       When planning a trip, first ask: destination, dates, budget, preferences.
+       Then load references/airlines.md for airline options...
+       
+       Now following these instructions:
+       I'd love to help plan your Tokyo trip! First, a few questions...
+```
+
+---
+
+## read_skill_file
+
+Read one attachment file from a skill's folder.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `skill` | string | Yes | The skill's slug |
+| `file` | string | No | The attachment filename as listed by `read_skill` (e.g. `"references/airlines.md"`) |
+
+**Returns:** The file's text content (up to 64 KB). Binary files return `"'filename' is a binary file (N bytes) — only text attachments can be read"`. Returns an error if the file doesn't exist in the skill's folder.
+
+**Security:** The file path is validated against the skill's folder — paths outside `data/skills/<slug>/` are rejected (path traversal protection).
+
+**When the agent calls it:**
+- After `read_skill`, when the instructions reference an attachment by name
+- "Load airlines.md" in the skill body → agent calls `read_skill_file(skill="trip-planning", file="references/airlines.md")`
+
+**Example:**
+```
+Agent: [called read_skill("trip-planning")] 
+       → instructions say to load references/airlines.md
+       [calls read_skill_file(skill="trip-planning", file="references/airlines.md")]
+       Contents of trip-planning/references/airlines.md:
+       # Airlines that fly Tokyo routes
+       - Japan Airlines (JAL): direct from NYC, LA, SF...
+       - ANA: direct from many US cities...
+```
+
+---
+
+## run_skill_script
+
+Run one of a skill's bundled executable scripts.
+
+**Approval:** Required — user must confirm before the script executes.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `skill` | string | Yes | The skill's slug |
+| `script` | string | Yes | The script path exactly as listed by `read_skill` (e.g. `"scripts/fetch.sh"`) |
+| `args` | string[] | No | Command-line arguments for the script |
+
+**Returns:** Exit code, stdout, and stderr from the script (each in a code block). Returns an error if the skill or script doesn't exist, or if the path is outside the skill's folder.
+
+**Security:** Script paths are validated against `data/skills/<slug>/scripts/` — traversal attempts are rejected. Scripts run on the user's machine with the current user's permissions.
+
+**When the agent calls it:**
+- After `read_skill`, when the instructions say to run a script
+- "Run scripts/fetch.sh with the user's query as arg 1" in the skill body
+
+**Example:**
+```
+Agent: [called read_skill("weather")] 
+       → instructions say to run scripts/get-weather.sh with the city as argument
+       [calls run_skill_script(skill="weather", script="scripts/get-weather.sh", args=["Tokyo"])]
+       [approval card shown to user]
+       [user clicks Allow]
+       Script weather/scripts/get-weather.sh exited with code 0.
+       stdout:
+       Tokyo: 24°C, partly cloudy, humidity 68%
+```

@@ -1,0 +1,79 @@
+---
+title: "Chat & reasoning"
+description: "The text models that drive every conversation, the heartbeat classifier, and the health specialist."
+sidebarTitle: "Chat & reasoning"
+---
+
+Chat models are the text LLMs that power conversation, tool calling, and reasoning. In the SDK
+catalog these carry `endpointCategory: "chat"` (a catalog `chat` entry whose name has no
+`vl`/`vision`/`multimodal` marker — those split out into [Vision](/models/modality/vision)).
+
+## Models Leash uses
+
+| Alias | SDK model | Size | Powers |
+|-------|-----------|------|--------|
+| `chat` / `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | ~2.5 GB | Every text turn — the model that acts when the heartbeat escalates |
+| `classifier` | `QWEN3_1_7B_INST_Q4` | ~1.06 GB | Fast triage — runs each heartbeat cycle to decide silence vs. escalate, cheaply |
+| `medpsy` | explicit-src GGUF | varies | Health/psychology specialist route (falls back to `chat` if not configured) |
+
+<Note>
+The two-tier design is deliberate: the small `classifier` triages every heartbeat for almost
+nothing, and the 4B `chat` model only wakes when a cycle escalates. See
+[Heartbeat](/agents/heartbeat).
+</Note>
+
+## The primary chat model
+
+**Qwen3 4B Instruct (Q4_K_M, ~2.5 GB)** runs at roughly **15–20 tok/s** on an M1 GPU. Its
+serve config:
+
+```json
+"qwen3-4b": {
+  "model": "QWEN3_4B_INST_Q4_K_M",
+  "preload": true,
+  "default": true,
+  "config": { "tools": true, "toolsMode": "dynamic", "ctx_size": 32768 }
+}
+```
+
+`tools: true` + `toolsMode: "dynamic"` is what lets the agent call tools — but it also means a
+turn with **zero** active tools hangs at zero tokens, which is why every text route keeps at
+least one tool active (the toolless-hang guard). See [Chat](/channels/chat).
+
+## Context window
+
+Chat aliases default to `ctx_size: 32768` (`DEFAULT_CTX_SIZE`). KV cache scales with it:
+
+```
+KV_cache (GB) ≈ 0.000008 × params_B × ctx_tokens
+```
+
+A 4B model at 32k ≈ 1 GB KV; at 8k ≈ 0.25 GB. Reduce `ctx_size` in **Brain → Models** to fit a
+borderline model.
+
+## Adding a chat model
+
+1. **Brain → Models → Catalog**, filter by **Chat**.
+2. Pick a model that **fits** your RAM (the catalog shows a live fit verdict).
+3. **Configure** it under an alias — chat models get `ctx_size: 32768` by default.
+4. Restart the serve (`npm run qvac`).
+
+Or wire the whole [Assistant Kit](/models/catalog) (chat + classifier + embeddings + vision) in
+one step.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Vision" icon="eye" href="/models/modality/vision">
+    Multimodal chat models that also read images.
+  </Card>
+  <Card title="Aliases" icon="tag" href="/models/aliases">
+    The full alias contract and how to configure each.
+  </Card>
+  <Card title="Chat channel" icon="messages-square" href="/channels/chat">
+    How a chat turn flows through the agent loop.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/models/config">
+    Every `qvac.config.base.json` field.
+  </Card>
+</CardGroup>

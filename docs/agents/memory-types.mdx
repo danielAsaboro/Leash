@@ -1,0 +1,79 @@
+---
+title: "Typed memories"
+description: "Five categories of durable facts about you — preferences injected into the system prompt, the rest retrieved on demand — written and read through the remember and recall tools."
+sidebarTitle: "Memory types"
+---
+
+Typed memories are structured facts Leash keeps about *you*, stored as rows in `data/leash-memories.json`. There are five types, and they split into two retrieval paths: **preferences are injected into the system prompt**; everything else is **retrieved on demand**.
+
+## The five types
+
+| Type | Retrieval | What it captures |
+|------|-----------|------------------|
+| `preference` | **Injected** into the system prompt | How you like things done — these shape the agent's behavior. |
+| `fact` | recall + RAG | Stable truths about you or your world. |
+| `goal` | recall + RAG | Something you want to achieve. |
+| `person` | recall + RAG | People in your life. |
+| `routine` | recall + RAG | Recurring patterns. |
+
+<Tip>
+Preferences are special: `preferenceTexts()` pulls every `preference` memory (newest first) straight into the system prompt, so the agent's behavior reflects them on **every** turn without a tool call. The other four types are looked up only when a turn needs them.
+</Tip>
+
+## A memory row
+
+```ts
+interface LeashMemory {
+  id: string;
+  type: "preference" | "fact" | "goal" | "person" | "routine";
+  text: string;                       // one self-contained sentence, ≤500 chars
+  source: "user" | "assistant";
+  chatIds: string[];                  // conversations this came from
+  createdAt: number;
+  updatedAt: number;
+}
+```
+
+## The tools
+
+<CardGroup cols={2}>
+  <Card title="remember" icon="floppy-disk">
+    Save a typed memory so future conversations know it.
+  </Card>
+  <Card title="recall" icon="magnifying-glass">
+    Look up saved memories, optionally filtered by type or keyword.
+  </Card>
+</CardGroup>
+
+### remember
+
+Saves a memory of a given `type` and one self-contained `text` sentence (e.g. *"Prefers metric units"*). The agent calls it when you state something durable about yourself, ask it to remember something, or correct it about yourself.
+
+<Note>
+**Provenance:** tool-written memories are stamped `source: "assistant"`. The MCP connection is global (not per-chat), so these writes carry **no** `chatId` — the dashboard still shows them as assistant-authored; the originating conversation just isn't linked. An honest trade for the grouped-server model.
+</Note>
+
+Near-duplicate saves of the same type **update in place** rather than appending — the existing row's `updatedAt` is bumped (and its `chatIds` extended) instead of creating a second copy.
+
+### recall
+
+Looks up memories before answering questions that depend on what Leash knows about you, or when asked *"what do you know about me?"*. The `query` is matched on its **content words** (filler is dropped via a stopword list), so a natural-language question finds the relevant row; a short keyword query falls back to a substring match. Results return newest-first, capped at 30.
+
+Typed memories are also embedded into the [context graph](/agents/context) (one chunk per row), so `search_graph` surfaces them in RAG retrieval alongside notes and past chats — `gte-large` powers that indexing and dedup.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Memory overview" icon="database" href="/agents/memory">
+    The three stores and the locking discipline.
+  </Card>
+  <Card title="Consolidation" icon="moon" href="/agents/consolidation">
+    The nightly loop that grows memory.
+  </Card>
+  <Card title="Grounding" icon="quote-left" href="/agents/grounding">
+    How recalled facts become citable sources.
+  </Card>
+  <Card title="Memory tools" icon="screwdriver-wrench" href="/capabilities/tools/memory">
+    The full memory tool surface.
+  </Card>
+</CardGroup>

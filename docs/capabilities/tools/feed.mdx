@@ -1,0 +1,60 @@
+---
+title: "Feed tools"
+description: "understory_search, understory_today — search and read The Understory daily paper."
+sidebarTitle: "Feed"
+---
+
+The **feed** group lets the agent search and read *The Understory* — the user's auto-written, on-device daily paper (published articles stored in the newsroom SQLite DB).
+
+## understory_search
+
+Search published Understory articles for content matching a query.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | What to search for across headlines, deks, and body text |
+| `topK` | integer | No | How many articles to return (default `5`, max `12`) |
+
+**Returns:** Up to `topK` articles, each as `(date) Headline — Dek`. Cites sources as `[paper]` links to the article URL (`/feed/<date>/<slug>`). Returns `"No published articles match '...'"` if none found.
+
+**When the agent calls it:**
+- "What has The Understory covered about X?"
+- "Has there been anything in the paper about my project?"
+
+**Example:**
+```
+User: Has The Understory covered anything about mesh networking?
+Agent: [calls understory_search(query="mesh networking", topK=3)]
+       (2026-06-10) Mycelium goes live — New encrypted P2P mesh links all devices...
+       (2026-06-05) DHT routing explained — How Hyperswarm connects your devices...
+```
+
+---
+
+## understory_today
+
+List the headlines from the latest edition of The Understory.
+
+**Approval:** None — read-only.
+
+**Parameters:** None.
+
+**Returns:** All articles from the most recently published edition, in publication order, formatted as `Headline — Dek`. Includes a header with the edition date and story count. Returns `"The Understory has no published editions yet."` if nothing has been published.
+
+**When the agent calls it:**
+- "What's in today's paper?"
+- "What's the news today?"
+- "Show me The Understory"
+
+**Example:**
+```
+User: What's in today's paper?
+Agent: [calls understory_today()]
+       The Understory — latest edition (2026-06-15), 4 stories:
+       Mesh economy hits 1M tokens settled — The Leash payment layer...
+       Voice call latency hits 200ms — Parakeet STT now under...
+       Goals evolution: week 2 — The LoRA adapter after 7 nights...
+       Developer tools round-up — What's new in the toolkit...
+```

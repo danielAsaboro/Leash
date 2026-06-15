@@ -1,0 +1,78 @@
+---
+title: "Testing updates and plugins"
+description: "How to safely update Leash, update skills, and verify nothing broke."
+sidebarTitle: "Updates and plugins"
+---
+
+## Updating Leash (headless)
+
+```bash
+# From the mini (git checkout)
+git pull
+npm install    # foreground — never in background (concurrent install can empty node_modules)
+
+# Push to other machines via rsync
+ssh pro bash ~/pullmesh.sh
+
+# Then on each machine: foreground npm install
+ssh pro 'zsh -lc "cd ~/mycelium && npm install"'
+```
+
+After updating:
+
+1. Restart all daemons (web server, MCP daemon, screen watcher)
+2. Check `npm run web:dev` output for TypeScript errors
+3. Run the smoke test: `curl -s http://127.0.0.1:11435/v1/models` (serve up) and open `http://localhost:6801/`
+
+## Updating the desktop app
+
+The desktop app has a built-in auto-updater. When an update is available, a notification appears in the menu bar. The update downloads in the background and prompts for a restart.
+
+After updating, verify:
+1. The app opens without showing the setup wizard again (install.json is preserved)
+2. Chat works
+3. The systray heartbeat icon appears
+
+## Updating skills
+
+Skills are files in `data/skills/<slug>/SKILL.md` (or `data/skills/<slug>.md` for legacy flat files). To update a skill:
+
+1. Edit `SKILL.md` directly, or use Brain → Skills → Edit
+2. No restart required — skills are read from disk on each turn
+3. Test by triggering the skill explicitly: `@skillname do X`
+
+If you imported a skill from a zip, the new version must be re-imported:
+1. Brain → Skills → Delete old version
+2. Brain → Skills → Import new zip
+
+## Testing a new MCP server
+
+1. Add the server to Brain → MCP → External Servers
+2. Trigger an elicitation if required (the server's auth prompt appears in chat)
+3. Enable the server's tool group in Brain → MCP
+4. Test with a chat message that exercises one of the server's tools
+5. Check `LEASH_DEBUG_TOOLS=1` output to verify the tools are in the active set
+
+## After adding a new tool group or MCP server
+
+The tool schema count matters — above ~22 active schemas the 4B model's 4096-token prompt overflows and hangs. After adding tools, verify with `LEASH_DEBUG_TOOLS=1`:
+
+```
+leash[tools] route=chat active=18 [search_graph, ...]
+```
+
+If `active` is approaching 22, disable groups you don't use frequently in Brain → MCP.
+
+## Rolling back a bad update
+
+```bash
+# On the mini
+git log --oneline -10
+git checkout <sha>    # or git revert
+
+# Push rollback to other machines
+ssh pro bash ~/pullmesh.sh
+ssh pro 'zsh -lc "cd ~/mycelium && npm install"'
+```
+
+Model weights in `~/.qvac/models/` are never affected by code rollbacks.

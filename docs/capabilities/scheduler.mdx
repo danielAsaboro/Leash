@@ -1,0 +1,96 @@
+---
+title: "Scheduled tasks"
+description: "The scheduler tool group — how the agent creates, lists, and manages schedules."
+sidebarTitle: "Scheduled tasks"
+---
+
+The **scheduler** tool group lets Leash schedule its own future actions. It's **off by default** in Brain → MCP — enable it when you want the agent to create recurring reminders or maintenance jobs autonomously.
+
+## Tools
+
+| Tool | Description |
+|------|-------------|
+| `list_schedules` | List all schedules with cadence, last/next run, and enabled status |
+| `schedule_reminder` | Create a recurring or one-time reminder (adds a task on each fire) |
+| `schedule_job` | Create a recurring allowlisted maintenance job |
+| `enable_schedule` | Resume a disabled schedule by id |
+| `disable_schedule` | Pause a schedule without deleting it |
+| `remove_schedule` | Permanently delete a schedule |
+
+## Recurrence patterns
+
+All schedule tools use the same recurrence fields:
+
+| Pattern | Fields | Example |
+|---------|--------|---------|
+| `daily` | `at: "HH:MM"` | Every day at 09:00 |
+| `weekly` | `at: "HH:MM"`, `dayOfWeek: 0–6` | Every Monday (1) at 08:00 |
+| `interval` | `everyMinutes: N` | Every 30 minutes |
+| `once` | `onceAt: "<ISO datetime>"` | Run once on 2026-07-01T10:00:00 |
+
+## Scheduling a reminder
+
+A reminder creates a task on the user's task list each time it fires:
+
+```
+"Remind me every weekday at 9am to review my goals"
+```
+
+The agent calls `schedule_reminder`:
+```json
+{
+  "title": "Review my goals",
+  "recurrence": "daily",
+  "at": "09:00"
+}
+```
+
+The schedule shows up in Brain → Services → Schedules. The task shows up in Brain → Tasks at 09:00 each day.
+
+## Scheduling a maintenance job
+
+```
+"Run dream every night at midnight"
+```
+
+The agent calls `schedule_job`:
+```json
+{
+  "script": "dream",
+  "recurrence": "daily",
+  "at": "00:00"
+}
+```
+
+Allowlisted jobs: `dream`, `evolve`, `tag-photos`, `research`. No other scripts can be scheduled — the allowlist is enforced by a load-time assertion in the scheduler group that rejects any tool with exec/shell/AI-task patterns in its name.
+
+## The research job
+
+The `research` job requires a `question` argument:
+```json
+{
+  "script": "research",
+  "question": "What are the latest developments in on-device AI?",
+  "recurrence": "weekly",
+  "dayOfWeek": 0,
+  "at": "06:00"
+}
+```
+
+This runs a background web research pass on the question every Sunday at 6am. Results are appended to a note in `data/notes/research/`.
+
+## Managing schedules from chat
+
+```
+"What schedules do I have?" → list_schedules
+"Pause my 9am reminder" → disable_schedule
+"Delete the evolve schedule" → remove_schedule
+```
+
+## The heartbeat schedule
+
+The heartbeat is a special `kind: "heartbeat"` entry in the schedules store — it's created by Leash on first run and managed by the heartbeat config (Brain → Services → Heartbeat), not by the scheduler tools. The agent can disable it via `disable_schedule` if needed.
+
+## Authorization
+
+The scheduler tools call `POST /api/leash/schedules` using a shared internal token (`LEASH_INTERNAL_TOKEN` or `data/.leash-internal-token`). The same API the dashboard uses — a schedule the agent creates is identical to one created from the UI.

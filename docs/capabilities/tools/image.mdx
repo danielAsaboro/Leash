@@ -1,0 +1,46 @@
+---
+title: "Image tools"
+description: "generate_image — on-device diffusion image generation."
+sidebarTitle: "Image"
+---
+
+The **image** group gives the agent one tool for on-device image generation via stable diffusion (the `sd` model alias).
+
+## generate_image
+
+Generate an image from a text description, fully on-device.
+
+**Approval:** None — generates and saves to disk automatically.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `prompt` | string | Yes | A detailed visual description of the image to generate |
+
+**Returns:** The generated image URL (`/leash-gen/<timestamp>-<hash>.png`) and the prompt used. The image is saved to `apps/web/public/leash-gen/` and served by Next.js at that URL. The chat UI renders it via the `ImageCard` component.
+
+**Output size:** 512×512 pixels.
+
+**When the agent calls it:**
+- "Draw a picture of..."
+- "Generate an image of..."
+- "Create a visualization of..."
+- "Paint me a..."
+
+**Prompt tips:**
+- More detail = better results: "A photorealistic image of a glowing mushroom network underground, dark atmosphere, bioluminescent" outperforms "glowing mushrooms"
+- Describe style explicitly: "oil painting", "pixel art", "watercolor sketch", "photorealistic"
+- Include lighting, composition, and mood
+
+**Example:**
+```
+User: Draw a picture of a forest with bioluminescent mushrooms.
+Agent: [calls generate_image(prompt="A dark forest floor at night, 
+        glowing bioluminescent mushrooms in blue and green hues, 
+        ethereal atmosphere, detailed fantasy illustration")]
+       [renders image in chat]
+```
+
+**Requires:** `sd` alias served (`STABLE_DIFFUSION_...` constant in `qvac.config.base.json`). Without it, the tool returns:
+> "The image model 'sd' isn't loaded. Add it to qvac.config.base.json → serve.models and restart."
+
+**Storage:** Generated images accumulate in `apps/web/public/leash-gen/`. They are not automatically cleaned up — delete files from this directory manually if disk space is a concern.

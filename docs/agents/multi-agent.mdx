@@ -1,0 +1,57 @@
+---
+title: Multi-agent
+description: A 2-model council (proposer + critic) and mesh delegation — and a router that decides which queries even need it.
+---
+
+Hard questions in Leash don't go to one small model and hope. They go to a **council** — a proposer that drafts a cited answer and a critic that verifies it — and the proposer's heavy completion can be **delegated** to a mesh hub while search stays co-located with the private graph.
+
+## The router decides first
+
+Not every query deserves the council. The [Mind](/agents/brain) router classifies each query with a cheap, dependency-free heuristic:
+
+| Kind | Goes to | Examples |
+| --- | --- | --- |
+| `trivial` | one streamed completion from the small local model — no graph, no tools | arithmetic, greetings/social |
+| `hard` | the RAG-grounded council | everything else (default) |
+
+<Note>
+  The router **defaults to `hard`.** An exocortex should default to consulting the private context graph — a keyword list can't know in advance which question a personal note answers (e.g. "how long does the Pi battery last?" looks generic but is answered by a voice memo). Only obviously-generic queries that no private context could improve shortcut to the small local model.
+</Note>
+
+## The two-model council
+
+<CardGroup cols={2}>
+  <Card title="Proposer" icon="pen-nib" href="/agents/council">
+    A call/observe/continue loop (≤2 iterations) with the `search_graph` tool. Retrieves snippets, drafts a `[Source N]`-cited answer.
+  </Card>
+  <Card title="Critic" icon="magnifying-glass-chart" href="/agents/council">
+    A second, **toolless** pass that verifies every claim in the answer against the retrieved sources. Verdict: `pass` or `revise`.
+  </Card>
+</CardGroup>
+
+A second model catches what one small model can't self-catch — a fabricated `[Source N]` citation, or an answer that drifts off the graph.
+
+## Delegated compute
+
+The council's search is **injected, not imported**, so the *same* council runs either entirely locally or with the proposer's completion delegated to a mesh hub — while search stays on the device that holds the graph.
+
+<Card title="Delegation" icon="share-nodes" href="/agents/delegation">
+  How `runSearch` injection lets one council body run local or delegated, and how it ties to Hypha and the mesh.
+</Card>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="The council" icon="users" href="/agents/council">
+    Proposer loop, critic verification, and the trace.
+  </Card>
+  <Card title="Delegation" icon="diagram-project" href="/agents/delegation">
+    Running the council across the mesh.
+  </Card>
+  <Card title="Grounding" icon="book" href="/agents/grounding">
+    How the graph is searched and cited.
+  </Card>
+  <Card title="Mesh" icon="circle-nodes" href="/platforms/mesh">
+    Pairing devices into one private compute fabric.
+  </Card>
+</CardGroup>

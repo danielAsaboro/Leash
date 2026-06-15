@@ -1,0 +1,72 @@
+---
+title: "Embeddings"
+description: "The embedding model behind RAG search, memory, skill activation, and heartbeat dedup."
+sidebarTitle: "Embeddings"
+---
+
+Embedding models turn text into vectors for semantic search. In the SDK catalog they carry
+`endpointCategory: "embedding"`. Leash leans on embeddings heavily — they're the backbone of
+grounded chat.
+
+## Models Leash uses
+
+| Alias | SDK model | Size | Powers |
+|-------|-----------|------|--------|
+| `gte-large` | `GTE_LARGE_FP16` | ~670 MB | RAG retrieval, on-goal scoring, notification dedup |
+
+## What it powers
+
+`gte-large` is required for the features that make Leash *grounded*:
+
+| Feature | How embeddings are used |
+|---------|------------------------|
+| RAG search (`search_graph`, `recall`) | Indexes notes/memories and retrieves passages by similarity |
+| Memory indexing | Embeds new notes and memories as they're written |
+| Skill activation | Scores the user message against each skill's description embedding |
+| Heartbeat dedup | Fuzzy-matches a new proposal against recent ones (cosine ≥ 0.92 = duplicate) |
+| On-goal scoring | Measures how relevant a heartbeat proposal is to your `goals.md` |
+
+<Warning>
+**Chat requires `gte-large`.** Without it, `search_graph`/`recall` return nothing, skills stop
+auto-activating, and the heartbeat can't dedup — grounded chat silently degrades. It's part of
+the minimum viable kit alongside `chat`.
+</Warning>
+
+## Serve config
+
+Embedding models need no special config block:
+
+```json
+"gte-large": {
+  "model": "GTE_LARGE_FP16",
+  "preload": true
+}
+```
+
+## Adding an embedding model
+
+Wire it from the [Assistant Kit](/models/catalog) (recommended — it's one of the four kit roles),
+or download an embedding model from **Brain → Models → Catalog** (filter by **Embeddings**) and
+configure it under the `gte-large` alias.
+
+<Note>
+If you swap the embedding model, **re-index** your notes (Brain → Memory → Re-index). Vectors
+from a different model aren't comparable, so a swap without a re-index breaks retrieval.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Chat & reasoning" icon="messages-square" href="/models/modality/chat">
+    The text model embeddings ground.
+  </Card>
+  <Card title="Heartbeat" icon="bot" href="/agents/heartbeat">
+    Dedup and on-goal scoring in the proactive loop.
+  </Card>
+  <Card title="Skills" icon="wand-sparkles" href="/capabilities/skills">
+    Semantic skill activation.
+  </Card>
+  <Card title="Model FAQ" icon="circle-question" href="/help/faq-models">
+    Why chat needs the embedding model.
+  </Card>
+</CardGroup>

@@ -1,0 +1,124 @@
+---
+title: "Tools"
+description: "Every tool Leash can call — what it does, when it's active, and whether it needs approval."
+sidebarTitle: "Tools"
+---
+
+All tools live in `leash-tools-mcp` as toggleable groups. Toggle any group in **Brain → MCP** to add or remove its schemas from the active toolset.
+
+## Tool reference
+
+### Memory group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `search_graph` | No | Semantic search over notes, memories, and screen activity via RAG |
+| `recall` | No | Retrieve a specific memory or note by keyword |
+| `list_memories` | No | List all stored memories |
+| `save_memory` | No | Persist a new memory fact |
+| `forget_memory` | No | Delete a specific memory |
+
+### Tasks group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `list_tasks` | No | List all open tasks |
+| `create_task` | No | Create a new task |
+| `update_task` | No | Update task status or details |
+| `complete_task` | No | Mark a task complete |
+
+### Context group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `active_context` | No | What's on screen right now (from leash-watch) |
+| `activity_recent` | No | The last N screen-activity records |
+
+### Research group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `start_research` | No | Start a deep research job (multi-source web) |
+| `get_research` | No | Poll a research job for results |
+
+### Skills group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `read_skill` | No | Load a skill's instructions (call before acting on a matching request) |
+| `read_skill_file` | No | Read one of a skill's attached reference files |
+| `run_skill_script` | **Yes** | Execute a skill's bundled script on this machine |
+| `run_skill` | No | Run another skill as a sub-agent and get its result back |
+
+### Computer group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `screenshot` | No | Capture the screen; on-device VLM answers a question about it |
+| `run_command` | **Yes** | Run a shell command (bash); real-disk executor |
+| `computer` | **Yes** | Drive mouse/keyboard via cliclick (experimental) |
+
+### Files group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `run_command` | **Yes** | Bash in the `files` route — read/write only (same tool, narrower toolset) |
+
+### Feed group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `understory_search` | No | Search Understory articles |
+| `understory_today` | No | Today's Understory edition |
+
+### Photos group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `list_photos` | No | List photos from Apple Photos library |
+| `describe_photo` | No | Describe a specific photo using the VLM |
+
+### Image group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `generate_image` | No | Generate an image on-device (served at `/leash-gen/*`) |
+
+### Home Assistant group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `ha_*` | No | Control Home Assistant entities |
+
+### Scheduler group
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `list_schedules` | No | List proactive schedules |
+| `create_schedule` | No | Add a new cron-based schedule |
+| `delete_schedule` | No | Remove a schedule |
+
+### MCP Admin group (skill-gated)
+
+This group is never always-on — it only activates when a skill that explicitly lists `mcp-admin` tools is active. This prevents the 22-schema cap from being consumed by management tools on every turn.
+
+| Tool | Approval | Description |
+|------|----------|-------------|
+| `install_mcp_repo` | **Yes** | Clone, install, build, and register an MCP server from a GitHub/listing URL |
+| `upsert_mcp_server` | **Yes** | Create or update one server entry by hand (http/sse/stdio) |
+
+→ Full reference: [MCP Admin tools](/capabilities/tools/mcp-admin)
+
+## Approval flow
+
+Tools marked **Yes** in the Approval column pause the agent loop and show an approval card in the chat UI with the exact call parameters. You approve or reject; the agent continues either way.
+
+The default approval setting for each tool is configurable in **Brain → Tools**. You can flip any tool to "auto-approve" or "always ask" per your preference.
+
+## Schema cap
+
+The active toolset is capped at ~22 schemas (empirically verified — above this the 4096-token prompt overflows on `qwen3-4b` and the decode hangs). The agent handles this automatically:
+
+- Computer turns activate only the 3 computer tools
+- Chat turns activate everything except computer + MCP Admin
+- A skill's declared `tools:` override this, capped at 18

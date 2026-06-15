@@ -1,0 +1,105 @@
+---
+title: "Computer tools"
+description: "screenshot, run_command, computer — see the screen, run commands, and control the mouse and keyboard."
+sidebarTitle: "Computer"
+---
+
+The **computer** group gives the agent eyes on your screen and hands on your keyboard. It is the only tool group that uses a dedicated `computer` route — the agent switches to the `qwen3vl` VLM for the screenshot tool and to a computer-optimized model for the others.
+
+<Warning>
+`run_command` and `computer` are approval-gated — the user must confirm before they execute. `screenshot` runs without approval.
+</Warning>
+
+## screenshot
+
+Take a screenshot and describe what's on the screen using the vision model (`qwen3vl`).
+
+**Approval:** None — passive observation.
+
+**Parameters:** None.
+
+**Returns:** A text description of the screenshot produced by `qwen3vl`. The image is NOT sent to the user directly — the VLM reads it and returns text. If `qwen3vl` isn't served, the tool returns an error.
+
+**Requires:** `qwen3vl` alias served + Screen Recording permission.
+
+**When the agent calls it:**
+- "What's on my screen?"
+- "Take a screenshot and describe it"
+- Any computer-use turn that needs visual context before acting
+
+**Example:**
+```
+User: What does my screen look like right now?
+Agent: [route=computer] [calls screenshot()]
+       Your screen shows Xcode with a Swift file open — 
+       the editor is on line 47 of NetworkManager.swift...
+```
+
+---
+
+## run_command
+
+Run a shell command on the user's machine.
+
+**Approval:** Required — user must confirm before execution.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `command` | string | Yes | The shell command to run |
+
+**Returns:** stdout + stderr from the command, or an error if execution failed. Times out after 60 seconds (`LEASH_COMMAND_TIMEOUT_MS`, default `60000`).
+
+**How approval works:** The agent proposes the command; it appears in the chat UI as an approval card. The user clicks "Allow" or "Deny". Only after "Allow" does the command actually execute.
+
+**When the agent calls it:**
+- "Open the terminal and run npm install"
+- "Create a new folder called Projects"
+- "Run the tests"
+
+**Example:**
+```
+User: Run npm test in my project folder.
+Agent: [calls run_command(command="cd ~/projects/mycelium && npm test")]
+       [approval card shown to user]
+       [user clicks Allow]
+       → PASS: 12 tests, 0 failures
+```
+
+---
+
+## computer
+
+Control the mouse and keyboard using `cliclick`.
+
+**Approval:** Required — user must confirm before execution.
+
+**Status:** Experimental.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `action` | string | Yes | A `cliclick` action string (e.g. `"c:500,300"` to click at x=500,y=300) |
+
+**Returns:** Confirmation that the action was sent, or an error if `cliclick` isn't installed.
+
+**cliclick actions:**
+
+| Action | Description |
+|--------|-------------|
+| `c:X,Y` | Left-click at coordinates |
+| `dc:X,Y` | Double-click |
+| `rc:X,Y` | Right-click |
+| `m:X,Y` | Move mouse to coordinates |
+| `t:Text` | Type text |
+| `kp:return` | Press a key (return, space, tab, etc.) |
+
+**Requires:** `cliclick` installed (`brew install cliclick`) + Accessibility permission.
+
+**Example:**
+```
+User: Click the save button in the top left.
+Agent: [calls screenshot()] → identifies button at ~x=42, y=18
+       [calls computer(action="c:42,18")]
+       [approval card shown to user]
+       [user clicks Allow]
+       Clicked at (42, 18).
+```

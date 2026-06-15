@@ -1,0 +1,86 @@
+---
+title: "Context tools"
+description: "search_graph, active_context, activity_recent — the user's private context graph and live screen activity."
+sidebarTitle: "Context"
+---
+
+The **context** group is how the agent grounds its answers in the user's private data. It covers the RAG graph (notes, past chats, memories) and the live screen-activity trail from the screen watcher.
+
+## search_graph
+
+RAG search over the user's private context graph: their notes, files, voice memos, and past conversations.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `query` | string | Yes | Natural-language description of the information needed |
+| `topK` | integer | No | How many snippets to retrieve (default `3`, max `8`) |
+
+**Returns:** Up to `topK` passages, each prefixed with its source file. Cites sources that appear as `[Source N]` links in the chat UI. Returns `"No matching passages in the user's private notes."` if nothing is found.
+
+**When the agent calls it:** Any question where the answer may live in the user's notes, files, or past chats — the agent must call this rather than guessing. The system prompt instructs: "do not guess, search first."
+
+**Requires:** `gte-large` alias served (embeddings). Without it, returns empty.
+
+**Example:**
+```
+User: What did I write about the Pi battery?
+Agent: [calls search_graph(query="Pi battery duration", topK=3)]
+       Found: (voice-memo-2026-05-14.md) "Pi battery lasts about 4 hours on full load..."
+```
+
+---
+
+## active_context
+
+What the user is doing on their screen right now — the most recent observation from the screen watcher.
+
+**Approval:** None — read-only.
+
+**Parameters:** None.
+
+**Returns:** A single line: `"As of Xm ago — AppName (WindowTitle): One-line summary [tags]"`. Returns a startup prompt if the screen watcher isn't running.
+
+**When the agent calls it:**
+- "What am I doing?" / "What's on my screen?"
+- Heartbeat cycle (grounding its check in the user's current activity)
+
+**Requires:** Screen watcher running (`npm run watch`) and Screen Recording permission.
+
+**Example:**
+```
+User: What am I working on right now?
+Agent: [calls active_context()]
+       As of 2m ago — Xcode (MyceliumApp.xcodeproj): Editing Swift networking code [code, xcode]
+```
+
+---
+
+## activity_recent
+
+The user's screen activity over the last N minutes — a timeline of observed apps and tasks.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `minutes` | integer | No | How far back to look, in minutes (default `30`, max `1440`) |
+
+**Returns:** A timeline of observations, one per line: `"HH:MM AppName — WindowTitle: Summary"`. Returns `"No screen activity in the last N minutes."` if none.
+
+**When the agent calls it:**
+- "What have I been working on for the last hour?"
+- "Summarize the last 30 minutes"
+- Heartbeat reads this to ground its proactive check
+
+**Example:**
+```
+User: What did I do this morning?
+Agent: [calls activity_recent(minutes=180)]
+       Activity in the last 180 minutes (12 observations):
+       09:02 Xcode — MyceliumApp: Editing networking code
+       09:45 Terminal — bash: Running npm test
+       10:30 Slack — #mycelium: Reading team messages
+       ...
+```

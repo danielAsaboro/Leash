@@ -1,0 +1,166 @@
+/* ─────────────────────────────────────────────────────────────────────────
+   Leash docs — "The Understory" broadsheet, ported from the app's design system.
+   Cream paper · ink · sage green · three voices:
+     Fraunces (display, headings) · Newsreader (body) · IBM Plex Mono (code, labels).
+   The app self-hosts these; here we pull the two not covered by docs.json fonts.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
+:root {
+  /* Broadsheet palette (matches apps/web/app/globals.css @theme tokens). */
+  --u-cream: #f1efe6;
+  --u-paper: #f7f5ed;
+  --u-ink: #191712;
+  --u-ink-soft: #3b382f;
+  --u-muted: #6c685c;
+  --u-faint: #9b9588;
+  --u-rule: #d4cfbf;
+  --u-rule-strong: #b9b2a0;
+  --u-sage: #3f7d4e;
+  --u-sage-deep: #2c5a39;
+  --u-brick: #ad3322;
+  --u-mono: "IBM Plex Mono", ui-monospace, "SF Mono", monospace;
+  --u-tracking-label: 0.16em;
+}
+
+/* ── Body: ink-on-paper, the app's reading measure (1.6 leading). ───────── */
+body,
+.prose,
+main {
+  color: var(--u-ink);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.prose p,
+.prose li {
+  font-size: 1.02rem;
+  line-height: 1.66;
+  color: var(--u-ink-soft);
+  text-wrap: pretty;
+}
+
+.prose strong {
+  font-weight: 600;
+  color: var(--u-ink);
+}
+
+/* ── Headings: Fraunces, tight and characterful. ───────────────────────── */
+.prose h1,
+.prose h2,
+.prose h3,
+.prose h4,
+h1,
+h2,
+h3 {
+  color: var(--u-ink);
+  letter-spacing: -0.012em;
+  font-weight: 600;
+}
+.prose h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ── Code & telemetry: IBM Plex Mono, the broadsheet's label voice. ─────── */
+code,
+pre,
+kbd,
+.font-mono {
+  font-family: var(--u-mono) !important;
+}
+:not(pre) > code {
+  font-size: 0.86em;
+  font-weight: 500;
+  background: color-mix(in srgb, var(--u-sage) 9%, var(--u-paper));
+  border: 1px solid color-mix(in srgb, var(--u-sage) 22%, transparent);
+  border-radius: 4px;
+  padding: 0.08em 0.34em;
+  color: var(--u-sage-deep);
+}
+
+/* ── Sidebar group titles → mono uppercase kicker (the app's section eyebrow). */
+#sidebar .group-title,
+#sidebar h5,
+nav .group-title,
+[class*="sidebar"] [class*="group"] > div:first-child,
+[class*="GroupTitle"],
+[class*="groupTitle"] {
+  font-family: var(--u-mono) !important;
+  text-transform: uppercase;
+  letter-spacing: var(--u-tracking-label);
+  font-size: 0.66rem !important;
+  font-weight: 600;
+  color: var(--u-muted) !important;
+}
+
+/* ── Eyebrow / kicker over page titles. ────────────────────────────────── */
+.eyebrow,
+[class*="eyebrow"] {
+  font-family: var(--u-mono) !important;
+  text-transform: uppercase;
+  letter-spacing: var(--u-tracking-label);
+}
+
+/* ── Links & accents: sage, with a hairline underline on hover. ────────── */
+.prose a {
+  color: var(--u-sage-deep);
+  text-decoration-color: color-mix(in srgb, var(--u-sage) 45%, transparent);
+  text-underline-offset: 2px;
+}
+.prose a:hover {
+  color: var(--u-sage);
+}
+
+/* ── Cards: paper with a fine rule, lifting slightly on hover. ─────────── */
+.card,
+[class*="card"] {
+  border-color: var(--u-rule);
+}
+
+/* ── Tables: broadsheet rules. ─────────────────────────────────────────── */
+.prose table th {
+  font-family: var(--u-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.72rem;
+  color: var(--u-muted);
+}
+.prose table,
+.prose th,
+.prose td {
+  border-color: var(--u-rule);
+}
+
+/* ── Dark mode: the app's "control room" palette. ──────────────────────── */
+.dark {
+  --u-ink: #ece8db;
+  --u-ink-soft: #cfc9b8;
+}
+.dark body,
+.dark .prose,
+.dark main {
+  color: var(--u-ink-soft);
+}
+.dark .prose p,
+.dark .prose li {
+  color: var(--u-ink-soft);
+}
+.dark .prose h1,
+.dark .prose h2,
+.dark .prose h3,
+.dark .prose strong,
+.dark h1,
+.dark h2,
+.dark h3 {
+  color: #f4f1e6;
+}
+.dark :not(pre) > code {
+  background: color-mix(in srgb, var(--u-sage) 16%, #1f1d16);
+  border-color: color-mix(in srgb, var(--u-sage) 30%, transparent);
+  color: #9fd3ab;
+}
+.dark .prose a {
+  color: #79b985;
+}

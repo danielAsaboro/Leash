@@ -1,0 +1,137 @@
+---
+title: "Computer Use"
+description: "Leash sees and acts on your Mac — screenshot, shell commands, and mouse/keyboard, behind approval cards."
+sidebarTitle: "Computer Use"
+---
+
+Computer use lets Leash interact with your Mac directly: read the screen with the on-device vision model, run shell commands, and drive the mouse and keyboard — all driven by a **local or mesh** QVAC model, never a cloud computer-use API. Every side-effect sits behind an **approval card**: Leash asks before it acts.
+
+<Warning>
+  `run_command` is **real execution on your Mac**, as your user. It is honestly bounded, not a perfect sandbox. The human approval card is the real boundary — don't approve commands you don't understand.
+</Warning>
+
+## The three tools
+
+<CardGroup cols={3}>
+  <Card title="screenshot" icon="camera">
+    See the screen via the on-device VLM. **No approval** (read-only).
+  </Card>
+  <Card title="run_command" icon="terminal">
+    Run a shell command and read its output. **Approval required.**
+  </Card>
+  <Card title="computer" icon="computer-mouse">
+    Drive mouse/keyboard via `cliclick`. **Approval required · experimental.**
+  </Card>
+</CardGroup>
+
+### screenshot
+
+Captures your screen and runs your question through the on-device VLM (`qwen3vl`), returning descriptive text — the frame never leaves the machine. Leash uses it to **see the screen before and after acting**.
+
+```
+question (optional): "Describe the screen: the frontmost app, window titles, and the main visible content."
+returns: text — e.g. "Xcode is open on LoginViewController.swift; a build error is visible…"
+```
+
+`screenshot` does **not** require approval; it's read-only. (If `qwen3vl` isn't served, you get an honest "vision model failed" message instead of a crash.)
+
+### run_command
+
+Runs a shell command string via `bash -c` and returns its output. This is the **real-disk executor** — read a file with `cat`, create/replace with a heredoc or `tee`, edit in place with `sed -i`/`patch`, plus installs and builds.
+
+```
+command: "ls -la ~/Documents"
+cwd (optional): defaults to your home directory
+returns: stdout + stderr + exit code (as one honest text blob)
+```
+
+It is honestly bounded — but understand exactly how:
+
+| Bound | What it does |
+|-------|--------------|
+| **Approval card** | The primary safety mechanism — you see the exact command and approve/reject before it runs. |
+| **cwd containment** | The working directory is contained under `COMPUTER_ROOT` (default: your home; narrow with `LEASH_COMPUTER_ROOT`). This is *convenience*, not a jail — an approved command runs as you. |
+| **Stripped env** | Only `PATH`, `HOME`, `LANG`, `TMPDIR` (plus opt-in `LEASH_COMMAND_ENV` names) are passed — secrets never leak into approved commands. |
+| **SIGKILL timeout** | Default **60 s** (`LEASH_COMMAND_TIMEOUT_MS`); raise it for slow installs/builds. |
+| **Output caps** | stdout/stderr truncated at 16 KB; command string capped at 4096 chars. |
+| **`LEASH_COMMAND_ALLOW`** | Optional first-token allowlist — a *best-effort* guard-rail, **not** a security boundary (`bash -c` composes around it). |
+
+### computer (experimental)
+
+Drives the mouse and keyboard via the `cliclick` binary (argv-array spawn, no shell).
+
+| Action | Inputs | Description |
+|--------|--------|-------------|
+| `move` | `x`, `y` | Move the mouse to logical screen points. |
+| `click` | `x`, `y` | Left click. |
+| `double_click` | `x`, `y` | Double click. |
+| `type` | `text` | Type a string (max **500** chars per call). |
+| `key` | `key` | Press one key (`return`, `tab`, `esc`, `arrow-down`, `page-down`, …). |
+| `scroll` | `amount` | Scroll pages: `+` down, `−` up (−10…10). |
+
+<Tip>
+  **Coordinates are logical points** — on a Retina display that's screenshot pixels ÷ 2. The intended loop is: `screenshot` to aim → `computer` to act → `screenshot` again to verify.
+</Tip>
+
+`computer` requires approval. A missing `cliclick` binary returns an honest install hint instead of crashing.
+
+## Activating computer use
+
+In chat, describe what you want done on screen. When the intent classifier routes the turn to the **`computer`** route, only the computer-use toolset is offered — chat turns never silently gain shell execution. You can also be explicit: *"screenshot my screen"* or *"use computer tools"*.
+
+The computer-use model is resolved at runtime: Leash checks whether the model is served locally or warm on a paired peer. If it's unavailable, Leash tells you what's missing.
+
+## Approval flow
+
+<Steps>
+  <Step title="Leash proposes an action">
+    The chat UI shows an **approval card** with the exact command (`run_command`) or the action + coordinates/keys (`computer`).
+  </Step>
+  <Step title="You approve or reject">
+    Approve to run; reject to skip. Either way the turn continues — a rejection just means that step didn't run.
+  </Step>
+  <Step title="Output comes back inline">
+    The command's stdout/stderr/exit code (or the action's result) is fed back to the agent so it can decide the next step.
+  </Step>
+</Steps>
+
+## Security
+
+- `run_command` has **no hard sandbox** — it runs as your user with your full filesystem access. Treat it like handing Leash a terminal.
+- The **approval gate is the boundary** — the cwd containment, stripped env, allowlist, timeout, and output caps are defense-in-depth, not a jail.
+- File-op tools (`read_file` / `write_file` / `edit_file`) **are** hard-jailed under `COMPUTER_ROOT` with realpath containment — a symlink pointing outside the root is rejected even when the path looks right.
+- Computer-use tools live only on the `computer` route, never mixed with chat tools.
+
+## Requirements
+
+<Columns cols={2}>
+  <Card title="macOS" icon="apple">
+    Linux/Windows computer use isn't supported yet.
+  </Card>
+  <Card title="cliclick" icon="computer-mouse">
+    `brew install cliclick`, then grant **Accessibility** to the terminal.
+  </Card>
+  <Card title="Screen Recording permission" icon="camera">
+    Required for `screenshot`.
+  </Card>
+  <Card title="qwen3vl served" icon="eye">
+    The vision alias powering `screenshot`. See [Aliases](/models/aliases).
+  </Card>
+</Columns>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Chat" icon="comment" href="/channels/chat">
+    Where computer-use turns are triggered and approved.
+  </Card>
+  <Card title="computer tool reference" icon="screwdriver-wrench" href="/capabilities/tools/computer">
+    The full tool-group capability reference.
+  </Card>
+  <Card title="Aliases" icon="tag" href="/models/aliases">
+    Serve `qwen3vl` for screen vision.
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/help/troubleshooting">
+    Permission and `cliclick` issues.
+  </Card>
+</CardGroup>

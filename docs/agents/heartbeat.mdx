@@ -1,0 +1,94 @@
+---
+title: "Heartbeat"
+description: "The proactive autonomous loop — one quiet background turn that proposes, suppresses, classifies into a tier, and only then interrupts you."
+sidebarTitle: "Heartbeat"
+---
+
+The **heartbeat** is one autonomous, non-interactive agent turn that runs on a timer. It reads your constitution and recent screen activity, then decides whether anything *right now* genuinely deserves your attention. Silence is the default — most cycles end with the `HEARTBEAT_OK` sentinel and nothing surfaces.
+
+<Note>
+The heartbeat runs the **same** `buildLeashAgent` the chat route uses, but with a tight, **propose-only** toolset and a `HEARTBEAT_STEPS = 4` step budget. It never streams to you directly — its drained reply is a *proposal* that the pipeline below decides what to do with.
+</Note>
+
+## heartbeat.md
+
+`heartbeat.md` is the checklist the agent works through each cycle. Unlike `soul.md` and `goals.md` (folded into every chat turn), `heartbeat.md` is read **only** during heartbeat runs.
+
+```markdown
+- Check if any goal deadline is approaching in the next 7 days.
+- Look for unread research threads that have stalled.
+- Flag if screen activity shows more than 2 hours on non-goal apps.
+- Surface any task in the "urgent" list that hasn't moved in 48 hours.
+```
+
+Keep it specific and action-oriented — vague items produce vague proposals. Lives at `data/heartbeat.md`, or wherever `LEASH_HEARTBEAT_FILE` points. **16 KB max.**
+
+## The pipeline
+
+Each cycle runs this sequence. Any gate can suppress the proposal, ending the cycle in silence.
+
+<Steps>
+  <Step title="Propose">
+    The agent reads soul + goals + the `heartbeat.md` checklist + the last **`ACTIVITY_WINDOW = 25`** screen-activity records, then runs a 4-step loop with a **propose-only** toolset: `search_graph`, `recall`, `understory_search`, `understory_today`, `list_tasks`, and the one safe reversible write, `create_task`. No outward or irreversible tools — the heartbeat is non-interactive, so an "ask-first" tool would hang waiting on a user who isn't there. It either emits `HEARTBEAT_OK` or one concise nudge.
+  </Step>
+  <Step title="HEARTBEAT_OK suppression">
+    If the reply *is* the `HEARTBEAT_OK` sentinel (or is empty after stripping small-model noise like fake `<tool_call>` text), the cycle is suppressed. This check runs on the **raw** reply, before cosmetic cleaning.
+  </Step>
+  <Step title="Daily budget gate">
+    If today's notification allowance (from the schedule's heartbeat config) is already spent, the proposal is suppressed. Silence-by-default still observes — the budget only caps how many *surface*.
+  </Step>
+  <Step title="Dedup">
+    A cheap **exact-signature** check first (the first 8 lowercased alphanumeric words), then a **fuzzy embedding** check: cosine of the proposal against the last 10 surfaced proposals (`gte-large`). At or above **`DEDUP_THRESHOLD = 0.92`** it's treated as a duplicate and suppressed.
+  </Step>
+  <Step title="Classify into a tier">
+    A hard-rules safety floor (regex) plus a small classifier model grade the proposal into `auto`, `notify`, or `ask`. The proposal is also scored against your goals (an `onGoal` cosine).
+  </Step>
+  <Step title="Override">
+    A previously pinned "always do this" tier override wins — but `stricterTier` ensures it never drops **below** the hard floor (an outward/irreversible action stays `ask`).
+  </Step>
+  <Step title="Deliver">
+    The surfaced proposal becomes a notification written to the feed (the source of truth). The desktop renderer's `LeashRail` polls the feed and fires the OS toast as a secondary channel; `auto`-tier arrives pre-read with no badge ping.
+  </Step>
+</Steps>
+
+## Delivery tiers
+
+The classifier's "conscience" maps each proposal to one of three tiers. The hard floor can only **raise** a tier (`auto → notify → ask`), never lower it — so anything outward-facing, irreversible, or money-spending is forced to `ask`.
+
+| Tier | Behaviour |
+|------|-----------|
+| `auto` | Silent / pre-read — reversible, low-stakes, clearly on-goal. No badge, no ping. |
+| `notify` | Badge + notification you can undo. **The default** for nudges and observations. |
+| `ask` | Approve-before — surfaced for explicit approval; nothing acts until you say yes. |
+
+<Note>
+If the classifier serve is down, the proposal defaults to `notify` (never act silently, never block the cycle) — still honoring the hard floor.
+</Note>
+
+## Triggering
+
+The heartbeat fires via:
+
+- **Cron schedule** — `POST /api/leash/heartbeat` from the scheduler (mcp-cron, kind `heartbeat`). Configure it in **Brain → Proactivity** / [Scheduler](/capabilities/scheduler).
+- **Context switch** — the screen watcher (`leash-watch`) can fire a heartbeat on an app switch, grounding the check in fresh activity.
+
+## Toolless-hang guard
+
+The propose-only tools come from the always-up `leash-tools-mcp` daemon. If that daemon is still warming on a fresh boot and none of the propose-only tools are live yet, the cycle **defers** cleanly rather than running a tool-less turn — a `tools:true`/dynamic request with zero tools hangs the decode at zero tokens. The next cycle, once the daemon is up, runs normally.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Goals" icon="bullseye" href="/agents/goals">
+    The yardstick the heartbeat judges every proposal against.
+  </Card>
+  <Card title="Scheduler" icon="clock" href="/capabilities/scheduler">
+    How the cron schedule that fires the heartbeat is set up.
+  </Card>
+  <Card title="Automation" icon="gears" href="/capabilities/automation">
+    Where proactive behaviour fits in the broader automation story.
+  </Card>
+  <Card title="Brain" icon="brain" href="/agents/brain">
+    The Proactivity tab and constitution editor.
+  </Card>
+</CardGroup>

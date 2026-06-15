@@ -1,0 +1,73 @@
+---
+title: "General troubleshooting"
+description: "Common problems and how to fix them."
+sidebarTitle: "General troubleshooting"
+---
+
+## The serve is not responding
+
+**Symptom:** Chat shows "serve is down" or requests timeout with no response.
+
+**Fix:**
+1. Check that `qvac serve openai` is running: `curl http://127.0.0.1:11435/v1/models`
+2. If it's not running, start it: `qvac serve openai`
+3. Check `QVAC_OPENAI_URL` — it should point to `:11435` (not the broker at `:11436`)
+4. If the serve starts but exits immediately, check that at least one alias is in `qvac.config.base.json` and the weight file is downloaded.
+
+## The chat model hangs — no tokens generated
+
+**Symptom:** The chat spinner runs but no tokens appear; eventually times out.
+
+**Common causes:**
+1. **Zero tools on a `tools: true` route** — the `qwen3-4b` serve hangs at zero tokens on toolless requests. This happens if all tool groups are disabled in Brain → MCP. Enable at least one group.
+2. **Too many schemas** — if `LEASH_DEBUG_TOOLS=1`, the log shows the active tool count. Above ~22 schemas the prompt overflows. Disable some MCP groups.
+3. **Model not preloaded** — the serve loads models lazily on first request. The first call can take 30–60 seconds on slow storage. Wait and retry.
+4. **Temperature issue** — the serve default temperature (~0.1) causes repetition and hangs on Qwen3. Leash overrides this per-turn (0.6 or 0.7) — if you're calling the serve directly, set `temperature: 0.7`.
+
+## The screen watcher isn't running
+
+**Symptom:** `active_context` and `activity_recent` return empty; the heartbeat has no activity to read.
+
+**Fix:**
+1. Start it: `npm run watch` (or the desktop app starts it automatically)
+2. Grant **Accessibility** and **Screen Recording** permissions in System Settings → Privacy & Security
+3. The VLM summary requires `qwen3vl` to be served — without it, watcher logs app + window title but no summary
+
+## Voice call isn't transcribing
+
+**Symptom:** VoiceCall enters "transcribing" state but returns empty or no text.
+
+**Fix:**
+1. The Parakeet STT rejects `webm/opus` — Leash re-encodes to WAV before sending. If you're seeing empty transcripts check browser console for decode errors.
+2. Mic permission denied → state goes to `denied`. Grant mic permission in browser settings.
+3. Check that `parakeet` alias is served and READY in Brain → Models.
+4. Try a louder utterance — VAD onset threshold is 0.04 RMS. In a noisy environment it may trip too early and clip your speech.
+
+## Memory / RAG search returns empty
+
+**Symptom:** `search_graph` returns no results; grounded answers cite nothing.
+
+**Fix:**
+1. Check that `gte-large` is served — without embeddings, the graph store can't index or retrieve.
+2. Run a manual re-index: Brain → Memory → Re-index (or `npm run index`)
+3. Check `data/notes/` — if there are no `.md` files, there's nothing to index.
+4. Check that the Memory group is enabled in Brain → MCP.
+
+## Hypha daemon won't connect to peers
+
+**Symptom:** Mesh shows no peers; `POST /hypha/peers` returns empty.
+
+**Common causes:**
+1. **LAN issue** — hyperdht uses a LAN shortcut that fails silently when the LAN probe returns no response. Set `HYPHA_DEBUG_LANPROBE=<host:port>` to diagnose.
+2. **Same seed used twice** — each device needs a distinct `QVAC_HYPERSWARM_SEED`. Two processes sharing a seed half-open every dial. Generate a new seed per device.
+3. **Orphaned background process** — macOS denies Local Network to processes whose SSH session has exited. Launch hypha session-attached: `ssh -n -f pro 'zsh -lc "cd ~/mycelium && npx tsx apps/hypha/src/main.ts"'`
+4. **Registry lock** — if the serve and hypha both try to open the corestore registry, one holds the fd-lock. Stop model serve before downloading new models on a machine where serve has touched the registry.
+
+## The desktop app won't open
+
+**Symptom:** App bounces in the dock then closes, or shows a blank window.
+
+**Fix:**
+1. Check that `LEASH_DATA_DIR` or the data folder chosen at setup still exists and is writable.
+2. Open Console.app and filter by "Leash" to see crash logs.
+3. Delete `~/Library/Application Support/Leash/install.json` to re-run the setup wizard.

@@ -1,0 +1,51 @@
+---
+title: "Sampling"
+description: "Why Leash sets its own temperature/top-p per thinking mode — and never uses the serve's near-greedy default that loops Qwen3."
+sidebarTitle: "Sampling"
+---
+
+Leash sets sampling **per turn**, keyed on whether `<think>` reasoning is on. This follows Qwen3's published best practice — and pointedly avoids the serve's near-greedy default, which Qwen explicitly warns against.
+
+## Per thinking mode
+
+Every text and tool route gets sampling chosen by the turn's `thinking` flag:
+
+| Mode | Temperature | top-p | When |
+|------|-------------|-------|------|
+| **Thinking** (`<think>` on) | **0.6** | **0.95** | Deep-text turns |
+| **Non-thinking** (`/no_think`) | **0.7** | **0.8** | Standard turns |
+
+This is the Qwen3 recommendation for each mode. `vision` (qwen3vl, single-shot) keeps its own behavior and is left out of this mapping; every text/tool route gets proper sampling.
+
+## Why not the serve default
+
+The `qvac serve` default is **near-greedy (temp ~0.1)** — and that is exactly what Qwen3 warns against.
+
+<Warning>
+Greedy decoding on Qwen3 causes **performance degradation and endless repetitions / loops**. Leash never uses it; the per-mode sampling above is applied on every non-vision turn for this reason.
+</Warning>
+
+## Why top-k is omitted
+
+There is no `topK` in the sampling parameters. The `qvac`/`qwen3-4b` provider doesn't support it — it dropped the value and logged an AI SDK warning every turn — so it is intentionally left out rather than passed and discarded.
+
+<Tip>
+The two-mode split lines up with the runtime: the `thinking` call option that picks the temperature is the same flag that controls whether the model's `<think>…</think>` is extracted into the UI's Reasoning panel.
+</Tip>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Runtime engine" icon="gears" href="/agents/runtime">
+    Where prepareCall applies sampling per turn.
+  </Card>
+  <Card title="Routes" icon="route" href="/agents/routes">
+    Which routes get sampling (all but vision).
+  </Card>
+  <Card title="Chat models" icon="microchip" href="/models/modality/chat">
+    The Qwen3 chat alias these settings target.
+  </Card>
+  <Card title="Debugging" icon="bug" href="/help/debugging">
+    Spotting repetition/loop symptoms.
+  </Card>
+</CardGroup>

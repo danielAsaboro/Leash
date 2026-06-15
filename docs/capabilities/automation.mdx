@@ -1,0 +1,56 @@
+---
+title: "Automation"
+description: "Leash's automation layer — the heartbeat, scheduler, and background jobs."
+sidebarTitle: "Automation"
+---
+
+Leash has three automation mechanisms that run without a user present:
+
+| Mechanism | What fires it | What it does |
+|-----------|--------------|-------------|
+| **Heartbeat** | mcp-cron on a schedule (default: every 15 min) | Agent checks your activity and constitution; surfaces a nudge if warranted |
+| **Scheduler** | mcp-cron, user-configured cadences | Recurring reminders (tasks) and allowlisted maintenance jobs |
+| **Background jobs** | Scheduled via `schedule_job` tool or the dashboard | `dream`, `evolve`, `tag-photos`, `research` |
+
+## The mcp-cron daemon
+
+All scheduled work is driven by a single daemon: `mcp-cron`. It reads from the schedules store (`data/leash-schedules.json`) on each tick and fires due jobs via the Leash web API.
+
+`mcp-cron` runs as a daemon started by the web server. If it's not running, no scheduled work fires — check Brain → Services.
+
+## What the agent can schedule
+
+The scheduler tool group (`schedule_reminder`, `schedule_job`, `list_schedules`, `enable_schedule`, `disable_schedule`, `remove_schedule`) lets the agent schedule its own future work on your behalf.
+
+Hard limits:
+- No arbitrary shell commands
+- No cloud AI tasks (QVAC-only rule)
+- Only the four allowlisted maintenance jobs: `dream`, `evolve`, `tag-photos`, `research`
+
+→ See [Scheduler](/capabilities/scheduler) for the full tool reference.
+
+## What runs on a background job
+
+| Job | What it does |
+|-----|-------------|
+| `dream` | Consolidates your recent chats into actionable tasks |
+| `evolve` | Nightly on-device LoRA fine-tuning ("The Understory" step 3) |
+| `tag-photos` | Classifies photos in your library with `qwen3vl` |
+| `research` | Runs a background web research pass on a configured question |
+
+→ See [Background tasks](/capabilities/background-tasks) for details.
+
+## The heartbeat
+
+The heartbeat is a special schedule (`kind: "heartbeat"`) managed separately from user-created schedules. It runs the proactive agent loop: reads your constitution (soul + goals + heartbeat.md) and recent screen activity, then proposes a nudge if something warrants your attention.
+
+→ See [Heartbeat](/agents/heartbeat) for the pipeline details.
+
+## Managing schedules
+
+**From the dashboard:** Brain → Services → Schedules — shows all schedules with their cadence, last run, next run, and enabled/disabled state.
+
+**From chat:** Ask the agent to schedule something. It uses the scheduler tool group:
+- "Remind me every weekday at 9am to review my goals"
+- "Run dream every night at midnight"
+- "Schedule a research run every Sunday at 6pm on my current project"

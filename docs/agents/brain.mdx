@@ -1,0 +1,66 @@
+---
+title: "Brain"
+description: "The Brain dashboard — where you configure everything the agent knows and how it behaves: models, tools, skills, the constitution, memory, and schedules."
+sidebarTitle: "Brain"
+---
+
+**Brain** is the configuration surface of the dashboard — *what the assistant knows and how it behaves*. It lives at `/brain` (the web app runs at `http://localhost:6801`) and is organised into tabs.
+
+## Sections
+
+| Tab | What it does |
+|-----|--------------|
+| **Memory** | Browse persistent memories, notes, and screen activity. Delete or bulk-clear memories; see the chat thread each was derived from. The default landing tab. |
+| **Skills** | The markdown instruction documents the agent reads before acting. View, inspect, and manage your [skills](/capabilities/skills). |
+| **Tools** | The tool registry — toggle any tool on/off (off removes its schemas from the active set) and set per-tool "ask-first" approval. Computer rows show the driving model; bash rows note the sandbox scope. |
+| **MCP** | Every tool group served by `leash-tools-mcp`, with per-group enable toggles and server status. Disable a group to free schema slots. |
+| **Prompts** | System / voice / MedPsy prompt overrides. |
+| **Models** | The model inventory and lifecycle — what's installed, the serve status, and the downloadable catalog with device-fit. |
+| **Growth** | The Understory — LoRA adapter rounds: base-vs-adapter eval deltas, per-axis scores, and the adapter manifest. *(WIP — empty until the first adapter trains.)* |
+| **Forage** | Surfaced foraging results. |
+| **Proactivity** | The **constitution editor** — `soul.md`, `goals.md`, and `heartbeat.md` — plus the proactive-loop controls. |
+
+## Memory, notes & screen activity
+
+The **Memory** tab is a landing for everything the agent has learned about you:
+
+- **Memories** — persistent facts and preferences carried across conversations, stored in the graph and retrieved via RAG on relevant turns. The evolution loop runs nightly to extract and update them; you can also trigger it manually.
+- **Notes** — your markdown notes in `data/notes/`, indexed into the graph. Add or edit a `.md` file and the next RAG rebuild picks it up; there's no in-app editor.
+- **Screen activity** — the `leash-watch` daemon writes structured records to `data/leash-activity.jsonl` (timestamp, frontmost app, window title, and an on-device VLM summary). This trail feeds the heartbeat — the last **25** records ground each proactive check.
+
+<Note>
+The screen watcher needs macOS accessibility permissions and a running VLM (`qwen3vl`). Without vision it still logs app + window title, but skips the summary.
+</Note>
+
+## The constitution editor
+
+**Brain → Proactivity** hosts the constitution editor — the three files that shape identity and proactive behaviour:
+
+| File | Role | Read when |
+|------|------|-----------|
+| [`soul.md`](/agents/soul) | Who you are | Every chat turn |
+| [`goals.md`](/agents/goals) | Where you're going (≤5 goals) | Every chat turn |
+| [`heartbeat.md`](/agents/heartbeat) | What to watch each cycle | The heartbeat loop |
+
+Each is capped at **16 KB** and written atomically (temp file, then rename) so a crash mid-save never corrupts it.
+
+## Services & schedules
+
+Proactive behaviour is driven by scheduled jobs — the heartbeat fires on a cron schedule (`POST /api/leash/heartbeat`), and the memory/Understory evolution loops run nightly. Configure and inspect these via the [Scheduler](/capabilities/scheduler) and [Automation](/capabilities/automation) surfaces.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Models overview" icon="microchip" href="/models/overview">
+    What the Models tab manages.
+  </Card>
+  <Card title="MCP" icon="plug" href="/capabilities/mcp">
+    The tool groups behind the MCP tab.
+  </Card>
+  <Card title="Skills" icon="puzzle-piece" href="/capabilities/skills">
+    The Skills tab in depth.
+  </Card>
+  <Card title="Heartbeat" icon="heart-pulse" href="/agents/heartbeat">
+    The proactive loop the Proactivity tab controls.
+  </Card>
+</CardGroup>

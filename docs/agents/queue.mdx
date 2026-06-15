@@ -1,0 +1,96 @@
+---
+title: The broker
+description: A cross-process priority queue in front of qvac serve that serializes per-model inference and survives client disconnects.
+---
+
+Leash's `leash-broker` is a standalone reverse proxy on `:11436` that fronts `qvac serve` on `:11435`. It is the single chokepoint that serializes inference per model, prioritizes across models, and keeps long decodes alive when a client walks away.
+
+```bash
+npm run broker   # listens on :11436 → forwards to serve :11435
+```
+
+## Why it exists
+
+The serve's `llm-llamacpp` addon serializes inference per model context and **rejects** concurrent same-alias requests rather than queuing them — a second request to a busy alias comes back as `500 "Cannot set new job…"`.
+
+<Warning>
+  Every serve client is a **separate OS process** — the web chat route, the compaction / dream / research children, the watcher. An in-process mutex can't coordinate them. The broker is the only place that can.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Per-alias serialization" icon="lock">
+    Concurrency **1 per model** (alias). At most one request in flight per alias; the rest wait.
+  </Card>
+  <Card title="Different aliases run parallel" icon="layer-group">
+    Serialization is **per alias**, so `qwen3-4b` and an embeddings model decode at the same time — they don't share a context.
+  </Card>
+  <Card title="Wedge-safe drain" icon="shield-halved">
+    On client disconnect the broker **never** aborts the upstream serve — it drains the decode to completion, then frees the slot.
+  </Card>
+  <Card title="No upstream timeout" icon="hourglass">
+    `bodyTimeout: 0` — the broker never body-times-out a slow decode.
+  </Card>
+</CardGroup>
+
+## How a request flows
+
+<Steps>
+  <Step title="Read the alias">
+    The broker parses the JSON body's `model` field. Non-JSON or model-less traffic (the model list, multipart audio) passes through **unqueued** — those endpoints don't collide on a chat/vision context.
+  </Step>
+  <Step title="Acquire the alias slot">
+    If the alias is idle, the request goes straight through. If busy, it waits in that alias's queue, ordered by priority + aging (see [Priority & aging](/agents/queue-priority)).
+  </Step>
+  <Step title="Forward with no abort signal">
+    The upstream `fetch` is **deliberately not** tied to the client. If the client disconnects mid-decode, the serve is never aborted.
+  </Step>
+  <Step title="Stream or drain">
+    While the client is connected, upstream bytes stream straight through (respecting backpressure). If the client has gone, the broker keeps reading to **drain** the serve to completion so the next queued request isn't blocked.
+  </Step>
+  <Step title="Release the slot">
+    On completion (or upstream error → `502`), the slot is released and the next waiter — picked by aged priority — is woken.
+  </Step>
+</Steps>
+
+## The wedge rule
+
+<Note>
+  Aborting a llama.cpp decode mid-flight can wedge the GPU. The broker's governing invariant: **never abort the serve on client disconnect.** If a client gives up *while still queued*, the broker simply frees the slot without bothering the serve — no decode is burned on an abandoned request. But once a decode has started, it always runs to completion.
+</Note>
+
+## Scheduling lineage
+
+The broker is **non-preemptive priority scheduling**: the serve is a non-preemptible black box, so the broker schedules *which request enters next*, never interrupting one in flight. The design borrows from OS MLFQ (multi-level feedback queue) with priority + aging.
+
+<Tip>
+  The LLM-serving papers — Orca, vLLM, FastServe, Sarathi — diagnose the same contention but assume **engine control** (token-level preemption, paged KV) that a black-box serve doesn't expose. The broker schedules at the request boundary instead.
+</Tip>
+
+## Diagnostics
+
+`GET /__broker/stats` returns live state — the upstream, total served, overflow counters, and per-alias `{ busy, queued }` depth.
+
+## Configuration
+
+| Env var | Default | Purpose |
+| --- | --- | --- |
+| `LEASH_BROKER_PORT` | `11436` | Listen port |
+| `LEASH_BROKER_UPSTREAM` | `http://127.0.0.1:11435` | The serve to forward to |
+| `LEASH_BROKER_AGING_MS` | `8000` | Anti-starvation aging interval (see priority page) |
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Priority & aging" icon="arrow-up-wide-short" href="/agents/queue-priority">
+    Cross-alias priority tiers, aging, and mesh overflow.
+  </Card>
+  <Card title="Runtime" icon="gears" href="/agents/runtime">
+    Where the broker sits in Leash's process model.
+  </Card>
+  <Card title="Ports & processes" icon="network-wired" href="/reference/runtime-ports-and-processes">
+    The full port map: web, serve, broker, hypha.
+  </Card>
+  <Card title="Debugging" icon="bug" href="/help/debugging">
+    Diagnosing wedges and queue stalls.
+  </Card>
+</CardGroup>

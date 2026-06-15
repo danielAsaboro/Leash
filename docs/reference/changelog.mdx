@@ -5,16 +5,51 @@ rss: true
 ---
 
 The day-by-day release history of Leash / Mycelium across the QVAC Hackathon build window
-(May 31 – June 13, 2026). Everything here runs on-device through `@qvac/sdk` — no cloud AI.
+(May 31 – June 21, 2026). Everything here runs on-device through `@qvac/sdk` — no cloud AI.
 Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
 
-<Update label="June 13" description="Chat overhaul, plan mode & the landing site" tags={["Leash", "UI"]}>
+<Update label="June 15" description="The proactive assistant + the mcp-cron scheduler" tags={["Leash", "Agent", "Models"]}>
+  Leash became **proactive**. The Assistant Kit (`qwen3-4b` chat + a `classifier` triage model +
+  `gte-large` + `qwen3vl`), an editable **constitution** (`soul.md` / `goals.md` / `heartbeat.md`)
+  folded into every turn, and a cron-driven **heartbeat** that proposes nudges, dedups them on
+  `gte-large`, and classifies each into an **auto / notify / ask** tier with a notifications feed.
+
+  The scheduler moved wholesale onto **mcp-cron** (retiring `leash-cron`): a supervised HTTP
+  daemon, a typed MCP client, a schedules-store backed by it with idempotent default seeds, and a
+  curated agent-facing scheduling MCP group. Plus the **SDK 0.12.1 → 0.13.1** upgrade with the
+  vision patch wired into the runtime, chat models defaulting to a **32 768-token** context window,
+  natural-language memory recall + TTS-engine config fixes, mcp-cron bundled into the packaged
+  desktop app, and a new **Telegram** channel bridge (owner-only, on-device inference).
+
+  `643a724` proactive assistant (kit + constitution + heartbeat + tiers) · `7a31477` mcp-cron spike ·
+  `f0cbbbc` supervise mcp-cron · `871125a` typed cron client · `75aa01c` schedules-store on mcp-cron ·
+  `3288c77` seed default schedules · `66f1008` scheduler MCP group · `02bf729` retire leash-cron ·
+  `cc7eae8` bundle mcp-cron in desktop · `db70dc5` 32768 default context · `78bf0f0` NL recall + TTS config ·
+  `7fd5b1a` SDK 0.13.1 + vision patch · `de67def` desktop runtime manifest · `46ffc72` Telegram channel
+</Update>
+
+<Update label="June 14" description="Desktop app matures + a standalone tools server" tags={["Leash", "UI", "Skills"]}>
+  The desktop app grew up: a **native shell** with per-user isolation, multi-user auth, and
+  localhost bind; **real first-run onboarding** (commit-and-leave with a live runtime-download
+  page); and an on-demand daemon overlay with a repeatable release pipeline. The built-in tools
+  were **extracted into a standalone MCP server**, the bundled skills aligned to the **Agent
+  Skills** standard, and the model-download UX hardened (cancel removes the partial weight, failed
+  downloads stay retryable, and the chat picker lists only chat models with actionable
+  not-loaded errors).
+
+  `2219b80` standalone tools MCP server · `044998a` native shell + multi-user auth · `e29a726`
+  built-in skills + Agent Skills format · `46c2aa3` first-run onboarding · `8065863` retryable
+  dropped downloads · `87a2499` cancel removes partial weight · `8b6c8aa` chat-only model picker ·
+  `c6edbb7` daemon overlay + release pipeline
+</Update>
+
+<Update label="June 13" description="Chat overhaul, plan mode, the landing site & the docs rebuild" tags={["Leash", "UI", "Docs"]}>
   The AI Elements chat overhaul with **plan mode** and a prompt **queue + steering**, the
-  broadsheet marketing front page (useleash.xyz) with live in-app previews, and the standalone
-  mesh view.
+  broadsheet marketing front page (useleash.xyz) with live in-app previews, the standalone
+  mesh view, and a full rebuild of the Mintlify **docs site** around the current surfaces.
 
   `2e42360` chat overhaul + plan mode + steering · `a4b4a71` broadsheet landing site ·
-  `1310886` mesh view
+  `1310886` mesh view · `0405246` docs site rebuild
 </Update>
 
 <Update label="June 12" description="The skills-first harness" tags={["Skills", "Agent"]}>
@@ -31,7 +66,7 @@ Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
 
 <Update label="June 11" description="Catalog, mesh view & settlement on the forward path" tags={["UI", "Mesh", "Economy", "Models"]}>
   The heaviest day (33 commits). Tabbed Settings (Storage / Devices QR+sync-key / Permissions /
-  About), the **Models v2** browser over the 729-model catalog with per-model sharing, a
+  About), the **Models v2** browser over the full model catalog with per-model sharing, a
   collapsible Devices mesh+peer view, **mesh modality borrowing** (vision/embeddings/TTS/STT)
   with failover, supersede-based ghost cleanup, `/mesh/leave`, per-modality forward-path metering
   with x402 settlement (default metered), the `/economy/receipts` ledger, a sandboxed bash files

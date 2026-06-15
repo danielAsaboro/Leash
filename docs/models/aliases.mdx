@@ -1,0 +1,114 @@
+---
+title: "Aliases"
+description: "The model alias system — mapping short names to SDK constants in qvac.config.base.json."
+sidebarTitle: "Aliases"
+---
+
+An **alias** is a short name (`chat`, `gte-large`) that maps to an SDK catalog constant in `qvac.config.base.json`. The agent and every daemon reference aliases — never raw filenames — so you can swap the underlying model without changing a line of code.
+
+## Built-in alias contract
+
+The runtime expects these aliases. Missing one disables the feature that depends on it:
+
+| Alias | Feature gated on it |
+|-------|---------------------|
+| `chat` | All text turns **(required)**. |
+| `gte-large` | RAG search, heartbeat dedup, memory indexing **(required for grounded chat)**. |
+| `parakeet` | Voice-call STT. |
+| `supertonic` | Voice-call TTS (voice `F1`). |
+| `qwen3vl` | Screenshot + screen-watcher vision. |
+| `sd` | Image generation (`generate_image`). |
+| `medpsy` | Health specialist route — QVAC's **MedGemma 4B** (`MEDGEMMA_4B_IT_Q4_1`); **falls back to `chat`** if absent. |
+
+<Warning>
+  Chat fails without `gte-large`. The embedding model isn't optional for a grounded assistant — wire it whenever you wire `chat`.
+</Warning>
+
+## Configuring an alias
+
+<Steps>
+  <Step title="Find the model">
+    In **Brain → Models → Catalog**, locate the SKU you want.
+  </Step>
+  <Step title="Configure it">
+    Click **Configure** and enter an alias name — lowercase, `a-z0-9-`, up to 32 chars.
+  </Step>
+  <Step title="Defaults are written for you">
+    Chat models get `config.ctx_size: 32768`; TTS models get the required `ttsEngine` block; vision models get their mmproj projection path. The **first** model you configure becomes the served default.
+  </Step>
+  <Step title="Restart the serve">
+    The serve reads config only on startup — there's no live-reload API. Restart it (or use the dashboard's restart button) to apply the change.
+  </Step>
+</Steps>
+
+Or wire the entire **Assistant Kit** (Brain → Models → Kit) in one atomic edit — see [Catalog](/models/catalog).
+
+<Note>
+  Leash edits `qvac.config.base.json` (the machine-neutral base with `~/` paths). The serve loads `qvac.config.mjs`, the wrapper that expands `~/` and reads the base JSON. **Never create `qvac.config.json`** — the CLI prefers `.json` over the `.mjs` wrapper and it would shadow it.
+</Note>
+
+## Context size
+
+Chat aliases default to **`ctx_size: 32768`**. Adjust it in **Brain → Models** with the context-size slider — the fit estimate updates live as you drag.
+
+Reducing `ctx_size` directly lowers KV-cache memory:
+
+```
+KV_cache (GB) ≈ 0.000008 × params_B × ctx_tokens
+```
+
+A 4B model at **32k ≈ 1 GB** KV cache; at **8k ≈ 0.25 GB**. Embedding, speech, image, OCR, and transcription models don't take a large generation context — they keep the SDK default.
+
+## GPU vs CPU
+
+Set `use_gpu: true` or `use_gpu: false` per alias. Leave it unset to take the SDK default (usually GPU when available). Force CPU for a model that won't fit in VRAM — it runs slower but still works.
+
+## Measured tok/s
+
+The Models table shows **measured tok/s** per alias — the **median of the last 10 real chat turns** for that alias, computed from chat telemetry, not a spec sheet. It's blank until an alias has actually generated a few replies, then reflects your real hardware. (For reference, `chat` on Qwen3 4B runs ~15–20 tok/s on an M1 GPU.)
+
+## Multiple chat models
+
+You can configure several chat-category aliases (e.g. `chat`, `chat-small`, `chat-large`) and switch between them in the chat input's model picker. The `default: true` flag marks the one the agent uses when you haven't picked.
+
+## Custom models (explicit-src GGUF)
+
+For a model that isn't in the SDK catalog — a fine-tuned GGUF you built — use the explicit `src` form instead of `model` (built-in aliases like `medpsy` use catalog constants, not `src`):
+
+```json
+{
+  "serve": {
+    "models": {
+      "my-ft": {
+        "src": "~/.qvac/models/my-finetuned.gguf",
+        "type": "llm",
+        "preload": true,
+        "config": { "ctx_size": 8192 }
+      }
+    }
+  }
+}
+```
+
+The `~/.qvac/` prefix is expanded to the machine's home directory by `qvac.config.mjs`.
+
+<Warning>
+  An explicit-`src` GGUF must exist at the same `~/`-relative path on **every** Mac that serves it — a peer skips advertising an alias whose file is missing locally.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Catalog" icon="layer-group" href="/models/catalog">
+    Download the weights an alias points at.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/models/config">
+    The full `qvac.config.base.json` reference.
+  </Card>
+  <Card title="Overview" icon="cube" href="/models/overview">
+    Fit math and how the serve resolves aliases.
+  </Card>
+  <Card title="Model FAQ" icon="circle-question" href="/help/faq-models">
+    Aliasing and serving questions.
+  </Card>
+</CardGroup>

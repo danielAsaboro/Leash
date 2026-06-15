@@ -1,0 +1,66 @@
+---
+title: "Android (WIP)"
+description: "Leash on Android — fully on-device LLM chat via the QVAC SDK Expo integration."
+sidebarTitle: "Android (WIP)"
+---
+
+<Warning>
+  Android support is in early development. It shares the React Native + Expo codebase with iOS and has the same limits: chat only, no mesh or tools.
+</Warning>
+
+The Android app runs **Llama 3.2 1B (Q4_0)** entirely on the device via the `@qvac/sdk` Expo integration — no server, and no network after the first model download.
+
+## Requirements
+
+- An Android phone or tablet
+- **Physical device required** — `llama.cpp` does not run on the Android Emulator (native llama bindings). Use a real device.
+- ~800 MB free storage for the model weight
+
+## Run from source
+
+<Steps>
+  <Step title="Install deps">
+    ```bash
+    npm install   # FOREGROUND only
+    ```
+  </Step>
+  <Step title="Plug in a physical device">
+    Enable USB debugging; the emulator cannot load the model.
+  </Step>
+  <Step title="Start Expo">
+    ```bash
+    cd apps/mobile
+    npx expo start        # then open on the device
+    # or build natively: npx expo run:android --device
+    ```
+  </Step>
+</Steps>
+
+## What happens on first launch
+
+The app downloads the model (progress %), then loads it into **GPU** memory with `ctx_size: 2048`, and chat streams tokens locally and offline thereafter.
+
+<Note>
+  GPU acceleration depends on device vendor support. On some chipsets inference may fall back to CPU — slower, but still functional.
+</Note>
+
+## Capabilities
+
+Same as iOS: on-device chat and streaming today; no memory, tools, mesh, voice, research, or economy yet. See [iOS (WIP)](/install/ios) for the full breakdown.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="iOS (WIP)" href="/install/ios" icon="apple">
+    The same Expo app on iPhone/iPad.
+  </Card>
+  <Card title="Mobile channel" href="/channels/mobile" icon="mobile-screen">
+    Using chat on the phone.
+  </Card>
+  <Card title="Mobile platform" href="/platforms/mobile" icon="mobile">
+    Where mobile sits in the platform map.
+  </Card>
+  <Card title="Models" href="/models/overview" icon="boxes-stacked">
+    The on-device model lineup.
+  </Card>
+</CardGroup>

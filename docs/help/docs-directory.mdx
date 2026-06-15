@@ -1,0 +1,151 @@
+---
+title: "Docs directory"
+description: "What's in each section of the Leash documentation."
+sidebarTitle: "Docs directory"
+---
+
+## Get Started
+
+Quick orientation — what Leash is, how to run it in 5 minutes, and what version you're on.
+
+- [What is Leash](/index)
+- [Quickstart](/quickstart)
+- [Changelog](/reference/changelog)
+
+## Concepts
+
+The architecture and rationale (Diataxis explanation pages).
+
+- [What Leash is](/explanation/what-mycelium-is), [Surfaces](/explanation/leash-and-its-surfaces), [Architecture](/explanation/architecture), [Why QVAC only](/explanation/why-qvac-only)
+- [Agent harness](/explanation/mycelium-as-an-agent-harness), [Skills harness](/explanation/the-skills-harness), [Memory loop](/explanation/the-memory-evolution-loop)
+- [Mesh & membership](/explanation/mesh-and-membership), [Mesh routing](/explanation/how-the-mesh-routes-work), [Modality borrowing](/explanation/modality-borrowing), [Agent economy](/explanation/the-agent-economy)
+- [Models & catalog](/explanation/models-and-the-catalog), [The Understory](/explanation/what-the-understory-is)
+
+## Install
+
+Platform-specific install guides.
+
+- [macOS](/install/macos) — desktop app + headless
+- [Linux](/install/linux) — headless only (WIP)
+- [Windows](/install/windows) — not yet supported (WIP)
+- [iOS](/install/ios) — Expo, physical device only (WIP)
+- [Android](/install/android) — Expo, physical device only (WIP)
+
+## Channels
+
+How to interact with Leash.
+
+- [Chat](/channels/chat) — text, tools, plans, memory
+- [Voice](/channels/voice) — VAD, STT, TTS, barge-in
+- [Computer use](/channels/computer-use) — screenshot, run_command, mouse/keyboard
+- [Telegram](/channels/telegram) — talk to Leash from a Telegram bot, owner-only
+- [Mobile](/channels/mobile) — basic chat on iOS/Android (WIP)
+
+## Agents
+
+How the agent thinks and what shapes its behavior.
+
+- [Overview](/agents/overview) — the agent architecture in one screen
+
+**Context** — what the agent sees each turn
+- [Context assembly](/agents/context) — system prompt, schema budget, toolless-hang guard
+- [Grounding](/agents/grounding) — retrieval and `[Source N]` citations
+- [Soul](/agents/soul) — who you are (`soul.md`)
+- [Goals](/agents/goals) — where you're going (`goals.md`)
+
+**Runtime** — the ToolLoopAgent engine
+- [Runtime](/agents/runtime) — the tool loop, step budget, repair, diagnostics
+- [Routes](/agents/routes) — the five intent routes and their models
+- [Sampling](/agents/sampling) — thinking modes and Qwen3 sampling
+- [Heartbeat](/agents/heartbeat) — the proactive autonomous loop (`heartbeat.md`)
+
+**Sessions** — conversation lifecycle
+- [Sessions](/agents/sessions) — storage, effort tiers, history
+- [Interject](/agents/interject) — yielding mid-turn for a follow-up
+- [Compaction](/agents/compaction) — keeping long chats in the window
+
+**Memory** — durable knowledge
+- [Memory](/agents/memory) — the three stores
+- [Memory types](/agents/memory-types) — preference, fact, goal, person, routine
+- [Consolidation](/agents/consolidation) — the nightly dream + evolve loop
+
+**Queue** — serving under contention
+- [The broker](/agents/queue) — per-alias serialization and wedge-safety
+- [Priority & aging](/agents/queue-priority) — interactive/inline/background + mesh overflow
+
+**Multi-agent** — collaboration
+- [Multi-agent](/agents/multi-agent) — the council and delegation
+- [Council](/agents/council) — proposer + critic
+- [Delegation](/agents/delegation) — running the council across the mesh
+
+**Orchestration** — structured execution
+- [Orchestration](/agents/orchestration) — pushing multi-step work onto the harness
+- [Plan mode](/agents/plan-mode) — plan-then-execute pipeline
+
+- [Brain](/agents/brain) — the settings dashboard
+
+## Capabilities
+
+What Leash can do.
+
+**Skills**
+- [Skills](/capabilities/skills) — overview, semantic activation
+- [Skill Workshop](/capabilities/skills-workshop) — Brain → Skills dashboard
+- [Creating skills](/capabilities/skills-creating) — SKILL.md format, frontmatter, attachments
+- [Skills config](/capabilities/skills-config) — activation tuning, tool cap, explicit invocation
+
+**Automation**
+- [Automation](/capabilities/automation) — heartbeat, scheduler, background jobs overview
+- [Scheduled tasks](/capabilities/scheduler) — scheduler tools, recurrence patterns
+- [Background tasks](/capabilities/background-tasks) — dream, evolve, tag-photos, research
+
+**Tools**
+- [Overview](/capabilities/overview) — tool groups, skills, MCP layers
+- [Tools](/capabilities/tools) — full tool reference with approval gates
+- [MCP](/capabilities/mcp) — built-in server, external servers, elicitations
+
+## Models
+
+The model layer.
+
+- [Overview](/models/overview) — alias system, hardware fit, serve
+- [Catalog](/models/catalog) — the model catalog, downloading, Assistant Kit
+- [Aliases](/models/aliases) — built-in contracts, configuring, context size, GPU/CPU
+- [Configuration](/models/config) — two-file pattern, schema, editing safely, env overrides
+
+## Platforms
+
+Where Leash runs.
+
+- [Overview](/platforms/overview) — surfaces and the mesh
+- [macOS Desktop](/platforms/desktop) — Electron app, setup wizard, data dir, permissions
+- [Mesh](/platforms/mesh) — pairing, DHT identity, LAN shortcut, hypha
+- [Economy](/platforms/economy) — earn/spend compute, settlement rails (WIP)
+- [Mobile](/platforms/mobile) — Expo mobile app (WIP)
+
+## Help
+
+Troubleshooting and diagnostics.
+
+- [General troubleshooting](/help/troubleshooting)
+- [Debugging](/help/debugging) — debug flags, loop diagnostics, audit logs
+- [FAQ](/help/faq)
+- [First-run FAQ](/help/faq-first-run)
+- [Models FAQ](/help/faq-models)
+- [Testing overview](/help/testing)
+- [Updates and plugins](/help/testing-updates-plugins)
+- [Live test suites](/help/testing-live-suites)
+- [Environment variables](/help/environment-variables)
+- [Diagnostics flags](/help/diagnostics-flags)
+- [Node / tsx crash guide](/help/node-tsx-crash)
+- [Leash lore](/help/leash-lore)
+- [Docs directory](/help/docs-directory) — this page
+
+## Hackathon
+
+QVAC Hackathon I submission material.
+
+- [Overview](/hackathon/overview)
+- [How we meet the criteria](/hackathon/how-we-meet-the-criteria)
+- [QVAC-only proof](/hackathon/qvac-only-proof)
+- [Evidence and reproducibility](/hackathon/evidence-and-reproducibility)

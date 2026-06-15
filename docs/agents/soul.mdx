@@ -1,0 +1,69 @@
+---
+title: "Soul"
+description: "soul.md — the user-context file that answers 'who you are' and is folded into every chat turn."
+sidebarTitle: "Soul"
+---
+
+`soul.md` answers **who you are**. It is read on every single request and folded into the agent's system prompt before any tool call or response, so the agent personalises answers, picks relevant tools, and grounds its proposals in your actual situation.
+
+<Note>
+`soul.md` and [`goals.md`](/agents/goals) are the only files folded into **every** turn — not just heartbeats. This is goal-aware chat, not only goal-aware proactivity.
+</Note>
+
+## What to put in it
+
+Write plain markdown — there's no required schema. Common sections:
+
+- **Background** — role, industry, where you live, what you work on
+- **Preferences** — communication style, verbosity, preferred formats
+- **Context** — current projects, relationships, recurring responsibilities
+- **Working style** — how you like tasks structured, brief vs. detailed answers
+
+```markdown
+I'm a software engineer at a startup in Lagos. I work mostly in TypeScript
+and Rust. I prefer concise answers with code when relevant; skip the preamble.
+
+Current focus: building a real-time payments dashboard. Deadline end of June.
+My teammate is Amara (frontend) and I handle the backend.
+```
+
+## Limits
+
+<Warning>
+**16 KB maximum.** Content over the cap is silently truncated when you save (`content.slice(0, 16000)`). The cap exists to bound the system-prompt cost of folding `soul.md` into every turn.
+</Warning>
+
+Because it's in every request, keep it focused. A few hundred words is ideal; a novel-length autobiography costs tokens on every turn.
+
+## How to edit it
+
+<Steps>
+  <Step title="Open the constitution editor">
+    Go to **Brain → Proactivity** in the dashboard.
+  </Step>
+  <Step title="Edit the Soul field">
+    Write or paste your context as markdown.
+  </Step>
+  <Step title="Save">
+    The write is **atomic** — written to a temp file, then renamed — so a crash mid-save never corrupts the file.
+  </Step>
+</Steps>
+
+The file lives at `data/soul.md` (relative to the monorepo root), or wherever `LEASH_SOUL_FILE` points (per-user scopes point each user at their own files).
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Goals" icon="bullseye" href="/agents/goals">
+    `soul.md` is *who you are*; `goals.md` is *where you're going*. Both fold into every turn.
+  </Card>
+  <Card title="Heartbeat" icon="heart-pulse" href="/agents/heartbeat">
+    The proactive loop reads soul + goals when deciding what deserves your attention.
+  </Card>
+  <Card title="Brain" icon="brain" href="/agents/brain">
+    Where the constitution editor lives.
+  </Card>
+  <Card title="Agents overview" icon="robot" href="/agents/overview">
+    How the soul fits into the per-turn system prompt.
+  </Card>
+</CardGroup>

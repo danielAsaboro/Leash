@@ -1,0 +1,79 @@
+---
+title: "Mobile (WIP)"
+description: "Leash on iPhone and Android — fully on-device chat via the QVAC SDK."
+sidebarTitle: "Mobile (WIP)"
+---
+
+<Warning>
+  Mobile is in **early development**. Today it does one thing well: on-device text chat with a small local model. The richer features below are planned, not shipped.
+</Warning>
+
+The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@qvac/sdk` directly and runs an LLM **natively on the phone** — no server, and no network at all after the first model download.
+
+## What's available today
+
+<CardGroup cols={3}>
+  <Card title="On-device chat" icon="comment">
+    Text conversation with **Llama 3.2 1B (Q4_0)**, running on the phone's GPU.
+  </Card>
+  <Card title="Token streaming" icon="bolt">
+    Replies stream token-by-token as the model generates.
+  </Card>
+  <Card title="Offline" icon="plane">
+    After the one-time model download, it works fully offline — private by construction.
+  </Card>
+</CardGroup>
+
+## How it works
+
+<Steps>
+  <Step title="Download on first launch">
+    On mount the app calls `downloadAsset({ assetSrc: LLAMA_3_2_1B_INST_Q4_0 })`, showing a live progress bar (~800 MB weights).
+  </Step>
+  <Step title="Load into memory">
+    `loadModel({ modelType: "llm", modelConfig: { device: "gpu", ctx_size: 2048 } })` brings the model up on the GPU.
+  </Step>
+  <Step title="Chat">
+    Each send calls `completion({ stream: true })` and accumulates the token stream into the assistant bubble. On unmount the model is unloaded (weights stay cached).
+  </Step>
+</Steps>
+
+| Setting | Value |
+|---------|-------|
+| Model | `LLAMA_3_2_1B_INST_Q4_0` |
+| Context size | `2048` tokens |
+| Device | `gpu` |
+| Download size | ~800 MB |
+| Runtime | `@qvac/sdk` Expo integration (native llamacpp) |
+
+<Warning>
+  A **physical device is required** — llamacpp does not run on the iOS simulator or the Android emulator. Run it with `npx expo start` and open on a real phone.
+</Warning>
+
+## What's planned
+
+<CardGroup cols={2}>
+  <Card title="Remote-Leash mode" icon="link">
+    Connect to your Mac's hypha daemon over the encrypted mesh, giving the phone the **full** Leash feature set (memory, tools, larger models) without running a big model locally.
+  </Card>
+  <Card title="Voice call" icon="microphone">
+    Mic + STT + TTS via the `@qvac/sdk` audio APIs, mirroring the desktop [voice](/channels/voice) channel.
+  </Card>
+  <Card title="Notifications" icon="bell">
+    Push delivery of heartbeat proposals from your Mac.
+  </Card>
+</CardGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Mobile platform" icon="mobile" href="/platforms/mobile">
+    Platform-specific setup and requirements.
+  </Card>
+  <Card title="Mesh" icon="network-wired" href="/platforms/mesh">
+    The encrypted device mesh that remote-Leash mode will ride on.
+  </Card>
+  <Card title="Chat" icon="comment" href="/channels/chat">
+    The full desktop chat experience mobile is growing toward.
+  </Card>
+</CardGroup>

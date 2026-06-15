@@ -1,0 +1,99 @@
+---
+title: "FAQ"
+description: "Frequently asked questions about Leash — privacy, hardware, models, platforms, and resetting."
+sidebarTitle: "FAQ"
+---
+
+Short answers to the questions people ask first. For first-run issues see [First-run FAQ](/help/faq-first-run); for model specifics see [Models FAQ](/help/faq-models).
+
+## The basics
+
+<AccordionGroup>
+  <Accordion title="What is Leash?">
+    Leash is a private, offline, end-to-end-encrypted AI assistant that runs entirely on your own devices. It has no cloud backend — all inference, memory, and tool calls run locally via the QVAC SDK. Your data never leaves your machine. For the bigger picture, see [Leash lore](/help/leash-lore).
+  </Accordion>
+  <Accordion title="Is Leash open source?">
+    Yes. The Mycelium monorepo (which contains Leash) is licensed **Apache-2.0**.
+  </Accordion>
+</AccordionGroup>
+
+## Privacy & networking
+
+<AccordionGroup>
+  <Accordion title="Does it send my data to the cloud?">
+    No. All inference goes through `@qvac/sdk`, which runs the model locally. There are no calls to OpenAI, Anthropic, or any cloud AI API. The only network activity is:
+
+    - Downloading model weights on first run (one-time).
+    - DHT peer discovery for the mesh (no content transmitted).
+    - Payment settlement on-chain (only if the economy layer is enabled).
+
+    For the mesh, see [Mesh](/platforms/mesh); for the economy, see [Economy](/platforms/economy).
+  </Accordion>
+  <Accordion title="Do I need an internet connection?">
+    Only once. After a one-time first-run download of the model weights (~2–5 GB per model), Leash runs entirely offline — no login, no API key, no cloud service. "Works in airplane mode" is a project acceptance criterion.
+  </Accordion>
+  <Accordion title="Why can't I use GPT-4 or Claude?">
+    Leash was built for the QVAC Hackathon "Unleash Edge AI", whose rules mandate on-device inference via `@qvac/sdk` — a cloud AI call would disqualify the submission. Beyond the contest, offline-first is the feature: your conversations, notes, and activity stay on your device. See [How we meet the criteria](/hackathon/how-we-meet-the-criteria).
+  </Accordion>
+</AccordionGroup>
+
+## Hardware & platforms
+
+<AccordionGroup>
+  <Accordion title="What hardware do I need?">
+    A Mac with Apple Silicon (M1 or later) is the recommended platform. The 4B chat model (`qwen3-4b`) runs at roughly 15–20 tok/s on M1 with the GPU enabled. An Intel Mac works but is significantly slower (CPU only).
+
+    For mobile: a physical iPhone (iOS 16+) or Android phone. Simulators don't support the native llama bindings.
+  </Accordion>
+  <Accordion title="Can I use Leash on Linux or Windows?">
+    Linux is headless-only — the web UI works, but computer-use, voice, and the macOS desktop app don't. Windows is not currently supported.
+  </Accordion>
+</AccordionGroup>
+
+## Models
+
+<AccordionGroup>
+  <Accordion title="What models does Leash use?">
+    The primary chat model is `qwen3-4b` (Qwen3 4B Q4_K_M, ~2.5 GB). The full assistant kit also uses:
+
+    - `gte-large` — embeddings and RAG search (chat needs this for grounding).
+    - `parakeet` — voice-call speech-to-text.
+    - `supertonic` — voice-call text-to-speech.
+    - `qwen3vl` — screenshot and screen-watcher vision.
+
+    See [Models overview](/models/overview) and the [Models FAQ](/help/faq-models).
+  </Accordion>
+</AccordionGroup>
+
+## Tools, skills & MCP
+
+<AccordionGroup>
+  <Accordion title="How many tools can Leash use at once?">
+    The active toolset is capped at ~22 schemas — above that, the 4096-token prompt overflows on `qwen3-4b` and the decode hangs. Leash manages this automatically: computer turns activate only the 3 computer tools, chat turns activate everything except computer + MCP Admin, and a skill's declared tools are capped at 18. See [Capabilities](/capabilities/overview).
+  </Accordion>
+  <Accordion title="Which tools ask for approval before running?">
+    The side-effectful ones pause on a human approval card: `run_command`, `computer`, `ha_call_service`, `run_skill_script`, `install_mcp_repo`, and `upsert_mcp_server`. Everything else is read or safe-write and runs without a prompt. You can change the default per tool in **Brain → Tools**. See [Tools](/capabilities/tools).
+  </Accordion>
+  <Accordion title="Can I connect my own MCP servers?">
+    Yes — add any http, sse, or stdio MCP server in **Brain → MCP → Add server**. Its tools merge into the active toolset on the next chat turn. See [MCP](/capabilities/mcp).
+  </Accordion>
+</AccordionGroup>
+
+## Maintenance
+
+<AccordionGroup>
+  <Accordion title="How do I reset everything and start fresh?">
+    Delete `data/` in the monorepo root (or the `<base>/Leash/<userId>/` data folder on the desktop app) and restart. This clears all notes, chats, constitution files, and activity logs. Model weights in `~/.qvac/models/` are not affected.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="First-run FAQ" icon="rocket" href="/help/faq-first-run">
+    Getting Leash up and running the first time.
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/help/troubleshooting">
+    Fixes for common runtime issues.
+  </Card>
+</CardGroup>

@@ -1,0 +1,87 @@
+---
+title: "Leash lore"
+description: "The story behind Leash — the Mycelium mesh, QVAC Hackathon I, the de-risking spike, the five-layer architecture, and why it's offline-first."
+sidebarTitle: "Leash lore"
+---
+
+The short version: **Leash** is the assistant you touch; **Mycelium** is the mesh underneath; and the whole thing runs on your own hardware, offline, because that was the point.
+
+## What is Leash?
+
+**Leash** is the user-facing exocortex built on the **Mycelium** mesh. It's the AI that knows *you* — it remembers your notes, watches your screen activity, runs tools on your behalf, and checks in proactively when something needs your attention.
+
+The name comes from a simple inversion: your AI should be on *your* leash, not the other way around. It does what you tell it, when you tell it, with your data, on your hardware. You hold the leash.
+
+## What is Mycelium?
+
+**Mycelium** is the mesh operating system underneath. Like the fungal network it's named after — the underground threads that connect the trees of a forest — Mycelium connects your devices into a private mesh that shares inference, memory, and compute. The mesh is invisible; Leash is the surface you touch.
+
+## QVAC Hackathon I — "Unleash Edge AI"
+
+Leash was built for **QVAC Hackathon I** (Tether), in the **June 1–21, 2026** build window. The theme — "Unleash Edge AI" — is exactly what it sounds like: build something real that runs entirely on-device, with no cloud AI APIs in the loop.
+
+<Note>
+**The three hard rules.** All inference goes through `@qvac/sdk` (no OpenAI, no Anthropic, no cloud calls). It works offline after the first-run model download. And it's licensed permissively — Leash standardizes on **Apache-2.0**.
+</Note>
+
+## The spike — proving the hard parts first
+
+Before building the full system, the team ran a **spike**: de-risk the four hardest technical primitives before committing a week to each. All four passed on **2026-05-31**, unblocking the Week-1 build.
+
+<Steps>
+  <Step title="On-device inference + embeddings">
+    `qwen3-4b` running locally through `@qvac/sdk`, with `gte-large` embeddings.
+  </Step>
+  <Step title="On-device RAG">
+    A HyperDB graph store, indexed via those embeddings — retrieval with no server.
+  </Step>
+  <Step title="Encrypted P2P delegated compute">
+    `hypha` routing completions across devices over an encrypted mesh.
+  </Step>
+  <Step title="On-device LoRA">
+    QVAC Fabric fine-tuning a personalized adapter — improvement that never leaves the device.
+  </Step>
+</Steps>
+
+Zero mocks: real inference, real RAG, real encrypted P2P, real LoRA. The spike set the bar everything since has been held to. (Full evidence lives in `submission/SPIKE_RESULTS.md`.)
+
+## The five-layer architecture
+
+Mycelium is organized into five layers, each a clean seam in the codebase:
+
+| Layer | Package | Role |
+|-------|---------|------|
+| **Mesh** | `hypha` daemon | P2P connectivity, inference routing, the economy |
+| **Senses** | screen watcher, audio, photos | Screen-activity capture, audio input, photo tagging |
+| **Mind** | the agent | The tool loop, RAG council, routing |
+| **Memory** | graph + notes | Graph store, notes index, consolidation |
+| **Clients** | web / desktop / mobile | The surfaces users interact with |
+
+The web client lives at `http://localhost:6801`.
+
+## The constitution
+
+The **constitution** is how Leash knows who you are — three markdown files you edit in **Brain → Constitution**:
+
+- `soul.md` — who you are (background, values, context)
+- `goals.md` — where you're going (≤5 current goals)
+- `heartbeat.md` — what to watch for proactively
+
+The agent folds *soul* and *goals* into every turn's system prompt, and the *heartbeat* checklist drives the autonomous proactive loop. See [Heartbeat](/agents/heartbeat).
+
+## Why offline-first?
+
+The standard AI-assistant model ships your conversations to a cloud backend. Leash doesn't. Your notes, chats, screen activity, and constitution files never leave your device — the AI runs on your GPU, knows your stuff, and nobody else can read it.
+
+After a one-time warm-cache (downloading model weights), Leash works on an airplane with Wi-Fi off. "Works in airplane mode" is treated as an acceptance criterion, not a nice-to-have.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Hackathon overview" icon="trophy" href="/hackathon/overview">
+    Leash for QVAC Hackathon I — the track, the rules, the evidence.
+  </Card>
+  <Card title="The agent" icon="robot" href="/agents/overview">
+    The Mind layer — the tool loop and how Leash thinks.
+  </Card>
+</CardGroup>

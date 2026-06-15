@@ -1,0 +1,71 @@
+---
+title: "Vision"
+description: "Multimodal models that read images — screenshots and screen-watcher understanding."
+sidebarTitle: "Vision"
+---
+
+Vision models read images alongside text. In the SDK catalog they're a `chat` entry whose name
+carries a `vl` / `vision` / `multimodal` marker — Leash splits those into their own modality
+bucket. A vision model always pairs a **base weight** with an **mmproj projection** that encodes
+the image.
+
+## Models Leash uses
+
+| Alias | SDK model | Projection | Size | Powers |
+|-------|-----------|-----------|------|--------|
+| `qwen3vl` | `QWEN3VL_2B_MULTIMODAL_Q4_K` | `MMPROJ_QWEN3VL_2B_MULTIMODAL_Q4_K` | ~1.5 GB total | Screen understanding for the watcher + the `screenshot` tool |
+
+The base weight is ~1.1 GB; the mmproj projection is ~445 MB. They are **always downloaded
+together** — a bare mmproj with no base weight is a real bug the Assistant Kit exists to prevent.
+
+## What it powers
+
+- **`screenshot` tool** — the agent takes a screenshot and `qwen3vl` describes it (no approval needed). See [Computer use](/channels/computer-use).
+- **Screen watcher** — `npm run watch` captures frames and `qwen3vl` writes the one-line activity summary that feeds `active_context` and the heartbeat.
+
+## Serve config
+
+The vision alias needs a `projectionModelSrc` pointing at the mmproj GGUF:
+
+```json
+"qwen3vl": {
+  "model": "QWEN3VL_2B_MULTIMODAL_Q4_K",
+  "preload": true,
+  "config": {
+    "ctx_size": 8192,
+    "projectionModelSrc": "~/.qvac/models/<mmproj-cacheFile>.gguf"
+  }
+}
+```
+
+The Assistant Kit wizard fills `projectionModelSrc` in automatically from the projection SKU's
+on-disk cache filename — wiring it by hand is error-prone.
+
+<Note>
+The `vision` route does **not** enable tools — `qwen3vl` isn't a tools-enabled model. A turn
+with an image routes to vision, runs single-shot, and returns text.
+</Note>
+
+## Adding a vision model
+
+The cleanest path is the [Assistant Kit](/models/catalog) — it ships the base weight **and** the
+mmproj together and wires the projection. To do it manually, download both the base and its
+mmproj from **Brain → Models → Catalog** (filter by **Vision**), then add the alias with
+`projectionModelSrc`.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Computer use" icon="display" href="/channels/computer-use">
+    The screenshot tool and screen-aware actions.
+  </Card>
+  <Card title="Chat & reasoning" icon="messages-square" href="/models/modality/chat">
+    Text-only models for conversation.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/models/config">
+    The `projectionModelSrc` field and vision config.
+  </Card>
+  <Card title="Catalog" icon="layer-group" href="/models/catalog">
+    Find vision models that fit your hardware.
+  </Card>
+</CardGroup>

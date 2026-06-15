@@ -1,0 +1,73 @@
+---
+title: "Context compaction"
+description: "Keeping a long chat inside qwen3-4b's 32k window — summarize the oldest messages into a running summary, feed [summary + recent tail], and never mutate what the user sees."
+sidebarTitle: "Compaction"
+---
+
+`qwen3-4b` serves a **32k-token window**, and a long thread silently falls off the back. Compaction (session pruning) keeps the conversation inside the window: when the history outgrows a budget, the **oldest** messages are folded into a running `summary` and the model is fed `[summary + recent tail]`. Adapted from Odysseus `src/context_compactor.py`.
+
+## The key invariant
+
+<Warning>
+The full `messages` array is **never mutated**. The user still sees — and the store still keeps — everything. Only the *model's input* is compacted, never the record.
+</Warning>
+
+Compaction state lives as two fields on the `ChatRecord`:
+
+| Field | Meaning |
+|-------|---------|
+| `summary` | Running summary of everything before the tail (absent when nothing is compacted). |
+| `summarizedThrough` | Index into the full message array; the model sees `messages.slice(summarizedThrough)`. |
+
+## When it triggers
+
+| Knob | Default | Override |
+|------|---------|----------|
+| Budget fraction | `0.8` of the window | `LEASH_COMPACT_FRACTION` (clamped 0.1–0.95) |
+| Kept tail | `KEEP_TAIL = 6` messages | — |
+
+Token cost is estimated cheaply at ~4 chars/token over the text and reasoning parts of each message.
+
+<Steps>
+  <Step title="Estimate the model input">
+    Sum the tokens of the stored `summary` plus the tail (`messages.slice(tailFrom)`).
+  </Step>
+  <Step title="Within budget → no LLM call">
+    If `summary + tail` fits the budget (`window × BUDGET_FRACTION`), the stored summary and tail are used as-is — compaction does no work.
+  </Step>
+  <Step title="Over budget → fold the oldest">
+    Everything older than the last `KEEP_TAIL = 6` messages is folded into the summary. The last 6 messages stay **verbatim** — the recent turns the model sees in full.
+  </Step>
+  <Step title="Summarize on the background model">
+    The fold runs through the **background chat model** (`chatModelBackground()`), prompted (with `/no_think`) to write a compact summary (~200 words) preserving names, decisions, facts, preferences, and open threads. The new summary and advanced `summarizedThrough` are persisted via `saveSummary`.
+  </Step>
+</Steps>
+
+## Best-effort by design
+
+<Note>
+Compaction never blocks a chat. If the summarization call fails, the error is logged and the turn runs with the **prior** summary plus tail — more context than ideal, but the conversation still proceeds.
+</Note>
+
+The summarization request uses an inert `noop` tool and `stopWhen: stepCountIs(2)` to keep the small model answering in text rather than calling a tool, then strips any `<think>…</think>` block from the result before storing it.
+
+## Interaction with checkpoint revert
+
+When a chat is truncated (see [Sessions](/agents/sessions)), any `summarizedThrough` that now points **past** the truncated end is dropped along with its summary — the compactor recomputes a fresh summary on the next over-window turn.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Sessions" icon="comments" href="/agents/sessions">
+    The ChatRecord the summary lives on.
+  </Card>
+  <Card title="Context" icon="diagram-project" href="/agents/context">
+    What the agent pulls into a turn.
+  </Card>
+  <Card title="Models" icon="microchip" href="/models/overview">
+    qwen3-4b and its 32k window.
+  </Card>
+  <Card title="Memory" icon="database" href="/agents/memory">
+    Durable recall beyond a single session.
+  </Card>
+</CardGroup>

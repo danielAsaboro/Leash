@@ -1,0 +1,67 @@
+---
+title: "Goals"
+description: "goals.md — up to five goals the agent judges every chat turn and every heartbeat proposal against."
+sidebarTitle: "Goals"
+---
+
+`goals.md` holds up to **five goals** the agent judges everything against — in chat turns, in proactive heartbeats, and in the on-goal relevance scoring that helps decide whether a proposal is worth surfacing.
+
+## What to put in it
+
+Keep goals concrete and outcome-oriented. The agent uses them as a decision filter: *does this move one of these goals forward?*
+
+```markdown
+1. Ship the payments dashboard by June 30.
+2. Close Series A — target: 3 term sheets by August.
+3. Get to 10k MAU before the runway runs out.
+4. Finish the Rust async chapter of the book.
+5. Exercise 4× per week consistently.
+```
+
+<Tip>
+Five goals is the deliberate cap. The agent weighs proposals against the **whole** list, so a longer list dilutes every individual goal's pull.
+</Tip>
+
+## Limits
+
+- **≤5 goals** — a convention, not a hard file check. The agent reads the whole file; extra items just dilute the weighting.
+- **16 KB maximum** total file size — the same cap as [`soul.md`](/agents/soul), since goals are also folded into every turn.
+
+## How to edit it
+
+Open **Brain → Proactivity** and edit the Goals field. Same atomic write-then-rename behaviour as `soul.md`. The file lives at `data/goals.md`, or wherever `LEASH_GOALS_FILE` points.
+
+## How goals drive the heartbeat
+
+Goals are the heartbeat's yardstick. During each cycle the proactive agent:
+
+<Steps>
+  <Step title="Reads your goals alongside recent activity">
+    `goals.md` is part of the heartbeat system prompt, labelled "judge everything against these".
+  </Step>
+  <Step title="Scores relevance against the goals">
+    Each proposal is embedded (via `gte-large`) and compared to the goals with cosine similarity, producing an `onGoal` score.
+  </Step>
+  <Step title="Classifies and may apply an override">
+    A previously pinned "always do this" tier override for a recurring nudge wins — but never drops below the safety hard floor.
+  </Step>
+</Steps>
+
+A proposal that isn't clearly on-goal is more likely to be suppressed — silence is the default, and most cycles emit `HEARTBEAT_OK` with nothing surfaced.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Heartbeat" icon="heart-pulse" href="/agents/heartbeat">
+    The full propose → suppress → classify → deliver pipeline.
+  </Card>
+  <Card title="Soul" icon="user" href="/agents/soul">
+    The companion file — who you are, not where you're going.
+  </Card>
+  <Card title="Brain" icon="brain" href="/agents/brain">
+    The constitution editor and proactivity controls.
+  </Card>
+  <Card title="Agents overview" icon="robot" href="/agents/overview">
+    How goals fold into every turn.
+  </Card>
+</CardGroup>

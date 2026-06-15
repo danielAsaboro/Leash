@@ -1,0 +1,94 @@
+---
+title: "Task tools"
+description: "create_task, list_tasks, update_task — the agent's interface to the /tasks dashboard."
+sidebarTitle: "Tasks"
+---
+
+The **tasks** group lets the agent interact with the user's to-do list. Tasks appear on the `/tasks` dashboard and can be managed from there or via chat.
+
+## create_task
+
+Add a new task to the user's to-do list.
+
+**Approval:** None — autonomous write.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | Yes | Short, actionable task title (e.g. `"Back up the SSD"`) |
+| `detail` | string | No | Optional context: why, links, specifics |
+| `priority` | enum | No | `low` \| `normal` \| `high` (default `normal`) |
+| `tags` | string[] | No | Short tags for filtering |
+
+**Returns:** The created task with id, formatted as `[open] Title (id abc, normal)`.
+
+**When the agent calls it:**
+- User mentions something they need to do
+- Heartbeat proposes a follow-up
+- Dream job extracts commitments from chats
+
+**Example:**
+```
+User: Don't let me forget to call my dentist.
+Agent: [calls create_task(title="Call dentist", priority="high")]
+       Added to your tasks: "Call dentist" (high priority).
+```
+
+---
+
+## list_tasks
+
+List tasks on the to-do list, optionally filtered by status.
+
+**Approval:** None.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `status` | enum | No | `open` \| `in_progress` \| `done` \| `dropped` |
+
+**Returns:** Up to 25 tasks, each as `[status] Title (id, priority, tags)`. Returns `"The task list is empty."` if none match.
+
+**When the agent calls it:**
+- "What do I have to do today?"
+- "Show me my open tasks"
+- Before calling `update_task` (to find the task's id)
+
+**Example:**
+```
+User: What's on my list?
+Agent: [calls list_tasks()]
+       3 tasks:
+       [open] Call dentist (id abc, high)
+       [in_progress] Write docs (id xyz, normal)
+       [open] Buy groceries (id def, low)
+```
+
+---
+
+## update_task
+
+Update an existing task's status, title, detail, or priority.
+
+**Approval:** None — autonomous write.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Task id (from `list_tasks` or `create_task`) |
+| `status` | enum | No | `open` \| `in_progress` \| `done` \| `dropped` |
+| `title` | string | No | New title |
+| `detail` | string | No | New detail (empty string clears it) |
+| `priority` | enum | No | `low` \| `normal` \| `high` |
+
+**Returns:** The updated task, or `"No task with id '...' — use list_tasks to find the right id."` if not found.
+
+**When the agent calls it:**
+- "Mark 'call dentist' as done"
+- "Change the priority of my docs task to high"
+- After completing an action it was asked to track
+
+**Example:**
+```
+User: I called the dentist.
+Agent: [calls list_tasks(status="open")] → finds id "abc"
+       [calls update_task(id="abc", status="done")]
+       Marked "Call dentist" as done.
+```

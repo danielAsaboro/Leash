@@ -1,0 +1,78 @@
+---
+title: "Environment variables"
+description: "All environment variables recognized by Leash and the hypha daemon."
+sidebarTitle: "Environment variables"
+---
+
+## Web server / agent
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | QVAC serve URL the agent calls |
+| `QVAC_MODELS_DIR` | `~/.qvac/models` | Model weight cache directory |
+| `LEASH_DATA_DIR` | `<repo>/data` | Per-user data directory |
+| `LEASH_NOTES_DIR` | `$LEASH_DATA_DIR/notes` | Markdown notes directory |
+| `LEASH_CHAT_DIR` | `$LEASH_DATA_DIR/leash-chats` | Chat storage directory |
+| `LEASH_ACTIVITY_LOG` | `$LEASH_DATA_DIR/leash-activity.jsonl` | Screen watcher trail |
+| `LEASH_SOUL_FILE` | `$LEASH_DATA_DIR/soul.md` | Constitution soul file |
+| `LEASH_GOALS_FILE` | `$LEASH_DATA_DIR/goals.md` | Constitution goals file |
+| `LEASH_HEARTBEAT_FILE` | `$LEASH_DATA_DIR/heartbeat.md` | Constitution heartbeat checklist |
+| `LEASH_HEARTBEAT_STATE_FILE` | `$LEASH_DATA_DIR/leash-heartbeat-state.json` | Heartbeat dedup state |
+| `LEASH_GEN_DIR` | `<repo>/apps/web/public/leash-gen` | Generated images (served by Next.js) |
+| `LEASH_PHOTO_TAGS` | `$LEASH_DATA_DIR/leash-photo-tags.json` | Photo classification cache |
+
+## Debug flags
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LEASH_DEBUG_TOOLS` | unset | Set to `1` to log active tool list per turn |
+| `LEASH_DEBUG_LOOP` | unset | Set to `1` to log each agent step (step, finish reason, toolCalls, reasoning chars) |
+| `LEASH_CONTINUATION_NUDGE` | unset | Set to `1` to enable scratchpad re-injection (experimental — shown not to help at 4B scale) |
+
+## Desktop app
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `LEASH_QVAC_CLI` | unset | Path to bundled QVAC CLI in the packaged app |
+| `LEASH_NODE_BIN` | `process.execPath` | Node binary for running helper scripts |
+| `LEASH_RUNTIME_SRC` | unset | Path to `Resources/leash` in the packaged app |
+
+## Hypha daemon
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QVAC_HYPERSWARM_SEED` | loaded from `data/hypha-seed.hex` | 64-hex DHT identity seed |
+| `HYPHA_DATA_DIR` | `data/` | Hypha state directory |
+| `HYPHA_NAME` | `hostname()` | Device name advertised to peers |
+| `HYPHA_COMPUTE_CLASS` | `mac` | Device compute class (`mac`, `cpu`, `gpu`) |
+| `HYPHA_POWER` | `plugged` | Power state (`plugged`, `battery`) |
+| `HYPHA_DEBUG_LANPROBE` | unset | `<host:port>` — log LAN reachability every 10s |
+| `HYPHA_TTFB_MS` | `60000` | Timeout waiting for first delegated token |
+| `HYPHA_KV_CACHE` | `1` | Cache KV sessions for delegated completions |
+| `HYPHA_KV_MAX_SESSIONS` | `8` | Max concurrent KV cache sessions (LRU-evicted) |
+| `HYPHA_KV_DIR` | `~/.qvac/kv-cache` | KV cache storage directory |
+| `HYPHA_SHARE_MODELS` | `1` | Advertise cached models to mesh peers |
+| `HYPHA_RESILIENT_RECONNECT` | `0` | Auto-reconnect on device sleep/wake/network roam |
+| `HYPHA_RECONNECT_INTERVAL_MS` | `15000` | Reconnect polling interval |
+| `HYPHA_RECONNECT_WAKE_GAP_MS` | `30000` | Post-wake reconnect delay |
+| `HYPHA_REPUTATION` | `0` | Enable reputation-weighted routing |
+
+## Economy
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HYPHA_ECONOMY_ENABLED` | `0` | Enable micro-payment settlement |
+| `HYPHA_ECONOMY_PRICE_PER_KTOK` | `1000` | µ per thousand output tokens (provider) |
+| `HYPHA_ECONOMY_FLOAT` | `50000` | Pre-authorized spend ceiling per session (consumer) |
+| `HYPHA_ECONOMY_MAX_PER_TX` | `5000` | Max µ per settlement transaction |
+| `HYPHA_ECONOMY_MAX_PER_HOUR` | `20000` | Hourly spend ceiling |
+| `HYPHA_ECONOMY_MAX_PER_COUNTERPARTY` | `10000` | Per-peer spend ceiling |
+| `HYPHA_ECONOMY_METERED` | `0` | Enable metered streaming settlement |
+| `HYPHA_ECONOMY_CHUNK_TOKENS` | `64` | Tokens per metered chunk before advance required |
+| `HYPHA_ECONOMY_ADVANCE_WINDOW_MS` | `20000` | Idle timeout before force-settle |
+| `HYPHA_ECONOMY_PLASMA_RPC_URL` | — | EVM JSON-RPC endpoint |
+| `HYPHA_ECONOMY_PLASMA_MNEMONIC` | — | BIP39 mnemonic (must be quoted in env files) |
+| `HYPHA_ECONOMY_PLASMA_ASSET_MINT` | — | ERC-20 token address |
+| `HYPHA_ECONOMY_SOLANA_RPC_URL` | — | Solana RPC endpoint |
+| `HYPHA_ECONOMY_SOLANA_SECRET_KEY` | — | Solana hot-wallet secret key (JSON uint8 or base58) |
+| `HYPHA_ECONOMY_SOLANA_ASSET_MINT` | — | SPL token mint address |

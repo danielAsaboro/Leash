@@ -1,0 +1,67 @@
+---
+title: "Nightly consolidation"
+description: "The background memory loop — dream consolidates past chats into follow-ups, and evolve trains a nightly on-device LoRA so the assistant gets more personal over time."
+sidebarTitle: "Consolidation"
+---
+
+Leash gets more useful while you sleep. Two scheduled jobs run the consolidation loop on-device: **dream** turns past conversations into concrete follow-ups, and **evolve** trains a nightly LoRA adapter to personalize the model. Run them on a cron (nightly, at idle) so the assistant surfaces what matters without being asked.
+
+## dream — consolidate chats into follow-ups
+
+```bash
+npm run dream   # from repo root; needs `qvac serve` running
+```
+
+`dream.mts` reads every stored chat (`data/leash-chats/*.json`), asks the on-device model to distill a handful of concrete *"things to work on"*, and appends them as `source:"dream"` tasks to `data/leash-tasks.json` — the dashboard's task store (the `/tasks` page, the chat tray "To work on", and the `create_task`/`list_tasks` tools).
+
+<Steps>
+  <Step title="Read the corpus">
+    Up to 20 most-recently-updated non-empty chats are flattened into a compact digest.
+  </Step>
+  <Step title="Distill on-device">
+    `qwen3-4b` (override with `LEASH_DREAM_MODEL`) is prompted — with `/no_think` and a "do not copy the example" framing — to output a JSON array of 3–6 real follow-ups drawn only from the actual conversations.
+  </Step>
+  <Step title="Dedupe and append">
+    Items are deduped by title against existing tasks, so a nightly run never re-adds what's already tracked, then written atomically (tmp + rename).
+  </Step>
+</Steps>
+
+<Note>
+Pure HTTP to the local QVAC serve — on-device, no cloud. **Honest empty state:** no chats means no tasks. The batch job uses a 10-min body timeout (`LEASH_DREAM_TIMEOUT_MS`) because the 4B buffers a long reasoning pass, and tags its requests `x-leash-priority: background` so it yields to interactive chat.
+</Note>
+
+## evolve — nightly on-device LoRA
+
+```bash
+npm run evolve
+```
+
+`evolve.ts` runs the full nightly loop: **curate → train → eval (base + adapter) → manifest**. It is a heavy GPU op that the nightly cron fires at idle, training a LoRA adapter so the assistant personalizes over time. The adapter's overall delta vs. the base it was measured against is charted on the dashboard's growth chart ("The Understory"), read straight off `data/evolve/eval-runs.jsonl` and the newest adapter's `manifest.json`.
+
+| Knob | Default | Override |
+|------|---------|----------|
+| Base model | trainable `QWEN3_600M_INST_Q4` | `MYCELIUM_LORA_BASE_GGUF` / `MYCELIUM_LORA_BASE_NAME` |
+| Epochs | 5 | `MYCELIUM_LORA_EPOCHS` |
+
+<Warning>
+**evolve is early / WIP.** Per the source notes, the catalog's 4B/8B/20B all ship as un-finetunable `Q4_K_M`, so the default trainable base is the 600M — which scored **0% recall at 2 epochs**. The bigger-base-plus-more-passes path (drop a trainable `Q4_0`/`Q8_0`/`F16` gguf and bump epochs) is "the recall bet", still being proven. A promotable adapter applies to a served Qwen3-8B (LoRA carries across quants — `LEASH_CHAT_MODEL=qwen3-8b-me`).
+</Warning>
+
+Each evolve run upserts a single actionable card onto the `/tasks` dashboard (`source:"evolve"`) — replacing any still-open prior nightly-learning task — so the otherwise-invisible "it learned overnight" work surfaces as one card with the per-axis score deltas and the activation hint.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Memory overview" icon="database" href="/agents/memory">
+    The stores consolidation reads and writes.
+  </Card>
+  <Card title="Automation" icon="robot" href="/capabilities/automation">
+    Scheduling the nightly jobs.
+  </Card>
+  <Card title="Background tasks" icon="layer-group" href="/capabilities/background-tasks">
+    How background priority yields to chat.
+  </Card>
+  <Card title="Brain" icon="brain" href="/agents/brain">
+    Where the growth chart lives.
+  </Card>
+</CardGroup>

@@ -1,0 +1,103 @@
+---
+title: "Sessions & chat history"
+description: "How Leash persists a chat — one self-describing JSON record per conversation, full UIMessage parts plus per-message telemetry, the history tray, and how a session resumes."
+sidebarTitle: "Sessions"
+---
+
+A Leash session is a single conversation, persisted as **one JSON file per chat** in `data/leash-chats/`. The record holds the full message parts the UI rendered, per-message telemetry, and chat-level timestamps — so a chat is a durable, replayable artifact, not just scrollback.
+
+## One record per chat
+
+`saveChat` writes a `ChatRecord` to `data/leash-chats/<id>.json` (override the directory with `LEASH_CHAT_DIR`). Each record is self-describing and stored in `UIMessage` shape — deliberately richer than `ModelMessage`, so a later reader can reconstruct exactly what the user saw.
+
+| Field | Meaning |
+|-------|---------|
+| `id` | Chat id (minted by `createChat`). |
+| `createdAt` / `updatedAt` | ms-epoch chat-level timestamps. |
+| `title` | Optional user-set title; overrides the derived first-message title. |
+| `messages` | The full `LeashUIMessage[]` — text, reasoning, tool calls/results, and typed data parts (`plan`, `skill`, `elicitation`). |
+| `summary` / `summarizedThrough` | Context-compaction state (see [Compaction](/agents/compaction)). |
+
+Each message also carries `LeashMetadata` telemetry, emitted by the route via `messageMetadata`:
+
+| Telemetry | Source |
+|-----------|--------|
+| `createdAt` / `finishedAt` | ms epoch of the stream `start` / `finish` parts. |
+| `model` | The served model alias that produced the message. |
+| `totalTokens` | Total tokens for the turn (from the finish part's usage). |
+| `effort` | The dynamic-effort tier the turn was graded into. |
+
+<Note>
+The record is persisted **lazily**: `createChat` mints an id but writes no file. The first message triggers `saveChat` (in the route's `onFinish`), so abandoned or never-sent chats never clutter the store — and the [consolidation](/agents/consolidation) pass only ever sees real conversations.
+</Note>
+
+## Effort tiers
+
+Every turn is graded into an `EffortTier` by a server-side embedding classifier, and the tier is stored on the message's `effort` telemetry:
+
+<CardGroup cols={3}>
+  <Card title="quick" icon="bolt">
+    Lightweight turns — fast, low-ceiling responses.
+  </Card>
+  <Card title="standard" icon="gauge">
+    The default working tier.
+  </Card>
+  <Card title="deep" icon="brain">
+    Heavier reasoning turns.
+  </Card>
+</CardGroup>
+
+`EffortTier` is defined in the client-safe `types.ts`, so the chat UI and VoiceCall can read it without pulling any server-only code. See [Sampling](/agents/sampling) for how the tier shapes generation.
+
+## The chat history tray
+
+`listChats` returns a `ChatSummary[]` — newest-updated first — for the history tray:
+
+```ts
+interface ChatSummary {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  title: string;        // user title, else derived from the first user message
+  messageCount: number;
+}
+```
+
+The title falls back to the first user message text (trimmed to 60 chars). `latestChat()` returns the most-recently-updated chat id — what the dashboard reopens on load.
+
+## How a session resumes
+
+The transport rebuilds each turn's history from the store, so the file *is* the session state.
+
+<Steps>
+  <Step title="Open">
+    The client loads `data/leash-chats/<id>.json` (`loadChat`) and renders the full `messages` array — every part the UI originally showed.
+  </Step>
+  <Step title="Continue">
+    A new turn re-reads the stored history; on finish, `saveChat` overwrites the record, preserving `createdAt`, `title`, and compaction state.
+  </Step>
+  <Step title="Checkpoint revert">
+    `truncateChat(id, keep)` keeps only the first `keep` messages and drops the rest. Because the transport rebuilds from the store, truncating is what makes a restore "stick" — the next message continues from the checkpoint. Stale compaction state pointing past the new end is cleared so the [compactor](/agents/compaction) recomputes a fresh summary.
+  </Step>
+</Steps>
+
+<Tip>
+Rename a chat with `renameChat` (capped at 120 chars) and delete with `deleteChat` (a no-op if the file is already gone). The `UIMessage`-shaped storage means swapping the fs calls for a DB later needs no caller changes.
+</Tip>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Compaction" icon="compress" href="/agents/compaction">
+    Keeping a long session inside the 32k window.
+  </Card>
+  <Card title="Memory" icon="database" href="/agents/memory">
+    How sessions differ from the persistent memory stores.
+  </Card>
+  <Card title="Sampling" icon="sliders" href="/agents/sampling">
+    How the effort tier shapes generation.
+  </Card>
+  <Card title="Interject" icon="hand" href="/agents/interject">
+    Steering a live turn mid-flight.
+  </Card>
+</CardGroup>

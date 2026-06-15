@@ -1,0 +1,72 @@
+---
+title: "Memory tools"
+description: "remember and recall — typed memory store for facts, preferences, goals, people, and routines."
+sidebarTitle: "Memory"
+---
+
+The **memory** group gives the agent a typed key-value store for durable facts about the user. Unlike notes (which are markdown files the user writes), memories are short sentences the agent writes during conversation when it learns something worth keeping.
+
+## remember
+
+Save a one-sentence memory about the user.
+
+**Approval:** None — autonomous write.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | enum | Yes | `preference` \| `fact` \| `goal` \| `person` \| `routine` |
+| `text` | string | Yes | One self-contained sentence, e.g. `"Prefers metric units"` |
+
+**Memory types:**
+
+| Type | When to use |
+|------|------------|
+| `preference` | How the user likes things done — shapes future behavior |
+| `fact` | Stable truths about them or their world |
+| `goal` | Something they want to achieve |
+| `person` | People in their life |
+| `routine` | Recurring patterns (e.g. "Reviews goals every Monday morning") |
+
+**Returns:** Confirmation with the memory id and recency (`"Remembered [fact] Prefers dark mode (id abc, today)"`).
+
+**When the agent calls it:**
+- User states something durable about themselves: "I prefer dark mode"
+- User explicitly asks: "Remember that I'm vegetarian"
+- Agent corrects a wrong assumption and should record the truth
+
+**Example:**
+```
+User: I always use metric units.
+Agent: [calls remember(type="preference", text="Always uses metric units")]
+       Got it — I'll use metric units from now on.
+```
+
+---
+
+## recall
+
+Look up saved memories about the user.
+
+**Approval:** None.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `type` | enum | No | Filter to one type: `preference` \| `fact` \| `goal` \| `person` \| `routine` |
+| `query` | string | No | Keyword to filter memory texts |
+
+**Returns:** Up to 30 matching memories, each formatted as `[type] text (id, recency)`. Returns `"No saved memories match."` if none are found.
+
+**When the agent calls it:**
+- "What do you know about me?"
+- "What are my goals?"
+- "Do you remember my coffee preference?"
+- Any question where the answer may depend on something previously remembered
+
+**Example:**
+```
+User: What are my current goals?
+Agent: [calls recall(type="goal")]
+       You have 2 goals:
+       [goal] Build the Mycelium mesh (id xyz, 3d ago)
+       [goal] Run a 5k by August (id abc, 1d ago)
+```

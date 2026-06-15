@@ -1,0 +1,88 @@
+---
+title: "Memory overview"
+description: "Leash's three persistent stores — typed memories, notes, and the context graph — how they differ from sessions, and the locking discipline that keeps two processes honest."
+sidebarTitle: "Memory"
+---
+
+A [session](/agents/sessions) is one conversation. **Memory** is what Leash carries *across* conversations. Leash keeps three distinct stores, all on-device, all plain files.
+
+## The three stores
+
+<CardGroup cols={3}>
+  <Card title="Typed memories" icon="tags" href="/agents/memory-types">
+    Structured facts about you — `data/leash-memories.json`.
+  </Card>
+  <Card title="Notes" icon="note-sticky">
+    Free-form notes in `data/notes`, RAG-indexed for retrieval.
+  </Card>
+  <Card title="Context graph" icon="diagram-project" href="/agents/context">
+    The unified RAG index `search_graph` queries.
+  </Card>
+</CardGroup>
+
+| Store | File | Shape | Retrieval |
+|-------|------|-------|-----------|
+| Typed memories | `data/leash-memories.json` | `LeashMemory[]` (typed rows) | `recall` keyword filter + RAG |
+| Notes | `data/notes/*.md` | Markdown | RAG (`search_graph`) |
+| Context graph | (in-memory index) | embedded chunks | RAG (`search_graph`) |
+
+### Memory vs sessions
+
+| | Sessions | Memory |
+|---|----------|--------|
+| Scope | One conversation | Across all conversations |
+| Storage | `data/leash-chats/<id>.json` | `leash-memories.json`, `data/notes`, the graph index |
+| Lifetime | The chat | Until forgotten |
+| Purpose | Replay what was said | Recall *facts*, not transcripts |
+
+## The context graph ties it together
+
+The graph is a tiny in-memory RAG index that `search_graph` queries. It embeds **four** sources through the on-device QVAC embeddings endpoint and ranks chunks by cosine similarity:
+
+- **Notes** — `data/notes/*.md`, chunked by paragraph.
+- **Screen activity** — the watcher's trail, tombstone-filtered.
+- **Typed memories** — one chunk per memory row.
+- **Past chats** — `You: … / Leash: …` exchanges from `data/leash-chats`.
+
+Each index is cache-invalidated by a cheap filesystem fingerprint (notes dir count + mtime; activity jsonl + tombstones mtime; per-chat mtime), so dashboard edits go live with no restart, and only the *changed* source re-embeds.
+
+<Note>
+Retrieval is **HTTP-only** — the AI SDK `embed`/`embedMany` calls hit `qvac serve` (port `11435`), so neither the web process nor the MCP server needs native `@qvac/sdk`. The **`gte-large`** embedding alias powers all RAG, indexing, and dedup.
+</Note>
+
+<Warning>
+The graph's index passes run **sequentially**, never in parallel — the serve's embeddings endpoint has a single slot and `500`s a request that arrives while another embed is in flight.
+</Warning>
+
+## Locking discipline
+
+The typed-memory store is written by **two processes** (the web app and the `leash-tools-mcp` server share one implementation over one file), so every mutation runs under two layers:
+
+<Steps>
+  <Step title="In-process mutex">
+    A promise chain serializes mutations within a single process (the fast path).
+  </Step>
+  <Step title="Cross-process file lock">
+    Nested inside the mutex, `withFileLock` guards the read-modify-write against the other process.
+  </Step>
+  <Step title="Fresh read, atomic write, cached load">
+    Each mutation reads fresh under the lock, writes atomically, and invalidates the mtime-cached load.
+  </Step>
+</Steps>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Typed memories" icon="tags" href="/agents/memory-types">
+    The five memory types and the remember/recall tools.
+  </Card>
+  <Card title="Consolidation" icon="moon" href="/agents/consolidation">
+    The nightly dream + evolve loop.
+  </Card>
+  <Card title="Memory tools" icon="screwdriver-wrench" href="/capabilities/tools/memory">
+    The tool surface for memory.
+  </Card>
+  <Card title="Embeddings" icon="vector-square" href="/models/modality/embeddings">
+    gte-large, the engine behind RAG.
+  </Card>
+</CardGroup>

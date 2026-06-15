@@ -1,0 +1,92 @@
+---
+title: "MCP Admin tools"
+description: "install_mcp_repo, upsert_mcp_server — install and register external MCP servers."
+sidebarTitle: "MCP Admin"
+---
+
+The **mcpAdmin** group lets the agent install and configure external MCP servers. It is **skill-gated** — it never appears in the active tool set unless the `mcp-admin` skill is explicitly activated. This prevents random tool calls from accidentally installing things.
+
+<Warning>
+Both tools are approval-gated — the user must confirm before any installation or server registration happens.
+</Warning>
+
+## install_mcp_repo
+
+Install an MCP server from a GitHub repo URL or an mcpservers.org listing URL — clones, installs deps, builds, and registers it in one step.
+
+**Approval:** Required.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `url` | string | Yes | A `github.com/OWNER/NAME` URL or an `mcpservers.org` listing URL |
+| `name` | string | No | Display name for the server (defaults to the repo name) |
+
+**What it does:**
+1. Clones the repo to a local directory
+2. Detects the package manager and runs `npm install` / `bun install`
+3. Runs `npm run build` if a build script exists
+4. Detects the entry point (looks for `dist/index.js`, `build/index.js`, etc.)
+5. Saves a `stdio` server entry to `data/leash-mcp.json`
+
+**Returns:**
+- On success: `"Installed and registered MCP server 'Name' (node dist/index.js, cwd /path). It will connect on the next chat turn."`
+- On failure: The step log showing where it failed + the downloaded directory path for inspection
+
+**Note on process boundary:** The tool saves the server to `data/leash-mcp.json`. The live MCP client lives in the Next.js web process — it picks up the new entry on the next chat turn and connects. `install_mcp_repo` cannot observe whether the connection actually succeeds; Brain → MCP shows the true live status.
+
+**Example:**
+```
+User: Install the Notion MCP server.
+Agent: [calls install_mcp_repo(url="https://github.com/makenotion/notion-mcp-server")]
+       [approval card shown to user]
+       [user clicks Allow]
+       Installed and registered MCP server "notion-mcp-server" 
+       (node dist/index.js, cwd /Users/MAC/mycelium/data/mcp-repos/notion-mcp-server).
+       It will connect on the next chat turn — check Brain → MCP for live status.
+```
+
+---
+
+## upsert_mcp_server
+
+Create or update a server entry by hand — for cases where you've already built a repo, or for HTTP/SSE servers that don't need installation.
+
+**Approval:** Required.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | No | Existing server id to update (omit to create new) |
+| `name` | string | No | Display name |
+| `transport` | enum | Yes | `http` \| `sse` \| `stdio` |
+| `url` | string | No | For `http`/`sse` servers — the server URL |
+| `command` | string | No | For `stdio` servers — the executable |
+| `args` | string[] | No | For `stdio` servers — command arguments |
+| `cwd` | string | No | For `stdio` servers — working directory |
+| `env` | object | No | For `stdio` servers — environment variables |
+| `headers` | object | No | For `http`/`sse` servers — request headers (e.g. auth) |
+| `enabled` | boolean | No | Whether to enable after saving (default `true`) |
+
+**Returns:** `"Saved MCP server 'Name' (stdio: node dist/index.js). It connects on the next chat turn."`
+
+**Common use cases:**
+
+**HTTP server:**
+```json
+{
+  "transport": "http",
+  "name": "My API Server",
+  "url": "http://localhost:3100/mcp",
+  "headers": { "Authorization": "Bearer sk-..." }
+}
+```
+
+**stdio server (already built):**
+```json
+{
+  "transport": "stdio",
+  "name": "My MCP",
+  "command": "node",
+  "args": ["/path/to/dist/index.js"],
+  "env": { "API_KEY": "..." }
+}
+```

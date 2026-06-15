@@ -1,0 +1,80 @@
+---
+title: "Agents"
+description: "The Leash agent — one persistent ToolLoopAgent over @qvac/sdk, five turn routes, skills-first, constitution-grounded."
+sidebarTitle: "Overview"
+---
+
+Leash is a **single, persistent agent**: every turn runs through the same `ToolLoopAgent`, wired to on-device inference through `@qvac/sdk`. What changes per turn is the *route* (which model drives, which tools are active), the *system prompt* (your soul and goals, plus active skills and tool schemas), and the *sampling* (thinking vs. non-thinking). This hub maps the architecture.
+
+## Architecture
+
+<Columns cols={3}>
+  <Card title="Context" icon="layer-group" href="/agents/context">
+    How each turn's system prompt is assembled — soul + goals + skills + tool schemas — and the schema budget that caps it.
+  </Card>
+  <Card title="Runtime" icon="gears" href="/agents/runtime">
+    The `ToolLoopAgent` engine: `prepareCall`, the step loop, tool-call self-repair, and loop diagnostics.
+  </Card>
+  <Card title="Sessions" icon="comments" href="/agents/sessions">
+    Effort tiers, plan mode, interject, and how a chat thread is stored and compacted.
+  </Card>
+  <Card title="Memory" icon="database" href="/agents/memory">
+    Typed memories, the context graph, and consolidation — what the agent recalls about you.
+  </Card>
+  <Card title="Queue" icon="list-ol" href="/agents/queue">
+    The broker in front of the single serve slot, and how interactive work jumps the line.
+  </Card>
+  <Card title="Multi-agent" icon="users" href="/agents/multi-agent">
+    Councils, delegation, and orchestration across skills and paired peers.
+  </Card>
+</Columns>
+
+## The five routes
+
+Every incoming message is classified into one of **five routes** before the agent loop starts. The route picks the driving QVAC model and narrows the default toolset.
+
+| Route | Driving model | Default toolset | When |
+|-------|--------------|-----------------|------|
+| `chat` | `qwen3-4b` (alias `chat`) | Everything except computer + MCP-admin tools | Default for text turns |
+| `health` | `medpsy` (QVAC's Qwen3 fine-tune) | Same as `chat` | Medical / mental-health intent |
+| `files` | `qwen3-4b` | Bash lane only (read-only shell) | File-heavy work |
+| `computer` | Computer-use model (defaults to chat) | Computer tools only | Screen / GUI turns |
+| `vision` | `qwen3vl` | None — single-shot, no tool loop | Image / screenshot questions |
+
+See [Routes](/agents/routes) for the full route→model→toolset→approval-posture table.
+
+## Skills-first, constitution-grounded
+
+When an **active skill** declares its own `tools:` set, that set becomes the exact toolset for the turn — the skill is the primary lane and route selection is the fallback. Underneath it all, `soul.md` and `goals.md` are folded into **every** turn's system prompt, so the agent is goal-aware in chat, not only in proactive heartbeats.
+
+<CardGroup cols={2}>
+  <Card title="Skills" icon="puzzle-piece" href="/capabilities/skills">
+    The skills-first contract and progressive tool disclosure.
+  </Card>
+  <Card title="Soul" icon="user" href="/agents/soul">
+    `soul.md` — who you are, folded into every turn.
+  </Card>
+  <Card title="Goals" icon="bullseye" href="/agents/goals">
+    `goals.md` — up to five goals the agent judges everything against.
+  </Card>
+  <Card title="Models & aliases" icon="microchip" href="/models/overview">
+    What drives each route, and how aliases map to GGUFs.
+  </Card>
+</CardGroup>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Context assembly" icon="layer-group" href="/agents/context">
+    Exactly what goes into each turn's prompt.
+  </Card>
+  <Card title="Runtime engine" icon="gears" href="/agents/runtime">
+    The step loop and per-turn mapping.
+  </Card>
+  <Card title="Grounding" icon="magnifying-glass" href="/agents/grounding">
+    Retrieval, recall, and source citations.
+  </Card>
+  <Card title="Sampling" icon="sliders" href="/agents/sampling">
+    Why Leash never uses the serve's greedy default.
+  </Card>
+</CardGroup>

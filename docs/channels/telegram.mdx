@@ -1,0 +1,179 @@
+---
+title: "Telegram"
+description: "Bind a Telegram bot to Leash and talk to your exocortex from your phone — owner-only, on-device inference, no cloud AI."
+sidebarTitle: "Telegram"
+---
+
+Telegram is Leash's first **remote** channel: bind a bot once and chat with your exocortex from anywhere, on any device that runs Telegram. Every message you send is forwarded to the **same** `POST /api/leash/chat` the web chat uses, so Telegram gets the identical agent — your tools, the Understory, your memory, the constitution.
+
+<Note>
+  The bridge is **pure transport**. Inference still runs on-device in Leash via `@qvac/sdk` — a Telegram message never triggers a cloud AI API. The bridge holds a bot token and shuttles text; it bridges *to Telegram*, never to a model provider.
+</Note>
+
+It runs as a standalone [daemon](/reference/runtime-ports-and-processes) (`apps/leash-telegram`), in the same dependency-light style as the [Leash broker](/agents/queue-priority) — raw `node:http` + `undici`, no bot framework.
+
+## How it works
+
+```
+Telegram ──► transport (long-poll │ webhook) ──► owner guard ──► per-chat lane
+                                                                      │
+                                                  POST /api/leash/chat ▼  (on-device, @qvac/sdk)
+                                                                      │
+        sendMessage ◄── 4096-char chunks ◄── accumulate text-delta ◄──┘
+```
+
+- **Owner-only.** A first-run pairing code binds the bot to your Telegram account; everyone else is refused.
+- **One handler, two transports.** Long-polling (zero-infra default) and a webhook (for a public endpoint) feed the *same* handler — switching is a config flag, not a rewrite.
+- **Per-chat lanes.** Turns within a chat are serialized so a slow agent turn can't overlap your next message.
+- **Answer-only streaming.** The bridge consumes Leash's AI-SDK stream and accumulates only the answer text — the model's private reasoning and tool I/O never reach Telegram.
+
+## Setup
+
+<Steps>
+  <Step title="Create a bot">
+    In Telegram, message [@BotFather](https://t.me/BotFather), send `/newbot`, and follow the prompts. Copy the **HTTP API token** it gives you (looks like `123456:ABC-DEF…`).
+  </Step>
+  <Step title="Provide the token">
+    Either export it for a quick run:
+
+    ```bash
+    TELEGRAM_BOT_TOKEN=<your-token> npm run telegram
+    ```
+
+    …or create `data/leash-telegram.config.json` (per-machine, gitignored) — see [Configuration](#configuration) below.
+  </Step>
+  <Step title="Make sure Leash is up">
+    The bridge forwards to the Leash web app, so it must be running (default `http://localhost:6801`). Start it with `npm run web:dev` and your usual serve.
+  </Step>
+  <Step title="Pair (bind yourself)">
+    With an empty allow-list, the daemon prints a **6-digit pairing code** to its console:
+
+    ```
+    🔗 Pairing open — send this 6-digit code to the bot in Telegram to bind it (owner-only):
+       558494
+    ```
+
+    DM that code to your bot. You'll get **"✅ Paired — you're now bound to this Leash."** and your Telegram user id is recorded in `allowFrom`. Pairing then closes; anyone else who messages the bot is refused.
+  </Step>
+  <Step title="Chat">
+    Send the bot anything. It shows a `typing…` indicator while Leash decodes (kept alive across long turns) and replies with the answer.
+  </Step>
+</Steps>
+
+## Transports
+
+<Tabs>
+  <Tab title="Long-polling (default)">
+    The daemon repeatedly calls Telegram's `getUpdates`. **No public URL, no open ports** — only outbound HTTPS to Telegram, so it works behind NAT on a home network. If the connection drops (e.g. offline), it backs off and resumes. This is the default; you get it with just a token.
+  </Tab>
+  <Tab title="Webhook (Cloudflare Tunnel)">
+    Telegram POSTs each update to a public HTTPS endpoint. Because Leash runs locally, you front the daemon's local listener with a tunnel.
+
+    <Steps>
+      <Step title="Start a tunnel to the local listener">
+        ```bash
+        cloudflared tunnel --url http://localhost:8787
+        ```
+        Copy the `https://<name>.trycloudflare.com` host it prints (a named tunnel gives a stable host).
+      </Step>
+      <Step title="Set webhook config">
+        In `data/leash-telegram.config.json`, set `transport: "webhook"` and fill the `webhook` block — `url` is the tunnel host, `secret` is any random string.
+      </Step>
+      <Step title="Run">
+        `npm run telegram` registers the webhook with Telegram automatically (`setWebhook`) and validates the `X-Telegram-Bot-Api-Secret-Token` header on every inbound request — mismatches are rejected with `403` before processing. The daemon ACKs `200` immediately and processes asynchronously, so a slow turn never holds Telegram's delivery.
+      </Step>
+    </Steps>
+
+    <Note>
+      A webhook needs a public HTTPS endpoint with a valid TLS certificate. The Cloudflare Tunnel provides both without opening a port. Switching back to long-polling clears the webhook automatically on startup.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Configuration
+
+Config is loaded from `data/leash-telegram.config.json` (per-machine, gitignored, not shipped by `pullmesh`), with environment overrides. Only a token is required.
+
+```json data/leash-telegram.config.json
+{
+  "botToken": "123456:ABC-DEF…",
+  "dmPolicy": "allowlist",
+  "allowFrom": [],
+  "transport": "polling",
+  "leashBaseUrl": "http://localhost:6801",
+  "webhook": {
+    "url": "https://your-tunnel.trycloudflare.com",
+    "secret": "a-random-string",
+    "path": "/telegram-webhook",
+    "host": "127.0.0.1",
+    "port": 8787
+  }
+}
+```
+
+| Field | Default | Meaning |
+|-------|---------|---------|
+| `botToken` | — | Token from @BotFather. Or set `tokenFile` (a path), or the `TELEGRAM_BOT_TOKEN` env var. |
+| `dmPolicy` | `"allowlist"` | `"allowlist"` (owner-only) · `"open"` (anyone) · `"disabled"` (no DMs). |
+| `allowFrom` | `[]` | Numeric Telegram user ids allowed to talk to Leash. Filled by pairing when empty. |
+| `transport` | `"polling"` | `"polling"` or `"webhook"`. |
+| `leashBaseUrl` | `http://localhost:6801` | Base URL of the Leash web app exposing `/api/leash/chat`. |
+| `parseMode` | _(plain text)_ | `"Markdown"` \| `"MarkdownV2"` \| `"HTML"`. Off by default — Telegram's markdown parser rejects the unbalanced entities agent output routinely contains. |
+| `webhook.url` | — | Public HTTPS base URL Telegram POSTs to (your tunnel host). Webhook mode only. |
+| `webhook.secret` | — | Shared secret echoed in `X-Telegram-Bot-Api-Secret-Token`; mismatches are rejected. |
+| `webhook.path` | `/telegram-webhook` | Path the local listener serves. |
+| `webhook.host` | `127.0.0.1` | Local bind host (the tunnel fronts it). |
+| `webhook.port` | `8787` | Local bind port. |
+
+**Environment overrides:** `TELEGRAM_BOT_TOKEN`, `LEASH_BASE_URL`, `LEASH_TELEGRAM_WEBHOOK_URL`, `LEASH_TELEGRAM_WEBHOOK_SECRET`, and `LEASH_TELEGRAM_CONFIG` (path to the config file). A token supplied via env is **not** written back to disk when pairing persists `allowFrom`.
+
+## Access &amp; pairing
+
+The pairing code lives only in process memory and the daemon console — it never goes on the wire, so seeing it requires access to the machine running the bridge. **That is the capability.** The first sender to echo the code is recorded as the owner; pairing then closes. To re-open it, clear `allowFrom` in the config (or delete the config file) and restart.
+
+<Warning>
+  Anyone who finds your bot can *message* it, but with `dmPolicy: "allowlist"` only paired ids are answered — everyone else gets a polite refusal. Keep `dmPolicy` at `"allowlist"` unless you intend an open bot.
+</Warning>
+
+## Sessions
+
+Each Telegram chat maps deterministically to a Leash conversation id (`telegram-<chatId>`), so your thread **persists across daemon restarts** — the history lives in the Leash chat store under that stable key, exactly like the web chat.
+
+## Replies
+
+Telegram has no token streaming, so the bridge sends a `typing…` action while Leash decodes, then posts the complete answer once it's ready. Replies longer than Telegram's **4096-character** limit are split on paragraph/line/word boundaries into sequential messages. Replies are sent as **plain text** by default (see `parseMode`).
+
+## Audit log
+
+Every turn appends a JSONL record to `apps/leash-telegram/logs/leash-telegram.jsonl` (inbound message, completion with TTFT and token count, pairing events) — part of the [audit evidence](/hackathon/how-we-meet-the-criteria) bundle.
+
+## Requirements
+
+<Columns cols={2}>
+  <Card title="A bot token" icon="robot">
+    From [@BotFather](https://t.me/BotFather) — `/newbot`.
+  </Card>
+  <Card title="Leash web app up" icon="server">
+    The bridge forwards to `/api/leash/chat` (default `:6801`).
+  </Card>
+  <Card title="Outbound HTTPS" icon="globe">
+    To reach Telegram. Polling needs nothing more.
+  </Card>
+  <Card title="A tunnel (webhook only)" icon="cloud">
+    `cloudflared` for a public HTTPS endpoint, if you choose webhook mode.
+  </Card>
+</Columns>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Chat" icon="comment" href="/channels/chat">
+    The web text channel Telegram mirrors.
+  </Card>
+  <Card title="Ports &amp; processes" icon="shuffle" href="/reference/runtime-ports-and-processes">
+    The daemon pattern this bridge follows.
+  </Card>
+  <Card title="How we meet the criteria" icon="circle-check" href="/hackathon/how-we-meet-the-criteria">
+    On-device, offline-capable, audit-logged.
+  </Card>
+</CardGroup>

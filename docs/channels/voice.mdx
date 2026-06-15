@@ -1,0 +1,137 @@
+---
+title: "Voice"
+description: "Hands-free voice call with Leash — fully on-device STT, LLM, and TTS."
+sidebarTitle: "Voice"
+---
+
+Voice call is a full-screen, audio-only overlay on top of the text chat. The whole pipeline runs on-device: **Parakeet** for speech-to-text, your **chat** model for the language turn, and **Supertonic** for text-to-speech. No cloud API is involved, and spoken turns land in the same chat thread as typed ones.
+
+<Note>
+  The call overlay does not own its own chat — it borrows the live handles from the text chat (`LeashChat`), so every spoken turn persists in the same transcript and store.
+</Note>
+
+## Starting a call
+
+<Steps>
+  <Step title="Open the chat">
+    Go to [http://localhost:6801/chat](http://localhost:6801/chat).
+  </Step>
+  <Step title="Tap the microphone">
+    The microphone icon (top-right) opens the call overlay. Grant microphone permission on the first prompt.
+  </Step>
+  <Step title="Talk">
+    Leash listens, transcribes, thinks, and speaks back — fully hands-free. A soft earcon plays each time the mic re-opens for you.
+  </Step>
+</Steps>
+
+## The VAD state machine
+
+The loop is a small state machine driven by mic RMS (a Web Audio `AnalyserNode` sampled every animation frame). A continuously-running `MediaRecorder` captures the audio; the analyser — not recorder start/stop — gates each utterance.
+
+```
+idle → listening → capturing → transcribing → thinking → speaking → (listening)
+                                                    ↑__________________|
+                          (barge-in cuts speaking/thinking back to capturing)
+```
+
+| State | What's happening |
+|-------|------------------|
+| `idle` | Overlay opening; audio graph not yet armed. |
+| `listening` | Mic open, watching for speech onset above `onsetThreshold`. |
+| `capturing` | Sustained speech detected; recording the utterance as WebM. |
+| `transcribing` | Audio re-encoded to 16 kHz mono WAV, sent to Parakeet STT. |
+| `thinking` | Transcript sent to the chat route; a relevant filler may play after a short delay. |
+| `speaking` | Supertonic TTS plays the reply sentence-by-sentence. |
+| `error` / `denied` | Something failed, or the mic was blocked — with Retry / Resume. |
+
+On top of these there's `error` and `denied`. The MediaRecorder is re-armed at the start of each `listening`/`capturing` phase so every built blob is a complete, decodable WebM (header included).
+
+## VAD threshold table
+
+All voice-activity-detection constants live in **one** place (`apps/web/lib/leash/audio.ts`) because they are mic- and device-dependent. Energy values are normalized RMS (0–1) over the time-domain buffer; the rest are milliseconds.
+
+| Constant | Value | Meaning |
+|----------|-------|---------|
+| `onsetThreshold` | `0.04` | RMS above this = speech onset → start capturing. |
+| `silenceThreshold` | `0.025` | RMS below this counts toward end-of-utterance. |
+| `bargeInThreshold` | `0.08` | Sustained energy above this *during playback* = barge-in (higher, to reject echo). |
+| `onsetSustainMs` | `150` | Onset must persist this long before committing to capture (rejects clicks). |
+| `silenceHangoverMs` | `1000` | Trailing silence this long ends the utterance. |
+| `bargeInSustainMs` | `250` | Barge-in energy must persist this long during playback before cutting TTS. |
+| `preRollMs` | `300` | Audio kept *before* detected onset so the first word isn't clipped. |
+| `minUtteranceMs` | `250` | Utterances shorter than this are treated as noise and ignored. |
+| `maxUtteranceMs` | `15000` | Hard cap — a continuous talker (no silence gap) is force-ended here. |
+| `postPlaybackCooldownMs` | `300` | After TTS ends, ignore mic onset this long so room reverb doesn't self-trigger. |
+| `recorderTimesliceMs` | `100` | MediaRecorder emits a chunk this often for fine-grained slicing. |
+
+<Tip>
+  If VAD is too jumpy or too sluggish on your hardware, tune these in `apps/web/lib/leash/audio.ts` — they're all `const` in one block. Set `DEBUG_VAD = true` in `VoiceCall.tsx` to log live RMS and state transitions.
+</Tip>
+
+## Barge-in
+
+You can interrupt Leash mid-reply. Sustained energy above `bargeInThreshold` (0.08) for `bargeInSustainMs` (250 ms) — while Leash is either **speaking** or **thinking** (even during a filler) — aborts the in-flight generation, drains the TTS queue, and immediately starts capturing your new utterance. The higher threshold is what keeps the assistant's own voice from triggering it.
+
+## Speech-to-text (Parakeet)
+
+The browser records WebM/Opus, but the on-device transcriber **rejects webm/opus** (it returns empty). So `blobToWav()` decodes the recording and re-encodes it to **16 kHz mono 16-bit PCM WAV** before posting it to `/api/leash/transcribe`.
+
+## Text-to-speech (Supertonic)
+
+Replies are synthesized **progressively, one sentence at a time** by Supertonic (`/api/leash/speak`), so the first audio lands seconds before the full reply finishes generating — with a one-ahead prefetch to keep inter-sentence gaps small.
+
+<Note>
+  The first Supertonic synth after idle is **cold (~10 s)**; every one after is **~0.3 s**. The overlay warms TTS the moment the call opens so turn 1 isn't slow.
+</Note>
+
+The shipped voice is **Supertonic F1** (`F1`). The in-call voice picker appears only when more than one *verified* voice is configured — no fake voices are ever listed. TTS requires the `supertonic` alias served with `config: { ttsEngine: "supertonic", language: "en", voice: "F1", ttsSpeed: 1.05, ttsNumInferenceSteps: 5 }`; the dashboard's model wizard writes this automatically.
+
+### Spoken filler
+
+While a reply is still generating, Leash can mask the silent gap with a short, **query-relevant** filler phrase (e.g. *"Let me dig through your notes."*). It's classified cheaply from the transcript (not generated by the LLM, which would be slower than the answer), synthesized on the fly, and played only if the turn is still `thinking` after `FILLER_DELAY_MS` (700 ms) **and** its audio is ready. A fast reply flips to `speaking` first and the filler is skipped.
+
+### Markdown stripping
+
+Before synthesis, `stripMarkdownForSpeech()` removes asterisks, backticks, headings, list markers, links, and HTML — so the model's markdown never gets read aloud. The voice system prompt also steers the model toward short spoken prose.
+
+## Phantom-transcript rejection
+
+Parakeet sometimes returns punctuation-only or single-character strings on near-silence. `cleanTranscript()` drops them:
+
+- Empty / whitespace-only.
+- Punctuation- or symbol-only (e.g. `.`, `?`).
+- Bracketed non-linguistic cues (e.g. `[BLANK_AUDIO]`).
+- Fewer than `MIN_TRANSCRIPT_CHARS` (**2**) real letters/digits — kills hallucinations like *"I"* / *"u"* while keeping real one-word replies (*"no"*, *"ok"*, *"hi"*).
+
+Rejected transcripts never get sent; the loop quietly returns to `listening`.
+
+## Requirements
+
+<Columns cols={2}>
+  <Card title="Microphone permission" icon="microphone">
+    Browser prompt on first use. Echo cancellation, noise suppression, and auto-gain are requested.
+  </Card>
+  <Card title="parakeet alias served" icon="ear">
+    Speech-to-text. See [Aliases](/models/aliases).
+  </Card>
+  <Card title="supertonic alias served" icon="volume-high">
+    Text-to-speech, voice `F1`.
+  </Card>
+  <Card title="A decent mic" icon="headphones">
+    Laptop mics work; AirPods / a headset give cleaner VAD.
+  </Card>
+</Columns>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Chat" icon="comment" href="/channels/chat">
+    The text channel the call rides on top of.
+  </Card>
+  <Card title="Aliases" icon="tag" href="/models/aliases">
+    Configure `parakeet` and `supertonic`.
+  </Card>
+  <Card title="Troubleshooting" icon="wrench" href="/help/troubleshooting">
+    Mic, STT, and TTS issues.
+  </Card>
+</CardGroup>

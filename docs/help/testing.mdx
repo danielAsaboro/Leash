@@ -1,0 +1,93 @@
+---
+title: "Testing overview"
+description: "How to verify that Leash is working correctly — smoke tests, route tests, and what to check after updates."
+sidebarTitle: "Testing overview"
+---
+
+## The smoke test
+
+The fastest way to verify that Leash is healthy:
+
+```bash
+# 1. Is the serve responding?
+curl http://127.0.0.1:11435/v1/models | jq '.data[].id'
+
+# 2. Is the web server up? (the landing page returns 200)
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:6801/
+
+# 3. Does a basic chat turn work?
+curl -X POST http://localhost:6801/api/leash/chat \
+  -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"hello"}]}' \
+  --no-buffer
+```
+
+If all three pass, the critical path is healthy.
+
+## Route verification
+
+Each of Leash's five routes can be tested independently:
+
+| Route | Test |
+|-------|------|
+| `chat` | Send "What time is it?" — should use tools and answer |
+| `health` | Send "I have a headache" — routes to `medpsy` model |
+| `computer` | "Take a screenshot" — should call `screenshot` tool (approval-free) |
+| `files` | "List my notes" — should call `bash` tool |
+| `vision` | Send a message with an image — routes to `qwen3vl` |
+
+## Tool group verification
+
+For each MCP tool group you care about, run a quick tool-level test:
+
+```
+# memory group
+"Do I have any notes about X?"
+
+# tasks group  
+"What tasks do I have today?"
+
+# computer group
+"Take a screenshot of my screen"
+
+# research group
+"Search the web for..."  
+
+# scheduler group
+"Remind me at 3pm to check email"
+```
+
+## Heartbeat verification
+
+```bash
+# Trigger one heartbeat cycle manually
+curl -X POST http://localhost:6801/api/leash/heartbeat
+```
+
+A healthy response is `{"ok":true,"suppressed":true,"reason":"HEARTBEAT_OK"}` (nothing to surface) or a proposal object. An `error` key means the serve was down or tools weren't ready.
+
+## Checking audit logs
+
+Every inference turn writes a JSONL record. After a few chat turns:
+
+```bash
+cat data/leash-audit.jsonl | tail -20 | jq '{event, model: .modelSrc, ttft_ms, tok_per_sec}'
+```
+
+You should see `model_load`, `prompt`, and `completion` events with non-zero `ttft_ms` and `tok_per_sec`.
+
+## After an `npm install`
+
+After any `package.json` change or `npm install`, always restart:
+1. The web server (`npm run web:dev`)
+2. The `leash-tools-mcp` daemon (`npm run mcp`)
+3. The screen watcher if running (`npm run watch`)
+
+The serve (`qvac serve openai`) doesn't need a restart for code changes — only for config changes.
+
+## After a config change
+
+After any change to `qvac.config.base.json`:
+1. Restart `qvac serve openai` — there is no live-reload API
+2. Wait 30–60 seconds for models to preload (check `curl .../v1/models` until all aliases show READY)
+3. Run the smoke test above

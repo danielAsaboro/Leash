@@ -1,0 +1,41 @@
+---
+title: "Windows (WIP)"
+description: "Leash on Windows — not yet supported, with the blockers tracked here."
+sidebarTitle: "Windows (WIP)"
+---
+
+<Warning>
+  Windows is not yet supported. The desktop app, screen watcher, and computer-use tools all assume macOS frameworks. A Windows port is planned but has no committed timeline.
+</Warning>
+
+## What could work in principle
+
+These are cross-platform at the Node/Electron level and are the natural first targets for a port:
+
+- **Web server + Hypha daemon** — Node.js, cross-platform in principle (`:6801` web, `:11437` Hypha)
+- **Desktop app** — Electron supports a Windows build target
+- **Voice call** — Web Audio works on Windows
+
+## Blockers
+
+| Blocker | Detail |
+|---|---|
+| Computer use | `cliclick` (mouse/keyboard) is macOS-only — needs a Windows equivalent |
+| Screen capture | Uses the macOS screen-capture API — needs a Windows equivalent |
+| Screen watcher | Reads window/app titles via macOS Accessibility APIs |
+| SDK support | Confirm `@qvac/sdk` Windows support with the QVAC team |
+
+<Note>
+  Until a native port lands, the closest Windows path is WSL2 running the headless Linux setup — unverified, and still without the macOS-only features. See [Linux (WIP)](/install/linux).
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Linux (WIP)" href="/install/linux" icon="linux">
+    The headless setup, the likely WSL2 path.
+  </Card>
+  <Card title="macOS install" href="/install/macos" icon="apple">
+    The supported reference platform.
+  </Card>
+</CardGroup>

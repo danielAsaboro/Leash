@@ -1,0 +1,62 @@
+---
+title: "Turn routes"
+description: "The five turn routes — chat, health, computer, files, vision — and the driving model, default toolset, and approval posture of each."
+sidebarTitle: "Routes"
+---
+
+Every incoming message is classified into one of **five routes** before the agent loop starts. The route picks the driving QVAC model and narrows the default toolset. A user-chosen model from the chat-input picker can override the driving model on text routes only.
+
+## The five routes
+
+| Route | Driving model | Default toolset | Approval posture |
+|-------|--------------|-----------------|------------------|
+| `chat` | `qwen3-4b` (alias `chat`) | Everything except computer + MCP-admin tools | Standard — read-only `bash` always on; MCP-admin is skill-gated |
+| `health` | `medpsy` → falls back to chat alias | Same as `chat` | Standard |
+| `computer` | Computer-use model (defaults to chat alias) | Computer tools only | Elevated — drives the GUI via screenshot + control tools |
+| `files` | `qwen3-4b` | Bash lane only (read-only shell) | Read-only — shell is the file/time executor |
+| `vision` | `qwen3vl` | **None** — single-shot, no loop | N/A — no tools to approve |
+
+## chat — the default
+
+The default for text turns. Driven by **`qwen3-4b`** (alias `chat`, `QWEN3_4B_INST_Q4_K_M`, ctx 32768, served with `tools:true, toolsMode:"dynamic"`). It activates everything except the computer tools and the SKILL-GATED MCP-admin tools, keeping the active schema set near the ~22-schema cap.
+
+<Note>
+The chat alias is resolved per turn from the served config: the model marked `default: true`, else the first configured model, else the built-in `qwen3-4b`. Adding a model in the dashboard makes chat use it on the next turn.
+</Note>
+
+## health — the medical specialist
+
+Medical and mental-health intent routes to **`medpsy`**, QVAC's own Qwen3 fine-tune. If the `medpsy` alias isn't served, the route resolves down to the chat alias. Its toolset matches `chat`.
+
+## computer — GUI control
+
+Screen and GUI turns route to the **computer-use model**, which defaults to the chat alias until a stronger alias (e.g. `gpt-oss-20b`) is configured — served locally or warm on a paired peer via the broker. It activates **only** the computer tools (the screenshot tool's VLM perceives the screen; the driver issues control actions).
+
+## files — read-only shell
+
+File-heavy work narrows to the **bash lane only** — the read-only shell, which is the default executor for time and file reads.
+
+## vision — the toolless route
+
+Image and screenshot questions route to **`qwen3vl`** (via the forked serve's image-content support). It is the **only toolless route** — `qwen3vl` is not tools-enabled, so it runs single-shot with no step loop, no `stopWhen`, and no `maxOutputTokens` (qwen3vl breaks on `max_tokens`).
+
+<Warning>
+Because vision has no tools and no loop, the toolless-hang guard that keeps ≥1 tool on every text route does **not** apply to it — it is the deliberate exception.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Runtime engine" icon="gears" href="/agents/runtime">
+    How prepareCall maps a route onto model + toolset.
+  </Card>
+  <Card title="Context assembly" icon="layer-group" href="/agents/context">
+    The focused-toolset and ~22-schema budget.
+  </Card>
+  <Card title="Models overview" icon="microchip" href="/models/overview">
+    Aliases → GGUFs for every route.
+  </Card>
+  <Card title="Sampling" icon="sliders" href="/agents/sampling">
+    Per-route sampling by thinking mode.
+  </Card>
+</CardGroup>

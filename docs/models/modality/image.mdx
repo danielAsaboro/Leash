@@ -1,0 +1,64 @@
+---
+title: "Image generation"
+description: "The on-device diffusion model behind the generate_image tool."
+sidebarTitle: "Image generation"
+---
+
+Image models generate pictures from text, fully on-device via diffusion. In the SDK catalog they
+carry `endpointCategory: "image"`.
+
+## Models Leash uses
+
+| Alias | SDK model | SDK category | Powers |
+|-------|-----------|--------------|--------|
+| `sd` | `SD_V2_1_1B_Q8_0` (or `FLUX_2_KLEIN_4B_Q4_0`) | `image` | The `generate_image` tool (512×512 output) |
+
+The image alias is `sd` (overridable via `LEASH_IMAGE_MODEL`). Stable Diffusion 2.1 is the light
+default; **Flux2-klein** (`FLUX_2_KLEIN_4B_Q4_0`) is the higher-quality engine — it even typesets
+literal text from the prompt — used by The Understory's newsroom. Both aren't part of the
+four-role Assistant Kit, so you add one when you want image generation: filter **Brain → Models →
+Catalog** by **Image generation**.
+
+## What it powers
+
+The [`generate_image`](/capabilities/tools/image) tool. When the user asks to draw, paint, or
+visualize something, the agent calls it with a prompt; the PNG is written to
+`apps/web/public/leash-gen/` and rendered inline in chat.
+
+```
+User: Draw a forest with bioluminescent mushrooms.
+Agent: [generate_image(prompt="A dark forest floor at night, glowing
+        bioluminescent mushrooms in blue and green, ethereal, detailed")]
+       → renders a 512×512 image in chat
+```
+
+## Serve config
+
+```json
+"sd": {
+  "model": "<diffusion SKU>",
+  "preload": true
+}
+```
+
+<Note>
+If `generate_image` reports the model isn't loaded, the `sd` alias isn't in
+`qvac.config.base.json` → `serve.models`, or the serve hasn't been restarted since you added it.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="generate_image tool" icon="image" href="/capabilities/tools/image">
+    The full tool reference and prompt tips.
+  </Card>
+  <Card title="Aliases" icon="tag" href="/models/aliases">
+    The `sd` alias contract.
+  </Card>
+  <Card title="Catalog" icon="layer-group" href="/models/catalog">
+    Find a diffusion model that fits your hardware.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/models/config">
+    Every serve config field.
+  </Card>
+</CardGroup>

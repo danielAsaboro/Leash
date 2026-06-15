@@ -1,0 +1,115 @@
+---
+title: "Home Assistant tools"
+description: "ha_list_entities, ha_get_state, ha_call_service — control smart-home devices over the HA LAN API."
+sidebarTitle: "Home Assistant"
+---
+
+The **homeAssistant** group connects the agent to Home Assistant's LAN REST API, letting it list, read, and control smart-home devices (lights, switches, fans, covers, scenes). Credentials are stored in the encrypted secret vault — set them in Brain → Services → Connections.
+
+<Warning>
+`ha_call_service` is approval-gated — the user must confirm before the agent actuates any device.
+</Warning>
+
+## ha_list_entities
+
+List controllable Home Assistant entities.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `domain` | enum | No | Narrow to one domain: `light` \| `switch` \| `fan` \| `cover` \| `input_boolean` \| `scene` |
+
+**Returns:** Up to 60 entities, each as `entity_id — Friendly Name — state`. If more than 60 exist, a note shows the count and suggests narrowing with `domain`. Returns an error if HA isn't configured (credentials missing).
+
+**When the agent calls it:**
+- "What lights do I have?"
+- "What devices can you control?"
+- Before calling `ha_call_service` to confirm the entity id
+
+**Example:**
+```
+User: What lights do I have?
+Agent: [calls ha_list_entities(domain="light")]
+       light.office — Office — off
+       light.kitchen — Kitchen — on
+       light.bedroom — Bedroom — off
+```
+
+---
+
+## ha_get_state
+
+Get the current state and attributes of one entity.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `entity_id` | string | Yes | Full HA entity id, e.g. `"light.office"` |
+
+**Returns:** The entity's state and up to 8 key attributes. Returns 404 if the entity doesn't exist.
+
+**When the agent calls it:**
+- "Is the office light on?"
+- "What's the thermostat set to?"
+- "Is the kettle switched on?"
+
+**Example:**
+```
+User: Is my office light on?
+Agent: [calls ha_get_state(entity_id="light.office")]
+       light.office (Office)
+       state: off
+       brightness: 0
+       color_mode: brightness
+```
+
+---
+
+## ha_call_service
+
+Control a device by calling a Home Assistant service.
+
+**Approval:** Required — user must confirm before the device is actuated.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `domain` | enum | Yes | Must match the entity's domain: `light` \| `switch` \| `fan` \| `cover` \| `input_boolean` \| `scene` |
+| `service` | string | Yes | Service to call, e.g. `turn_on`, `turn_off`, `toggle` |
+| `entity_id` | string | Yes | Target entity id, e.g. `"light.office"` |
+| `data` | object | No | Extra service data, e.g. `{ "brightness_pct": 50 }` |
+
+**Common services:**
+
+| Domain | Service | Effect |
+|--------|---------|--------|
+| `light` | `turn_on` | Turn light on (optionally set `brightness_pct`, `color_temp`, `rgb_color`) |
+| `light` | `turn_off` | Turn light off |
+| `light` | `toggle` | Toggle |
+| `switch` | `turn_on` / `turn_off` / `toggle` | Control a switch |
+| `fan` | `turn_on` / `turn_off` / `toggle` | Control a fan |
+| `cover` | `open_cover` / `close_cover` / `stop_cover` | Blinds, garage doors |
+| `scene` | `turn_on` | Activate a scene |
+| `input_boolean` | `turn_on` / `turn_off` / `toggle` | Toggle an input boolean |
+
+**Returns:** The new state of the target entity (`"light.office is now on"`), or a note if no state change occurred.
+
+**Example:**
+```
+User: Turn on the office light at 50%.
+Agent: [calls ha_list_entities(domain="light")] → confirms entity id
+       [calls ha_call_service(
+         domain="light",
+         service="turn_on",
+         entity_id="light.office",
+         data={"brightness_pct": 50}
+       )]
+       [approval card shown to user]
+       [user clicks Allow]
+       light.office is now on.
+```
+
+**Setup:** Set `LEASH_HA_URL` (e.g. `http://homeassistant.local:8123`) and `LEASH_HA_TOKEN` (a long-lived access token from HA's profile page) in Brain → Services → Connections. Credentials are stored in the encrypted vault, read on each call — no restart needed after updating them.
+
+**Timeout:** `LEASH_HA_TIMEOUT_MS` (default 5000 ms). If HA is unreachable, returns `"Home Assistant is unreachable"` rather than hanging.

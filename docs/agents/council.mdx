@@ -1,0 +1,73 @@
+---
+title: The council
+description: A proposer that retrieves and drafts a cited answer, and a critic that verifies every claim — two models doing what one small model can't.
+---
+
+The council (Layer 3 — Mind, `packages/mind`) is Leash's answer to hard, context-dependent questions: a **proposer** searches the private graph and drafts a `[Source N]`-cited answer, then a **critic** re-reads that answer against the retrieved sources and rules `pass` or `revise`.
+
+## The proposer loop
+
+The proposer runs a call/observe/continue loop, capped at **2 iterations**, with one tool: `search_graph`.
+
+<Steps>
+  <Step title="Propose">
+    The proposer is told it MUST call `search_graph` for any question about the user instead of guessing. It runs a streamed completion (`predict: 512`, `reasoning_budget: 0`).
+  </Step>
+  <Step title="Search (injected)">
+    When it calls the tool, the orchestrator runs the search via `deps.runSearch(query, topK)` — **injected**, so search executes on whichever device holds the graph. `topK` is clamped to 1–8 (default 3).
+  </Step>
+  <Step title="Observe">
+    Each hit is appended back as a `tool` message, numbered `[Source N]` across iterations, so the proposer can cite them. The tool-call turn is echoed into history first.
+  </Step>
+  <Step title="Continue or answer">
+    If the proposer stops calling tools, its text is the answer. If it keeps calling tools up to the cap, the orchestrator forces **one toolless answer turn**: "Now answer using only the sources above. Cite each claim as [Source N]."
+  </Step>
+</Steps>
+
+<Note>
+  The proposer system prompt is explicit: cite each claim as `[Source N]`, and **if the sources don't contain the answer, say so.** The result records `cited` — whether the answer actually contains a `[Source N]` reference.
+</Note>
+
+## The critic (verifier)
+
+After the proposer, a **second, toolless** completion (`predict: 200`, `reasoning_budget: 0`) re-reads the answer against exactly the sources the proposer retrieved.
+
+```
+You are the verifier... Decide whether every claim in the ANSWER is
+supported by the SOURCES. Begin your reply with exactly one word —
+PASS if all claims are supported (or the answer correctly states it
+doesn't know), or REVISE if any claim is unsupported or contradicts
+the sources — then give a one-sentence reason.
+```
+
+The first word of the reply decides the verdict; the full reply is kept as `notes` for the audit trail and UX.
+
+| Verdict | Meaning |
+| --- | --- |
+| `pass` | Every claim is supported, or the answer correctly states it doesn't know |
+| `revise` | A claim is unsupported or contradicts the sources |
+
+<Warning>
+  This is the cheap insurance against the failure a single small model **can't self-catch**: citing a `[Source N]` it didn't support, or drifting off the graph. The critic uses no tools — it only judges the proposer's text against the retrieved snippets.
+</Warning>
+
+## The trace
+
+Every council run returns a `trace` of steps — `propose` (with iteration, tool calls, content preview), `search` (query, topK, hit count, top score), and `verify` (the verdict) — alongside the `answer`, the `sources`, the `cited` flag, and the full `verifierVerdict`.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Delegation" icon="share-nodes" href="/agents/delegation">
+    Running the same council with the proposer delegated to a hub.
+  </Card>
+  <Card title="Multi-agent" icon="users" href="/agents/multi-agent">
+    The router and the council overview.
+  </Card>
+  <Card title="Grounding" icon="book" href="/agents/grounding">
+    How `search_graph` retrieves and scores hits.
+  </Card>
+  <Card title="Sampling" icon="sliders" href="/agents/sampling">
+    Generation params behind the proposer and critic.
+  </Card>
+</CardGroup>

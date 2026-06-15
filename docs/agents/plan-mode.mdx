@@ -1,0 +1,86 @@
+---
+title: Plan mode
+description: Plan-then-execute — the model drafts an approval-gated plan, then the harness drives its atomic steps through the deterministic pipeline.
+---
+
+Plan mode turns a chat turn into **Pre-Act / plan-then-execute** (`plan-tools.ts`). In the planning turn the model's only job is to call `submit_plan` with an ordered list of atomic steps; the human approves; then the harness — not the 4B — runs the steps.
+
+## The flow
+
+<Steps>
+  <Step title="submit_plan (approval-gated)">
+    The model calls `submit_plan` FIRST with a `title` and `steps[]` (1–`MAX_PLAN_STEPS`, currently 10), each a single self-contained sub-task. The tool is `needsApproval: true`, so the run PAUSES at the existing human-approval gate.
+  </Step>
+  <Step title="The Plan card">
+    The client renders a Plan card — **Approve / Reject / Adjust** — from the proposed `data-plan` part. Adjust is the existing **deny-with-reason** path the model already understands.
+  </Step>
+  <Step title="execute() on approval">
+    On approval the SDK runs `execute`, which drives the ordered steps through the deterministic pipeline — one atomic `generateText` per step, fresh bounded context, **prior results fed forward**.
+  </Step>
+  <Step title="Streamed status">
+    Each step streams a reconciled `data-plan` part so the card updates live as steps run.
+  </Step>
+</Steps>
+
+## Plan & step state machines
+
+The persisted `data-plan` part carries a plan status and per-step statuses.
+
+| `PlanData.status` | Meaning |
+| --- | --- |
+| `proposed` | Drafted, awaiting approval |
+| `running` | Executing steps |
+| `done` | All steps completed |
+| `failed` | A step failed, or the plan was cancelled |
+| `rejected` | The approval gate denied it |
+
+| `PlanStep.status` | Meaning |
+| --- | --- |
+| `pending` | Not started |
+| `active` | Currently running |
+| `done` | Completed |
+| `failed` | This step threw |
+| `skipped` | Not run (a prior step failed, or the turn was cancelled) |
+
+## What each step sees
+
+Each step runs as one bounded sub-task (`PLAN_STEP_BUDGET` = 3 tool→report rounds) over the **executable** tool subset — non-disabled, non-approval-gated, and excluding `run_skill` / `submit_plan` (a non-streaming step can't pause on an approval card and plan steps don't re-plan). The step's system prompt states the overall task, the current step, and the **results from earlier steps**, then: "Do ONLY this step now."
+
+<Warning>
+  **Wedge rule.** No `abortSignal`, `maxRetries: 0` (a retry re-pays a hung decode). A `generateText` mid-decode can't be aborted — so cancellation is checked **between** steps: if the user stopped the turn, the remaining steps are marked `skipped` and the plan returns. That is what makes Stop actually stop a multi-step plan. A failed step marks the rest `skipped` and stops the plan.
+</Warning>
+
+## Why it reuses what's already proven
+
+Plan mode deliberately reuses three things already proven in the stack:
+
+<CardGroup cols={3}>
+  <Card title="The approval gate" icon="hand" />
+  <Card title="Deny-with-reason" icon="rotate-left">
+    = the "Adjust" action.
+  </Card>
+  <Card title="The step pipeline" icon="list-check">
+    The same one skills use.
+  </Card>
+</CardGroup>
+
+<Note>
+  This places the multi-step burden on the harness, not the 4B — which reliably does one atomic call but **drops dependent continuations** (verified 2026-06-12). See [Orchestration](/agents/orchestration).
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Orchestration" icon="diagram-project" href="/agents/orchestration">
+    Why multi-step work moves off the model.
+  </Card>
+  <Card title="Skills" icon="screwdriver-wrench" href="/capabilities/skills">
+    The step pipeline plan mode shares.
+  </Card>
+  <Card title="Interject" icon="comment-dots" href="/agents/interject">
+    Follow-ups that halt a running plan between steps.
+  </Card>
+  <Card title="Sessions" icon="clock-rotate-left" href="/agents/sessions">
+    How `data-plan` parts persist in a turn.
+  </Card>
+</CardGroup>

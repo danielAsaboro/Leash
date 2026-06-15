@@ -1,0 +1,47 @@
+---
+title: "Mobile (WIP)"
+description: "Leash on iOS and Android via React Native + Expo — basic on-device chat today, full mesh integration coming."
+sidebarTitle: "Mobile (WIP)"
+---
+
+<Warning>
+The mobile app is in early access. It supports basic on-device chat only. The full tool suite, mesh connectivity, and computer-use features require the desktop app or headless setup.
+</Warning>
+
+## What works now
+
+- **On-device chat** — `Llama 3.2 1B Q4_0` runs fully on-device, no network required after first download
+- **Download on first run** — the model downloads and loads on launch; progress is shown in the UI
+- **Basic completions** — text input → inference → streamed output; `ctx_size: 2048`
+
+## What's coming
+
+- **Remote Leash mode** — connect to a desktop Leash session over the mesh (use the full 4B model + tools on your phone)
+- **Voice** — on-device STT + TTS via Expo AV
+- **Memory sync** — notes and constitution synced over the mesh
+
+## Requirements
+
+- **Physical device required** — the iOS/Android simulator does not support the native llama bindings. You must run on a real iPhone or Android phone.
+- **Expo Go or a dev build** — install via `npx expo start` and scan the QR code with the Expo Go app. For a production build, use `eas build`.
+- **Storage** — `Llama 3.2 1B Q4_0` is ~800 MB. Ensure at least 1.5 GB free.
+
+## Running the mobile app
+
+```bash
+cd apps/mobile
+npm install
+npx expo start
+```
+
+Scan the QR code with Expo Go on your device. On first launch the model downloads automatically.
+
+## Model details
+
+| Property | Value |
+|----------|-------|
+| Model | `Llama 3.2 1B Instruct Q4_0` |
+| SDK constant | `LLAMA_3_2_1B_INST_Q4_0` |
+| Context size | 2048 tokens |
+| Hardware | GPU (via Metal on iOS, Vulkan on Android) |
+| Inference | `@qvac/sdk` — fully on-device |

@@ -1,0 +1,85 @@
+---
+title: "Diagnostics flags"
+description: "Runtime diagnostic flags and how to use them to trace specific failure modes."
+sidebarTitle: "Diagnostics flags"
+---
+
+Leash's most useful runtime diagnostics are environment variable flags you set before starting the server.
+
+## `LEASH_DEBUG_TOOLS=1`
+
+Logs the active tool list (name and count) at the start of every agent turn.
+
+```bash
+LEASH_DEBUG_TOOLS=1 npm run web:dev
+```
+
+Output example:
+```
+leash[tools] route=chat active=14 [search_graph, recall, list_memories, create_memory, list_tasks, create_task, ...]
+```
+
+**Use when:**
+- Chat is hanging and you suspect the 22-schema cap is exceeded
+- A tool you expect to be active isn't being called
+- You want to verify which tool group a new MCP server's tools landed in
+
+**Schema cap:** `active > 22` means the prompt is likely overflowing qwen3-4b's 4096-token context for schemas. Disable MCP groups in Brain → MCP until `active ≤ 22`.
+
+## `LEASH_DEBUG_LOOP=1`
+
+Logs each agent step with its finish reason, tool call count, and reasoning token count.
+
+```bash
+LEASH_DEBUG_LOOP=1 npm run web:dev
+```
+
+Output example:
+```
+leash[loop] step=1 finish=tool_calls toolCalls=2 reasoning=0
+leash[loop] step=2 finish=stop toolCalls=0 reasoning=1217
+```
+
+**Failure mode signatures:**
+
+| Pattern | Diagnosis |
+|---------|-----------|
+| `finish=stop toolCalls=0` on step 2+ | Dependent-step failure (mode C): model answered early instead of calling the next tool |
+| `reasoning=<large>` before `finish=stop` | Overthinking: model reasoned extensively then decided to just answer |
+| `finish=tool_calls` on every step up to cap | Normal multi-step tool loop |
+| Only `step=1` logged then no more | Single-step turn (chat route with immediate answer) |
+
+**Known limitation:** `finish=stop toolCalls=0` on dependent steps is a known limitation of 4B models. The scratchpad re-injection (`LEASH_CONTINUATION_NUDGE`) was tested and shown not to help at this scale — it's not a config problem.
+
+## `LEASH_CONTINUATION_NUDGE=1`
+
+Enables the scratchpad re-injection experiment: before each continuation step (step 2+), Leash re-states the goal and lists the tools already called.
+
+**Tested 2026-06-12** against `qwen3-4b`: nudge-injected steps are confirmed via `leash[loop] nudge-injected step=N` in the loop log, but the model still stopped on dependent calls ~1/5 of the time (vs ~1/3 without) — within noise. This flag is off by default. Enable only for experiments.
+
+## `HYPHA_DEBUG_LANPROBE=<host:port>`
+
+Makes the hypha daemon log LAN reachability every 10s by probing `<host:port>`. Use to diagnose P2P holepunching failures.
+
+```bash
+HYPHA_DEBUG_LANPROBE=MacBook-Pro-458.local:4001 npx tsx apps/hypha/src/main.ts
+```
+
+Output:
+```
+hypha[lanprobe] target=MacBook-Pro-458.local:4001 reachable=true latency_ms=2
+hypha[lanprobe] target=MacBook-Pro-458.local:4001 reachable=false error=EHOSTUNREACH
+```
+
+`reachable=false` with `EHOSTUNREACH` means the LAN shortcut will fail — hyperdht aborts the dial instead of falling back to relay. This is the signature of the "orphaned background process" LNA issue on macOS.
+
+## File-based flag: `data/.leash-continuation`
+
+As an alternative to the env var, touching this file enables `LEASH_CONTINUATION_NUDGE` without a server restart:
+
+```bash
+touch data/.leash-continuation   # enable
+rm data/.leash-continuation      # disable
+```
+
+The flag is re-checked per turn (no restart needed). Useful for quick A/B testing during a live session.

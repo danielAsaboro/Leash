@@ -1,0 +1,106 @@
+---
+title: "Capabilities"
+description: "What Leash can do — the 13 tool groups, the skills harness, the built-in MCP server, and external MCP servers."
+sidebarTitle: "Overview"
+---
+
+Leash's capabilities are built from four composable parts: **tools** grouped into toggleable MCP servers, **skills** that compose those tools into workflows, **automation** that runs them on a schedule, and **MCP** as the wiring that lets you bolt on anything else.
+
+<CardGroup cols={2}>
+  <Card title="Tools" icon="wrench" href="/capabilities/tools">
+    Every tool Leash can call, organized into 13 groups — what each does and whether it asks first.
+  </Card>
+  <Card title="Skills" icon="book-open" href="/capabilities/skills">
+    User-authored instruction documents that compose tools into repeatable workflows.
+  </Card>
+  <Card title="Automation" icon="clock" href="/capabilities/automation">
+    The scheduler and proactive heartbeat — Leash acting on a cadence, not just on demand.
+  </Card>
+  <Card title="MCP" icon="plug" href="/capabilities/mcp">
+    The Model Context Protocol — the built-in tool daemon plus external http/sse/stdio servers.
+  </Card>
+</CardGroup>
+
+## The capability model
+
+```
+Skills ──compose──▶ Tools (13 groups in leash-tools-mcp) ──served over──▶ MCP
+                                                                            ▲
+                                              External MCP servers ─────────┘
+```
+
+Every built-in capability lives in the **`leash-tools-mcp`** daemon as one of 13 tool groups. Each group is an independently toggleable MCP server route (`/mcp/<id>`). Skills load tools on demand and string them into workflows; the scheduler and heartbeat invoke those same tools autonomously; and external MCP servers extend the toolset with anything else you connect.
+
+## The 13 tool groups
+
+Toggle any group in **Brain → MCP** to add or remove its schemas from the active toolset — no restart needed. The four **always-on** groups (`context`, `memory`, `tasks`, `feed`) are the core the chat and the proactive heartbeat depend on; everything else is opt-in.
+
+| Group id | Label | Tools | Approval-gated? |
+|----------|-------|-------|-----------------|
+| `home-assistant` | Home Assistant | `ha_*` (call service, list entities, …) | **`ha_call_service` asks first** |
+| `feed` | Feed | `understory_search`, `understory_today` | No (always-on) |
+| `memory` | Memory | `search_graph`, `recall`, `list_memories`, `save_memory`, `forget_memory` | No (always-on) |
+| `tasks` | Tasks | `list_tasks`, `create_task`, `update_task`, `complete_task` | No (always-on) |
+| `context` | Context | `active_context`, `activity_recent` | No (always-on) |
+| `photos` | Photos | `list_photos`, `describe_photo` | No |
+| `image` | Image | `generate_image` | No |
+| `research` | Research | `start_research`, `get_research` | No (needs network) |
+| `skills` | Skills | `read_skill`, `read_skill_file`, `run_skill_script`, `run_skill` | **`run_skill_script` asks first** |
+| `computer` | Computer Use | `screenshot`, `run_command`, `computer` | **`run_command` + `computer` ask first** |
+| `files` | Files | `run_command` (read/write subset) | **`run_command` asks first** |
+| `mcp-admin` | MCP | `list_mcp_servers`, `install_mcp_repo`, `upsert_mcp_server` | **`install_mcp_repo` + `upsert_mcp_server` ask first — skill-gated** |
+| `scheduler` | Scheduler | `list_schedules`, `create_schedule`, `delete_schedule` | No |
+
+<Note>
+The group **ids** above (`home-assistant`, `mcp-admin`) are the URL path segments the daemon mounts; the underlying source names them `homeAssistant`, `mcpAdmin`, etc. Both refer to the same group.
+</Note>
+
+### Approval gating
+
+Most tools are read or safe-write and run with no prompt. The genuinely side-effectful ones pause the agent loop and show a human approval card with the exact call parameters:
+
+- `run_command` — the real-disk executor (reads/writes/edits/installs all flow through it)
+- `computer` — mouse/keyboard via `cliclick` (computer tools run on their own route)
+- `ha_call_service` — a Home Assistant state change
+- `run_skill_script` — executing a skill's bundled script on this machine
+- `install_mcp_repo` / `upsert_mcp_server` — installing or registering an MCP server
+
+<Tip>
+The default approval for any tool is configurable in **Brain → Tools** — flip a tool to auto-approve or always-ask per your preference. The change applies on the next turn, no restart.
+</Tip>
+
+The **`mcp-admin`** group is special: it is *skill-gated*, never always-on. It only enters the toolset when a skill that explicitly lists its tools activates — which keeps management tooling from consuming schema slots on every turn (see the cap below).
+
+## The active-schema cap
+
+The active toolset is capped at **~22 schemas** — empirically, above this the 4096-token prompt overflows on `qwen3-4b` and the decode hangs. Leash manages this automatically:
+
+- **Computer turns** activate only the 3 computer tools (their own route).
+- **Chat turns** activate everything except computer + the skill-gated MCP Admin.
+- A **skill's declared `tools:`** override the default set, capped at `SKILL_TOOLS_CAP = 18`.
+
+## Skills
+
+Skills are user-authored instruction documents that tell Leash how to do something repeatable. When a request matches a skill's description, the agent loads that skill's instructions, follows them step-by-step, and can run its bundled scripts (`run_skill_script`, approval-gated) or call another skill as a sub-agent (`run_skill`).
+
+→ See [Skills](/capabilities/skills) for the harness, and [Creating skills](/capabilities/skills-creating) to author your own.
+
+## MCP — built-in and external
+
+The Model Context Protocol is the wiring between tools and the agent.
+
+- **Built-in:** the `leash-tools-mcp` daemon serves all 13 groups. The web process auto-starts it (reference-counted — up when the first group turns on, down when the last turns off).
+- **External:** connect any MCP server over **http**, **sse**, or **stdio** in **Brain → MCP → Add server**. Its tools merge into the active toolset on the next chat turn.
+
+→ See [MCP](/capabilities/mcp) for transports, elicitations, MCP Admin, and tool icons.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Full tool reference" icon="list" href="/capabilities/tools">
+    Every tool, its approval state, and its group.
+  </Card>
+  <Card title="Automation" icon="clock" href="/capabilities/automation">
+    Scheduler + the proactive heartbeat.
+  </Card>
+</CardGroup>

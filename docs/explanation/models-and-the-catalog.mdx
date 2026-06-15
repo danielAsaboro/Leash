@@ -1,19 +1,19 @@
 ---
 title: "Models and the catalog"
-description: "Why there's a 729-model catalog, what an alias is, and how compute and context-size choices trade off against your RAM."
+description: "Why there's a large model catalog, what an alias is, and how compute and context-size choices trade off against your RAM."
 ---
 
 QVAC ships a large constant catalog of models. Leash exposes it as one filterable browser and
 lets you decide which models to serve, how to run them, and which to share with the mesh. This
 page explains the model layer's concepts. For the steps, see
-[Use the model catalog](/guides/use-the-model-catalog); for the exact aliases and variables,
+[the catalog guide](/models/catalog); for the exact aliases and variables,
 see [Models and aliases](/reference/models-and-aliases).
 
 ## Catalog versus served aliases
 
 There are two distinct layers, and keeping them apart avoids confusion:
 
-- **The catalog** is the full set of models the SDK knows about — 729+ entries surfaced from
+- **The catalog** is the full set of models the SDK knows about — hundreds of entries surfaced from
   `@qvac/ai-sdk-provider`. Most are not downloaded and not running; they are just *available*.
 - **A served alias** is a model you have configured into the local serve under a short name —
   `qwen3-4b`, `gte-large`, `medpsy`, and so on. Leash's routes target aliases, never raw catalog

@@ -1,0 +1,77 @@
+---
+title: "Speech"
+description: "The speech-to-text and text-to-speech models behind voice calls."
+sidebarTitle: "Speech"
+---
+
+The voice call pipeline uses two speech models — one to hear you, one to talk back. In the SDK
+catalog they're two distinct categories: **transcription** (speech-to-text) and **speech**
+(text-to-speech).
+
+## Models Leash uses
+
+| Alias | Direction | SDK model | SDK category | Powers |
+|-------|-----------|-----------|--------------|--------|
+| `parakeet` | Speech → text | `PARAKEET_TDT_0_6B_V3_Q8_0` | `transcription` | Transcribes your microphone audio in a voice call |
+| `supertonic` | Text → speech | `TTS_EN_SUPERTONIC_Q8_0` | `speech` | Speaks the agent's reply aloud |
+
+These aren't part of the four-role Assistant Kit, so you add them when you want voice — filter
+**Brain → Models → Catalog** by **Speech-to-text** or **Text-to-speech** to find and download them.
+
+## Speech-to-text — `parakeet`
+
+Parakeet transcribes the captured utterance after the voice VAD detects you've stopped speaking.
+
+<Warning>
+Parakeet rejects `webm/opus` audio. Leash re-encodes the browser's recording to **WAV** before
+sending — if transcripts come back empty, check the browser console for decode errors.
+</Warning>
+
+## Text-to-speech — `supertonic`
+
+Supertonic speaks the agent's reply. Its serve config carries the TTS engine block:
+
+```json
+"supertonic": {
+  "model": "TTS_EN_SUPERTONIC_Q8_0",
+  "preload": true,
+  "config": {
+    "ttsEngine": "supertonic",
+    "language": "en",
+    "voice": "F1",
+    "ttsSpeed": 1.05,
+    "ttsNumInferenceSteps": 5
+  }
+}
+```
+
+The default (and currently only on-device) voice is **`F1`**. The dashboard's Kit wizard fills
+this block in automatically.
+
+## What they power
+
+Together these drive the [voice call](/channels/voice) state machine
+(`idle → listening → capturing → transcribing → thinking → speaking`), with barge-in: start
+talking while the agent is speaking and it stops to listen.
+
+<Note>
+Voice is macOS-first — TTS depends on the macOS audio stack. Both aliases must be served and
+READY (check Brain → Models) before a voice call will transcribe or speak.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Voice channel" icon="mic" href="/channels/voice">
+    The VAD state machine, barge-in, and tuning.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/models/config">
+    The TTS config block.
+  </Card>
+  <Card title="Aliases" icon="tag" href="/models/aliases">
+    The `parakeet` and `supertonic` alias contracts.
+  </Card>
+  <Card title="Catalog" icon="layer-group" href="/models/catalog">
+    Find speech models that fit your hardware.
+  </Card>
+</CardGroup>

@@ -1,0 +1,64 @@
+---
+title: Delegation
+description: The same council body runs locally or with the proposer's completion delegated to a mesh hub — because search is injected, not imported.
+---
+
+Delegated compute is the reason one council implementation serves both a phone and a hub. The proposer's heavy completion can run on a paired peer via QVAC delegation, while the graph search stays on the device that owns the data.
+
+## The injection trick
+
+In the [council](/agents/council), `runSearch` is **injected as a dependency, not imported**:
+
+```ts
+export interface CouncilDeps {
+  llmModelId: string;          // local, OR a delegated id pointing at the hub
+  runSearch: (query: string, topK: number) => Promise<Hit[]>;
+  // ...
+}
+```
+
+This single seam lets the **same council body** run two ways:
+
+<CardGroup cols={2}>
+  <Card title="Local" icon="house">
+    `llmModelId` is a local model and `runSearch` hits the local graph. The whole council runs on the edge device.
+  </Card>
+  <Card title="Delegated" icon="share-nodes">
+    `llmModelId` points at the hub via QVAC delegation — the proposer's `completion` runs remotely — while `runSearch` stays **co-located with the graph**.
+  </Card>
+</CardGroup>
+
+<Note>
+  Search stays where the data is. Only the compute (the proposer's completion) moves. The private context graph never leaves the device that owns it — the hub answers from snippets the local device chose to send back as tool observations.
+</Note>
+
+## Why search can't just travel with the request
+
+Delegated attachments are path-only — a delegated worker reads files by path, which it can't resolve for another device's graph. By keeping `runSearch` co-located, the orchestrator runs retrieval locally and feeds the results in as `[Source N]` tool messages. The hub never needs filesystem access to the graph.
+
+## The forward transport (Hypha)
+
+For modalities QVAC delegation can't carry (vision today; embeddings / STT / TTS later), Hypha's forward-control runs a complementary path: one long-lived per-pair Hyperswarm topic carries an OpenAI request whose media rides **inline** in the body (base64 data-URLs). The provider runs it on its own local serve and streams the answer back frame-by-frame.
+
+<Tip>
+  Cold cross-host holepunch costs tens of seconds, so the client holds **one persistent, multiplexed** connection per provider and `warm()`s it in the background — the cold start is absorbed before the user triggers a borrow. Each newline-delimited frame is tagged with its request id, so many in-flight forwards multiplex over the one connection.
+</Tip>
+
+This is also what the [broker's](/agents/queue-priority) mesh overflow uses when it sheds a saturated alias to a warm peer's shim.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="The council" icon="users" href="/agents/council">
+    The proposer/critic body that runs local or delegated.
+  </Card>
+  <Card title="Mesh" icon="circle-nodes" href="/platforms/mesh">
+    Pairing, per-pair topics, and warm peers.
+  </Card>
+  <Card title="Priority & aging" icon="route" href="/agents/queue-priority">
+    Mesh overflow at the broker.
+  </Card>
+  <Card title="Economy" icon="coins" href="/platforms/economy">
+    Pricing delegated compute across providers.
+  </Card>
+</CardGroup>

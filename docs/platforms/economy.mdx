@@ -1,0 +1,117 @@
+---
+title: "Economy (WIP)"
+description: "The Leash agent economy — earn for compute you serve, spend to borrow inference from peers."
+sidebarTitle: "Economy (WIP)"
+---
+
+<Warning>
+  The economy layer is functional but early. Settlement, metered streaming, and reputation are gated behind feature flags and need manual setup. The free delegated-inference path (no payment) is stable and on by default.
+</Warning>
+
+The **Leash economy** is an optional micro-payment layer on top of the mesh. Providers earn for compute they serve; consumers spend to borrow inference from peers. Everything below is grounded in `apps/hypha/src/config.ts` — the `HYPHA_ECONOMY_*` env knobs.
+
+It is **off by default**: `HYPHA_ECONOMY_ENABLED` defaults to `0`. Set it to `1` (plus a wallet/rail) to opt in.
+
+## Roles
+
+| Term | Definition |
+|---|---|
+| **Provider** | A device that accepts delegated completions and earns payment |
+| **Consumer** | A device that sends delegated completions and pays |
+| **Price** | `HYPHA_ECONOMY_PRICE_PER_KTOK` base units per thousand tokens (default `1000`) |
+| **Float** | The consumer's pre-authorized spend ceiling per session (`HYPHA_ECONOMY_FLOAT`, default `50000`) |
+| **Settlement** | An on-chain transfer of the settlement asset (EVM/Plasma or Solana) |
+
+<Note>
+  Units are **base units** of the settlement asset — e.g. micro-USDT when `*_ASSET_DECIMALS = 6` (the default).
+</Note>
+
+## Settlement rails
+
+Two rails are supported. EVM/Plasma is the first-choice rail; Solana is the fallback.
+
+<Tabs>
+  <Tab title="EVM / Plasma">
+    | Variable | Default | Purpose |
+    |---|---|---|
+    | `HYPHA_ECONOMY_PLASMA_RPC_URL` | `""` | JSON-RPC endpoint |
+    | `HYPHA_ECONOMY_PLASMA_NETWORK_ID` | `eip155:9745` | Chain id |
+    | `HYPHA_ECONOMY_PLASMA_MNEMONIC` | `""` | BIP39 wallet mnemonic — **must be quoted** in env files |
+    | `HYPHA_ECONOMY_PLASMA_ASSET_MINT` | `""` | Settlement token address |
+    | `HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL` | `USDT` | Display symbol |
+    | `HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS` | `6` | Asset decimals |
+  </Tab>
+  <Tab title="Solana">
+    | Variable | Default | Purpose |
+    |---|---|---|
+    | `HYPHA_ECONOMY_SOLANA_RPC_URL` | `""` | RPC (mainnet / devnet / test-validator) |
+    | `HYPHA_ECONOMY_SOLANA_NETWORK_ID` | `solana:5eykt4Us…` | Network id |
+    | `HYPHA_ECONOMY_SOLANA_SECRET_KEY` | `""` | Hot-wallet key inline (JSON uint8 array or base58) |
+    | `HYPHA_ECONOMY_SOLANA_SECRET_KEY_FILE` | `""` | …or a path to the key file |
+    | `HYPHA_ECONOMY_SOLANA_ASSET_MINT` | `""` | Settlement mint |
+    | `HYPHA_ECONOMY_SOLANA_ASSET_SYMBOL` | `USDT` | Display symbol |
+    | `HYPHA_ECONOMY_SOLANA_ASSET_DECIMALS` | `6` | Asset decimals |
+  </Tab>
+</Tabs>
+
+<Warning>
+  Always **quote** a mnemonic in env files. An unquoted multi-word value tokenizes when `source`d and the wallet comes up silently wrong.
+</Warning>
+
+## Spend limits
+
+The consumer enforces bounded settlement with three ceilings:
+
+| Variable | Default | Description |
+|---|---|---|
+| `HYPHA_ECONOMY_MAX_PER_TX` | `5000` | Max per single settlement |
+| `HYPHA_ECONOMY_MAX_PER_HOUR` | `20000` | Hourly spend ceiling |
+| `HYPHA_ECONOMY_MAX_PER_COUNTERPARTY` | `10000` | Per-peer spend ceiling |
+
+## Enable the economy
+
+```bash
+# Provider env (.economy.prov.env)
+HYPHA_ECONOMY_ENABLED=1
+HYPHA_ECONOMY_PRICE_PER_KTOK=500            # base units per 1k tokens
+HYPHA_ECONOMY_PLASMA_RPC_URL=http://127.0.0.1:8545
+HYPHA_ECONOMY_PLASMA_MNEMONIC="word word word ..."   # quoted!
+HYPHA_ECONOMY_PLASMA_ASSET_MINT=0x...
+```
+
+```bash
+# Consumer env (.economy.cons.env)
+HYPHA_ECONOMY_ENABLED=1
+HYPHA_ECONOMY_FLOAT=50000                   # pre-auth ceiling per session
+HYPHA_ECONOMY_PLASMA_RPC_URL=http://127.0.0.1:8545
+HYPHA_ECONOMY_PLASMA_MNEMONIC="word word word ..."   # quoted!
+```
+
+## Metered streaming (experimental)
+
+Off by default (`HYPHA_ECONOMY_METERED` = `0`). When on, a session advances its authorization every `HYPHA_ECONOMY_CHUNK_TOKENS` (default `64`) tokens instead of a single pre-auth. If the consumer goes silent past `HYPHA_ECONOMY_ADVANCE_WINDOW_MS` (default `20000`), the provider watchdog force-settles the authorized cap. Optionally (`HYPHA_ECONOMY_REVOKE_ON_CUTOFF` = `1`) the provider also firewall-excludes the stalled consumer for `HYPHA_ECONOMY_REVOKE_TTL_MS` (default `30000`) — a non-destructive cooldown, not an unpair.
+
+## Reputation (experimental)
+
+Off by default (`HYPHA_REPUTATION` = `0`). When on, **paid** delegation targets are tie-broken by `effective_cost = pricePerKiloToken / quality` — a peer with a poor quality score is penalized. Free peers stay first. The reputation store and `GET /reputation` are always read-only; this flag only changes routing.
+
+## Self-dealing detection
+
+Each device must use a **distinct wallet** so self-dealing (a consumer paying itself) is detectable on-chain. Use different BIP39 mnemonics per device. Two further opt-in tiers harden this: `HYPHA_ECONOMY_IDENTITY_BINDING` = `1` makes a provider advertise a wallet↔provider-key proof, and `HYPHA_ECONOMY_VERIFY_RECEIPTS` = `1` counts a receipt toward reputation only if its on-chain txHash moved the asset to the provider's bound payee.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Mesh" href="/platforms/mesh" icon="circle-nodes">
+    The pairing + routing layer the economy sits on.
+  </Card>
+  <Card title="Platforms overview" href="/platforms/overview" icon="layer-group">
+    Surfaces, mesh, and the Hypha daemon.
+  </Card>
+  <Card title="Environment variables" href="/help/environment-variables" icon="sliders">
+    The full env reference.
+  </Card>
+  <Card title="Ports & processes" href="/reference/runtime-ports-and-processes" icon="diagram-project">
+    Where Hypha and the serve listen.
+  </Card>
+</CardGroup>

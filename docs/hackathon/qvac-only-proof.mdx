@@ -37,6 +37,15 @@ flowchart LR
 Borrowed compute doesn't break the rule either: delegated and forwarded turns run on a **peer's**
 QVAC serve over the encrypted mesh — still QVAC, still on a device you own.
 
+<Note>
+**P2P delegation is not a "multi-GPU cluster."** The rules prohibit leveraging multi-GPU inference
+*clusters* for better performance, but explicitly encourage *"real-time applications that combine
+local inference with P2P delegation"* and *"P2P load distribution"* as a General Purpose / Tinkerer
+focus area. Leash's mesh is the latter: independent personal devices, each running its own single
+QVAC serve, that pass whole completions to one another over an encrypted DHT — not a pooled
+multi-GPU engine. Every device still satisfies its track's RAM constraint on its own.
+</Note>
+
 ## The vision fork — still QVAC, upstreamed
 
 Vision needed one fix. The stock `qvac serve` OpenAI-compatible endpoint rejected multimodal

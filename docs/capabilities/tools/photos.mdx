@@ -1,0 +1,52 @@
+---
+title: "Photos tools"
+description: "list_photos — list and filter the user's on-device auto-tagged images."
+sidebarTitle: "Photos"
+---
+
+The **photos** group lets the agent browse the user's photo library by their on-device auto-generated tags. Tags are produced by the `tag-photos` background job (which runs `qwen3vl` on each photo).
+
+## list_photos
+
+List the user's images and their on-device auto-tags.
+
+**Approval:** None — read-only.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `label` | string | No | Only images whose top tag matches this label (e.g. `"food"`, `"document"`, `"other"`) |
+
+**Returns:** A list of files with their tag label, confidence percentage, and whether it was classified as a document. Each result appears as a `[graph]` source citation in the chat UI. Returns `"No images have been tagged yet."` if `tag-photos` hasn't been run.
+
+**Tag labels:** The labels come from `qwen3vl`'s classification of each photo. Common values: `food`, `document`, `receipt`, `screenshot`, `person`, `other`. The exact label set depends on the vision model's output.
+
+**When the agent calls it:**
+- "Show me my food photos"
+- "Do I have any photos that look like documents?"
+- "List all my screenshots"
+
+**Example:**
+```
+User: Do I have any photos of receipts?
+Agent: [calls list_photos(label="receipt")]
+       IMG_0421.jpg — receipt (94%)
+       IMG_0418.jpg — receipt (87%), document
+       IMG_0103.jpg — receipt (72%)
+
+User: How many photos do I have?
+Agent: [calls list_photos()]
+       IMG_0001.jpg — food (91%)
+       IMG_0002.jpg — person (88%)
+       IMG_0003.jpg — document (95%), document
+       ... (47 total)
+```
+
+**Setup:** Tags are stored in `data/leash-photo-tags.json` (path from `LEASH_PHOTO_TAGS`). Run the `tag-photos` background job to generate them:
+
+```bash
+npm run tag-photos
+```
+
+Or schedule it: "Schedule tag-photos to run every Sunday."
+
+**Requires:** `qwen3vl` served (for tagging). `list_photos` reads the pre-generated JSON — it doesn't need `qwen3vl` at query time, only during the `tag-photos` run.

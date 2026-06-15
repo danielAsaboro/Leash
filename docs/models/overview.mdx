@@ -1,0 +1,118 @@
+---
+title: "Models"
+description: "How Leash manages on-device models — the catalog, aliases, serving, and hardware fit."
+sidebarTitle: "Overview"
+---
+
+All inference in Leash runs through `@qvac/sdk` — never a cloud API. Models are GGUF weight files cached under `~/.qvac/models/` and served by `qvac serve openai`, an OpenAI-compatible endpoint at `http://127.0.0.1:11435/v1`.
+
+<CardGroup cols={3}>
+  <Card title="Catalog" icon="layer-group" href="/models/catalog">
+    Browse, filter, and download from the QVAC model catalog.
+  </Card>
+  <Card title="Aliases" icon="tag" href="/models/aliases">
+    Map short names (`chat`, `gte-large`) to models and tune serving.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/models/config">
+    The `qvac.config.base.json` reference.
+  </Card>
+</CardGroup>
+
+## The alias system
+
+Leash never references model filenames directly — it uses **aliases** configured in `qvac.config.base.json`. An alias maps a short, stable name to a catalog SDK constant, so you can swap the underlying weights without touching any code.
+
+| Alias | Modality | SDK constant |
+|-------|----------|--------------|
+| `chat` / `qwen3-4b` | [Chat](/models/modality/chat) | `QWEN3_4B_INST_Q4_K_M` |
+| `classifier` | [Chat](/models/modality/chat) (heartbeat triage) | `QWEN3_1_7B_INST_Q4` |
+| `gte-large` | [Embeddings](/models/modality/embeddings) | `GTE_LARGE_FP16` |
+| `qwen3vl` | [Vision](/models/modality/vision) | `QWEN3VL_2B_MULTIMODAL_Q4_K` (+ mmproj) |
+| `parakeet` | [Speech](/models/modality/speech) — STT | `PARAKEET_TDT_0_6B_V3_Q8_0` |
+| `supertonic` | [Speech](/models/modality/speech) — TTS, voice `F1` | `TTS_EN_SUPERTONIC_Q8_0` |
+| `sd` | [Image](/models/modality/image) | `SD_V2_1_1B_Q8_0` / `FLUX_2_KLEIN_4B_Q4_0` |
+| `medpsy` | [Chat](/models/modality/chat) (health specialist, falls back to `chat`) | `MEDGEMMA_4B_IT_Q4_1` |
+
+<Note>
+  **Chat requires `gte-large`.** Without the embedding model, RAG search (`search_graph`, `recall`) and heartbeat dedup can't compute embeddings — grounded chat silently degrades.
+</Note>
+
+The primary chat model is **Qwen3 4B (Q4_K_M, ~2.5 GB)**, which runs at roughly **15–20 tok/s** on an M1 GPU. See [Aliases](/models/aliases) for the full contract and how to configure each one.
+
+## Browse by modality
+
+The catalog tags every model with a modality (its SDK `endpointCategory`). Browse the models
+Leash uses, and how to add your own, per modality:
+
+<CardGroup cols={3}>
+  <Card title="Chat & reasoning" icon="messages-square" href="/models/modality/chat">
+    Text LLMs — conversation, tool calling, the heartbeat classifier.
+  </Card>
+  <Card title="Vision" icon="eye" href="/models/modality/vision">
+    Multimodal models that read images (base weight + mmproj).
+  </Card>
+  <Card title="Embeddings" icon="vector-square" href="/models/modality/embeddings">
+    Vectors behind RAG, memory, skills, and dedup.
+  </Card>
+  <Card title="Speech" icon="mic" href="/models/modality/speech">
+    Speech-to-text (`parakeet`) and text-to-speech (`supertonic`).
+  </Card>
+  <Card title="Image generation" icon="image" href="/models/modality/image">
+    On-device diffusion for the `generate_image` tool.
+  </Card>
+</CardGroup>
+
+## Hardware fit
+
+The catalog shows a **fit verdict** for every model against your machine's unified memory:
+
+| Verdict | Meaning |
+|---------|---------|
+| `fits` | Estimated peak memory ≤ 80% of unified RAM. |
+| `tight` | Between 80% and 100% of unified RAM. |
+| `too-big` | Exceeds total unified RAM. |
+
+The estimate is roughly:
+
+```
+peak ≈ weight_size + KV_cache + ~0.5 GB overhead
+KV_cache (GB) ≈ 0.000008 × params_B × ctx_tokens
+```
+
+So a **4B model at a 32 768-token context** uses about **1 GB** of KV cache (`0.000008 × 4 × 32768 ≈ 1.05`). Reducing `ctx_size` is the cheapest way to make a borderline model fit — at 8k the same model's KV cache drops to ~0.25 GB.
+
+<Tip>
+  The default context window for chat models is **32 768 tokens** (`DEFAULT_CTX_SIZE`). Drag the context-size slider in **Brain → Models** and the fit verdict updates live.
+</Tip>
+
+## The serve
+
+`qvac serve openai` is the OpenAI-compatible API the agent calls. It:
+
+- Listens on **`:11435`** (the path is overridable via `QVAC_OPENAI_URL`). Start it with `npm run qvac`.
+- Loads aliases from `qvac.config.mjs`, the wrapper that expands `~/` paths and reads `qvac.config.base.json` beside it.
+- **Preloads** models marked `preload: true` on startup — it doesn't open its port until preload finishes.
+- Exposes `/v1/models`, which lists **ready** aliases only. A successful answer is therefore a clean "serve is fully up" signal; refusal means stopped or still starting.
+
+The dashboard's Models tab polls `/v1/models` and shows live status next to each configured alias.
+
+<Note>
+  There is **no live load/reload endpoint**. Loading a model = add its alias to `qvac.config.base.json` and restart the serve. The dashboard automates both halves.
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Browse the catalog" icon="layer-group" href="/models/catalog">
+    Find and download models that fit your hardware.
+  </Card>
+  <Card title="Configure aliases" icon="tag" href="/models/aliases">
+    Wire which model serves which role.
+  </Card>
+  <Card title="Config reference" icon="gear" href="/models/config">
+    Every `qvac.config.base.json` field.
+  </Card>
+  <Card title="Model FAQ" icon="circle-question" href="/help/faq-models">
+    Common model questions.
+  </Card>
+</CardGroup>

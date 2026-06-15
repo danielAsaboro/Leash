@@ -1,0 +1,63 @@
+---
+title: "Platforms"
+description: "Where Leash runs and how devices connect — desktop, web, mobile, and the encrypted mesh."
+sidebarTitle: "Overview"
+---
+
+Leash runs across several surfaces and links them into an encrypted device mesh. Each surface runs locally; the mesh lets them share inference, memory, and an economy without routing through a cloud.
+
+<CardGroup cols={2}>
+  <Card title="macOS Desktop" href="/platforms/desktop" icon="desktop">
+    The Electron app — setup wizard, bundled daemons, OS integration, auto-update.
+  </Card>
+  <Card title="Mesh" href="/platforms/mesh" icon="circle-nodes">
+    Pair devices over an encrypted Hyperswarm DHT and borrow compute.
+  </Card>
+  <Card title="Economy (WIP)" href="/platforms/economy" icon="coins">
+    Optional micro-payments — earn for compute you serve, spend to borrow.
+  </Card>
+  <Card title="Mobile" href="/platforms/mobile" icon="mobile">
+    On-device chat on iOS and Android via the QVAC SDK.
+  </Card>
+</CardGroup>
+
+## Surfaces
+
+| Surface | Status | Description |
+|---|---|---|
+| **macOS Desktop** | Shipped | Electron app — setup wizard, bundled daemons, OS notifications, auto-update |
+| **Web (Next.js)** | Shipped | Browser UI at `http://localhost:6801` — same feature set as desktop |
+| **iOS** | Early (WIP) | On-device chat via Expo — mesh + tools not yet exposed |
+| **Android** | Early (WIP) | On-device chat via Expo — same limits as iOS |
+
+## The mesh
+
+The **Mycelium mesh** connects your devices over an encrypted Hyperswarm DHT. Once paired, devices can:
+
+- Share model inference — borrow a model already warm on another machine
+- Forward non-delegable work (e.g. vision) to a peer's local serve
+- Participate in the optional agent economy (earn/spend for compute)
+
+→ See [Mesh](/platforms/mesh) and [Economy (WIP)](/platforms/economy).
+
+## The Hypha daemon
+
+`hypha` is the mesh control plane — DHT membership, peer discovery, inference routing, and (when enabled) payment settlement. It must run on every device that participates in the mesh.
+
+| Port | Surface | Purpose |
+|---|---|---|
+| `11437` | localhost | Control plane + health/peers (`/health`, `/peers`) |
+| `11438` | LAN | Pairing surface (open only in pairing mode) |
+
+Start it with `npm run hypha`. For the complete port map, see [Runtime ports and processes](/reference/runtime-ports-and-processes).
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Install on macOS" href="/install/macos" icon="apple">
+    Desktop app or headless from the repo.
+  </Card>
+  <Card title="Quickstart" href="/quickstart" icon="rocket">
+    First message, verified local.
+  </Card>
+</CardGroup>

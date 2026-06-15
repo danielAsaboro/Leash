@@ -1,0 +1,67 @@
+---
+title: "Skills config"
+description: "Semantic activation, tool cap, explicit invocation, and the skill activation pipeline."
+sidebarTitle: "Skills config"
+---
+
+## How skill activation works
+
+On every non-vision agent turn, Leash runs a **skill activation pass** before selecting tools:
+
+1. **Embed the user message** using `gte-large`
+2. **Score each enabled skill** by cosine similarity between the message embedding and the skill's description embedding
+3. **Select the top match** if its score exceeds the activation threshold
+4. **If a skill is active**, its `allowed-tools` override the route's default toolset
+
+If no skill exceeds the threshold, the agent runs with the route's default toolset.
+
+## Explicit invocation
+
+Skills can also be activated explicitly by the user:
+
+```
+@my-skill-slug do X
+```
+
+Explicit invocation bypasses the semantic scorer — the named skill activates regardless of similarity score. This is the reliable path when you know which skill you want.
+
+## Tool cap
+
+Each skill's `allowed-tools` list is capped at **18 tools** (the `SKILL_TOOLS_CAP` constant in `agent.ts`). This keeps the prompt within qwen3-4b's 4096-token schema budget even after adding the always-on skill-system tools.
+
+If a skill declares more than 18 tools, the excess is dropped (logged as a warning). Trim your `allowed-tools` list to the minimum needed.
+
+## Skill-system tools (always available)
+
+These tools are always in the active set regardless of which skill is active or what `allowed-tools` declares:
+
+| Tool | Description |
+|------|-------------|
+| `read_skill` | Read another skill's body and metadata |
+| `read_skill_file` | Read an attachment file from any skill |
+| `run_skill_script` | Run a skill's bundled script (approval-gated) |
+| `run_skill` | Activate another skill's toolset mid-turn |
+
+This is what enables skill composition — a skill can reach for another without the harness pre-loading everything.
+
+## Semantic activation tuning
+
+Activation quality depends on how well your skill descriptions are written. Tips:
+
+- **Be specific** — "When the user asks about their workout schedule or training history" outperforms "fitness skill"
+- **Use the `examples` field** — example messages are averaged into the embedding, improving recall on real user phrasing
+- **Use `when_to_use`** — adds extra context to the activation signal, useful when the description has to be short
+- **Avoid overlap** — two skills with very similar descriptions will compete and the wrong one may activate
+
+## Disabling a skill without deleting it
+
+Toggle the skill off in Brain → Skills or set `enabled: false` in SKILL.md. A disabled skill never activates, but its files are preserved.
+
+## The `gte-large` dependency
+
+Skill activation requires the `gte-large` embedding model to be served. Without it:
+- Semantic activation is skipped (no skills activate automatically)
+- Explicit `@slug` invocation still works (bypasses embedding)
+- RAG search and memory indexing are also affected (same dependency)
+
+→ See [Model aliases](/models/aliases) to configure `gte-large`.

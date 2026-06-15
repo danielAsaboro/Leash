@@ -1,0 +1,66 @@
+---
+title: "Context assembly"
+description: "How each turn's system prompt is built — soul + goals + active skills + tool schemas — and the schema budget that caps the toolset."
+sidebarTitle: "Context"
+---
+
+Every turn the chat route assembles a fresh system prompt and a focused toolset, then hands them to the agent as call options. The prompt carries identity; the active schemas carry capability — and both are bounded so the on-device decode never overflows.
+
+## What goes into the prompt
+
+The per-turn system prompt is composed server-side before the loop starts:
+
+<Steps>
+  <Step title="Soul + goals (the constitution)">
+    `soul.md` (who you are) and `goals.md` (where you're going) are folded into **every** chat turn — not only heartbeats. Each file is capped at **16 KB** to bound this cost.
+  </Step>
+  <Step title="Active skills">
+    Any active skill's instructions join the prompt, and if the skill declares a `tools:` set it overrides the route's default toolset.
+  </Step>
+  <Step title="Tool schemas">
+    The active tools' JSON schemas are serialized into the model's prompt so it can call them — this is the part with a hard budget.
+  </Step>
+</Steps>
+
+The fully assembled string is passed as the `system` call option and set as the agent's `instructions` for the turn.
+
+## The schema budget
+
+The active toolset is intentionally kept near a **~22-schema cap**. More than that overflows the **4096-token** tool-prompt region and the decode hangs at zero tokens (verified 2026-06-07).
+
+| Mechanism | Value | Why |
+|-----------|-------|-----|
+| Route schema cap | ~22 active schemas | Beyond it, the 4096-token prompt overflows and the decode hangs |
+| `SKILL_TOOLS_CAP` | 18 | A skill's declared toolset is truncated to this so it can't re-overflow |
+| Constitution cap | 16 KB per file | Bounds soul + goals folded into every turn |
+
+This is why routes use a **focused toolset** rather than exposing every tool: `computer` turns activate *only* the computer tools, while every other text turn activates everything *but* them (and the SKILL-GATED MCP-admin tools, so MCP costs zero always-on slots until its skill activates). The read-only `bash` lane stays always-on as the default executor for time and file reads.
+
+<Tip>
+Set `LEASH_DEBUG_TOOLS=1` to log the active toolset per turn (`leash[tools] route=… active=N […]`) and check a route against the ~22-schema cap.
+</Tip>
+
+## The toolless-hang guard
+
+`qwen3-4b` is served with `tools:true, toolsMode:"dynamic"` — and on that config a **fully tool-less request hangs at zero tokens**. So every text route is guaranteed **≥1 active tool**.
+
+<Warning>
+Only the `vision` route ships with no tools — `qwen3vl` is not tools-enabled, so it is the single exception. If a skill's declared toolset intersects the live registry to *nothing* (all disabled/unknown), the agent ignores it and falls through to the route default rather than shipping a tool-less request.
+</Warning>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Soul" icon="user" href="/agents/soul">
+    The who-you-are file folded into every prompt.
+  </Card>
+  <Card title="Goals" icon="bullseye" href="/agents/goals">
+    The up-to-five goals the agent judges against.
+  </Card>
+  <Card title="Runtime engine" icon="gears" href="/agents/runtime">
+    How the assembled prompt and toolset drive the step loop.
+  </Card>
+  <Card title="Compaction" icon="compress" href="/agents/compaction">
+    Keeping a long thread inside the 32k window.
+  </Card>
+</CardGroup>

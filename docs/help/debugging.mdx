@@ -1,0 +1,92 @@
+---
+title: "Debugging"
+description: "Debug flags, loop diagnostics, and how to read Leash's runtime output."
+sidebarTitle: "Debugging"
+---
+
+## Environment debug flags
+
+| Flag | Effect |
+|------|--------|
+| `LEASH_DEBUG_TOOLS=1` | Logs the active tool list (name + count) on every turn — use to verify the schema cap isn't exceeded |
+| `LEASH_DEBUG_LOOP=1` | Logs each agent step: `step=N finish=<reason> toolCalls=N reasoning=<chars>` — use to trace why the agent stopped early |
+| `LEASH_CONTINUATION_NUDGE=1` | Enables the scratchpad re-injection experiment on continuation steps (disabled by default — shown to not help at 4B scale) |
+| `HYPHA_DEBUG_LANPROBE=<host:port>` | Makes the hypha daemon log LAN reachability every 10 s — use to diagnose P2P holepunching failures |
+| `QVAC_OPENAI_URL` | Override the serve URL (default: `http://127.0.0.1:11435/v1`) |
+
+Set flags in your shell or in `data/.env` (loaded by the web server at startup).
+
+## Loop diagnostics
+
+When `LEASH_DEBUG_LOOP=1`, each step logs a line like:
+
+```
+leash[loop] step=1 finish=tool_calls toolCalls=2 reasoning=0
+leash[loop] step=2 finish=stop toolCalls=0 reasoning=1217
+```
+
+**`finish=stop toolCalls=0`** on a step that should have made a tool call is the signature of **failure mode C** (dependent-step failure). The model decided to answer instead of continuing. This is a known limitation of 4B models — it's not a configuration error.
+
+**`finish=tool_calls toolCalls=N`** is a healthy step that made N tool calls.
+
+**`reasoning=<large number>`** means the model spent many tokens reasoning before answering — often a sign of overthinking that ended in "just answer".
+
+## Checking tool schemas
+
+```bash
+LEASH_DEBUG_TOOLS=1 npm run web:dev
+```
+
+Then make any chat request. The log shows:
+
+```
+leash[tools] route=chat active=14 [search_graph, recall, list_memories, ...]
+```
+
+If `active` is above 22, schemas are overflowing. Disable MCP groups in Brain → MCP until it's ≤22.
+
+## Audit logs
+
+All inference turns emit JSONL audit records to `data/leash-audit.jsonl` (path via `mycelium/spike/lib/audit-log.ts`). Each line contains:
+
+```json
+{
+  "ts": "...",
+  "event": "prompt" | "completion" | "model_load" | "model_unload",
+  "model": "chat",
+  "tokens": { "prompt": 512, "completion": 128 },
+  "ttft_ms": 245,
+  "tok_per_sec": 18.2
+}
+```
+
+These are the hackathon verification evidence — keep them. Read the log for per-turn latency data:
+
+```bash
+cat data/leash-audit.jsonl | grep '"event":"completion"' | jq '{model, tok_per_sec, ttft_ms}'
+```
+
+## Serve diagnostics
+
+```bash
+# Is the serve up?
+curl http://127.0.0.1:11435/v1/models
+
+# What aliases are READY?
+curl http://127.0.0.1:11435/v1/models | jq '.data[].id'
+
+# Is the broker up?
+curl http://127.0.0.1:11436/v1/models
+```
+
+## Hypha diagnostics
+
+```bash
+# Peers connected?
+curl http://localhost:<HYPHA_PORT>/peers
+
+# Mesh membership?
+curl http://localhost:<HYPHA_PORT>/mesh
+```
+
+Check `HYPHA_DEBUG_LANPROBE=<peer-host:port>` output in the hypha process's stderr for LAN reachability.

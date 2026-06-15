@@ -1,0 +1,74 @@
+---
+title: "Runtime engine"
+description: "The ToolLoopAgent engine — prepareCall per-turn mapping, the bounded step loop, tool-call self-repair, and loop diagnostics."
+sidebarTitle: "Runtime"
+---
+
+One `ToolLoopAgent` is built per request, over the gated and filtered tool registry. The chat route derives everything per turn — intent route, effort tier, assembled system prompt — and passes it as **call options**; `prepareCall` maps those onto the actual agent settings.
+
+## prepareCall — per-turn mapping
+
+Before each call, `prepareCall` translates the validated call options into the settings the loop runs with:
+
+| Call option | Maps to | Effect |
+|-------------|---------|--------|
+| `route` | `model` | `vision`→qwen3vl, `computer`→computer model, `health`→medpsy, else chat |
+| `route` + `skillTools` | `activeTools` | The focused toolset (skill-declared set overrides the route default) |
+| `system` | `instructions` | The fully-assembled per-turn prompt |
+| `thinking` | `temperature` / `topP` | Qwen3 sampling — never the serve's greedy default |
+| `steps` | `stopWhen` | The step budget (1–16; null on vision) |
+| `maxOutputTokens` | `maxOutputTokens` | Token ceiling (null on vision) |
+
+<Warning>
+`prepareCall` must spread the incoming `...settings` in its return — that carries the call's prompt/messages forward. Returning only the overrides drops the messages and the SDK throws "prompt or messages must be defined" (caught live 2026-06-07). There is also **no `abortSignal`** anywhere: the qvac serve wedges on client aborts, so a turn always runs to completion.
+</Warning>
+
+## The step loop
+
+For every route except `vision`, the agent runs a bounded multi-step tool loop. It stops on `stopWhen`, which combines two conditions:
+
+- **`stepCountIs(steps)`** — the step budget (1–16). The heartbeat uses a small budget; deep text turns use more.
+- **interject yield** — if you send a follow-up mid-loop, the current step finishes cleanly, the loop exits, the turn completes, and the queued message runs next. See [Interject](/agents/interject).
+
+`vision` turns pass `steps: null` — single-shot, no loop.
+
+## Self-repair
+
+`experimental_repairToolCall` runs `jsonrepair` to self-heal a malformed tool call before the loop would error on it — so a slightly-off JSON argument from the 4B model is recovered instead of failing the turn.
+
+## Loop diagnostics
+
+Set **`LEASH_DEBUG_LOOP`** (env or a `data/.leash-debug-loop` sentinel file, re-checked per call — no restart) to log what the serve *actually* returns per step: the raw `finishReason`, the tool-call count, and whether text/reasoning was produced. Each step is classified into one of three distinct "stops after one step" root causes:
+
+| Bucket | Symptom | Fix class |
+|--------|---------|-----------|
+| **A** | `finishReason:"stop"` *with* tool calls present | Harness (loop-exit bug) |
+| **B** | Reaches a correct call mid-`<think>`, then reasons over it | Decoding / think-budget |
+| **C** | Clean final answer after step 1, no 2nd call attempted | Plan / decompose |
+
+## Failure mode C and the continuation nudge
+
+**Failure mode C** ("Implicit Action Failure") is the dependent-step problem: after a tool returns, `qwen3-4b` re-decides at the continuation boundary and writes a final answer instead of firing the dependent *next* call the user explicitly asked for. Independent calls fire fine in one parallel step; only the result-dependent next step gets dropped (`finish=stop, toolCalls=0`), amplified by overthinking.
+
+A scratchpad continuation-nudge (re-state the goal + a running tool checklist on every step after the first) is implemented and flag-gated via `LEASH_CONTINUATION_NUDGE=1` or a `data/.leash-continuation` file — but it is **OFF by default**.
+
+<Note>
+Tested 2026-06-12 against `qwen3-4b`, the nudge gave **no measurable benefit** on dependent-step chaining (ON ≈ 1/5 vs OFF ≈ 1/3 completions — within noise). It is kept flag-gated for future experiments (plan-then-execute, deterministic decomposition), not enabled in prod expecting it to fix C — it doesn't.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Routes" icon="route" href="/agents/routes">
+    The five routes prepareCall maps to.
+  </Card>
+  <Card title="Sampling" icon="sliders" href="/agents/sampling">
+    Why thinking mode never uses the greedy default.
+  </Card>
+  <Card title="Interject" icon="hand" href="/agents/interject">
+    How a mid-loop follow-up yields the loop.
+  </Card>
+  <Card title="Debugging" icon="bug" href="/help/debugging">
+    Reading the LEASH_DEBUG_LOOP transcript.
+  </Card>
+</CardGroup>

@@ -1,0 +1,71 @@
+---
+title: "Linux (WIP)"
+description: "Run Leash headless on Linux — web server and mesh daemon only."
+sidebarTitle: "Linux (WIP)"
+---
+
+<Warning>
+  Linux support is not yet formally tested or packaged. The web server, model serve, and Hypha mesh daemon run on Linux via Node.js, but the desktop app and every macOS-API feature (screen watcher, computer use) do not.
+</Warning>
+
+Leash on Linux is **headless only**: the Next.js web app plus the daemons that don't depend on macOS frameworks. Treat it as a mesh provider or a development host.
+
+## What works
+
+- **Web server** (`apps/web`) — chat, memory, skills, research, models, economy at `http://localhost:6801`
+- **QVAC model serve** — `qvac serve openai` on `:11435` (verify `@qvac/sdk` Linux support for your hardware)
+- **Hypha daemon** — mesh peering and delegated inference (`:11437` control plane, `:11438` LAN pairing)
+
+## What doesn't (macOS-only)
+
+| Feature | Why it's macOS-only |
+|---|---|
+| Desktop app | Electron build target is macOS today |
+| Screen watcher | Needs macOS Accessibility + Screen Recording APIs |
+| Computer use | `cliclick` (mouse/keyboard) is macOS-only |
+| Voice call TTS | Depends on the macOS audio stack |
+
+## Running headless
+
+<Steps>
+  <Step title="Check Node">
+    ```bash
+    node --version   # Node 22+ (24 recommended)
+    ```
+  </Step>
+  <Step title="Install dependencies">
+    ```bash
+    npm install      # FOREGROUND only — never in background
+    ```
+  </Step>
+  <Step title="Start the serve + web">
+    ```bash
+    npm run qvac        # qvac serve openai on :11435
+    npm run web:dev     # dev; or: npm run web:build && npm run web:start
+    ```
+  </Step>
+  <Step title="(Optional) join the mesh">
+    ```bash
+    npm run hypha       # :11437 control plane, :11438 LAN pairing
+    ```
+  </Step>
+</Steps>
+
+Web UI at `http://localhost:6801`. Native `.deb` / `.AppImage` packaging is planned for a future release.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="macOS install" href="/install/macos" icon="apple">
+    The full-featured reference platform.
+  </Card>
+  <Card title="Ports & processes" href="/reference/runtime-ports-and-processes" icon="diagram-project">
+    Every port and start command.
+  </Card>
+  <Card title="Economy" href="/platforms/economy" icon="coins">
+    Run a paid mesh provider.
+  </Card>
+  <Card title="Troubleshooting" href="/help/troubleshooting" icon="life-ring">
+    Common startup problems.
+  </Card>
+</CardGroup>

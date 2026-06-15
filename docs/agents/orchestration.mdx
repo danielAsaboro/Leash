@@ -1,0 +1,53 @@
+---
+title: Orchestration
+description: Plan mode and the skills harness both move multi-step work off the 4B and onto a deterministic pipeline.
+---
+
+A small model reliably does **one** atomic call — a single tool, a single sub-task — but drops the *dependent continuation* at the boundary where the next step depends on the last. Leash's answer is to take the step-ordering decision out of the model and put it in the harness.
+
+## The failure being designed around
+
+<Warning>
+  qwen3-4b reliably does one sub-task and even fires parallel tool calls, but **drops the dependent next call** at the continuation boundary — verified 2026-06-12. A scratchpad nudge, though confirmed-injected, did **not** fix it. The fix is structural: move the planning burden out of model-time and into author-time / harness-time.
+</Warning>
+
+## The deterministic pipeline
+
+Both orchestration surfaces converge on the same pipeline: an ordered list of atomic steps, each run as **one bounded `generateText`** with a fresh context, with **prior steps' results fed forward** so a later step can use what an earlier one returned. The model never decides "am I done?" — the harness does.
+
+<CardGroup cols={2}>
+  <Card title="Plan mode" icon="list-check" href="/agents/plan-mode">
+    The model calls `submit_plan` with ordered atomic steps; on approval the harness drives them through the pipeline.
+  </Card>
+  <Card title="Skills harness" icon="screwdriver-wrench" href="/capabilities/skills">
+    A skill with declared `steps:` runs the steps in order through the same pipeline; `run_skill` delegates a sub-task to another skill as a sub-agent.
+  </Card>
+</CardGroup>
+
+## Shared properties
+
+- **One atomic sub-task per step**, each with its own bounded step budget (tool → report).
+- **Results fed forward** — earlier results are injected into the next step's system prompt.
+- **Wedge rule** — no `abortSignal`, `maxRetries: 0` (a retry re-pays a hung decode); cancellation is checked **between** steps, marking the rest skipped.
+- **Sub-agents get a filtered toolset** — declared tools minus any disabled or approval-gated (a non-streaming `generateText` can't pause on an approval card) and minus `run_skill` (no nesting).
+
+<Note>
+  This is the deep-research-recommended placement of the planning burden for a small model: at **author time** (skill `steps:`) or **harness time** (plan execution), not at model time.
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Plan mode" icon="list-check" href="/agents/plan-mode">
+    Approval-gated plan-then-execute.
+  </Card>
+  <Card title="Skills" icon="screwdriver-wrench" href="/capabilities/skills">
+    Author-time steps and sub-agent delegation.
+  </Card>
+  <Card title="Skills config" icon="gear" href="/capabilities/skills-config">
+    Declaring tools and steps.
+  </Card>
+  <Card title="Runtime" icon="gears" href="/agents/runtime">
+    Where orchestration sits in the turn loop.
+  </Card>
+</CardGroup>

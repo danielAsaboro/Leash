@@ -1,0 +1,44 @@
+---
+title: "Research tools"
+description: "deep_research — start a background multi-source web research run."
+sidebarTitle: "Research"
+---
+
+The **research** group gives the agent one tool to kick off a deep, multi-source web research run. It runs detached in the background — the agent doesn't block the turn waiting for it.
+
+## deep_research
+
+Start a deep research run on a question. Searches the live web, reads multiple sources, and synthesizes a cited report over several minutes in the background.
+
+**Approval:** None — but requires network. Returns immediately with a link; the report populates at `/research?run=<id>`.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `question` | string | Yes | The research question to investigate (truncated to 500 chars) |
+
+**Returns:** A message with the run id and a link to the report page. Does NOT return the report itself — the agent tells the user to follow the link.
+
+**When the agent calls it:**
+- "What's the latest on X?" — questions needing current, multi-source web evidence
+- "Compare A and B" — comparative research
+- "What are the options for solving Y?" — survey-type questions
+
+**When NOT to call it:**
+- Questions answerable from the user's private notes → use `search_graph` instead
+- Simple factual questions the model knows → answer directly
+- Offline environments (no network) → the script fails honestly
+
+**How it works:**
+1. Spawns `apps/web/scripts/leash-research.mts` as a detached child process (the turn doesn't wait)
+2. The script searches the web, fetches and reads source pages, synthesizes a cited report
+3. The report is written to `data/notes/research/<id>.md` and available at `/research?run=<id>`
+
+**Example:**
+```
+User: What are the latest benchmarks for 4B LLMs running on M2?
+Agent: [calls deep_research(question="Latest benchmarks for 4B LLMs on Apple M2")]
+       Started a deep research run. It'll take a few minutes —
+       follow the report at /research?run=abc123.
+```
+
+**Note:** This tool needs `network`. In airplane mode it will fail with a fetch error. For offline research, use `search_graph` over locally stored notes instead.

@@ -1,0 +1,58 @@
+---
+title: "Files tools"
+description: "bash — sandboxed read-only file inspection via grep/find/cat/jq."
+sidebarTitle: "Files"
+---
+
+The **files** group gives the agent a sandboxed read-only shell for inspecting the user's files. It runs out-of-process in a snapshot of the filesystem — it cannot write, install, or run network commands.
+
+## bash
+
+Run a read-only shell command to inspect the user's files or check the current date/time.
+
+**Approval:** None — sandboxed read-only, cannot modify the filesystem.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `command` | string | Yes | A read-only shell command (grep/find/cat/ls/head/wc/sed/awk/jq/date) |
+
+**Returns:** stdout from the command, plus stderr if any. Notes when the snapshot is truncated (very large directories). Times out after 20 seconds.
+
+**Allowed commands:**
+
+| Command | Use |
+|---------|-----|
+| `cat`, `head`, `tail` | Read file contents |
+| `ls`, `find` | List and locate files |
+| `grep` | Search file contents |
+| `wc` | Count lines/words/chars |
+| `sed`, `awk` | Transform text (read-only — no `-i` flag) |
+| `jq` | Parse JSON |
+| `date` | Get current date/time |
+
+**Forbidden commands (redirected to `run_command`):**
+Any of these trigger a redirect error rather than running: `curl`, `wget`, `ssh`, `git`, `npm`/`yarn`/`bun`, `node`/`python`, `rm`, `mv`, `cp`, `mkdir`, `touch`, `chmod`, `kill`, `tee`, redirections (`>`/`>>`), background (`&`).
+
+**Example:**
+```
+User: What markdown files do I have in my notes?
+Agent: [calls bash(command="find data/notes -name '*.md' | head -20")]
+       data/notes/architecture.md
+       data/notes/goals.md
+       data/notes/research/2026-06-14.md
+       ...
+
+User: What time is it?
+Agent: [calls bash(command="date")]
+       Sun Jun 15 19:41:44 EDT 2026
+```
+
+**The sandbox:** `bash` runs inside a separate Node process (`bash-exec.mts`) over an in-memory snapshot of the filesystem under `LEASH_BASH_ROOT` (defaults to the home directory). The snapshot is read at startup — it doesn't reflect files created after the sandbox launched. This is why real disk edits need `run_command` instead.
+
+**When to use `bash` vs `run_command`:**
+
+| Task | Tool |
+|------|------|
+| Read a file, search, list | `bash` (no approval) |
+| Write a file, install a package, open an app | `run_command` (approval-gated) |
+| Network fetch | `run_command` (approval-gated) |

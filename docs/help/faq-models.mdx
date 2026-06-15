@@ -1,0 +1,61 @@
+---
+title: "Models FAQ"
+description: "Questions about model setup, aliases, and configuration."
+sidebarTitle: "Models FAQ"
+---
+
+## What's the difference between `model` and `src` in the config?
+
+`model` references an SDK catalog constant (e.g. `QWEN3_4B_Q4_K_M`) — the SDK knows where to download and cache this. `src` is a raw file path (e.g. `~/.qvac/models/my-custom.gguf`) for GGUFs not in the catalog. Use `model` for standard models, `src` for custom fine-tunes.
+
+## How do I know which SDK constant to use?
+
+In Brain → Models → Catalog, each model entry shows its SDK constant. You can also run:
+
+```bash
+qvac catalog --json | jq '.[].sdkConstant'
+```
+
+## Can I use a quantization other than Q4_K_M?
+
+Yes — any GGUF you download or have locally can be added with `src`. Smaller quantizations (Q2_K) use less memory but are lower quality. Larger (Q8_0) use more but are higher quality. The catalog page shows available quantizations per model.
+
+## Why does chat require `gte-large` to be served?
+
+`gte-large` provides embeddings. Leash uses it to:
+1. Build the RAG graph (index your notes and memories)
+2. Search the graph when the `search_graph` tool runs
+3. Deduplicate heartbeat proposals (fuzzy embedding similarity)
+
+Without `gte-large`, `search_graph` returns nothing and grounded chat is disabled.
+
+## The model shows as READY in Brain → Models but chat still fails
+
+1. Check that the alias name in `qvac.config.base.json` matches what the route expects (`chat`, `gte-large`, etc.)
+2. Restart the serve after config changes — there's no live-reload API
+3. Check the active tool count: `LEASH_DEBUG_TOOLS=1 npm run web:dev` and make a request. If active > 22, disable some MCP groups.
+
+## Can I run two different chat models and switch between them?
+
+Yes. Add both to `qvac.config.base.json` as separate aliases (e.g. `chat` and `chat-fast`). Only one should have `default: true`. In the chat input, use the model picker to choose between them per conversation.
+
+## How much RAM does the 4B model use?
+
+`qwen3-4b` Q4_K_M at `ctx_size: 32768`:
+- Model weights: ~2.5 GB
+- KV cache: ~1 GB (0.000008 × 4B params × 32768 tokens)
+- Total: ~3.5–4 GB
+
+At `ctx_size: 8192` the KV cache drops to ~0.25 GB. On a machine with limited RAM, reduce `ctx_size`.
+
+## Can I point Leash at a remote OpenAI-compatible serve?
+
+Yes — set `QVAC_OPENAI_URL` to any OpenAI-compatible endpoint (e.g. another machine's hypha broker at `http://192.168.1.X:11436/v1`). The agent uses whatever URL is in that env var. Note: the broker does delegated routing, not direct completion.
+
+## What's the registry corestore lock?
+
+The QVAC SDK takes an exclusive fd-lock on the registry corestore (`~/.qvac/registry-corestore/`) to manage model blobs. Only one process can hold it at a time. If the serve (or hypha) touched the registry, it holds the lock until stopped. Downloading a new model while the serve is running will fail with "File descriptor could not be locked." Stop the serve → download → restart.
+
+## Why does `qvac.config.json` shadow my settings?
+
+The CLI prefers `.json` over `.mjs`. If you have a `qvac.config.json` in the repo root, it shadows `qvac.config.mjs` (the `~/`-expanding wrapper). Delete `qvac.config.json` — only `qvac.config.base.json` and `qvac.config.mjs` should exist.

@@ -1,6 +1,6 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "maple",
+  "theme": "aspen",
   "name": "Leash",
   "colors": {
     "primary": "#3f7d4e",
@@ -9,80 +9,244 @@
   },
   "fonts": {
     "heading": {
-      "family": "Fraunces"
+      "family": "Fraunces",
+      "weight": 600
     },
     "body": {
-      "family": "Newsreader"
+      "family": "Newsreader",
+      "weight": 400
+    }
+  },
+  "background": {
+    "color": {
+      "light": "#f7f5ed",
+      "dark": "#14130e"
     }
   },
   "favicon": "/favicon.svg",
   "navigation": {
     "tabs": [
       {
-        "tab": "Documentation",
-        "icon": "book-open",
+        "tab": "Get Started",
+        "icon": "play",
         "groups": [
           {
-            "group": "Get started",
-            "icon": "play",
+            "group": "Get Started",
             "pages": [
               "index",
               "quickstart",
               "tutorials/first-local-mesh"
             ]
-          },
+          }
+        ]
+      },
+      {
+        "tab": "Install",
+        "icon": "download",
+        "groups": [
           {
-            "group": "Concepts",
-            "icon": "lightbulb",
+            "group": "Install",
             "pages": [
-              "explanation/what-mycelium-is",
-              "explanation/leash-and-its-surfaces",
-              "explanation/architecture",
-              "explanation/mycelium-as-an-agent-harness",
-              "explanation/the-skills-harness",
-              "explanation/the-agent-economy",
-              "explanation/mesh-and-membership",
-              "explanation/how-the-mesh-routes-work",
-              "explanation/modality-borrowing",
-              "explanation/models-and-the-catalog",
-              "explanation/memory-senses-mind-loop",
-              "explanation/the-memory-evolution-loop",
-              "explanation/what-the-understory-is",
-              "explanation/why-qvac-only"
+              "install/macos",
+              "install/linux",
+              "install/windows",
+              "install/ios",
+              "install/android"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Channels",
+        "icon": "comments",
+        "groups": [
+          {
+            "group": "Channels",
+            "pages": [
+              "channels/chat",
+              "channels/voice",
+              "channels/computer-use",
+              "channels/mobile",
+              "channels/telegram"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Agents",
+        "icon": "brain",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "agents/overview"
             ]
           },
           {
-            "group": "How-to Guides",
-            "icon": "square-check",
+            "group": "Context",
             "pages": [
-              "guides/run-leash-locally",
-              "guides/chat",
-              "guides/use-grounded-chat-and-memory",
-              "guides/use-brain-and-settings",
-              "guides/use-the-model-catalog",
-              "guides/extend-the-agent-with-tools-mcp-and-skills",
-              "guides/skills",
-              "guides/build-multi-skill-workflows",
-              "guides/compose-agent-workflows",
-              "guides/computer-use",
-              "guides/voice",
-              "guides/tasks",
-              "guides/run-deep-research",
-              "guides/read-the-understory-feed",
-              "guides/pair-a-second-device",
-              "guides/mesh",
-              "guides/borrow-a-modality-from-a-peer",
-              "guides/economy",
-              "guides/enable-the-agent-economy",
-              "guides/operate-hypha-and-broker",
-              "guides/manage-services-and-daemons",
-              "guides/run-the-desktop-app",
-              "guides/debug-common-runtime-failures"
+              "agents/context",
+              "agents/grounding",
+              "agents/soul",
+              "agents/goals"
             ]
           },
+          {
+            "group": "Runtime",
+            "pages": [
+              "agents/runtime",
+              "agents/routes",
+              "agents/sampling",
+              "agents/heartbeat"
+            ]
+          },
+          {
+            "group": "Sessions",
+            "pages": [
+              "agents/sessions",
+              "agents/interject",
+              "agents/compaction"
+            ]
+          },
+          {
+            "group": "Memory",
+            "pages": [
+              "agents/memory",
+              "agents/memory-types",
+              "agents/consolidation"
+            ]
+          },
+          {
+            "group": "Queue",
+            "pages": [
+              "agents/queue",
+              "agents/queue-priority"
+            ]
+          },
+          {
+            "group": "Multi-agent",
+            "pages": [
+              "agents/multi-agent",
+              "agents/council",
+              "agents/delegation"
+            ]
+          },
+          {
+            "group": "Orchestration",
+            "pages": [
+              "agents/orchestration",
+              "agents/plan-mode"
+            ]
+          },
+          {
+            "group": "Dashboard",
+            "pages": [
+              "agents/brain"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Capabilities",
+        "icon": "wrench",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "capabilities/overview"
+            ]
+          },
+          {
+            "group": "Skills",
+            "pages": [
+              "capabilities/skills",
+              "capabilities/skills-workshop",
+              "capabilities/skills-creating",
+              "capabilities/skills-config"
+            ]
+          },
+          {
+            "group": "MCP",
+            "pages": [
+              "capabilities/mcp",
+              {
+                "group": "Tools",
+                "pages": [
+                  "capabilities/tools",
+                  "capabilities/tools/memory",
+                  "capabilities/tools/tasks",
+                  "capabilities/tools/context",
+                  "capabilities/tools/feed",
+                  "capabilities/tools/research",
+                  "capabilities/tools/computer",
+                  "capabilities/tools/files",
+                  "capabilities/tools/photos",
+                  "capabilities/tools/image",
+                  "capabilities/tools/home-assistant",
+                  "capabilities/tools/mcp-admin",
+                  "capabilities/tools/scheduler",
+                  "capabilities/tools/skills"
+                ]
+              },
+              {
+                "group": "Automation",
+                "pages": [
+                  "capabilities/automation",
+                  "capabilities/scheduler",
+                  "capabilities/background-tasks"
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Models",
+        "icon": "microchip",
+        "groups": [
+          {
+            "group": "Models",
+            "pages": [
+              "models/overview",
+              "models/catalog",
+              "models/aliases",
+              "models/config"
+            ]
+          },
+          {
+            "group": "By modality",
+            "pages": [
+              "models/modality/chat",
+              "models/modality/vision",
+              "models/modality/embeddings",
+              "models/modality/speech",
+              "models/modality/image"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Platforms",
+        "icon": "server",
+        "groups": [
+          {
+            "group": "Platforms",
+            "pages": [
+              "platforms/overview",
+              "platforms/desktop",
+              "platforms/mesh",
+              "platforms/economy",
+              "platforms/mobile"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "icon": "book",
+        "groups": [
           {
             "group": "Reference",
-            "icon": "book",
             "pages": [
               "reference/workspace-map",
               "reference/runtime-ports-and-processes",
@@ -91,7 +255,92 @@
               "reference/tools-and-approvals",
               "reference/scripts-and-smoke-tests"
             ]
+          },
+          {
+            "group": "The system",
+            "pages": [
+              "explanation/what-mycelium-is",
+              "explanation/leash-and-its-surfaces",
+              "explanation/architecture",
+              "explanation/why-qvac-only"
+            ]
+          },
+          {
+            "group": "The agent",
+            "pages": [
+              "explanation/mycelium-as-an-agent-harness",
+              "explanation/the-skills-harness",
+              "explanation/memory-senses-mind-loop",
+              "explanation/the-memory-evolution-loop"
+            ]
+          },
+          {
+            "group": "The mesh",
+            "pages": [
+              "explanation/mesh-and-membership",
+              "explanation/how-the-mesh-routes-work",
+              "explanation/modality-borrowing",
+              "explanation/the-agent-economy"
+            ]
+          },
+          {
+            "group": "Models & media",
+            "pages": [
+              "explanation/models-and-the-catalog",
+              "explanation/what-the-understory-is"
+            ]
           }
+        ]
+      },
+      {
+        "tab": "Help",
+        "icon": "circle-question",
+        "groups": [
+          {
+            "group": "Help",
+            "pages": [
+              "help/troubleshooting",
+              "help/debugging"
+            ]
+          },
+          {
+            "group": "FAQ",
+            "pages": [
+              "help/faq",
+              "help/faq-first-run",
+              "help/faq-models"
+            ]
+          },
+          {
+            "group": "Testing",
+            "pages": [
+              "help/testing",
+              "help/testing-updates-plugins",
+              "help/testing-live-suites"
+            ]
+          },
+          {
+            "group": "Diagnostics",
+            "pages": [
+              "help/environment-variables",
+              "help/diagnostics-flags",
+              "help/node-tsx-crash"
+            ]
+          },
+          {
+            "group": "Community and meta",
+            "pages": [
+              "help/leash-lore",
+              "help/docs-directory"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Changelog",
+        "icon": "list",
+        "pages": [
+          "reference/changelog"
         ]
       },
       {
@@ -102,13 +351,6 @@
           "hackathon/how-we-meet-the-criteria",
           "hackathon/qvac-only-proof",
           "hackathon/evidence-and-reproducibility"
-        ]
-      },
-      {
-        "tab": "Changelog",
-        "icon": "list",
-        "pages": [
-          "reference/changelog"
         ]
       }
     ]
@@ -122,11 +364,18 @@
       {
         "label": "GitHub",
         "href": "https://github.com/danielAsaboro/Leash"
+      },
+      {
+        "label": "Releases",
+        "href": "https://github.com/danielAsaboro/Leash/releases"
       }
     ]
   },
   "contextual": {
-    "options": ["copy", "view"]
+    "options": [
+      "copy",
+      "view"
+    ]
   },
   "footer": {
     "socials": {

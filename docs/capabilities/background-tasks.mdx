@@ -1,0 +1,76 @@
+---
+title: "Background tasks"
+description: "The four allowlisted background jobs — dream, evolve, tag-photos, and research."
+sidebarTitle: "Background tasks"
+---
+
+Leash has four allowlisted background jobs that can be scheduled or run on demand. They run on your device, without user interaction, via the mcp-cron daemon.
+
+## dream — Consolidate chats into tasks
+
+`dream` reads your recent chat history and distills it into actionable tasks. It's the memory consolidation step: conversations where you mentioned something you need to do become tasks in your task list.
+
+**What it does:**
+1. Reads the last N chat messages (sliding window)
+2. Runs a light agent pass to extract mentioned commitments, follow-ups, and reminders
+3. Creates tasks for each one (source: "dream")
+
+**When to schedule:** Nightly — `dream` every night at midnight is the typical setup.
+
+**No gte-large required** — dream uses the chat model only.
+
+## evolve — On-device LoRA fine-tuning (WIP)
+
+`evolve` is the nightly LoRA step — it takes your recent conversations and evolves a personalized adapter (`qwen3-4b-me`) from your interactions. This is Layer 4 of Mycelium ("The Understory").
+
+**What it does:**
+1. Samples recent conversations from `data/leash-chats/`
+2. Runs QVAC Fabric fine-tuning on `qwen3-4b`
+3. Saves the updated LoRA adapter to `~/.qvac/models/<name>.gguf`
+
+**When to schedule:** Nightly — `evolve` every night at 2am is typical (after `dream` at midnight).
+
+<Warning>
+`evolve` is early — QVAC Fabric LoRA training on the 4B model requires ~8 GB RAM and takes 30–60 minutes on Apple Silicon. Don't schedule it to run more than once per day.
+</Warning>
+
+## tag-photos — Auto-classify your photo library
+
+`tag-photos` scans your photo library, runs each photo through `qwen3vl`, and writes structured tags to `data/leash-photo-tags.json`. This makes your photos searchable via the Photos tool group.
+
+**What it does:**
+1. Scans the system photo library for new photos (delta from last run)
+2. Runs `qwen3vl` vision inference on each untagged photo
+3. Writes tags (people, places, objects, dates) to the tags file
+
+**When to schedule:** Weekly or on-demand — photo libraries grow slowly.
+
+**Requires `qwen3vl`** to be served. Without the vision alias, `tag-photos` falls back to writing file-metadata-only tags.
+
+## research — Background web research
+
+`research` runs a background web research pass on a configured question and appends a structured summary to your notes.
+
+**What it does:**
+1. Takes the configured `question` argument
+2. Runs the research tool group (web search + content fetch + synthesis)
+3. Writes a date-stamped note to `data/notes/research/<date>.md`
+
+**When to schedule:** Weekly — useful for staying current on a topic without prompting.
+
+**Requires the `research` MCP group** to be enabled.
+
+## Running jobs on demand
+
+Any job can be triggered immediately from Brain → Services → Run job, or via the chat:
+
+```
+"Run dream now"
+"Tag my photos"
+```
+
+The agent uses `schedule_job` with `recurrence: "once"` and `onceAt` set to now — or it can call the job API directly.
+
+## Job logs
+
+Each job run logs to `data/leash-job-<script>-<date>.log`. View recent logs in Brain → Services → Job history.

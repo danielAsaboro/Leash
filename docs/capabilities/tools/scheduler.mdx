@@ -1,0 +1,132 @@
+---
+title: "Scheduler tools"
+description: "list_schedules, schedule_reminder, schedule_job, enable_schedule, disable_schedule, remove_schedule — the agent's scheduling interface."
+sidebarTitle: "Scheduler"
+---
+
+The **scheduler** tool group (group id: `scheduler`) is the agent's interface to the mcp-cron scheduling system. It is **off by default** — enable it in Brain → MCP when you want the agent to create recurring work autonomously.
+
+All tools call `POST /api/leash/schedules` using the shared internal token.
+
+## list_schedules
+
+List all current schedules with cadence, status, and next run time.
+
+**Approval:** None — read-only.
+
+**Parameters:** None.
+
+**Returns:** One bullet per schedule: `• Name — what · cadence (enabled/disabled) · next HH:MM [id abc]`. Returns `"No schedules yet."` if none exist.
+
+**Example:**
+```
+User: What schedules do I have?
+Agent: [calls list_schedules()]
+       • Daily goals review — reminder: "Review my goals" · daily at 09:00 · next 09:00 [id abc]
+       • Nightly dream — job: dream · daily at 00:00 · next 00:00 [id xyz]
+       • Heartbeat — proactive heartbeat · every 15 min [id hb1]
+```
+
+---
+
+## schedule_reminder
+
+Create a recurring or one-time reminder — adds a task to the to-do list on each fire.
+
+**Approval:** None — autonomous write.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `title` | string | Yes | Task title created on each fire |
+| `detail` | string | No | Optional context for the task |
+| `priority` | enum | No | `low` \| `normal` \| `high` (default `normal`) |
+| `name` | string | No | Schedule display name (defaults to the title) |
+| `recurrence` | enum | Yes | `daily` \| `weekly` \| `interval` \| `once` |
+| `at` | string | No | `"HH:MM"` — required for `daily` and `weekly` |
+| `dayOfWeek` | integer | No | `0`–`6` (Sun–Sat) — required for `weekly` |
+| `everyMinutes` | integer | No | Minutes between runs — required for `interval` |
+| `onceAt` | string | No | ISO datetime — required for `once` |
+
+**Returns:** `"Scheduled 'Name' — daily at 09:00 (id abc). It will run on its schedule; manage it from Brain → Services."`
+
+**Examples:**
+```
+"Remind me every weekday at 9am to review my goals"
+→ schedule_reminder(title="Review my goals", recurrence="daily", at="09:00")
+
+"Remind me every Monday at 8am to plan my week"
+→ schedule_reminder(title="Plan the week", recurrence="weekly", dayOfWeek=1, at="08:00")
+
+"Remind me in 30 minutes to take a break"
+→ schedule_reminder(title="Take a break", recurrence="once", onceAt="2026-06-15T20:11:00")
+```
+
+---
+
+## schedule_job
+
+Create a recurring maintenance job run.
+
+**Approval:** None — autonomous write.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `script` | enum | Yes | `dream` \| `tag-photos` \| `research` \| `evolve` |
+| `question` | string | No | Required only for `research` — the question to research |
+| `name` | string | No | Schedule display name (defaults to `"Run <script>"`) |
+| `recurrence` | enum | Yes | Same as `schedule_reminder` |
+| `at`, `dayOfWeek`, `everyMinutes`, `onceAt` | — | — | Same as `schedule_reminder` |
+
+**Hard rule:** No script outside the four allowlisted names can be scheduled. The scheduler group has a load-time assertion that rejects any tool with shell/exec/AI-task patterns in its name.
+
+**Example:**
+```
+"Run dream every night at midnight"
+→ schedule_job(script="dream", recurrence="daily", at="00:00")
+
+"Research my project weekly on Sunday mornings"
+→ schedule_job(script="research", question="Latest on Mycelium mesh networking",
+               recurrence="weekly", dayOfWeek=0, at="06:00")
+```
+
+---
+
+## enable_schedule
+
+Resume a previously disabled schedule.
+
+**Approval:** None.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Schedule id (from `list_schedules`) |
+
+**Returns:** `"Enabled 'Name'."` or an error.
+
+---
+
+## disable_schedule
+
+Pause a schedule without deleting it.
+
+**Approval:** None.
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Schedule id (from `list_schedules`) |
+
+**Returns:** `"Disabled 'Name'."` or an error.
+
+---
+
+## remove_schedule
+
+Permanently delete a schedule.
+
+**Approval:** None — but irreversible (the schedule id is gone; recreate if needed).
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string | Yes | Schedule id (from `list_schedules`) |
+
+**Returns:** `"Removed schedule <id>."` or an error.

@@ -1,0 +1,65 @@
+---
+title: "Skill Workshop"
+description: "Brain → Skills — the dashboard for creating, editing, enabling, and importing skills."
+sidebarTitle: "Skill Workshop"
+---
+
+**Brain → Skills** is the Skill Workshop — a live editor for every skill on your device.
+
+## The skill list
+
+The left panel shows all skills with their enabled/disabled toggle. A skill that is disabled never activates — even if its description matches the user's message.
+
+Columns:
+- **Name** — the skill's display name
+- **Description** — used for semantic activation matching
+- **Enabled** — whether the skill is in the activation pool
+- **Tools** — the `allowed-tools` frontmatter field (if declared)
+- **Built-in** — shipped with Leash; cannot be deleted
+
+## Creating a skill from the workshop
+
+1. Click **New skill**
+2. Fill in: name, description, body (the skill's instructions)
+3. Optionally declare `allowed-tools` to narrow the tool lane
+4. Click **Save** — the skill is saved to `data/skills/<slug>/SKILL.md` and takes effect immediately
+
+## Editing an existing skill
+
+Click any skill row to open it in the editor. The editor supports:
+- **Frontmatter** — name, description, enabled, allowed-tools, steps, examples, when_to_use
+- **Body** — markdown instructions the agent receives when the skill activates
+- **Files tab** — view and edit files in the skill's `references/` and `assets/` folders
+
+Changes are saved with **Save** — no restart needed.
+
+## The skill body
+
+The body is what the agent reads when the skill activates. Write it as concise instructions, not a personality description. Be specific about:
+- When to use it (supplements the `description` which drives activation)
+- Which tools to call and in what order
+- What to return to the user
+
+## Importing a skill from a zip
+
+1. Click **Import**
+2. Drop a `.zip` file containing `SKILL.md` at its root and any `references/` or `assets/` subfolders
+3. The skill is imported **disabled** — review the SKILL.md body, then enable it
+
+Zip format:
+```
+my-skill.zip/
+  SKILL.md             # required, must have name: in frontmatter
+  references/
+    some-reference.md  # optional attachments, readable via read_skill_file
+  scripts/
+    run.sh             # optional scripts, runnable via run_skill_script
+```
+
+## Deleting a skill
+
+Click **Delete** in the skill editor. Built-in skills cannot be deleted (they'd be re-created by Leash on next startup). Custom skills are permanently removed.
+
+## Skill slugs
+
+The slug is derived from the name by lowercasing and replacing spaces with dashes. `"My Skill"` → `my-skill`. The slug is the directory name under `data/skills/` and is stable — renaming a skill via the editor renames the folder.
