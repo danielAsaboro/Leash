@@ -233,8 +233,23 @@ function toEntry(t: CronTask): ScheduleEntry | null {
 
 // ── public API (unchanged shapes) ───────────────────────────────────────────────────
 
+/** Seed the defaults once per process (idempotent, seed-if-absent). Dynamic import breaks the
+ *  schedule-seed ↔ schedules-store cycle and keeps it off the module-eval path. */
+let seededOnce = false;
+async function ensureSeeded(): Promise<void> {
+  if (seededOnce) return;
+  seededOnce = true;
+  try {
+    const { seedDefaultSchedules } = await import("./schedule-seed.ts");
+    await seedDefaultSchedules();
+  } catch {
+    seededOnce = false; // a failed seed (daemon still warming) should retry next call
+  }
+}
+
 /** All schedule definitions (reconstructed from mcp-cron). Reaps spent `once` entries. */
 export async function listSchedules(): Promise<ScheduleEntry[]> {
+  await ensureSeeded();
   const tasks = await cronList();
   const out: ScheduleEntry[] = [];
   for (const t of tasks) {
