@@ -8,6 +8,9 @@
 set -euo pipefail
 
 CLI_VER="${QVAC_CLI_VERSION:-0.6.0}"
+# @qvac/cli@0.6.0 pins @qvac/sdk ^0.12.0, but we run the whole runtime coherently on SDK_VER via an
+# npm `override` below (forces the cli's nested SDK + engines to the same version — no split). 0.13.1
+# is the floor that fixes vision (0.12.1 tokenizes the image then 500s); matches the app side.
 SDK_VER="${QVAC_SDK_VERSION:-0.13.1}"
 PROVIDER_VER="${QVAC_PROVIDER_VERSION:-0.2.1}"   # @qvac/ai-sdk-provider — the model catalog (allModels) source
 ARCH_KEEP="${QVAC_PREBUILD_ARCH:-darwin-arm64}"
@@ -20,7 +23,8 @@ rm -rf "$out"
 mkdir -p "$out"
 cat > "$out/package.json" <<JSON
 { "name": "qvac-runtime", "private": true, "version": "0.0.0",
-  "dependencies": { "@qvac/cli": "$CLI_VER", "@qvac/sdk": "$SDK_VER", "@qvac/ai-sdk-provider": "$PROVIDER_VER", "tsx": "^4.19.2" } }
+  "dependencies": { "@qvac/cli": "$CLI_VER", "@qvac/sdk": "$SDK_VER", "@qvac/ai-sdk-provider": "$PROVIDER_VER", "tsx": "^4.19.2" },
+  "overrides": { "@qvac/sdk": "$SDK_VER" } }
 JSON
 
 # Prefer the local npm cache (the root install already populated it); fall back to the network.
