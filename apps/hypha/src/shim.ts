@@ -111,6 +111,29 @@ export interface MeshControl {
   tasksSince(cursor: number): Promise<MeshTask[]>;
   /** Derived oldest-active-member leader of the primary mesh (its deviceId), or null if no live mesh. */
   leader(): Promise<string | null>;
+  /** Every device that has advertised a capability into each mesh — the true membership (from the
+   *  CRDT, INCLUDING this device itself and non-provider members like phones), for the devices list. */
+  members(): Promise<MeshMember[]>;
+}
+
+/** One mesh member row (a replicated capability), grouped per mesh for the Settings → Devices list. */
+export interface MeshMember {
+  deviceId: string;
+  displayName: string;
+  computeClass: string;
+  ramMB: number;
+  powerState: string;
+  inflight: number;
+  lastSeen: string;
+  /** Advertised model aliases (may be empty for a phone / pure consumer). */
+  models: string[];
+  /** Local mesh handle + label this member was read under. */
+  meshId: string;
+  meshLabel: string;
+  /** Heartbeat fresh (within the stale window). */
+  live: boolean;
+  /** True for THIS device's own row. */
+  self: boolean;
 }
 
 /** One membership row for the dashboard / `/mesh/list`. */
@@ -493,6 +516,10 @@ export function createShim(deps: ShimDeps): http.Server {
     }
     if (method === "GET" && url === "/receipts") {
       return json(res, 200, { receipts: await mesh.receipts() });
+    }
+    // Full mesh membership (CRDT capabilities, incl. self + non-providers) for the devices list.
+    if (method === "GET" && url === "/mesh/members") {
+      return json(res, 200, { members: await mesh.members() });
     }
     if (method === "GET" && url === "/reputation") {
       return json(res, 200, { reputation: getReputation ? getReputation() : [] });

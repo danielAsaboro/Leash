@@ -491,7 +491,8 @@ async function runDaemon(): Promise<void> {
       try {
         const h = await ensureHost();
         const rec = meshMeta.get(PRIMARY_MESH_ID) ?? primaryRecord();
-        const { graph } = await h.openMesh({ meshId: PRIMARY_MESH_ID, ...(rec.bootstrapKey ? { bootstrapKey: Buffer.from(rec.bootstrapKey, "hex") } : {}) });
+        const bk = reopenBootstrap(rec);
+        const { graph } = await h.openMesh({ meshId: PRIMARY_MESH_ID, ...(bk ? { bootstrapKey: bk } : {}) });
         return await bringMeshOnline(PRIMARY_MESH_ID, graph, rec);
       } finally {
         primaryOpening = null;
@@ -636,6 +637,14 @@ async function runDaemon(): Promise<void> {
    * re-binds to it; a FOUNDER records its own autobase key, and reopening with it recovers the same mesh
    * writable (Autobase(store, ownKey) ≡ Autobase(store, null)). One-shot per mesh.
    */
+  /**
+   * Reopen bootstrapKey: every persisted mesh re-binds to its recorded autobase key so a restart
+   * recovers the SAME base (a NAMED-namespace base is re-founded fresh by `Autobase(ns, null)` — it
+   * does NOT recover via referrer like the default/primary namespace, so the key is mandatory).
+   */
+  const reopenBootstrap = (rec: MeshRecord): Buffer | undefined =>
+    rec.bootstrapKey ? Buffer.from(rec.bootstrapKey, "hex") : undefined;
+
   const backfillBootstrapKey = (m: MeshRuntime): void => {
     const meta = meshMeta.get(m.meshId);
     if (!meta || meta.bootstrapKey || meta.visibility === "public") return;
@@ -842,6 +851,36 @@ async function runDaemon(): Promise<void> {
     // Read-only: NEVER force the mesh online (this rides the frequently-polled /peers) — a device
     // the user never put in a mesh has no leader.
     leader: async () => (mesh ? mesh.graph.leader() : null),
+    // The TRUE membership of every mesh: each device that advertised a capability into the CRDT,
+    // INCLUDING this device itself and non-provider members (phones) — what the devices list wants.
+    members: async () => {
+      const now = Date.now();
+      const rows: Awaited<ReturnType<MeshControl["members"]>> = [];
+      for (const [meshId, m] of runtimes) {
+        const meta = meshMeta.get(meshId);
+        const self = m.graph.localWriterKey;
+        let caps: Awaited<ReturnType<typeof m.graph.capabilities>> = [];
+        try { caps = await m.graph.capabilities(); } catch { /* mesh still syncing */ }
+        for (const c of caps) {
+          const seen = Date.parse(c.lastSeen);
+          rows.push({
+            deviceId: c.deviceId,
+            displayName: c.displayName || "device",
+            computeClass: c.computeClass,
+            ramMB: c.ramMB ?? 0,
+            powerState: c.powerState,
+            inflight: c.inflight ?? 0,
+            lastSeen: c.lastSeen,
+            models: c.availableModels ?? [],
+            meshId,
+            meshLabel: meta?.label ?? meshId,
+            live: Number.isFinite(seen) && now - seen <= STALE_MS,
+            self: c.deviceId === self,
+          });
+        }
+      }
+      return rows;
+    },
   };
 
   const pairing = new PairingController(meshController, audit);
@@ -965,7 +1004,8 @@ async function runDaemon(): Promise<void> {
             await joinPublicCell(rec.meshId, rec.label);
           } else {
             const h = await ensureHost();
-            const { graph } = await h.openMesh({ meshId: rec.meshId, ...(rec.bootstrapKey ? { bootstrapKey: Buffer.from(rec.bootstrapKey, "hex") } : {}) });
+            const bk = reopenBootstrap(rec);
+            const { graph } = await h.openMesh({ meshId: rec.meshId, ...(bk ? { bootstrapKey: bk } : {}) });
             await bringMeshOnline(rec.meshId, graph, rec);
           }
         } catch (err) {

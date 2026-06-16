@@ -66,7 +66,22 @@ interface SharePeer {
   lastSeen: string;
   meshId?: string;
 }
-interface ShareState { shareModels: boolean; peers: SharePeer[]; aliasToName: Record<string, string>; myModels: string[] }
+/** A mesh member from the CRDT (every advertised device, incl. THIS device + non-provider phones). */
+interface MeshMember {
+  deviceId: string;
+  displayName: string;
+  computeClass: string;
+  ramMB: number;
+  powerState: string;
+  inflight: number;
+  lastSeen: string;
+  models: string[];
+  meshId: string;
+  meshLabel: string;
+  live: boolean;
+  self: boolean;
+}
+interface ShareState { shareModels: boolean; peers: SharePeer[]; members: MeshMember[]; aliasToName: Record<string, string>; myModels: string[] }
 interface DlStatus { name: string; state: string; percentage: number }
 
 /** Coerce any error value (string, {message}, or other object) to a renderable string. */
@@ -197,7 +212,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       const r = await fetchWithTimeout("/api/leash/hypha/share", { cache: "no-store" }, TIMEOUT.probe);
       const d = (await r.json()) as ShareState & { ok?: boolean; error?: string };
       if (!r.ok || d.ok === false) throw new Error(d.error ?? "couldn't load mesh peers");
-      setShare({ shareModels: d.shareModels, peers: d.peers ?? [], aliasToName: d.aliasToName ?? {}, myModels: d.myModels ?? [] });
+      setShare({ shareModels: d.shareModels, peers: d.peers ?? [], members: d.members ?? [], aliasToName: d.aliasToName ?? {}, myModels: d.myModels ?? [] });
       setShareErr(null);
     } catch (e) {
       setShareErr(e instanceof Error ? e.message : String(e));
@@ -316,6 +331,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
 
   const have = new Set(share?.myModels ?? []);
   const peersOf = (meshId: string): SharePeer[] => (share?.peers ?? []).filter((p) => p.meshId === meshId);
+  const membersOf = (meshId: string): MeshMember[] => (share?.members ?? []).filter((x) => x.meshId === meshId);
   const staleCount = (share?.peers ?? []).filter((p) => !p.live).length;
 
   /** One advertised-model chip. Borrowable (chat/vision): ● warm / ○ cold + my local status
@@ -505,6 +521,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
           {meshes.map((m) => {
             const open = expanded.has(m.meshId);
             const gp = peersOf(m.meshId);
+            const gm = membersOf(m.meshId);
             const pairingHere = Boolean(pairState?.mode) && (pairingMeshId === m.meshId || pairingMeshId === null);
             const pairingElsewhere = Boolean(pairState?.mode) && pairingMeshId !== null && pairingMeshId !== m.meshId;
             return (
@@ -519,7 +536,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                       ? metaBadge(GlobeIcon, "Public mesh — open, discoverable", undefined, "var(--color-brick)")
                       : metaBadge(LockIcon, "Private mesh — your allow-listed devices", undefined, "var(--color-muted)")}
                     {metaBadge(LayersIcon, `Tier ${m.tier} — routing priority`, m.tier)}
-                    {metaBadge(UsersIcon, `${m.peers} device${m.peers === 1 ? "" : "s"} in this mesh`, m.peers)}
+                    {metaBadge(UsersIcon, `${gm.length || m.peers} device${(gm.length || m.peers) === 1 ? "" : "s"} in this mesh`, gm.length || m.peers)}
                     {m.writable
                       ? metaBadge(PencilIcon, "Writable — you can manage this mesh", undefined, "var(--color-sage-deep)")
                       : metaBadge(RefreshCwIcon, "Syncing — read-only until write access syncs", undefined, "var(--color-faint)")}
@@ -538,33 +555,46 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                   <div className="border-t px-3 py-2.5" style={{ borderColor: "var(--color-rule)" }}>
                     {!share ? (
                       <p className="kicker" style={kicker("var(--color-faint)")}>Loading devices…</p>
-                    ) : gp.length === 0 ? (
+                    ) : gm.length === 0 ? (
                       <p className="italic" style={{ color: "var(--color-faint)", fontFamily: "var(--font-body)", fontSize: "0.85rem" }}>No devices in this mesh yet — invite one below, or wait for one to come online.</p>
                     ) : (
                       <ul className="flex flex-col gap-2">
-                        {gp.map((p) => (
-                          <li key={p.deviceId || p.displayName}>
-                            <div className="flex flex-wrap items-center gap-2.5">
-                              <span aria-hidden className="inline-block h-2 w-2 rounded-full" title={p.live ? "live (heartbeat fresh)" : "stale"} style={{ background: p.live ? "var(--color-sage)" : "var(--color-faint)" }} />
-                              <span className="kicker kicker-sage">{p.displayName}</span>
-                              <span className="kicker" style={kicker("var(--color-faint)")}>
-                                {p.computeClass} · {Math.round(p.ramMB / 1024)}GB · {p.powerState}
-                                {p.inflight > 0 ? ` · ${p.inflight} in flight` : ""}
-                                {p.lastSeen ? ` · seen ${ago(p.lastSeen)}` : ""}
-                                {!p.live ? " · stale" : ""}
-                              </span>
-                              <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
-                              {p.deviceId && <ForgetPeerButton deviceKey={p.deviceId} name={p.displayName} />}
-                            </div>
-                            <div className="mt-1.5 flex flex-wrap gap-1.5">
-                              {p.modelInfo.length === 0 ? (
-                                <span className="kicker" style={kicker("var(--color-faint)")}>no models advertised</span>
-                              ) : (
-                                p.modelInfo.map((m) => modelChip(m, p.warmModels.includes(m.alias), p.shareModels))
-                              )}
-                            </div>
-                          </li>
-                        ))}
+                        {gm.map((mem) => {
+                          // Merge the rich provider detail (warm/pull model chips) when this member is also a
+                          // warm-pool peer; a phone / pure consumer just shows its advertised aliases (or none).
+                          const peer = gp.find((p) => p.deviceId === mem.deviceId);
+                          const ramGB = mem.ramMB > 0 ? `${Math.round(mem.ramMB / 1024)}GB · ` : "";
+                          return (
+                            <li key={mem.deviceId || mem.displayName}>
+                              <div className="flex flex-wrap items-center gap-2.5">
+                                <span aria-hidden className="inline-block h-2 w-2 rounded-full" title={mem.live ? "live (heartbeat fresh)" : "stale"} style={{ background: mem.live ? "var(--color-sage)" : "var(--color-faint)" }} />
+                                <span className="kicker kicker-sage">{mem.displayName}</span>
+                                {mem.self && (
+                                  <span className="kicker" style={{ fontFamily: "var(--font-mono)", color: "var(--color-sage-deep)", border: "1px solid var(--color-rule-strong)", padding: "0 5px", borderRadius: 3 }}>this device</span>
+                                )}
+                                <span className="kicker" style={kicker("var(--color-faint)")}>
+                                  {mem.computeClass} · {ramGB}{mem.powerState}
+                                  {mem.inflight > 0 ? ` · ${mem.inflight} in flight` : ""}
+                                  {mem.lastSeen ? ` · seen ${ago(mem.lastSeen)}` : ""}
+                                  {!mem.live ? " · stale" : ""}
+                                </span>
+                                <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
+                                {!mem.self && mem.deviceId && <ForgetPeerButton deviceKey={mem.deviceId} name={mem.displayName} />}
+                              </div>
+                              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                {peer && peer.modelInfo.length > 0 ? (
+                                  peer.modelInfo.map((mi) => modelChip(mi, peer.warmModels.includes(mi.alias), peer.shareModels))
+                                ) : mem.models.length > 0 ? (
+                                  mem.models.map((alias) => (
+                                    <span key={alias} className="kicker inline-flex items-center gap-1 px-2 py-0.5" style={{ border: "1px solid var(--color-rule-strong)", color: "var(--color-muted)" }}>○ {alias}</span>
+                                  ))
+                                ) : (
+                                  <span className="kicker" style={kicker("var(--color-faint)")}>{mem.self ? "no models shared from this device" : "no models advertised"}</span>
+                                )}
+                              </div>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                     <div className="mt-3 flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--color-rule)" }}>

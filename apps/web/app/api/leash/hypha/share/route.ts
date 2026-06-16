@@ -51,14 +51,32 @@ interface RawPeer {
   meshLabel?: string;
 }
 
+/** A mesh member (CRDT capability) — the TRUE membership incl. this device + non-provider phones. */
+interface MeshMember {
+  deviceId: string;
+  displayName: string;
+  computeClass: string;
+  ramMB: number;
+  powerState: string;
+  inflight: number;
+  lastSeen: string;
+  models: string[];
+  meshId: string;
+  meshLabel: string;
+  live: boolean;
+  self: boolean;
+}
+
 export async function GET(): Promise<Response> {
   try {
-    const [peersRes, shareRes] = await Promise.all([
+    const [peersRes, shareRes, membersRes] = await Promise.all([
       fetch(`${BASE}/peers`, { signal: AbortSignal.timeout(2500), cache: "no-store" }),
       fetch(`${BASE}/models/share`, { signal: AbortSignal.timeout(2500), cache: "no-store" }),
+      fetch(`${BASE}/mesh/members`, { signal: AbortSignal.timeout(2500), cache: "no-store" }).catch(() => null),
     ]);
     const peersBody = (await peersRes.json()) as { peers?: RawPeer[] };
     const shareBody = (await shareRes.json()) as { shareModels?: boolean; unshared?: string[] };
+    const members: MeshMember[] = membersRes && membersRes.ok ? ((await membersRes.json()) as { members?: MeshMember[] }).members ?? [] : [];
     const peers: SharePeer[] = (peersBody.peers ?? []).map((p) => ({
       deviceId: p.deviceId ?? "",
       displayName: p.displayName ?? "peer",
@@ -85,7 +103,7 @@ export async function GET(): Promise<Response> {
     } catch {
       /* inventory is best-effort context for the Pull affordance */
     }
-    return Response.json({ ok: true, shareModels: shareBody.shareModels !== false, unshared: shareBody.unshared ?? [], peers, aliasToName, myModels });
+    return Response.json({ ok: true, shareModels: shareBody.shareModels !== false, unshared: shareBody.unshared ?? [], peers, members, aliasToName, myModels });
   } catch {
     return Response.json({ ok: false, error: "Hypha daemon not running — start it on the Services page." }, { status: 503 });
   }
