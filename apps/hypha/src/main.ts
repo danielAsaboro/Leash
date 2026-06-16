@@ -430,15 +430,18 @@ async function runDaemon(): Promise<void> {
    * timer (`STALE_MS` is 30s). Driven off graph.onChange + once at mesh boot.
    */
   const supersededForgotten = new Set<string>();
-  const reconcileSuperseded = async (m: MeshRuntime): Promise<void> => {
-    if (!m.graph.writable) return;
+  const reconcileSuperseded = async (m: MeshRuntime): Promise<number> => {
+    if (!m.graph.writable) return 0;
     const caps = await m.graph.capabilities().catch(() => []);
+    let forgot = 0;
     for (const deviceId of supersededDeviceIds(caps)) {
       if (supersededForgotten.has(deviceId)) continue;
       supersededForgotten.add(deviceId);
       await m.graph.forgetCapability(deviceId).catch(() => undefined);
       audit.record({ event: "capability", extra: { role: "mesh", phase: "supersede-forget", deviceId: deviceId.slice(0, 16) } });
+      forgot++;
     }
+    return forgot;
   };
 
   // ── meshes.json index (the memberships to reopen at boot) ────────────────────────────────────
@@ -711,6 +714,18 @@ async function runDaemon(): Promise<void> {
         return { ok: false, error: String(err) };
       }
     },
+    // SAFE membership cleanup (page-reload trigger): soft-reap only SUPERSEDED writer keys — a device
+    // that re-paired under a new key while its stable identity stayed the same. forgetCapability only
+    // (bee.del); never tombstones / revokes / disallows, so a merely-offline device is untouched (it
+    // re-advertises and reappears). Contrast forgetStale, which HARD-disconnects anything >STALE_MS.
+    reconcileSuperseded: async () => {
+      try {
+        if (runtimes.size === 0) return { ok: false, count: 0, error: "this device isn't in a mesh yet" };
+        let count = 0;
+        for (const m of runtimes.values()) count += await reconcileSuperseded(m).catch(() => 0);
+        return { ok: true, count };
+      } catch (err) { return { ok: false, count: 0, error: String(err) }; }
+    },
     forgetStale: async () => {
       try {
         const m = mesh;
@@ -809,13 +824,18 @@ async function runDaemon(): Promise<void> {
       // lives on for its other members. The primary mesh is identity-anchoring and never leavable.
       if (meshId === PRIMARY_MESH_ID) return { ok: false, error: "the primary mesh can't be left" };
       const meta = meshMeta.get(meshId);
-      if (!meta) return { ok: false, error: "no such mesh on this device" };
+      const pub = publicMeshes.get(meshId);
+      if (!meta && !pub) return { ok: false, error: "no such mesh on this device" };
       try {
         const rt = runtimes.get(meshId);
         if (rt) { await rt.stop(); runtimes.delete(meshId); }
+        // Public cells live in their OWN map (separate corestore + swarm + mDNS discovery), NOT in
+        // `runtimes` — so leaving one MUST stop its discovery + close its mesh here, or it keeps
+        // replicating and `listMeshes` (which enumerates publicMeshes) keeps showing it after the leave.
+        if (pub) { try { pub.discovery.stop(); } catch { /* already stopped */ } await pub.mesh.close().catch(() => undefined); publicMeshes.delete(meshId); }
         meshMeta.delete(meshId);
         saveMeshRecords();
-        audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "mesh-left" } });
+        audit.record({ event: "note", extra: { role: "mesh-services", meshId, phase: "mesh-left", public: !!pub } });
         return { ok: true };
       } catch (err) { return { ok: false, error: String(err) }; }
     },

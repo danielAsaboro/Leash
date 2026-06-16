@@ -81,6 +81,9 @@ export interface MeshControl {
   forgetPeer(deviceKey: string): Promise<{ ok: boolean; error?: string }>;
   /** Forget every peer whose heartbeat is stale (clears dead/stale connections). Returns how many. */
   forgetStale(): Promise<{ ok: boolean; count: number; error?: string }>;
+  /** SAFE reaper (page-reload trigger): soft-forget only superseded duplicate writer keys of the same
+   *  identity. Never tombstones/revokes an offline device. Returns how many duplicates were cleared. */
+  reconcileSuperseded(): Promise<{ ok: boolean; count: number; error?: string }>;
   /** Clear a peer's local tombstone (un-hide it here) + best-effort retract the unpair mesh-wide. */
   restorePeer(deviceKey: string): Promise<{ ok: boolean; error?: string }>;
   /** Membership snapshot: writability, primary mesh id, local tombstones, + every membership. */
@@ -653,6 +656,9 @@ export function createShim(deps: ShimDeps): http.Server {
       }
       if (method === "POST" && url === "/mesh/forget-stale") {
         return json(res, 200, await mesh.forgetStale());
+      }
+      if (method === "POST" && url === "/mesh/reconcile-superseded") {
+        return json(res, 200, await mesh.reconcileSuperseded());
       }
       if (method === "POST" && url === "/mesh/restore") {
         const r = await mesh.restorePeer(String((await readJsonBody(req))["deviceKey"] ?? ""));

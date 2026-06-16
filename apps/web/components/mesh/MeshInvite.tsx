@@ -15,11 +15,13 @@ import { fetchWithTimeout } from "../../lib/http.ts";
 const kicker = (color: string) => ({ color, fontFamily: "var(--font-mono)" as const });
 
 export function MeshInvite({ meshId, label }: { meshId: string; label: string }) {
+  const INVITE_TTL_S = 60; // a minted invite is single-use + short-lived; auto-dismiss the QR after this.
   const [invite, setInvite] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
 
   useEffect(() => {
     if (!invite) {
@@ -37,6 +39,27 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
     return () => {
       alive = false;
     };
+  }, [invite]);
+
+  // Auto-dismiss the QR at the TTL (a fresh invite is single-use; a stale QR on screen is misleading).
+  useEffect(() => {
+    if (!invite) return;
+    const id = setTimeout(() => {
+      setInvite(null);
+      setCopied(false);
+    }, INVITE_TTL_S * 1000);
+    return () => clearTimeout(id);
+  }, [invite]);
+
+  // Visible countdown (a 1s tick) that drives the timer label + bar.
+  useEffect(() => {
+    if (!invite) {
+      setSecondsLeft(0);
+      return;
+    }
+    setSecondsLeft(INVITE_TTL_S);
+    const id = setInterval(() => setSecondsLeft((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
   }, [invite]);
 
   const mint = async (): Promise<void> => {
@@ -87,8 +110,22 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
             <img src={qr} alt={`Invite QR for ${label}`} width={240} height={240} style={{ imageRendering: "pixelated" }} />
           )}
           <p className="kicker max-w-[320px] text-center" style={kicker("var(--color-faint)")}>
-            Scan from the Leash phone app — Mesh tab → &ldquo;Scan mesh invite QR&rdquo;. Single-use; expires shortly.
+            Scan from the Leash phone app — Mesh tab → &ldquo;Scan mesh invite QR&rdquo;. Single-use ·{" "}
+            <span style={{ color: secondsLeft <= 10 ? "var(--color-brick)" : "var(--color-muted)" }}>
+              expires in {secondsLeft}s
+            </span>
           </p>
+          {/* timer bar — drains over the TTL, then the QR auto-dismisses */}
+          <div className="h-0.5 w-full max-w-[240px] overflow-hidden" style={{ background: "var(--color-rule)" }}>
+            <div
+              style={{
+                height: "100%",
+                width: `${(secondsLeft / INVITE_TTL_S) * 100}%`,
+                background: secondsLeft <= 10 ? "var(--color-brick)" : "var(--color-sage-deep)",
+                transition: "width 1s linear",
+              }}
+            />
+          </div>
           <div className="flex items-center gap-2">
             <code
               title={invite}

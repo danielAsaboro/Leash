@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, PlusIcon, TicketIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, LogOutIcon, PlusIcon, TicketIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import type { MeshMembership, BorrowCounters } from "../lib/leash/hypha.ts";
@@ -205,6 +205,12 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
     if (!confirm(`Delete the mesh "${label}"? This device stops serving it and drops the membership. This can't be undone.`)) return;
     void run(() => meshPost("delete", { meshId }));
   };
+  // Leave a mesh this device JOINED (didn't create) — public cells or someone else's private mesh. The
+  // mesh lives on for its other members; the creator-gated delete is the founder's destructive path.
+  const leaveMesh = (meshId: string, label: string): void => {
+    if (!confirm(`Leave the mesh "${label}"? This device drops its membership; the mesh lives on for its other members.`)) return;
+    void run(() => meshPost("leave", { meshId }));
+  };
 
   // Peer + share state — polled (the detail is live: liveness, inflight, pull progress).
   const loadShare = useCallback(async () => {
@@ -230,7 +236,9 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
     }
   }, []);
   useEffect(() => {
-    void loadShare();
+    // Once on load: safe supersede reaper — soft-forgets only duplicate writer keys of the SAME identity
+    // (a device that re-paired after a store reset), never an offline-but-real device. Then refresh.
+    void meshPost("reconcile-superseded").catch(() => undefined).finally(() => void loadShare());
     const a = setInterval(() => void loadShare(), 6000);
     const b = setInterval(() => void pollDownloads(), 2500);
     return () => {
@@ -545,11 +553,15 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                   <IconButton title={`Invite a device to "${m.label}"`} color="var(--color-sage-deep)" disabled={busy} onClick={() => ensureExpanded(m.meshId)}>
                     <TicketIcon size={15} aria-hidden />
                   </IconButton>
-                  {m.creator && (
+                  {m.creator ? (
                     <IconButton title={`Delete "${m.label}" — you created this mesh`} danger disabled={busy} onClick={() => deleteMesh(m.meshId, m.label)}>
                       <Trash2Icon size={15} aria-hidden />
                     </IconButton>
-                  )}
+                  ) : m.meshId !== "primary" ? (
+                    <IconButton title={`Leave "${m.label}" — drop this device's membership`} danger disabled={busy} onClick={() => leaveMesh(m.meshId, m.label)}>
+                      <LogOutIcon size={15} aria-hidden />
+                    </IconButton>
+                  ) : null}
                 </div>
                 {open && (
                   <div className="border-t px-3 py-2.5" style={{ borderColor: "var(--color-rule)" }}>

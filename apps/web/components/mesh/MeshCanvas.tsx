@@ -92,7 +92,10 @@ function MeshCanvasInner({ meshId, meshLabel }: { meshId?: string; meshLabel?: s
         if (alive) setDown("Couldn't reach the Hypha daemon.");
       }
     };
-    void run();
+    // Once on load: safe supersede reaper (soft-forgets only duplicate writer keys of the SAME identity —
+    // a device that re-paired after a store reset), then refresh. Never touches an offline-but-real device
+    // (unlike forget-stale, which hard-disconnects anything >STALE_MS).
+    void fetch("/api/leash/hypha/mesh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "reconcile-superseded" }) }).catch(() => undefined).finally(() => void run());
     const id = setInterval(() => void run(), POLL_MS);
     return () => {
       alive = false;

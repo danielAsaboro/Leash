@@ -22,7 +22,10 @@ export type MeshTask = {
   deleted?: boolean;
 };
 
-export type MeshStatus = { joined: boolean; writable: boolean; peers: number; leader: string | null; deviceId: string | null };
+export type MeshStatus = { joined: boolean; writable: boolean; peers: number; leader: string | null; deviceId: string | null; meshLabel?: string; visibility?: "private" | "public" };
+
+/** One advertised mesh member (from the worklet's capability records). */
+export type MeshPeer = { deviceId: string; displayName: string; computeClass: string; isProvider: boolean; joinedAt: number; lastSeen: string };
 
 type Pending = { resolve: (v: any) => void; reject: (e: Error) => void };
 
@@ -113,9 +116,21 @@ export function initMesh(): Promise<void> {
 }
 
 /** Blind-pair into a desktop's mesh using its hex invite (minted by hypha /mesh/invite). */
-export async function joinMesh(invite: string): Promise<void> {
+export async function joinMesh(invite: string, label?: string): Promise<void> {
   await initMesh();
-  await call("join", { invite: invite.trim() }, 60_000);
+  await call("join", { invite: invite.trim(), ...(label ? { label } : {}) }, 60_000);
+}
+
+/** Leave the current mesh — drops this phone's membership and wipes its local store. */
+export async function leaveMesh(): Promise<void> {
+  await initMesh();
+  await call("leave", {}, 30_000);
+}
+
+/** The mesh's advertised members (for the expandable peer list). Empty when not joined. */
+export async function peersList(): Promise<MeshPeer[]> {
+  await initMesh();
+  return (await call("peers.list")).peers as MeshPeer[];
 }
 
 export async function listTasks(): Promise<MeshTask[]> {

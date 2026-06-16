@@ -196,3 +196,40 @@ export const Services = (p: IconProps) => (
     <Path d="M12 3.5v2.6M12 17.9v2.6M3.5 12h2.6M17.9 12h2.6M6 6l1.9 1.9M16.1 16.1 18 18M18 6l-1.9 1.9M7.9 16.1 6 18" />
   </Base>
 );
+
+// lucide "venetian-mask" — the incognito glyph (private mesh = on/colored; public = dimmed).
+export const Incognito = (p: IconProps) => (
+  <Base {...p}>
+    <Path d="M18 11c-1.5 0-2.5.5-3 2" />
+    <Path d="M4 6a2 2 0 0 0-2 2v4a5 5 0 0 0 5 5 8 8 0 0 1 5 2 8 8 0 0 1 5-2 5 5 0 0 0 5-5V8a2 2 0 0 0-2-2h-3a8 8 0 0 0-5 2 8 8 0 0 0-5-2z" />
+    <Path d="M6 11c1.5 0 2.5.5 3 2" />
+  </Base>
+);
+
+export const LogOut = (p: IconProps) => (
+  <Base {...p}>
+    <Path d="m16 17 5-5-5-5" />
+    <Path d="M21 12H9" />
+    <Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+  </Base>
+);
+
+export const ChevronDown = (p: IconProps) => (
+  <Base {...p}>
+    <Path d="m6 9 6 6 6-6" />
+  </Base>
+);
+
+export const ChevronRight = (p: IconProps) => (
+  <Base {...p}>
+    <Path d="m9 18 6-6-6-6" />
+  </Base>
+);
+
+export const Cpu = (p: IconProps) => (
+  <Base {...p}>
+    <Path d="M12 20v2M12 2v2M17 20v2M17 2v2M2 12h2M2 17h2M2 7h2M20 12h2M20 17h2M20 7h2M7 20v2M7 2v2" />
+    <Rect x={4} y={4} width={16} height={16} rx={2} />
+    <Rect x={8} y={8} width={8} height={8} rx={1} />
+  </Base>
+);

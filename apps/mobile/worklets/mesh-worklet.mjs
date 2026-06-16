@@ -28,6 +28,16 @@ import fs from "bare-fs";
 const IPC = BareKit.IPC;
 const out = (o) => IPC.write(b4a.from(JSON.stringify(o) + "\n"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let logPath = null; // set in init → a pullable file (devicectl copy from appDataContainer)
+const dbg = (...a) => {
+  const line = "[mesh-worklet] " + a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ") + "\n";
+  try { console.error(line.trim()); } catch { /* no console */ }
+  try { if (logPath) fs.writeFileSync(logPath, line, { flag: "a" }); } catch { /* fs not ready */ }
+};
+// CRITICAL: Bare aborts the whole process on an unhandled rejection (confirmed via crash report —
+// bare_runtime__on_unhandled_rejection → abort). Catch them so a stray rejection logs instead of crashing.
+try { process.on?.("uncaughtException", (e) => dbg("UNCAUGHT", e?.stack || String(e))); } catch { /* ignore */ }
+try { process.on?.("unhandledRejection", (e) => dbg("UNHANDLED_REJECTION", e?.stack || String(e))); } catch { /* ignore */ }
 
 // ── the CRDT (ported from packages/mesh/src/mesh-graph.ts) ──────────────────────────────────────
 function viewOpen(store) {
@@ -36,35 +46,44 @@ function viewOpen(store) {
 async function viewApply(nodes, view, host) {
   const bee = view;
   for (const { value } of nodes) {
-    if (value?.type === "add-writer") { await host.addWriter(b4a.from(value.key, "hex"), { indexer: true }); continue; }
-    if (value?.type === "node") { await bee.put("node:" + value.node.id, value.node); continue; }
-    if (value?.type === "capability") { await bee.put("cap:" + value.cap.deviceId, value.cap); continue; }
-    if (value?.type === "task") {
-      const existing = await bee.get("task:" + value.task.id);
-      if (!existing?.value || value.task.updatedAt >= existing.value.updatedAt) await bee.put("task:" + value.task.id, value.task);
-      continue;
-    }
-    if (value?.type === "task-delete") {
-      const existing = await bee.get("task:" + value.id);
-      if (!existing?.value || value.ts >= existing.value.updatedAt) {
-        const base = existing?.value ?? { id: value.id, title: "", status: "dropped", priority: "normal", tags: [], source: "", createdAt: value.ts };
-        await bee.put("task:" + value.id, { ...base, id: value.id, deleted: true, updatedAt: value.ts });
+    // Per-entry try/catch: an apply error must NOT reject (Bare aborts the whole app on an unhandled
+    // rejection — confirmed via crash report). Log + skip the bad entry instead.
+    try {
+      if (value?.type === "add-writer") { dbg("apply: add-writer"); await host.addWriter(b4a.from(value.key, "hex"), { indexer: true }); continue; }
+      if (value?.type === "node") { await bee.put("node:" + value.node.id, value.node); continue; }
+      if (value?.type === "capability") { await bee.put("cap:" + value.cap.deviceId, value.cap); continue; }
+      if (value?.type === "task") {
+        const existing = await bee.get("task:" + value.task.id);
+        if (!existing?.value || value.task.updatedAt >= existing.value.updatedAt) await bee.put("task:" + value.task.id, value.task);
+        continue;
       }
-      continue;
+      if (value?.type === "task-delete") {
+        const existing = await bee.get("task:" + value.id);
+        if (!existing?.value || value.ts >= existing.value.updatedAt) {
+          const base = existing?.value ?? { id: value.id, title: "", status: "dropped", priority: "normal", tags: [], source: "", createdAt: value.ts };
+          await bee.put("task:" + value.id, { ...base, id: value.id, deleted: true, updatedAt: value.ts });
+        }
+        continue;
+      }
+    } catch (e) {
+      dbg("apply: ENTRY ERROR type=" + (value && value.type) + " " + (e?.message || String(e)));
     }
   }
 }
 
 // ── worklet state ────────────────────────────────────────────────────────────────────────────────
-let store = null;       // root corestore (replicated over the swarm)
-let meshStore = null;   // the CURRENT mesh's namespace within `store` (one per join — clean re-join)
+let store = null;       // root corestore — the joiner's autobase opens on THIS root store, the SAME
+                        // namespace as the desktop host's Primary mesh (mesh-host.ts storeFor() = root).
+                        // A sub-namespace derives the name-based view cores under a different prefix that
+                        // never reconciles with the replicated host cores → null.download. Replicated
+                        // wholesale over the swarm (store.replicate covers everything).
 let base = null;
 let swarm = null;
 let storeDir = null;
 let displayName = "iPhone";
 let joinedAt = 0;
-let gen = 0;            // join generation → namespace "mesh-<gen>"; bumped on each join so a new mesh
-                        // never collides with a previous base's view/writer (the phone is single-mesh)
+let meshLabel = "Private mesh"; // human label shown in the mobile UI; persisted in meta on join
+let visibility = "private";     // blind-pairing into a desktop mesh is always private (no public cells on mobile yet)
 let hbTimer = null;
 let changeTimer = null;
 let lastTaskSig = "";
@@ -77,22 +96,69 @@ function writeMeta(m) {
   try { fs.writeFileSync(metaPath(), b4a.from(JSON.stringify(m))); } catch { /* best-effort */ }
 }
 
-/** Stand the mesh up on `base`: join the swarm, start the heartbeat, watch the view for task changes. */
+// STABLE per-device identity, advertised as `consumerPublicKey` so the desktop's supersede reaper
+// (mesh-host: supersededDeviceIds) recognizes every re-join as ONE device and forgets the stale writer
+// keys — otherwise each re-join (which wipes the store → a fresh random WRITER key = a new `deviceId`)
+// leaves a dead ghost in the grow-only membership CRDT (the "iPhone × 3" bug). Persisted as a SIBLING of
+// storeDir so it survives `resetForJoin`'s wipe (which only removes the storeDir itself). Seeded once from
+// the first writer key we ever hold; constant thereafter.
+let deviceIdentity = "";
+const identityPath = () => storeDir + ".identity";
+function ensureIdentity() {
+  if (deviceIdentity) return deviceIdentity;
+  try {
+    const v = b4a.toString(fs.readFileSync(identityPath())).trim();
+    if (/^[0-9a-f]{64}$/i.test(v)) { deviceIdentity = v; return v; }
+  } catch { /* none persisted yet */ }
+  if (base?.local?.key) {
+    deviceIdentity = b4a.toString(base.local.key, "hex");
+    try { fs.writeFileSync(identityPath(), b4a.from(deviceIdentity)); } catch { /* best-effort */ }
+  }
+  return deviceIdentity;
+}
+
+/** A Hyperswarm wired to replicate the ROOT store on every connection (covers all namespaces). */
+function makeSwarm() {
+  const s = new Hyperswarm();
+  s.on("connection", (conn) => {
+    dbg("swarm: connection");
+    try { conn.on("error", () => {}); store.replicate(conn); } catch (e) { dbg("replicate err " + (e?.message || String(e))); }
+  });
+  return s;
+}
+
+/** Stand the mesh up on an already-created `swarm` + `base`: join the topic, heartbeat, watch the view.
+ *  The swarm must already exist (a fresh one for recovery, or the REUSED pairing swarm for a join — a
+ *  joiner base needs a live connection to download the host's cores, so we never tear that down). */
+async function goOnline() {
+  // An autobase 'error' must be observed or it becomes an unhandled rejection → Bare abort.
+  try { base.on("error", (e) => dbg("base ERROR " + (e?.message || String(e)))); } catch { /* ignore */ }
+  dbg("goOnline: join discoveryKey");
+  swarm.join(base.discoveryKey);
+  dbg("goOnline: flush…");
+  await swarm.flush().catch((e) => dbg("flush err " + (e?.message || String(e))));
+  dbg("goOnline: advertise…");
+  await advertise().catch((e) => dbg("advertise err " + (e?.message || String(e))));
+  hbTimer = setInterval(() => { advertise().catch((e) => dbg("hb advertise err " + (e?.message || String(e)))); }, 15_000);
+  changeTimer = setInterval(() => { pollTasksChanged().catch((e) => dbg("poll err " + (e?.message || String(e)))); }, 1500);
+  dbg("goOnline: done");
+}
+
+/** Recover/found path: create a fresh swarm, then go online. */
 async function bringOnline() {
   if (swarm) return;
-  swarm = new Hyperswarm();
-  swarm.on("connection", (conn) => { conn.on("error", () => {}); store.replicate(conn); });
-  swarm.join(base.discoveryKey);
-  await swarm.flush().catch(() => {});
-  await advertise();
-  hbTimer = setInterval(() => void advertise(), 15_000);
-  // Poll the linearized view; when the non-deleted task set changes, nudge RN to re-list.
-  changeTimer = setInterval(() => void pollTasksChanged(), 1500);
+  swarm = makeSwarm();
+  await goOnline();
 }
 
 async function advertise() {
   if (!base?.writable) return;
-  const cap = { deviceId: base.local ? b4a.toString(base.local.key, "hex") : "", displayName, computeClass: "phone", isProvider: false, joinedAt, lastSeen: new Date().toISOString() };
+  const cap = {
+    deviceId: base.local ? b4a.toString(base.local.key, "hex") : "",
+    consumerPublicKey: ensureIdentity(),           // STABLE across re-joins → supersede reaps stale writer keys
+    meshId: base.key ? b4a.toString(base.key, "hex") : "", // groups this device's caps per-mesh for supersession
+    displayName, computeClass: "phone", isProvider: false, joinedAt, lastSeen: new Date().toISOString(),
+  };
   await base.append({ type: "capability", cap }).catch(() => {});
 }
 
@@ -136,50 +202,72 @@ async function leader(staleMs = 30_000) {
 
 // ── lifecycle ─────────────────────────────────────────────────────────────────────────────────
 async function openRecovered() {
-  // A previously-paired namespace recovers its writable base via the local core's referrer (no key).
-  base = new Autobase(meshStore, null, { valueEncoding: "json", open: viewOpen, apply: viewApply });
+  // A previously-paired root store recovers its writable base via the local core's referrer (no key) —
+  // same as the desktop Primary mesh + the known-good build.
+  base = new Autobase(store, null, { valueEncoding: "json", open: viewOpen, apply: viewApply });
   await base.ready();
   await bringOnline();
 }
 
-/** Tear the current mesh down (close base + swarm + timers) so a fresh join can't collide with it. */
+/** Tear the current mesh down (close base + swarm + timers) and WIPE the store so a fresh join opens
+ *  on an empty root store. The joiner's autobase MUST live in the root namespace (= the desktop host),
+ *  so we can't isolate re-joins with a sub-namespace; instead, single-mesh phone → destroy the old
+ *  store on a new join. (Wiping is acceptable: the phone holds one mesh at a time.) */
 async function resetForJoin() {
+  dbg("reset: clearing timers");
   if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
   if (changeTimer) { clearInterval(changeTimer); changeTimer = null; }
-  if (swarm) { try { await swarm.destroy(); } catch { /* ignore */ } swarm = null; }
-  if (base) { try { await base.close(); } catch { /* ignore */ } base = null; }
+  if (swarm) { dbg("reset: destroying swarm"); try { await swarm.destroy(); } catch (e) { dbg("reset: swarm destroy err", String(e)); } swarm = null; }
+  if (base) { dbg("reset: closing base"); try { await base.close(); } catch (e) { dbg("reset: base close err", String(e)); } base = null; }
   lastTaskSig = "";
-  gen += 1;
-  meshStore = store.namespace("mesh-" + gen); // a clean namespace for the new mesh
+  // Wipe + re-open a fresh root store. rmSync (NOT rmdirSync — bare-fs@4.7.1's rmdirSync takes no
+  // options) with { recursive, force }. logPath is a sibling of storeDir, so the log survives.
+  if (store) { dbg("reset: closing store"); try { await store.close(); } catch (e) { dbg("reset: store close err", String(e)); } store = null; }
+  try { fs.rmSync(storeDir, { recursive: true, force: true }); } catch (e) { dbg("reset: rm err", String(e)); }
+  store = new Corestore(storeDir, { allowBackup: true });
+  await store.ready();
+  dbg("reset: done, fresh root store");
 }
 
-async function pair(invite) {
-  // Joining a mesh REPLACES any current one (single-mesh phone): reset to a fresh namespace first.
+async function pair(invite, label) {
+  // Joining a mesh REPLACES any current one (single-mesh phone): wipe to a fresh root store first.
   await resetForJoin();
+  meshLabel = (typeof label === "string" && label.trim()) ? label.trim() : "Private mesh";
+  visibility = "private"; // blind-pairing == a private mesh
   // Blind-pairing candidate flow (mesh-graph.ts MeshGraph.pair, inlined). The invite is the capability;
   // the host promotes us to a writer (its add-writer entry replicates in shortly after).
-  const pairSwarm = new Hyperswarm();
-  pairSwarm.on("connection", (conn) => { conn.on("error", () => {}); store.replicate(conn); });
+  dbg("pair: new swarm");
+  const pairSwarm = makeSwarm();
   const pairing = new BlindPairing(pairSwarm);
-  const localCore = Autobase.getLocalCore(meshStore);
+  dbg("pair: getLocalCore");
+  const localCore = Autobase.getLocalCore(store);
   await localCore.ready();
   const userData = b4a.from(localCore.key);
   await localCore.close();
+  dbg("pair: addCandidate, awaiting host confirm…");
   const candidate = pairing.addCandidate({ invite: b4a.from(invite, "hex"), userData, onadd: () => {} });
   const result = await candidate.pairing; // resolves when the host confirms (rejects on deny)
+  dbg("pair: confirmed by host");
   await candidate.close();
   await pairing.close();
-  await pairSwarm.destroy().catch(() => {});
-
-  base = new Autobase(meshStore, result.key, { valueEncoding: "json", open: viewOpen, apply: viewApply });
+  // DO NOT destroy pairSwarm — REUSE it as the mesh swarm. A bootstrapped (joiner) base needs a live
+  // connection to download the host's cores; tearing the swarm down here caused the base to throw
+  // "Cannot read properties of null (reading 'download')" and the join silently died.
+  dbg("pair: opening autobase on host key");
+  base = new Autobase(store, result.key, { valueEncoding: "json", open: viewOpen, apply: viewApply });
   await base.ready();
   if (!joinedAt) joinedAt = Date.now();
-  writeMeta({ joined: true, joinedAt, gen });
-  await bringOnline();
+  writeMeta({ joined: true, joinedAt, meshLabel, visibility });
+  swarm = pairSwarm; // reuse the live pairing connection
+  dbg("pair: goOnline");
+  await goOnline();
+  dbg("pair: waiting to become writable…");
   // Poll until the host's add-writer replicates and we become writable (bounded).
   const t0 = Date.now();
-  while (!base.writable && Date.now() - t0 < 30_000) { await base.update(); if (base.writable) break; await sleep(500); }
-  await advertise();
+  while (!base.writable && Date.now() - t0 < 30_000) { await base.update().catch(() => {}); if (base.writable) break; await sleep(500); }
+  dbg("pair: writable=" + base.writable);
+  await advertise().catch((e) => dbg("final advertise err " + (e?.message || String(e))));
+  dbg("pair: done");
 }
 
 // ── IPC dispatch ────────────────────────────────────────────────────────────────────────────────
@@ -190,20 +278,40 @@ async function handle(req) {
       case "init": {
         storeDir = req.storeDir;
         if (req.displayName) displayName = req.displayName;
+        logPath = storeDir + ".worklet.log";
+        try { fs.writeFileSync(logPath, "=== worklet init ===\n"); } catch { /* fs not ready */ }
+        dbg("init: storeDir=" + storeDir);
         store = new Corestore(storeDir, { allowBackup: true });
         await store.ready();
         const meta = readMeta();
         joinedAt = typeof meta.joinedAt === "number" ? meta.joinedAt : 0;
-        gen = typeof meta.gen === "number" ? meta.gen : 0;
-        meshStore = store.namespace("mesh-" + gen);
+        if (typeof meta.meshLabel === "string" && meta.meshLabel) meshLabel = meta.meshLabel;
+        if (meta.visibility === "public" || meta.visibility === "private") visibility = meta.visibility;
+        dbg("init: meta.joined=" + !!meta.joined);
         if (meta.joined) await openRecovered(); // mesh-less until the first join otherwise
+        dbg("init: done joined=" + !!base);
         return reply({ joined: !!base });
       }
       case "join": {
+        dbg("join: cmd received");
         if (!store) throw new Error("call init before join");
         if (!req.invite) throw new Error("an invite is required");
-        await pair(req.invite);
+        await pair(req.invite, req.label);
         return reply({ joined: true, writable: !!base?.writable });
+      }
+      case "leave": {
+        // Drop this phone's membership: tear the mesh down + wipe the store, then mark not-joined so a
+        // relaunch comes up mesh-less. The desktop mesh lives on for its other members.
+        dbg("leave: cmd received");
+        await resetForJoin(); // closes base+swarm+timers, wipes + re-opens an empty root store
+        base = null;          // resetForJoin already nulls it, but be explicit: we are NOT re-joining
+        meshLabel = "Private mesh";
+        visibility = "private";
+        joinedAt = 0;
+        lastTaskSig = "";
+        writeMeta({ joined: false });
+        dbg("leave: done");
+        return reply({ joined: false });
       }
       case "tasks.list":
         // Returns tombstones too (the RN side LWW-merges them into its local cache).
@@ -229,7 +337,14 @@ async function handle(req) {
       }
       case "status": {
         const deviceId = base?.local ? b4a.toString(base.local.key, "hex") : null;
-        return reply({ joined: !!base, writable: !!base?.writable, peers: swarm ? swarm.connections.size : 0, leader: base ? await leader() : null, deviceId });
+        return reply({ joined: !!base, writable: !!base?.writable, peers: swarm ? swarm.connections.size : 0, leader: base ? await leader() : null, deviceId, meshLabel, visibility });
+      }
+      case "peers.list": {
+        // The mesh's advertised members (capabilities), newest-seen first — for the expandable peer list.
+        if (!base) return reply({ peers: [] });
+        const caps = await readCaps().catch(() => []);
+        caps.sort((a, b) => (Date.parse(b.lastSeen || "") || 0) - (Date.parse(a.lastSeen || "") || 0));
+        return reply({ peers: caps });
       }
       default:
         throw new Error("unknown cmd: " + req.cmd);

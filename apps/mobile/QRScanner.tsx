@@ -62,10 +62,15 @@ export function QRScanner({
   /** Mesh-membership mode: scans the blind-pairing invite the web's MeshInvite QR shows. */
   onInvite?: (invite: string) => void;
 }) {
+  const SCAN_TTL_S = 60; // don't hold the camera open forever — auto-close if nothing is scanned in this window.
   const [permission, requestPermission] = useCameraPermissions();
   const [bad, setBad] = useState(false);
   const [done, setDone] = useState<{ name?: string; mesh?: boolean } | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const handled = useRef(false);
+  // Latest onClose in a ref so the auto-close timer never resets when the parent re-creates the callback.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // On open: reset the one-shot guard and proactively ask for the camera if we can.
   useEffect(() => {
@@ -75,6 +80,21 @@ export function QRScanner({
     if (permission && !permission.granted && permission.canAskAgain) void requestPermission();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [permission?.granted, permission?.canAskAgain]);
+
+  // Auto-close the scanner once the camera is live and the window elapses with no scan (handled stays false).
+  useEffect(() => {
+    if (!permission?.granted) return;
+    const id = setTimeout(() => { if (!handled.current) onCloseRef.current(); }, SCAN_TTL_S * 1000);
+    return () => clearTimeout(id);
+  }, [permission?.granted]);
+
+  // Visible countdown (1s tick) for the timer label in the top bar.
+  useEffect(() => {
+    if (!permission?.granted) { setSecondsLeft(0); return; }
+    setSecondsLeft(SCAN_TTL_S);
+    const id = setInterval(() => setSecondsLeft((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(id);
+  }, [permission?.granted]);
 
   function handleScan(data: string) {
     if (handled.current) return;
@@ -145,9 +165,14 @@ export function QRScanner({
             <View style={styles.overlay} pointerEvents="box-none">
               <View style={styles.topbar}>
                 <Text style={styles.scanKicker}>{onInvite ? "SCAN MESH INVITE" : "SCAN TO PAIR"}</Text>
-                <Pressable onPress={onClose} hitSlop={12}>
-                  <Text style={styles.close}>✕</Text>
-                </Pressable>
+                <View style={styles.topRight}>
+                  {!done && secondsLeft > 0 && (
+                    <Text style={[styles.countdown, secondsLeft <= 10 && styles.countdownLow]}>{secondsLeft}s</Text>
+                  )}
+                  <Pressable onPress={onClose} hitSlop={12}>
+                    <Text style={styles.close}>✕</Text>
+                  </Pressable>
+                </View>
               </View>
               <View style={styles.reticleWrap} pointerEvents="none">
                 <View style={styles.reticle}>
@@ -198,6 +223,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
   },
   scanKicker: { fontFamily: F.monoMed, fontSize: 11, color: C.cream, letterSpacing: TRACKING_LABEL },
+  topRight: { flexDirection: "row", alignItems: "center", gap: 16 },
+  countdown: { fontFamily: F.monoMed, fontSize: 12, color: "rgba(247,245,237,0.7)", letterSpacing: 0.5 },
+  countdownLow: { color: C.glow },
   close: { fontFamily: F.body, fontSize: 26, color: C.cream },
   reticleWrap: { alignItems: "center", justifyContent: "center" },
   reticle: { width: RET, height: RET },
