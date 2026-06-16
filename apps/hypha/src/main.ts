@@ -108,6 +108,9 @@ interface MeshRecord {
    *  as the bootstrapKey on reopen so a restart RE-BINDS to the founder's mesh instead of founding a
    *  fresh fork. Absent for meshes this device founded (they recover their own autobase with no key). */
   bootstrapKey?: string;
+  /** Epoch ms this device first brought the mesh online — its leader seniority (MeshGraph.leader).
+   *  Set once on first online, persisted, and re-advertised in every heartbeat cap. */
+  joinedAt?: number;
 }
 
 const audit = new AuditLog("hypha", LOG_DIR);
@@ -456,9 +459,12 @@ async function runDaemon(): Promise<void> {
 
   /** Every mesh-online path goes through here: start per-mesh services + wire the unpair reconcile. */
   const bringMeshOnline = async (meshId: string, g: MeshGraph, meta: MeshRecord): Promise<MeshRuntime> => {
-    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
+    // Leader seniority: stamp the first-online epoch once, persist it, and advertise it every heartbeat.
+    if (typeof meta.joinedAt !== "number") meta.joinedAt = Date.now();
+    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, joinedAt: meta.joinedAt, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
     runtimes.set(meshId, m);
     meshMeta.set(meshId, meta);
+    saveMeshRecords(); // persist joinedAt (and the membership) on every online path
     g.onChange(() => { void reconcileUnpairs(m); void reconcileSuperseded(m); });
     void reconcileUnpairs(m);
     void reconcileSuperseded(m);

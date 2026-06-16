@@ -57,6 +57,9 @@ export interface StartMeshServicesDeps {
   shareModels?: () => boolean;
   /** Per-alias sharing — serve aliases NOT to advertise to the mesh. Empty/absent = advertise all. */
   unsharedAliases?: () => Set<string>;
+  /** Epoch ms this device first brought this mesh online — its leader seniority (MeshGraph.leader),
+   *  persisted per mesh and re-sent in every heartbeat cap. Absent → no seniority advertised. */
+  joinedAt?: number;
 }
 
 /**
@@ -106,6 +109,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
       meshId,
       roles: ["compute-provider", "compute-consumer"],
       shareModels: deps.shareModels ? deps.shareModels() : true,
+      ...(deps.joinedAt !== undefined ? { joinedAt: deps.joinedAt } : {}),
       ...(payouts[0] ? { settlement: payouts[0] } : {}),
       ...(payouts.length > 0 ? { settlements: payouts } : {}),
       ...(identityProof ? { identityProof } : {}),
