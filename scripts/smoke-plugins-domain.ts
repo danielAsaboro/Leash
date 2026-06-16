@@ -70,7 +70,7 @@ await setPluginEnabled("law-assistant", false);
 const after = await listSkills();
 check("disabled law: its skill no longer enabled", !after.some((s) => s.slug === "law-assistant:contract-review" && s.enabled));
 check("disabled law: medicine untouched, still enabled", after.some((s) => s.slug === "medicine-assistant:symptom-triage" && s.enabled));
-check("disabled law: its agent drops out of listAgents", !(await listAgents()).some((a) => a.slug.startsWith("law-assistant")));
+check("disabled law: its agent no longer in the ENABLED set", !(await listAgents()).filter((a) => a.enabled).some((a) => a.slug.startsWith("law-assistant")));
 
 await rm(DATA, { recursive: true, force: true });
 console.log(failures === 0 ? "\nALL PASS ✅ (harness wiring proven; activation-decision + inference need the live serve)" : `\n${failures} FAILED ❌`);

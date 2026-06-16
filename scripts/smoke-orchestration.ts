@@ -28,6 +28,7 @@ import { createQvac } from "@qvac/ai-sdk-provider";
 const DATA = await mkdtemp(join(tmpdir(), "leash-orch-"));
 process.env["LEASH_DATA_DIR"] = DATA;
 const qvac = createQvac({ baseURL: process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1", apiKey: "qvac" });
+const CHAT = process.env["EVAL_CHAT_MODEL"] ?? "qwen3-4b"; // override to match the loaded serve model
 
 const { saveAgent, listAgents } = await import("@mycelium/leash-core/agents-store");
 const { saveSkill, getSkill } = await import("@mycelium/leash-core/skills-store");
@@ -78,7 +79,7 @@ function buildSubagentTool(agent: AgentT, reg: ToolSet): ToolSet {
         const loaded = (await Promise.all(agent.skills.map((s) => getSkill(s)))).filter((s) => s && s.enabled);
         const skillCtx = loaded.length ? "\n\n--- Preloaded skills (follow them) ---\n" + loaded.map((s) => `### ${s!.name}\n${s!.body}`).join("\n\n") : "";
         const sub = new ToolLoopAgent({
-          model: qvac(agent.model || "qwen3-4b"),
+          model: qvac(agent.model || CHAT),
           instructions: (agent.body || `You are the "${agent.name}" agent.`) + skillCtx,
           temperature: 0.6,
           topP: 0.95,
@@ -139,7 +140,7 @@ check("subagent gave a domain answer (warfarin)", /warfarin/i.test(text));
 console.log("\n[Part B] main agent delegating to the subagent…");
 drugToolCalls = 0;
 const main = await generateText({
-  model: qvac("qwen3-4b"),
+  model: qvac(CHAT),
   system: "You are a clinical safety assistant. You have an interaction-checker sub-agent tool. When asked whether medications are safe together, DELEGATE by calling that agent tool, then summarize its result.",
   messages: [{ role: "user", content: "Is it safe to take ibuprofen with warfarin? Use your interaction-checker agent to assess, then give me the bottom line." }],
   tools: { ...registry, ...agentTools },

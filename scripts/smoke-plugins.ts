@@ -54,7 +54,7 @@ check("re-install throws code:exists", existsThrown);
 // ── Quarantine UX: disabled plugin contributes ZERO to a turn ──────────────────
 check("disabled: pluginSkills all enabled=false", (await pluginSkills()).every((s) => !s.enabled));
 check("disabled: listSkills shows greet but disabled", (await listSkills()).some((s) => s.slug === "demo-pack:greet" && !s.enabled));
-check("disabled: listAgents() empty (only enabled agents)", (await listAgents()).length === 0);
+check("disabled: no ENABLED agents (chat route filters .enabled)", (await listAgents()).filter((a) => a.enabled).length === 0);
 check("disabled: getSkill stamps enabled=false", (await getSkill("demo-pack:greet"))?.enabled === false);
 
 // ── Enable → components surface ────────────────────────────────────────────────
