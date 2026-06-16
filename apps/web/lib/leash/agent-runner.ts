@@ -21,6 +21,7 @@ import { tool, generateText, stepCountIs, type ToolSet } from "ai";
 import { z } from "zod";
 import { chatModel } from "./provider.ts";
 import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
+import { getSkill } from "./skills-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { Agent } from "./agents-store.ts";
 import type { LeashSource } from "./tools.ts";
@@ -49,6 +50,14 @@ async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: Too
   return { tools, names };
 }
 
+/** Preload the full body of each `skills:` entry into the sub-agent's system prompt (enabled skills only). */
+async function preloadSkills(agent: Agent): Promise<string> {
+  if (!agent.skills.length) return "";
+  const loaded = (await Promise.all(agent.skills.map((s) => getSkill(s)))).filter((s) => s && s.enabled);
+  if (!loaded.length) return "";
+  return "\n\n--- Preloaded skills (follow their instructions) ---\n" + loaded.map((s) => `### Skill: ${s!.name}\n${s!.body}`).join("\n\n");
+}
+
 /** Build one callable sub-agent tool. The sub-agent runs the agent's body over its restricted toolset. */
 function buildOne(agent: Agent, registry: ToolSet): ToolSet {
   return {
@@ -61,11 +70,12 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
       }),
       execute: async ({ task }) => {
         const { tools, names } = await agentTools(agent, registry);
-        loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${names.length} tool(s))`);
+        const skillCtx = await preloadSkills(agent);
+        loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${names.length} tool(s), ${agent.skills.length} preloaded skill(s))`);
         try {
           const r = await generateText({
             model: chatModel(`agent:${agent.slug}`, agent.model || undefined),
-            system: agent.body || `You are the "${agent.name}" agent. Carry out the task and return a concise result.`,
+            system: (agent.body || `You are the "${agent.name}" agent. Carry out the task and return a concise result.`) + skillCtx,
             messages: [{ role: "user" as const, content: task }],
             temperature: 0.6,
             topP: 0.95,

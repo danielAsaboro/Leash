@@ -179,7 +179,7 @@ export async function POST(req: Request): Promise<Response> {
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
   // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
-  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools(await listAgents(), baseTools), ...planTool };
+  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool };
 
   // Rebuild the working history from the store + the incoming trigger.
   const record = await loadRecord(id);

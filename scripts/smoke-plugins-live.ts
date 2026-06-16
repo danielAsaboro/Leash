@@ -86,44 +86,57 @@ check("law query: contract-review scores highest AND clears the activation floor
 check("medical query: symptom-triage scores highest AND clears the floor", med_med > med_law && med_med >= FLOOR);
 check("off-domain query: neither specialist clears the floor (no false activation)", off_law < FLOOR && off_med < FLOOR);
 
-// ── (2) Specialist inference: the law skill body as system prompt ───────────────
-const system = `A skill is ACTIVE for this turn. Follow its instructions to the letter.\n\nSkill "contract-review" is ACTIVE:\n\n${law.body}`;
-const userMsg = "Review this clause: \"The Vendor shall not be liable for any damages whatsoever arising out of this Agreement, and the Client waives all claims, regardless of cause.\"";
-// This serve build only supports STREAMING chat (non-stream 500s) — same path the web app uses.
-// DELIBERATELY no AbortSignal: aborting a decode mid-flight WEDGES the qvac serve (CLAUDE.md rule).
-// We let the stream run to completion; max_tokens keeps it bounded.
-// REQUIRED: a non-empty `tools` array. qwen3-4b is served with tools:true/toolsMode:dynamic
-// ("tools_compact"), which REJECTS a toolless chat request ("requires non-empty tools for this
-// prompt shape") — the documented toolless-hang. The web app always sends ≥1 tool; so must we.
+// One streaming chat completion → cleaned answer. STREAMING only (non-stream 500s on this build,
+// same path the web app uses). DELIBERATELY no AbortSignal (a mid-decode abort wedges the serve).
+// REQUIRED: a non-empty `tools` array — qwen3-4b is served tools:true/toolsMode:dynamic
+// ("tools_compact"), which REJECTS a toolless request ("requires non-empty tools for this prompt
+// shape"). The web app always sends ≥1 tool; so must we.
 const tools = [{ type: "function", function: { name: "noop", description: "unused placeholder (the serve's tools_compact config requires a non-empty tools array)", parameters: { type: "object", properties: {} } } }];
-const r = await fetch(`${SERVE}/chat/completions`, {
-  method: "POST",
-  headers: { "content-type": "application/json", authorization: "Bearer qvac" },
-  body: JSON.stringify({ model: "qwen3-4b", messages: [{ role: "system", content: system }, { role: "user", content: userMsg }], temperature: 0.6, top_p: 0.95, max_tokens: 1000, stream: true, tools }),
-});
-if (!r.ok || !r.body) throw new Error(`chat ${r.status}: ${await r.text()}`);
-let raw = "";
-const decoder = new TextDecoder();
-for await (const chunk of r.body as unknown as AsyncIterable<Uint8Array>) {
-  for (const line of decoder.decode(chunk, { stream: true }).split("\n")) {
-    const t = line.trim();
-    if (!t.startsWith("data:")) continue;
-    const data = t.slice(5).trim();
-    if (data === "[DONE]") continue;
-    try {
-      raw += (JSON.parse(data) as { choices?: { delta?: { content?: string } }[] }).choices?.[0]?.delta?.content ?? "";
-    } catch {
-      /* keepalive / non-JSON line */
+async function streamChat(system: string, user: string, maxTokens: number): Promise<string> {
+  const r = await fetch(`${SERVE}/chat/completions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer qvac" },
+    body: JSON.stringify({ model: "qwen3-4b", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: 0.6, top_p: 0.95, max_tokens: maxTokens, stream: true, tools }),
+  });
+  if (!r.ok || !r.body) throw new Error(`chat ${r.status}: ${await r.text()}`);
+  let raw = "";
+  const dec = new TextDecoder();
+  for await (const chunk of r.body as unknown as AsyncIterable<Uint8Array>) {
+    for (const line of dec.decode(chunk, { stream: true }).split("\n")) {
+      const t = line.trim();
+      if (!t.startsWith("data:")) continue;
+      const d = t.slice(5).trim();
+      if (d === "[DONE]") continue;
+      try {
+        raw += (JSON.parse(d) as { choices?: { delta?: { content?: string } }[] }).choices?.[0]?.delta?.content ?? "";
+      } catch {
+        /* keepalive / non-JSON line */
+      }
     }
   }
+  return raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 }
-const answer = raw.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
-console.log("─── on-device specialist answer (qwen3-4b + law skill body) ───");
-console.log(answer.slice(0, 1100));
-console.log("───────────────────────────────────────────────────────────────\n");
-const lc = answer.toLowerCase();
-check("answer engages the clause as a contracts reviewer (liability/risk/one-sided/fix)", /liabilit|indemn|one-sided|unfavor|risk|waiv|unenforce|clause/.test(lc));
-check("answer is substantive (not a refusal/empty)", answer.length > 200);
 
-console.log(failures === 0 ? "\nLIVE PROOF PASS ✅ — activation routes to the right specialist + on-device specialist answer" : `\n${failures} FAILED ❌`);
+// ── (2) Specialist SKILL inference: the law plugin's contract-review skill body as system prompt ──
+const skillAnswer = await streamChat(
+  `A skill is ACTIVE for this turn. Follow its instructions to the letter.\n\nSkill "contract-review" is ACTIVE:\n\n${law.body}`,
+  'Review this clause: "The Vendor shall not be liable for any damages whatsoever arising out of this Agreement, and the Client waives all claims, regardless of cause."',
+  1000,
+);
+console.log("─── on-device SKILL answer (qwen3-4b + law contract-review skill) ───");
+console.log(skillAnswer.slice(0, 900) + "\n…\n");
+check("skill answer engages the clause as a contracts reviewer", /liabilit|indemn|one-sided|unfavor|risk|waiv|unenforce|clause/.test(skillAnswer.toLowerCase()));
+check("skill answer is substantive (not a refusal/empty)", skillAnswer.length > 200);
+
+// ── (3) SUBAGENT inference: a plugin AGENT run as a focused sub-agent (the agent-runner path) ──
+// agent-runner.buildAgentTools makes ONE tool per agent whose execute() runs generateText with the
+// agent's .md body as the system prompt. We exercise that exact shape with the real agent body.
+const agentBody = splitFrontmatter(await readFile(join(EXAMPLES, "medicine-pack", "agents", "interaction-checker.md"), "utf8"))!.body;
+const agentAnswer = await streamChat(agentBody, "Check these medications for interactions: ibuprofen and warfarin.", 800);
+console.log("─── on-device SUBAGENT answer (qwen3-4b + medicine interaction-checker AGENT) ───");
+console.log(agentAnswer.slice(0, 900) + "\n…\n");
+check("subagent runs + flags the ibuprofen↔warfarin interaction by severity", /warfarin/i.test(agentAnswer) && /(major|moderate|severe|contraindicat|bleed|interact)/i.test(agentAnswer));
+check("subagent answer is substantive", agentAnswer.length > 150);
+
+console.log(failures === 0 ? "\nLIVE PROOF PASS ✅ — activation routing + on-device SKILL answer + on-device SUBAGENT answer" : `\n${failures} FAILED ❌`);
 process.exit(failures === 0 ? 0 : 1);

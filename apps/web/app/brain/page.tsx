@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { listSkills } from "../../lib/leash/skills-store.ts";
 import { listPlugins } from "../../lib/leash/plugins-store.ts";
+import { listAgents } from "../../lib/leash/agents-store.ts";
 import { listNotes, activityPage, indexStats } from "../../lib/leash/memory-admin.ts";
 import { listMemories } from "../../lib/leash/memories-store.ts";
 import { modelsInventory, catalogWithFit, listDownloads } from "../../lib/leash/models.ts";
@@ -23,6 +24,7 @@ import { buildSeries } from "../../lib/leash/evolve.ts";
 import { GrowthChart } from "../../components/GrowthChart.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
 import { PluginsPanel } from "../../components/PluginsPanel.tsx";
+import { AgentsPanel } from "../../components/AgentsPanel.tsx";
 import { ToolsPanel, type ToolRow } from "../../components/ToolsPanel.tsx";
 import { PromptsPanel } from "../../components/PromptsPanel.tsx";
 import { MemoryLanding } from "../../components/MemoryLanding.tsx";
@@ -34,7 +36,7 @@ import { getConstitution } from "../../lib/leash/constitution.ts";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "plugins", "tools", "mcp", "prompts", "models", "growth", "forage", "proactivity"] as const;
+const TABS = ["memory", "skills", "plugins", "agents", "tools", "mcp", "prompts", "models", "growth", "forage", "proactivity"] as const;
 type Tab = (typeof TABS)[number];
 
 async function toolRows(): Promise<ToolRow[]> {
@@ -88,6 +90,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       )}
       {tab === "skills" && <SkillsPanel skills={await listSkills()} />}
       {tab === "plugins" && <PluginsPanel plugins={await listPlugins()} />}
+      {tab === "agents" && <AgentsPanel agents={await listAgents()} />}
       {tab === "tools" && <ToolsPanel tools={await toolRows()} />}
       {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
