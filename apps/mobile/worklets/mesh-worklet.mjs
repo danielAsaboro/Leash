@@ -56,12 +56,15 @@ async function viewApply(nodes, view, host) {
 }
 
 // ── worklet state ────────────────────────────────────────────────────────────────────────────────
-let store = null;
+let store = null;       // root corestore (replicated over the swarm)
+let meshStore = null;   // the CURRENT mesh's namespace within `store` (one per join — clean re-join)
 let base = null;
 let swarm = null;
 let storeDir = null;
 let displayName = "iPhone";
 let joinedAt = 0;
+let gen = 0;            // join generation → namespace "mesh-<gen>"; bumped on each join so a new mesh
+                        // never collides with a previous base's view/writer (the phone is single-mesh)
 let hbTimer = null;
 let changeTimer = null;
 let lastTaskSig = "";
@@ -133,19 +136,32 @@ async function leader(staleMs = 30_000) {
 
 // ── lifecycle ─────────────────────────────────────────────────────────────────────────────────
 async function openRecovered() {
-  // A previously-paired store recovers its writable base via the local core's referrer (no key).
-  base = new Autobase(store, null, { valueEncoding: "json", open: viewOpen, apply: viewApply });
+  // A previously-paired namespace recovers its writable base via the local core's referrer (no key).
+  base = new Autobase(meshStore, null, { valueEncoding: "json", open: viewOpen, apply: viewApply });
   await base.ready();
   await bringOnline();
 }
 
+/** Tear the current mesh down (close base + swarm + timers) so a fresh join can't collide with it. */
+async function resetForJoin() {
+  if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+  if (changeTimer) { clearInterval(changeTimer); changeTimer = null; }
+  if (swarm) { try { await swarm.destroy(); } catch { /* ignore */ } swarm = null; }
+  if (base) { try { await base.close(); } catch { /* ignore */ } base = null; }
+  lastTaskSig = "";
+  gen += 1;
+  meshStore = store.namespace("mesh-" + gen); // a clean namespace for the new mesh
+}
+
 async function pair(invite) {
+  // Joining a mesh REPLACES any current one (single-mesh phone): reset to a fresh namespace first.
+  await resetForJoin();
   // Blind-pairing candidate flow (mesh-graph.ts MeshGraph.pair, inlined). The invite is the capability;
   // the host promotes us to a writer (its add-writer entry replicates in shortly after).
   const pairSwarm = new Hyperswarm();
   pairSwarm.on("connection", (conn) => { conn.on("error", () => {}); store.replicate(conn); });
   const pairing = new BlindPairing(pairSwarm);
-  const localCore = Autobase.getLocalCore(store);
+  const localCore = Autobase.getLocalCore(meshStore);
   await localCore.ready();
   const userData = b4a.from(localCore.key);
   await localCore.close();
@@ -155,10 +171,10 @@ async function pair(invite) {
   await pairing.close();
   await pairSwarm.destroy().catch(() => {});
 
-  base = new Autobase(store, result.key, { valueEncoding: "json", open: viewOpen, apply: viewApply });
+  base = new Autobase(meshStore, result.key, { valueEncoding: "json", open: viewOpen, apply: viewApply });
   await base.ready();
   if (!joinedAt) joinedAt = Date.now();
-  writeMeta({ joined: true, joinedAt });
+  writeMeta({ joined: true, joinedAt, gen });
   await bringOnline();
   // Poll until the host's add-writer replicates and we become writable (bounded).
   const t0 = Date.now();
@@ -178,6 +194,8 @@ async function handle(req) {
         await store.ready();
         const meta = readMeta();
         joinedAt = typeof meta.joinedAt === "number" ? meta.joinedAt : 0;
+        gen = typeof meta.gen === "number" ? meta.gen : 0;
+        meshStore = store.namespace("mesh-" + gen);
         if (meta.joined) await openRecovered(); // mesh-less until the first join otherwise
         return reply({ joined: !!base });
       }
