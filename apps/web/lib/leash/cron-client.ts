@@ -56,7 +56,30 @@ async function ensureDaemon(): Promise<void> {
   if (await portUp()) return;
   // Lazy import: keeps the heavy server-supervision chain (prisma, serve-control) off this
   // module's import graph, so the hot read path only pays for it when the daemon is actually down.
-  const { startService } = await import("./services.ts");
+  const { startService, SERVICES_DIR, MCP_CRON_DISABLED } = await import("./services.ts");
+  const { existsSync, writeFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const { readJson } = await import("./json-store.ts");
+
+  // Explicit stop: the disabled sentinel was written by stopService / forceStopService, or by
+  // a previous ensureDaemon() call that detected a dead managed pid. Do NOT auto-restart.
+  if (existsSync(MCP_CRON_DISABLED)) {
+    throw new Error(`Scheduler (mcp-cron) is stopped — start it from Brain → Services.`);
+  }
+
+  // If we previously managed a pid and it's now dead (killed or crashed), write the sentinel
+  // and bail — don't auto-restart a process the user explicitly killed or that crashed.
+  const rec = await readJson<{ pid: number; startedAt: number } | null>(join(SERVICES_DIR, "mcp-cron.json"), null);
+  if (rec !== null) {
+    let alive = false;
+    try { process.kill(rec.pid, 0); alive = true; } catch { /* dead */ }
+    if (!alive) {
+      try { writeFileSync(MCP_CRON_DISABLED, ""); } catch { /* best-effort */ }
+      throw new Error(`Scheduler (mcp-cron) stopped — restart from Brain → Services.`);
+    }
+  }
+
+  // No managed process on record → first-time auto-start.
   await startService("mcp-cron").catch(() => {
     /* already running / overlay still downloading — the port wait below covers it */
   });
@@ -117,7 +140,13 @@ interface CallOut {
  * errors get ONE reconnect+retry (the daemon may have restarted); a second failure throws.
  */
 async function call(name: string, args: Record<string, unknown> = {}, _retried = false): Promise<CallOut> {
-  const conn = await connect();
+  let conn: CronConn;
+  try {
+    conn = await connect();
+  } catch (e) {
+    // Daemon is stopped or unavailable — surface as isError so callers return empty data.
+    return { text: e instanceof Error ? e.message : String(e), json: undefined, isError: true };
+  }
   const tool = conn.tools[name] as { execute?: (a: unknown, o: unknown) => Promise<unknown> } | undefined;
   if (!tool?.execute) throw new Error(`mcp-cron tool not callable: ${name}`);
   let raw: unknown;

@@ -19,7 +19,7 @@
  */
 import "server-only";
 import { spawn, execFileSync } from "node:child_process";
-import { openSync, closeSync, statSync, existsSync, readFileSync, mkdirSync, rmSync } from "node:fs";
+import { openSync, closeSync, statSync, existsSync, readFileSync, writeFileSync, unlinkSync, mkdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readJson, writeJson, DATA_DIR } from "./json-store.ts";
@@ -50,6 +50,11 @@ const CODE_ROOT: string | null = (() => {
 })();
 
 export const SERVICES_DIR = process.env["LEASH_SERVICES_DIR"] ?? join(DATA_DIR, "leash-services");
+
+/** Sentinel: when this file exists, ensureDaemon() will NOT auto-restart mcp-cron.
+ *  Written by stop/forceStop and by ensureDaemon() when it detects a dead managed pid.
+ *  Removed by startService() so the next explicit Start clears it. */
+export const MCP_CRON_DISABLED = join(SERVICES_DIR, "mcp-cron.disabled");
 
 export type ServiceName = "qvac-serve" | "watcher" | "newsroom" | "mcp-cron" | "leash-broker" | "hypha" | "leash-mcp" | "leash-tools-mcp";
 
@@ -391,6 +396,10 @@ export async function forceStopService(name: ServiceName): Promise<{ ok: boolean
     }
   }
   await writeJson(pidFile(name), null); // we no longer own anything
+  if (name === "mcp-cron") {
+    mkdirSync(SERVICES_DIR, { recursive: true });
+    try { writeFileSync(MCP_CRON_DISABLED, ""); } catch { /* best-effort */ }
+  }
   const survivors = pids.filter((p) => pidAlive(p));
   if (survivors.length > 0) return { ok: false, error: `couldn't kill pid(s) ${survivors.join(", ")}`, killed: pids.length - survivors.length };
   return { ok: true, killed: pids.length };
@@ -455,6 +464,10 @@ export async function startService(name: ServiceName): Promise<{ ok: boolean; er
   }
 
   mkdirSync(SERVICES_DIR, { recursive: true });
+  // Clear the "stopped" sentinel so ensureDaemon() allows future auto-starts.
+  if (name === "mcp-cron") {
+    try { unlinkSync(MCP_CRON_DISABLED); } catch { /* already gone */ }
+  }
   // Truncate ("w") so each Start/Restart begins with a clean log — old runs' noise is cleared.
   const log = openSync(logFile(name), "w");
   try {
@@ -493,5 +506,9 @@ export async function stopService(name: ServiceName): Promise<{ ok: boolean; err
   }
   if (pidAlive(rec.pid)) return { ok: false, error: "process did not exit within 8s" };
   await writeJson(pidFile(name), null);
+  if (name === "mcp-cron") {
+    mkdirSync(SERVICES_DIR, { recursive: true });
+    try { writeFileSync(MCP_CRON_DISABLED, ""); } catch { /* best-effort */ }
+  }
   return { ok: true };
 }
