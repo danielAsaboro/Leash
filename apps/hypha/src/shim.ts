@@ -23,7 +23,7 @@ import type { AuditLog, SessionSettlementReceipt } from "@mycelium/shared";
 import { completion, unloadModel } from "@qvac/sdk";
 import type { CompletionFinal } from "@qvac/sdk";
 import { loadDelegated } from "@mycelium/mesh";
-import type { MeshGraph } from "@mycelium/mesh";
+import type { MeshGraph, MeshTask } from "@mycelium/mesh";
 import { getPlugin, PLUGINS_DIR } from "./plugin-store.ts";
 import type { MeshRouter } from "./mesh-router.ts";
 import type { DiscoveredDevice } from "./discovery.ts";
@@ -101,6 +101,16 @@ export interface MeshControl {
   leaveMesh(meshId: string): Promise<{ ok: boolean; error?: string }>;
   /** Replicated paid-session settlement receipts visible across this device's meshes. */
   receipts(): Promise<SessionSettlementReceipt[]>;
+  /** Non-deleted tasks in the primary mesh, newest first (brings the primary online). */
+  listTasks(): Promise<MeshTask[]>;
+  /** Upsert a task into the primary mesh (stamps `updatedAt`/defaults). Returns the stored task. */
+  upsertTask(task: Partial<MeshTask> & { id: string }): Promise<MeshTask>;
+  /** Tombstone a task in the primary mesh (LWW by now). */
+  deleteTask(id: string): Promise<void>;
+  /** Tasks INCLUDING tombstones changed since `cursor` (epoch ms) — for delta pulls. */
+  tasksSince(cursor: number): Promise<MeshTask[]>;
+  /** Derived oldest-active-member leader of the primary mesh (its deviceId), or null if no live mesh. */
+  leader(): Promise<string | null>;
 }
 
 /** One membership row for the dashboard / `/mesh/list`. */

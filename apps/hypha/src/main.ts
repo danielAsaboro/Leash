@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { close, stopQVACProvider, heartbeat, suspend, resume } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
-import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
+import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle, type MeshTask } from "@mycelium/mesh";
 import {
   DEVICE_NAME,
   FORGOTTEN_FILE,
@@ -85,6 +85,7 @@ import { ReputationStore } from "./reputation.ts";
 import { verifyIdentityProof } from "./plasma-settlement.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
 import { createShim, type Inflight, type MeshControl, type MeshSummary } from "./shim.ts";
+import { meshBus } from "./mesh-events.ts";
 import { SolanaSettlementService } from "./solana-settlement.ts";
 import { PlasmaSettlementService } from "./plasma-settlement.ts";
 import { SettlementManager } from "./settlement-manager.ts";
@@ -811,6 +812,46 @@ async function runDaemon(): Promise<void> {
       const all = await Promise.all([...runtimes.values()].map((m) => m.graph.receipts().catch(() => [])));
       return all.flat();
     },
+    // ── Tasks replicated across the PRIMARY mesh (the mesh IS the task store). Reads/writes bring
+    //    the primary online (founding a lone-but-writable mesh if the device has none yet), so tasks
+    //    persist + converge with zero extra config — exactly the migration story (Phase 3). ──
+    listTasks: async () => {
+      const m = await ensureMeshOnline();
+      return m.graph.tasks();
+    },
+    upsertTask: async (input) => {
+      const m = await ensureMeshOnline();
+      if (!(await ensureWritable(m))) throw new Error("mesh not writable yet (still syncing) — can't save the task right now");
+      const now = Date.now();
+      const task: MeshTask = {
+        id: input.id,
+        title: input.title ?? "",
+        ...(input.detail !== undefined ? { detail: input.detail } : {}),
+        status: input.status ?? "open",
+        priority: input.priority ?? "normal",
+        tags: input.tags ?? [],
+        source: input.source ?? "user",
+        createdAt: input.createdAt ?? now,
+        updatedAt: input.updatedAt ?? now,
+        ...(input.deleted ? { deleted: true as const } : {}),
+      };
+      await m.graph.publishTask(task);
+      meshBus.record({ kind: "tasks", phase: "upsert", meshId: m.meshId });
+      return task;
+    },
+    deleteTask: async (id) => {
+      const m = await ensureMeshOnline();
+      if (!(await ensureWritable(m))) throw new Error("mesh not writable yet (still syncing) — can't delete the task right now");
+      await m.graph.deleteTask(id, Date.now());
+      meshBus.record({ kind: "tasks", phase: "delete", meshId: m.meshId });
+    },
+    tasksSince: async (cursor) => {
+      const m = await ensureMeshOnline();
+      return m.graph.tasksSince(cursor);
+    },
+    // Read-only: NEVER force the mesh online (this rides the frequently-polled /peers) — a device
+    // the user never put in a mesh has no leader.
+    leader: async () => (mesh ? mesh.graph.leader() : null),
   };
 
   const pairing = new PairingController(meshController, audit);

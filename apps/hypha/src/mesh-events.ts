@@ -16,7 +16,7 @@ import { EventEmitter } from "node:events";
  *  to light up). */
 export interface MeshEvent {
   ts: number;
-  kind: "route" | "done" | "failed";
+  kind: "route" | "done" | "failed" | "tasks";
   phase: string;
   alias?: string;
   peer?: string;
