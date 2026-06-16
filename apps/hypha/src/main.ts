@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { close, stopQVACProvider, heartbeat, suspend, resume } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
-import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle, type MeshTask } from "@mycelium/mesh";
+import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
 import {
   DEVICE_NAME,
   FORGOTTEN_FILE,
@@ -86,6 +86,7 @@ import { verifyIdentityProof } from "./plasma-settlement.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
 import { createShim, type Inflight, type MeshControl, type MeshSummary } from "./shim.ts";
 import { meshBus } from "./mesh-events.ts";
+import { normalizeTask } from "./tasks.ts";
 import { SolanaSettlementService } from "./solana-settlement.ts";
 import { PlasmaSettlementService } from "./plasma-settlement.ts";
 import { SettlementManager } from "./settlement-manager.ts";
@@ -822,19 +823,7 @@ async function runDaemon(): Promise<void> {
     upsertTask: async (input) => {
       const m = await ensureMeshOnline();
       if (!(await ensureWritable(m))) throw new Error("mesh not writable yet (still syncing) — can't save the task right now");
-      const now = Date.now();
-      const task: MeshTask = {
-        id: input.id,
-        title: input.title ?? "",
-        ...(input.detail !== undefined ? { detail: input.detail } : {}),
-        status: input.status ?? "open",
-        priority: input.priority ?? "normal",
-        tags: input.tags ?? [],
-        source: input.source ?? "user",
-        createdAt: input.createdAt ?? now,
-        updatedAt: input.updatedAt ?? now,
-        ...(input.deleted ? { deleted: true as const } : {}),
-      };
+      const task = normalizeTask(input, Date.now());
       await m.graph.publishTask(task);
       meshBus.record({ kind: "tasks", phase: "upsert", meshId: m.meshId });
       return task;
