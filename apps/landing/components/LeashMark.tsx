@@ -4,7 +4,7 @@ import {
   LEASH_MARK_NODES,
   LEASH_MARK_STROKE,
   LEASH_MARK_VIEWBOX,
-} from "../lib/brand/leash-mark.ts";
+} from "./leash-mark.ts";
 
 type LeashMarkProps = {
   className?: string;
