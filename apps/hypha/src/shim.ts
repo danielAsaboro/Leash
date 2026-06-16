@@ -472,7 +472,10 @@ export function createShim(deps: ShimDeps): http.Server {
       // split its own earnings (receipts paid TO this wallet) from its spend (receipts paid BY it).
       // Additive — none of the per-peer rows describe self. wallet is null when no payout rail is online.
       const self = { providerKey: getSelfConsumerKey(), wallet: settlement?.payoutEndpoints()[0]?.recipient ?? null };
-      return json(res, 200, { peers: router ? router.peers() : [], self, ...info });
+      // `leader`: the derived oldest-active-member of the primary mesh (deviceId), or null. Read-only —
+      // never forces a mesh online, so polling /peers on a mesh-less device stays a no-op.
+      const leader = await mesh.leader().catch(() => null);
+      return json(res, 200, { peers: router ? router.peers() : [], self, leader, ...info });
     }
     // ── live routing event stream (SSE) — the browser-subscribable mirror of the JSONL
     //    delegation audit; powers the living-mesh visualization. localhost control surface. ──
@@ -510,6 +513,32 @@ export function createShim(deps: ShimDeps): http.Server {
       const on = Boolean(body["on"]);
       await setShareModels?.(on);
       return json(res, 200, { ok: true, shareModels: on });
+    }
+
+    // ── tasks replicated across the private mesh (Phase 1 data model) ──
+    // GET /tasks → live tasks; POST /tasks (a partial MeshTask, requires id) → upsert; POST
+    // /tasks/delete {id} → tombstone; GET /tasks/since?cursor=<ms> → delta incl. tombstones.
+    if (url === "/tasks" || url.startsWith("/tasks?") || url.startsWith("/tasks/")) {
+      if (method === "GET" && url === "/tasks") {
+        return json(res, 200, { tasks: await mesh.listTasks() });
+      }
+      if (method === "POST" && url === "/tasks") {
+        const body = await readJsonBody(req);
+        if (typeof body["id"] !== "string" || !body["id"]) return json(res, 400, { error: "a task id is required" });
+        const task = await mesh.upsertTask(body as Partial<MeshTask> & { id: string });
+        return json(res, 200, { task });
+      }
+      if (method === "POST" && url === "/tasks/delete") {
+        const body = await readJsonBody(req);
+        const id = String(body["id"] ?? "");
+        if (!id) return json(res, 400, { error: "a task id is required" });
+        await mesh.deleteTask(id);
+        return json(res, 200, { ok: true });
+      }
+      if (method === "GET" && url.startsWith("/tasks/since")) {
+        const cursor = Number(new URL(url, "http://localhost").searchParams.get("cursor")) || 0;
+        return json(res, 200, { tasks: await mesh.tasksSince(cursor) });
+      }
     }
 
     // ── plugin distribution over the mesh (the LoRA-adapter replication, for plugins) ──
