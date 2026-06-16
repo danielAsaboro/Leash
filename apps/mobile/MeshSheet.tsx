@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,7 @@ import { C, F, TRACKING_LABEL } from "./theme";
 import { LeashMark } from "./LeashMark";
 import { isValidProviderKey } from "./mesh";
 import { QRScanner } from "./QRScanner";
+import { joinMesh, meshStatus, type MeshStatus as MeshMemberStatus } from "./meshClient";
 
 export type MeshStatus = "unset" | "checking" | "online" | "offline";
 
@@ -26,6 +27,81 @@ type MeshPanelProps = {
   onPing: () => void;
   selfNote?: string;
 };
+
+/**
+ * Mesh MEMBERSHIP card — the phone joins the user's private mesh and replicates the task CRDT
+ * (distinct from the inference-offload provider key below). Paste the invite a desktop mints
+ * (Leash → Mesh → "Add a device", or hypha `POST /mesh/invite`) and tap Join; the worklet
+ * blind-pairs in and tasks start syncing. Status shows joined ✓ / peer count / leader.
+ */
+function MeshMembershipCard() {
+  const [invite, setInvite] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [status, setStatus] = useState<MeshMemberStatus | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    const tick = () => void meshStatus().then((s) => alive && setStatus(s)).catch(() => {});
+    tick();
+    const id = setInterval(tick, 5000);
+    return () => { alive = false; clearInterval(id); };
+  }, []);
+
+  const join = async () => {
+    const inv = invite.trim();
+    if (inv.length < 16) { setErr("Paste the full invite from your desktop."); return; }
+    setBusy(true); setErr(null);
+    try {
+      await joinMesh(inv);
+      setInvite("");
+      setStatus(await meshStatus());
+    } catch (e: any) {
+      setErr(e?.message || "Join failed — is the desktop still showing the invite?");
+    } finally { setBusy(false); }
+  };
+
+  const joined = status?.joined;
+  const line = joined
+    ? `Member ✓ · ${status!.peers} peer${status!.peers === 1 ? "" : "s"}${status!.leader ? (status!.leader === status!.deviceId ? " · leader: you" : " · leader: a peer") : ""}${status!.writable ? "" : " · syncing…"}`
+    : "Not in a mesh — paste an invite to join";
+
+  return (
+    <View style={mstyles.card}>
+      <Text style={mstyles.cardKicker}>MESH MEMBERSHIP · SYNC YOUR TASKS</Text>
+      <View style={mstyles.statusLine}>
+        {busy ? <ActivityIndicator size="small" color={C.sage} /> : <View style={[mstyles.dot, { backgroundColor: joined ? C.sage : C.faint }]} />}
+        <Text style={[mstyles.statusLineText, { color: joined ? C.sageDeep : C.muted }]}>{line}</Text>
+      </View>
+      <TextInput
+        style={mstyles.inviteInput}
+        value={invite}
+        onChangeText={setInvite}
+        placeholder="Paste mesh invite (hex)…"
+        placeholderTextColor={C.faint}
+        autoCapitalize="none"
+        autoCorrect={false}
+        multiline
+      />
+      {err ? <Text style={mstyles.err}>{err}</Text> : null}
+      <Pressable onPress={join} disabled={busy || invite.trim().length < 16} style={[mstyles.joinBtn, (busy || invite.trim().length < 16) && { opacity: 0.45 }]}>
+        <Text style={mstyles.joinBtnText}>{joined ? "JOIN ANOTHER MESH" : "JOIN MESH"}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const mstyles = StyleSheet.create({
+  card: { backgroundColor: C.paper, borderWidth: StyleSheet.hairlineWidth, borderColor: C.ruleStrong, borderRadius: 10, padding: 14, marginBottom: 20 },
+  cardKicker: { fontFamily: F.monoMed, fontSize: 10, color: C.sageDeep, letterSpacing: TRACKING_LABEL, marginBottom: 10 },
+  statusLine: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
+  dot: { width: 8, height: 8, borderRadius: 5 },
+  statusLineText: { fontFamily: F.monoMed, fontSize: 11, letterSpacing: 0.4 },
+  inviteInput: { fontFamily: F.mono, fontSize: 12, color: C.ink, backgroundColor: C.cream, borderWidth: StyleSheet.hairlineWidth, borderColor: C.rule, borderRadius: 4, padding: 10, minHeight: 52 },
+  err: { fontFamily: F.mono, fontSize: 11, color: C.brick, marginTop: 8 },
+  joinBtn: { marginTop: 10, backgroundColor: C.sageDeep, borderRadius: 8, paddingVertical: 12, alignItems: "center" },
+  joinBtnText: { fontFamily: F.monoSemi, fontSize: 12, color: C.cream, letterSpacing: TRACKING_LABEL },
+});
 
 /**
  * The mesh-pairing UI body — extracted so it can render full-screen under the MESH nav tab
@@ -88,6 +164,9 @@ export function MeshPanel({
             </Pressable>
           </View>
         )}
+
+        {/* Mesh membership (task sync) — distinct from the inference-offload provider key below. */}
+        <MeshMembershipCard />
 
         {paired && (
               <View style={[styles.banner, { borderColor: pairedColor }]}>

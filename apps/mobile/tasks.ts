@@ -1,10 +1,16 @@
 /**
  * On-device task store — the standalone analogue of the desktop tasks-store (packages/leash-core).
- * The phone owns its own to-do list; everything is one JSON file in the app's document directory.
+ * The phone owns its own to-do list in one JSON file in the app's document directory, which doubles
+ * as an **offline replica cache**: once the phone JOINS the private mesh (Mesh tab → "Join a mesh"),
+ * the mesh worklet (meshClient) becomes the source of truth — reads LWW-merge the replicated CRDT
+ * over the local cache (remote deletes applied via tombstones), and writes go to BOTH the local
+ * cache (instant render) and the mesh (best-effort write-through). Mesh-less → pure local, as before.
  * Field names + enums mirror the web LeashTask so the mobile Tasks → Mine tab is a true 1:1 of
  * the desktop TasksPanel (status open/in_progress/done/dropped, priority low/normal/high).
  */
 import * as FileSystem from "expo-file-system/legacy";
+import * as meshClient from "./meshClient";
+import type { MeshTask } from "./meshClient";
 
 export type TaskStatus = "open" | "in_progress" | "done" | "dropped";
 export type TaskPriority = "low" | "normal" | "high";
@@ -50,6 +56,48 @@ async function writeAll(list: Task[]): Promise<void> {
   }
 }
 
+/** A mesh CRDT task → the local Task shape (coerce source to the phone's two-value enum). */
+function fromMesh(m: MeshTask): Task {
+  return {
+    id: m.id,
+    title: m.title,
+    detail: m.detail || undefined,
+    status: m.status,
+    priority: m.priority,
+    source: m.source === "assistant" ? "assistant" : "user",
+    tags: Array.isArray(m.tags) ? m.tags : [],
+    createdAt: m.createdAt,
+    updatedAt: m.updatedAt,
+  };
+}
+
+/**
+ * The synced view when the phone is in a mesh: LWW-merge the worklet's task list (incl. tombstones)
+ * over the local replica cache, persist the merged result, and return it. Falls back to the local
+ * cache when the phone isn't in a mesh or the worklet isn't reachable. Never throws.
+ */
+async function mergedFromMesh(local: Task[]): Promise<Task[] | null> {
+  try {
+    const status = await meshClient.meshStatus();
+    if (!status.joined) return null; // mesh-less → caller uses the local cache
+    const mesh = await meshClient.listTasks(); // includes tombstones
+    const byId = new Map(local.map((t) => [t.id, t]));
+    for (const m of mesh) {
+      const cur = byId.get(m.id);
+      if (m.deleted) {
+        if (cur && m.updatedAt >= cur.updatedAt) byId.delete(m.id); // remote delete wins
+      } else if (!cur || m.updatedAt >= cur.updatedAt) {
+        byId.set(m.id, fromMesh(m)); // remote create/edit wins
+      }
+    }
+    const merged = [...byId.values()];
+    await writeAll(merged); // refresh the offline cache from the mesh
+    return merged;
+  } catch {
+    return null; // worklet not ready → local cache
+  }
+}
+
 /** Open/in-progress first, then by priority, then newest. */
 function sortTasks(list: Task[]): Task[] {
   const statusRank: Record<TaskStatus, number> = { in_progress: 0, open: 1, done: 2, dropped: 3 };
@@ -63,7 +111,9 @@ function sortTasks(list: Task[]): Task[] {
 }
 
 export async function listTasks(filter?: TaskStatus | "all"): Promise<Task[]> {
-  const list = sortTasks(await readAll());
+  const local = await readAll();
+  const merged = await mergedFromMesh(local); // mesh source when joined; null → local cache
+  const list = sortTasks(merged ?? local);
   if (!filter || filter === "all") return list;
   return list.filter((t) => t.status === filter);
 }
@@ -89,7 +139,8 @@ export async function createTask(input: {
   };
   const list = await readAll();
   list.push(task);
-  await writeAll(list);
+  await writeAll(list); // instant local render
+  void meshClient.upsertTask(task).catch(() => {}); // best-effort replicate to the mesh
   return task;
 }
 
@@ -100,12 +151,15 @@ export async function updateTask(
   const list = await readAll();
   const i = list.findIndex((t) => t.id === id);
   if (i === -1) return;
-  list[i] = { ...list[i]!, ...patch, updatedAt: Date.now() };
+  const next = { ...list[i]!, ...patch, updatedAt: Date.now() };
+  list[i] = next;
   await writeAll(list);
+  void meshClient.upsertTask(next).catch(() => {}); // best-effort replicate the edit
 }
 
 export async function deleteTask(id: string): Promise<void> {
   await writeAll((await readAll()).filter((t) => t.id !== id));
+  void meshClient.deleteTask(id).catch(() => {}); // best-effort tombstone in the mesh
 }
 
 export async function clearTasks(): Promise<void> {

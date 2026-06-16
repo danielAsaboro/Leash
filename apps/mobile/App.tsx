@@ -78,6 +78,7 @@ import { EconomyScreen } from "./EconomyScreen";
 import { ServicesScreen } from "./ServicesScreen";
 import { DesktopScreen, type DesktopRoute } from "./DesktopScreen";
 import { loadMeshConfig, saveMeshConfig, isValidProviderKey, pingProvider, notifyPairing } from "./mesh";
+import { initMesh } from "./meshClient";
 import { getPrompts, DEFAULT_SYSTEM, DEFAULT_VOICE } from "./prompts";
 import { getConstitution } from "./constitution";
 import { listMemories, type Memory } from "./memories";
@@ -238,6 +239,10 @@ export default function App(): React.JSX.Element {
     const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     return () => clearTimeout(t);
   }, [messages]);
+
+  // Bring the mesh worklet up once on launch so a phone that's already a mesh member recovers its
+  // membership and replicates tasks in the background (lazy init covers first use too). Fire-and-forget.
+  useEffect(() => { void initMesh().catch(() => {}); }, []);
 
   // Download + load the model once on mount.
   useEffect(() => {

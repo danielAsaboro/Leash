@@ -14,6 +14,7 @@ import {
   type TaskPriority,
   type TaskStatus,
 } from "./tasks";
+import { meshStatus, onTasksChanged, type MeshStatus } from "./meshClient";
 
 /**
  * TASKS — 1:1 with the desktop /tasks tabs: Mine · Newsroom · Runs. "Mine" is a real on-device task
@@ -60,10 +61,27 @@ export function TasksScreen({ onMenu, onPair }: { onMenu: () => void; onPair: ()
   const [detail, setDetail] = useState("");
   const [prio, setPrio] = useState<TaskPriority>("normal");
 
+  const [mesh, setMesh] = useState<MeshStatus | null>(null);
   const refresh = useCallback(() => void listTasks().then(setTasks), []);
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Mesh status chip + live sync: poll status for the chip, and re-list the instant a peer's edit
+  // replicates into the worklet (onTasksChanged). Both are best-effort — a mesh-less phone just
+  // shows "On this device" and the local list keeps working.
+  useEffect(() => {
+    let alive = true;
+    const tick = () => void meshStatus().then((s) => alive && setMesh(s)).catch(() => {});
+    tick();
+    const id = setInterval(tick, 5000);
+    const off = onTasksChanged(() => { refresh(); tick(); });
+    return () => { alive = false; clearInterval(id); off(); };
+  }, [refresh]);
+
+  const meshChip = mesh?.joined
+    ? `MESH ✓ · ${mesh.peers} peer${mesh.peers === 1 ? "" : "s"}${mesh.leader ? (mesh.leader === mesh.deviceId ? " · leader: you" : " · leader: peer") : ""}${mesh.writable ? "" : " · syncing…"}`
+    : "ON THIS DEVICE · not in a mesh";
 
   const add = useCallback(() => {
     const t = title.trim();
@@ -103,6 +121,12 @@ export function TasksScreen({ onMenu, onPair }: { onMenu: () => void; onPair: ()
 
       {tab === "mine" ? (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          {/* Mesh status — joined ✓ / peers / leader, or "not in a mesh" (set it up on the Mesh tab) */}
+          <Pressable onPress={onPair} style={styles.meshChip}>
+            <View style={[styles.meshDot, { backgroundColor: mesh?.joined ? C.sage : C.faint }]} />
+            <Text style={[styles.meshChipText, { color: mesh?.joined ? C.sageDeep : C.muted }]}>{meshChip}</Text>
+          </Pressable>
+
           {/* Create */}
           <View style={styles.composer}>
             <TextInput
@@ -218,6 +242,9 @@ export function TasksScreen({ onMenu, onPair }: { onMenu: () => void; onPair: ()
 
 const styles = StyleSheet.create({
   body: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 40 },
+  meshChip: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 8, paddingHorizontal: 10, marginBottom: 12, borderRadius: 8, backgroundColor: C.paper, borderWidth: StyleSheet.hairlineWidth, borderColor: C.rule },
+  meshDot: { width: 7, height: 7, borderRadius: 4 },
+  meshChipText: { fontFamily: F.monoMed, fontSize: 10, letterSpacing: 0.6 },
   noteBody: { paddingHorizontal: 28, paddingTop: 36, paddingBottom: 40 },
   composer: {
     backgroundColor: C.paper,
