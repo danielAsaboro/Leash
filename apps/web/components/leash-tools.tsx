@@ -129,6 +129,7 @@ export function ToolView({ part, approval }: { part: Part; approval?: ApprovalHa
   if (name === "search_graph") return <NotesCard output={output} />;
   if (name === "now") return <NowChip output={output} />;
   if (name === "generate_image") return <ImageCard output={output} />;
+  if (name.startsWith("agent__")) return <AgentCard part={part} />;
   return <GenericTool part={part} />;
 }
 
@@ -151,7 +152,37 @@ export function ToolCard({ part, approval }: { part: Part; approval?: ApprovalHa
   if (name === "search_graph") return <NotesCard output={output} />;
   if (name === "now") return <NowChip output={output} />;
   if (name === "generate_image") return <ImageCard output={output} />;
+  if (name.startsWith("agent__")) return <AgentCard part={part} />;
   return <GenericTool part={part} />;
+}
+
+/**
+ * A sub-agent's run, rendered from the streamed UIMessage transcript the agent tool yields (the AI SDK
+ * subagent UI pattern: `part.output.parts.map(...)`). Shows the subagent's text plus the nested tools it
+ * called — so the /chat page reveals the delegated work, while the MAIN model only saw the summary
+ * (`toModelOutput`). Updates live as preliminary tool results stream in.
+ */
+function AgentCard({ part }: { part: Part }): React.ReactNode {
+  const display = toolName(part).replace(/^agent__/, "").replace(/__/g, ":");
+  const nested = (part.output as { parts?: Array<{ type?: string; text?: string; toolName?: string }> } | undefined)?.parts ?? [];
+  const stripThink = (t: string): string => t.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  return (
+    <div className="tool-card">
+      <span className="tool-card-kicker kicker kicker-sage">⛓ Sub-agent · {display}</span>
+      {nested.map((p, i) => {
+        const t = typeof p.type === "string" ? p.type : "";
+        if (t === "text" && typeof p.text === "string") {
+          const clean = stripThink(p.text);
+          return clean ? <span key={i} className="tool-note-snip">{clean}</span> : null;
+        }
+        if (t.startsWith("tool-") || t === "dynamic-tool") {
+          const tn = t === "dynamic-tool" ? String(p.toolName ?? "tool") : t.slice("tool-".length);
+          return <div key={i} className="agent-substep" style={{ opacity: 0.7, fontSize: "0.85em" }}>↳ called <code>{tn}</code></div>;
+        }
+        return null;
+      })}
+    </div>
+  );
 }
 
 const TASK_GLYPH: Record<string, string> = { open: "○", in_progress: "◐", done: "✓", dropped: "✕" };

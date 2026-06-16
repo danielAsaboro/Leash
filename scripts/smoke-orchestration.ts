@@ -1,18 +1,18 @@
 /**
- * LIVE multi-agent orchestration proof (needs `qvac serve`) — the eval-critical capability:
- * "multi-agent workflows with orchestration and tool calling," on real on-device qwen3-4b.
+ * LIVE multi-agent orchestration proof (needs `qvac serve`) — the eval-critical capability
+ * ("multi-agent workflows with orchestration and tool calling") on real on-device qwen3-4b, using
+ * the EXACT AI SDK streaming-subagent pattern the production agent-runner.ts now uses.
  *
- * FIDELITY NOTE: the production sub-agent runner is `apps/web/lib/leash/agent-runner.ts`. It can't be
- * imported under tsx (the web modules load as CJS and `@qvac/ai-sdk-provider` ships only an ESM export;
- * the real path only runs inside Next + auth). So this script uses the REAL stores (leash-core) + the
- * REAL on-device model + the SAME AI SDK primitives, and INLINES the exact same buildAgentTools logic
- * (one tool per agent → focused generateText over the agent's `tools ∩ registry`, with `skills:`
- * preloaded into the system prompt). It demonstrates the capability with real inference end-to-end.
+ * FIDELITY NOTE: the production runner can't be imported under tsx (web modules load as CJS;
+ * @qvac/ai-sdk-provider ships only an ESM export; the real path runs in Next+auth). So this mirrors
+ * agent-runner.buildOne EXACTLY — a `ToolLoopAgent` subagent behind a `tool()` whose `async function*`
+ * execute streams via `readUIMessageStream(result.toUIMessageStream())` and whose `toModelOutput`
+ * trims to the final summary — on the real model + real stores.
  *
- *   PART A — invoke a SUBAGENT directly: it runs its own inference, CALLS A TOOL, and follows a
- *            PRELOADED SKILL (a sentinel token from the skill body shows up in its answer).
- *   PART B — the MAIN agent runs a real tool loop and DELEGATES to the subagent (orchestration):
- *            main → subagent → tool → back → main synthesizes.
+ *   PART A — invoke the subagent tool: it STREAMS UIMessages (UI-renderable progress), runs its own
+ *            ToolLoopAgent inference, CALLS a tool (visible as a tool part in the transcript), and
+ *            follows a PRELOADED skill (sentinel token).
+ *   PART B — the MAIN agent delegates to the subagent (orchestration): main → subagent → tool → summary.
  *
  * Run: `npm run smoke:orchestration`
  */
@@ -21,14 +21,13 @@ setGlobalDispatcher(new UndiciAgent({ bodyTimeout: 0, headersTimeout: 0, connect
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { tool, generateText, stepCountIs, type ToolSet } from "ai";
+import { tool, ToolLoopAgent, generateText, stepCountIs, readUIMessageStream, type ToolSet, type UIMessage } from "ai";
 import { z } from "zod";
 import { createQvac } from "@qvac/ai-sdk-provider";
 
 const DATA = await mkdtemp(join(tmpdir(), "leash-orch-"));
 process.env["LEASH_DATA_DIR"] = DATA;
-const SERVE = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
-const qvac = createQvac({ baseURL: SERVE, apiKey: "qvac" });
+const qvac = createQvac({ baseURL: process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1", apiKey: "qvac" });
 
 const { saveAgent, listAgents } = await import("@mycelium/leash-core/agents-store");
 const { saveSkill, getSkill } = await import("@mycelium/leash-core/skills-store");
@@ -40,7 +39,7 @@ const check = (label: string, cond: boolean): void => {
   if (!cond) failures++;
 };
 
-// ── A real, RECORDING tool (closure flag proves the sub-agent actually invoked it) ──
+// ── A real, RECORDING tool (closure flag proves the sub-agent invoked it) ──
 let drugToolCalls = 0;
 const DRUGS: Record<string, string> = {
   ibuprofen: "ibuprofen (NSAID): increases bleeding risk when combined with anticoagulants like warfarin.",
@@ -57,34 +56,43 @@ const registry: ToolSet = {
   }),
 };
 
-// ── EXACT copy of agent-runner.buildAgentTools logic (sub-agent = focused generateText) ──
+const finalText = (m: UIMessage | undefined): string => {
+  const parts = m?.parts ?? [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    const p = parts[i] as { type?: string; text?: unknown };
+    if (p?.type === "text" && typeof p.text === "string") return p.text.trim();
+  }
+  return "";
+};
+
+// ── EXACT mirror of agent-runner.buildOne: a streaming ToolLoopAgent behind a tool() ──
 const agentToolKey = (slug: string): string => `agent__${slug.replace(/:/g, "__")}`;
 function buildSubagentTool(agent: AgentT, reg: ToolSet): ToolSet {
   return {
     [agentToolKey(agent.slug)]: tool({
-      description: `Delegate a sub-task to the "${agent.name}" agent. ${agent.description} It runs in its own context with its own tools and returns the result.`,
+      description: `Delegate a sub-task to the "${agent.name}" agent. ${agent.description}`,
       inputSchema: z.object({ task: z.string().describe(`Self-contained task for the ${agent.name} agent.`) }),
-      execute: async ({ task }) => {
-        const names = agent.tools.filter((n) => reg[n]); // agent.tools ∩ registry
+      execute: async function* ({ task }) {
+        const names = agent.tools.filter((n) => reg[n]);
         const tools: ToolSet = Object.fromEntries(names.map((n) => [n, reg[n] as ToolSet[string]]));
         const loaded = (await Promise.all(agent.skills.map((s) => getSkill(s)))).filter((s) => s && s.enabled);
         const skillCtx = loaded.length ? "\n\n--- Preloaded skills (follow them) ---\n" + loaded.map((s) => `### ${s!.name}\n${s!.body}`).join("\n\n") : "";
-        const r = await generateText({
+        const sub = new ToolLoopAgent({
           model: qvac(agent.model || "qwen3-4b"),
-          system: (agent.body || `You are the "${agent.name}" agent.`) + skillCtx,
-          messages: [{ role: "user", content: task }],
+          instructions: (agent.body || `You are the "${agent.name}" agent.`) + skillCtx,
           temperature: 0.6,
           topP: 0.95,
           maxRetries: 0,
           ...(names.length ? { tools, stopWhen: stepCountIs(agent.maxTurns) } : {}),
         });
-        return { text: r.text.trim() || "(no text)" };
+        const result = await sub.stream({ prompt: task });
+        for await (const message of readUIMessageStream({ stream: result.toUIMessageStream() })) yield message;
       },
+      toModelOutput: ({ output }) => ({ type: "text", value: finalText(output as UIMessage | undefined) || "(no text)" }),
     }),
   };
 }
 
-// ── A SKILL with a sentinel token, and a SUBAGENT that uses the tool + preloads the skill ──
 await saveSkill({
   name: "Interaction Severity Rubric",
   description: "How to grade and report drug interactions.",
@@ -106,19 +114,29 @@ const agentTools = buildSubagentTool(agent, registry);
 const key = agentToolKey("interaction-checker");
 check("subagent tool built (callable)", key in agentTools);
 
-// ── PART A: subagent runs on its own → tool call + preloaded skill ──
-console.log("\n[Part A] invoking the subagent directly (real on-device sub-agent run)…");
+// ── PART A: stream the subagent → UI-renderable progress + tool call + preloaded skill ──
+console.log("\n[Part A] streaming the subagent (ToolLoopAgent + readUIMessageStream)…");
 drugToolCalls = 0;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const subOut = (await (agentTools[key] as any).execute({ task: "A patient takes ibuprofen and warfarin together. Check for interactions." }, { toolCallId: "A", messages: [] })) as { text: string };
-console.log("─── subagent answer ───\n" + subOut.text.slice(0, 600) + "\n──────────────────────");
-check("subagent ran its own inference (substantive answer)", subOut.text.length > 80);
+const gen = (agentTools[key] as any).execute({ task: "A patient takes ibuprofen and warfarin together. Check for interactions." }, { toolCallId: "A", messages: [] }) as AsyncIterable<UIMessage>;
+let last: UIMessage | undefined;
+let yields = 0;
+for await (const m of gen) {
+  last = m;
+  yields++;
+}
+const text = finalText(last);
+const hasToolPart = (last?.parts ?? []).some((p) => typeof (p as { type?: string }).type === "string" && ((p as { type: string }).type.startsWith("tool-") || (p as { type: string }).type === "dynamic-tool"));
+console.log(`streamed ${yields} UIMessage update(s); transcript parts: [${(last?.parts ?? []).map((p) => (p as { type?: string }).type).join(", ")}]`);
+console.log("─── subagent final text ───\n" + text.slice(0, 500) + "\n──────────────────────");
+check("subagent STREAMED UI-renderable progress (≥1 UIMessage update)", yields >= 1);
+check("subagent transcript contains the tool call (renderable nested part)", hasToolPart);
 check("subagent CALLED its tool (lookup_drug) mid-run", drugToolCalls > 0);
-check("subagent FOLLOWED the preloaded skill (sentinel [RUBRIC-OK])", /\[RUBRIC-OK\]/.test(subOut.text));
-check("subagent gave a domain answer (warfarin↔ibuprofen)", /warfarin/i.test(subOut.text));
+check("subagent FOLLOWED the preloaded skill (sentinel [RUBRIC-OK])", /\[RUBRIC-OK\]/.test(text));
+check("subagent gave a domain answer (warfarin)", /warfarin/i.test(text));
 
-// ── PART B: MAIN agent orchestrates — delegates to the subagent in a real tool loop ──
-console.log("\n[Part B] main agent tool loop — delegating to the subagent…");
+// ── PART B: MAIN agent delegates to the subagent (orchestration); toModelOutput trims its view ──
+console.log("\n[Part B] main agent delegating to the subagent…");
 drugToolCalls = 0;
 const main = await generateText({
   model: qvac("qwen3-4b"),
@@ -131,14 +149,14 @@ const main = await generateText({
   maxRetries: 0,
 });
 const calledTools = main.steps.flatMap((s) => s.toolCalls ?? []).map((c) => c.toolName);
-const finalText = (main.text ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+const mainText = (main.text ?? "").replace(/<think>[\s\S]*?<\/think>/g, "").trim();
 console.log(`main tool calls: [${calledTools.join(", ") || "(none)"}]`);
-console.log("─── main agent final answer ───\n" + finalText.slice(0, 500) + "\n──────────────────────");
+console.log("─── main final answer ───\n" + mainText.slice(0, 400) + "\n──────────────────────");
 const delegated = calledTools.includes(key);
 check("ORCHESTRATION: main agent delegated to the subagent", delegated);
-check("main produced a final synthesis", finalText.length > 30);
+check("main produced a final synthesis", mainText.length > 30);
 if (delegated) check("nested tool call fired via delegation (subagent→lookup_drug)", drugToolCalls > 0);
 
 await rm(DATA, { recursive: true, force: true });
-console.log(failures === 0 ? "\nORCHESTRATION PROOF PASS ✅ — subagent runs + tool-calls + skill-loads, and the main agent orchestrates it" : `\n${failures} CHECK(S) FAILED ❌ — see trace (qwen3-4b tool-calling can be flaky; the wiring is exercised regardless)`);
+console.log(failures === 0 ? "\nORCHESTRATION PROOF PASS ✅ — AI SDK ToolLoopAgent subagent: streams to UI, calls tools, loads skills, and the main agent orchestrates it" : `\n${failures} CHECK(S) FAILED ❌ — see trace (qwen3-4b tool-calling can be flaky; the SDK wiring is exercised regardless)`);
 process.exit(failures === 0 ? 0 : 1);
