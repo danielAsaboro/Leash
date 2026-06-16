@@ -20,8 +20,9 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { close, stopQVACProvider, heartbeat, suspend, resume } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
-import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle } from "@mycelium/mesh";
+import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle, type MeshTask } from "@mycelium/mesh";
 import {
+  DATA_DIR,
   DEVICE_NAME,
   FORGOTTEN_FILE,
   HYPHA_DATA_DIR,
@@ -977,6 +978,42 @@ async function runDaemon(): Promise<void> {
       if (pm) void ensureWritable(pm).then((w) => console.log(w ? "✍️  primary writable (can manage the mesh)" : "⏳ primary not writable yet — will retry when needed"));
     } else {
       console.log(`🍄 Hypha "${DEVICE_NAME}" — not in a mesh yet. Leash → Services → Mesh → "Add a device" / "New mesh".`);
+    }
+  }
+
+  // One-time migration: seed the mesh from the device's existing local task store. Idempotent (LWW
+  // by id), so re-importing the same tasks on every device converges to one set. Gated on the
+  // primary mesh being online — a mesh-less device defers (no marker written) and migrates on the
+  // first boot after it joins/founds a mesh. The local JSON stays the offline read-through cache.
+  {
+    const marker = join(HYPHA_DATA_DIR, ".tasks-migrated");
+    const localTasksFile = process.env["LEASH_TASKS_FILE"] ?? join(DATA_DIR, "leash-tasks.json");
+    if (!existsSync(marker) && runtimes.has(PRIMARY_MESH_ID)) {
+      let local: Array<Record<string, unknown>> = [];
+      try { if (existsSync(localTasksFile)) local = JSON.parse(readFileSync(localTasksFile, "utf8")) as Array<Record<string, unknown>>; } catch { local = []; }
+      try {
+        let n = 0;
+        for (const t of Array.isArray(local) ? local : []) {
+          if (!t || typeof t["id"] !== "string") continue;
+          await meshControl.upsertTask({
+            id: t["id"] as string,
+            ...(typeof t["title"] === "string" ? { title: t["title"] as string } : {}),
+            ...(typeof t["detail"] === "string" ? { detail: t["detail"] as string } : {}),
+            ...(typeof t["status"] === "string" ? { status: t["status"] as MeshTask["status"] } : {}),
+            ...(typeof t["priority"] === "string" ? { priority: t["priority"] as MeshTask["priority"] } : {}),
+            ...(Array.isArray(t["tags"]) ? { tags: (t["tags"] as unknown[]).filter((x): x is string => typeof x === "string") } : {}),
+            ...(typeof t["source"] === "string" ? { source: t["source"] as string } : {}),
+            ...(typeof t["createdAt"] === "number" ? { createdAt: t["createdAt"] as number } : {}),
+            ...(typeof t["updatedAt"] === "number" ? { updatedAt: t["updatedAt"] as number } : {}),
+          });
+          n++;
+        }
+        writeFileSync(marker, new Date().toISOString());
+        if (n) console.log(`🗃️  migrated ${n} local task(s) into the mesh`);
+        audit.record({ event: "note", extra: { role: "hypha", phase: "tasks-migrated", count: n } });
+      } catch (err) {
+        console.error("⚠️ task migration into the mesh failed (will retry next boot):", err);
+      }
     }
   }
 
