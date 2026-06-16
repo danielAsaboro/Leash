@@ -500,6 +500,40 @@ export class MeshGraph {
     return out;
   }
 
+  /** Publish/upsert a task into the mesh (LWW by updatedAt). Requires a writable mesh. */
+  async publishTask(task: MeshTask): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot publish a task");
+    await this.base.append({ type: "task", task });
+  }
+
+  /** Tombstone a task (LWW by ts). Requires a writable mesh. */
+  async deleteTask(id: string, ts: number): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot delete a task");
+    await this.base.append({ type: "task-delete", id, ts });
+  }
+
+  /** Non-deleted tasks, newest first. */
+  async tasks(): Promise<MeshTask[]> {
+    await this.base.update();
+    const out: MeshTask[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "task:", lt: "task;" })) {
+      const t = value as MeshTask;
+      if (!t.deleted) out.push(t);
+    }
+    return out.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  /** Tasks (INCLUDING tombstones) changed since `cursor` (epoch ms) — for delta pulls. */
+  async tasksSince(cursor: number): Promise<MeshTask[]> {
+    await this.base.update();
+    const out: MeshTask[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "task:", lt: "task;" })) {
+      const t = value as MeshTask;
+      if (t.updatedAt > cursor) out.push(t);
+    }
+    return out;
+  }
+
   /** Advertise one signed paid-session receipt into the mesh-visible replicated state. */
   async publishReceipt(receipt: SessionSettlementReceipt): Promise<void> {
     await this.base.append({ type: "receipt", receipt });
