@@ -515,12 +515,14 @@ function defaultSpeechConfig(modelName: string): Record<string, unknown> | null 
   return null;
 }
 
-/** The default per-model `config` block for a freshly-wired alias, by use-case: chat → a 32768
- *  context window; speech (TTS) → the required engine config. Others (embeddings/image/transcription)
- *  need none. */
+/** The default per-model `config` block for a freshly-wired alias, by use-case:
+ *  · chat → `tools:true` + `toolsMode:"dynamic"` (REQUIRED for tool calling: the serve's tools_compact
+ *    path rejects toolless requests, and without it the assistant/agents/plugins can't call tools or
+ *    delegate — the model just narrates tool use; see agent-runner.ts) + a 32768 context window.
+ *  · speech (TTS) → the required engine config. Others (embeddings/image/transcription) need none. */
 function defaultModelConfig(catalog: CatalogModel[], modelName: string): Record<string, unknown> | undefined {
   const cat = catalog.find((c) => c.name === modelName)?.endpointCategory;
-  if (cat === "chat") return { ctx_size: DEFAULT_CTX_SIZE };
+  if (cat === "chat") return { tools: true, toolsMode: "dynamic", ctx_size: DEFAULT_CTX_SIZE };
   if (cat === "speech") return defaultSpeechConfig(modelName) ?? undefined;
   return undefined;
 }
