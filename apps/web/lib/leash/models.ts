@@ -541,6 +541,17 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
     // Per-use-case defaults: chat → ctx_size 32768; speech → the required ttsEngine config.
     const cfg = defaultModelConfig(catalog, modelName);
     config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }), ...(cfg ? { config: cfg } : {}) };
+    // Co-wire the default embedding when adding a CHAT model with none configured. Skills activation
+    // (semantic routing) and RAG/search_graph need an embedding model; without one they SILENTLY
+    // degrade to lexical-only. Non-destructive (only when absent, and never overwrites a `gte-large`
+    // alias); the weight auto-downloads from the registry on first preload (offline-after-warm).
+    const catOf = (name: string | undefined): string | undefined => (name ? catalog.find((c) => c.name === name)?.endpointCategory : undefined);
+    if (catOf(modelName) === "chat") {
+      const hasEmbedding = Object.values(config.serve.models).some((m) => catOf(typeof m === "string" ? m : m.model) === "embedding");
+      if (!hasEmbedding && !config.serve.models["gte-large"] && catalog.some((c) => c.name === "GTE_LARGE_FP16")) {
+        config.serve.models["gte-large"] = { model: "GTE_LARGE_FP16", preload: true };
+      }
+    }
     await writeJson(QVAC_CONFIG_FILE, config);
     invalidateJsonCache(QVAC_CONFIG_FILE);
     return { ok: true };
