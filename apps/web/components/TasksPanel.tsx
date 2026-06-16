@@ -93,6 +93,29 @@ export function TasksPanel({
       clearInterval(id);
     };
   }, []);
+
+  // Mesh task sync: when the Hypha daemon emits a `tasks` event (another device created/edited/
+  // deleted a task and it replicated in), re-read the server-rendered list so remote changes show
+  // live. Best-effort — if the daemon is down the 2s poll + manual edits still work.
+  useEffect(() => {
+    let es: EventSource | null = null;
+    try {
+      es = new EventSource("/api/leash/hypha/events");
+      es.onmessage = (e) => {
+        try {
+          if ((JSON.parse(e.data) as { kind?: string }).kind === "tasks") router.refresh();
+        } catch {
+          /* non-JSON keepalive/down frame — ignore */
+        }
+      };
+      es.onerror = () => {
+        /* daemon down / reconnect is handled by EventSource itself — nothing to do */
+      };
+    } catch {
+      /* EventSource unavailable (very old runtime) — polling + manual refresh still cover us */
+    }
+    return () => es?.close();
+  }, [router]);
   const activeServices = services.filter((s) => SVC_VIEW[s.state] !== null);
   const postDownload = (d: Dl, action: "retry" | "cancel"): Promise<unknown> =>
     fetchWithTimeout("/api/leash/downloads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: d.name, kind: d.kind ?? "model", action }) }, 15000).catch(() => undefined);
