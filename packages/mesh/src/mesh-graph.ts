@@ -284,6 +284,26 @@ async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { 
       // id overwrites its row (latest bytes win) — last-writer by linearization order.
       await bee.put("plugin:" + value.meta.pluginId, value.meta);
     }
+    if (value?.type === "task") {
+      // LWW by updatedAt, keyed task:<id> (mirrors the unpair LWW pattern above).
+      const existing = (await bee.get("task:" + value.task.id)) as { value?: MeshTask } | null;
+      if (!existing?.value || value.task.updatedAt >= existing.value.updatedAt) {
+        await bee.put("task:" + value.task.id, value.task);
+      }
+      continue;
+    }
+    if (value?.type === "task-delete") {
+      // Tombstone (deleted:true), LWW by ts: a delete only wins if it's >= the stored updatedAt.
+      const existing = (await bee.get("task:" + value.id)) as { value?: MeshTask } | null;
+      if (!existing?.value || value.ts >= existing.value.updatedAt) {
+        const base = existing?.value ?? {
+          id: value.id, title: "", status: "dropped" as const, priority: "normal" as const,
+          tags: [], source: "", createdAt: value.ts,
+        };
+        await bee.put("task:" + value.id, { ...base, id: value.id, deleted: true, updatedAt: value.ts });
+      }
+      continue;
+    }
   }
 }
 
