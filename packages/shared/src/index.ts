@@ -220,6 +220,13 @@ export interface DeviceCapability {
    * toward reputation. Absent → unbound (the consumer floors the provider when verification is on).
    */
   identityProof?: DeviceIdentityProof;
+  /**
+   * Epoch ms when this device first advertised into `meshId` — its join "seniority", persisted
+   * per device per mesh and re-sent on every heartbeat. Drives the oldest-active-member leader
+   * (see MeshGraph.leader). Absent on pre-leader caps → treated as "infinitely senior-less"
+   * (only counts as leader if no dated cap is live).
+   */
+  joinedAt?: number;
   lastSeen: string; // ISO timestamp
 }
 
