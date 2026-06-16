@@ -1,0 +1,123 @@
+---
+title: "Subagents"
+description: "First-class specialized assistants the main agent delegates to — built on the AI SDK ToolLoopAgent, streamed into /chat, with their own tools and preloaded skills."
+sidebarTitle: "Subagents"
+---
+
+A **subagent** is a specialized assistant the main [agent](/agents/overview) can hand work to. The parent delegates through a tool; the subagent runs **autonomously in its own context window** with its own model, instructions, and a restricted toolset, then returns a result. It's how Leash does multi-agent workflows without bloating the main conversation.
+
+## Subagent ≠ plugin (the distinction worth getting right)
+
+These are easy to conflate — I did, at first — so it's worth stating plainly:
+
+<Note>
+A **[plugin](/capabilities/plugins)** is a *distribution bundle*. A **subagent** is a *first-class entity* that lives on its own. A plugin can *ship* subagents (in its `agents/` folder), but subagents don't *belong* to plugins — you can create one directly in the dashboard, exactly like the AI SDK's own subagent model and Claude Code's `/agents`.
+</Note>
+
+So there are **two sources**, surfaced together — exactly the pattern [skills](/capabilities/skills) already use (user skills ∪ plugin skills):
+
+- **User subagents** — `data/leash-agents/<slug>.md`, created/edited in the **Brain → Agents** tab.
+- **Plugin subagents** — an enabled plugin's `agents/*.md`, namespaced `<plugin-id>:<name>`.
+
+`listAgents()` returns both (with their enabled flags); the chat route filters to the enabled ones and turns each into a callable tool.
+
+## Built on the AI SDK, on purpose
+
+The runner is not hand-rolled — it's the canonical Vercel **AI SDK subagent pattern**, so it behaves and renders like the rest of the stack:
+
+<CardGroup cols={2}>
+  <Card title="ToolLoopAgent" icon="robot">
+    Each subagent is a `ToolLoopAgent` — the *same* primitive as the main chat agent — with its own model, instructions, and tools.
+  </Card>
+  <Card title="Streamed to the UI" icon="bars-staggered">
+    The delegating tool's `execute` is an `async function*` that yields the subagent's run via `readUIMessageStream` — so `/chat` shows its progress (text + the tools it called) as preliminary tool results.
+  </Card>
+  <Card title="toModelOutput" icon="filter">
+    The main model only sees the subagent's *final summary*; the UI keeps the full transcript. The subagent can burn a lot of tokens exploring while the orchestrator stays lean.
+  </Card>
+  <Card title="Skills preload" icon="book">
+    A subagent can name `skills:` whose full bodies are injected into its context at startup — domain knowledge without a discovery round-trip.
+  </Card>
+</CardGroup>
+
+A delegated run reads, end to end, like this: **main agent → calls the subagent tool → subagent runs its own loop → calls its tools → returns a summary → main synthesizes.** In `/chat`, the subagent's work renders inline as a *Sub-agent* card showing its text and a `↳ called <tool>` line per nested call.
+
+## Authoring a subagent
+
+A subagent is `---`-frontmatter markdown — the body is its system prompt:
+
+```markdown
+---
+name: Interaction Checker
+description: Checks medications for interactions and reports them by severity.
+model: ""                    # a served chat alias; empty = the default chat model
+tools: [drug_info]           # allow-list, intersected with the live registry
+disallowed-tools: []         # deny-list, removed from the allow-set
+skills: [interaction-severity-rubric]   # skill slugs PRELOADED into context
+max-turns: 5                 # the sub-agent's tool-loop budget
+---
+
+You are a medication-interaction checker. For each drug named, call drug_info,
+then report interactions grouped by severity. End with a clear summary.
+```
+
+### Frontmatter reference
+
+| Field | Meaning |
+| --- | --- |
+| `name` *(required)* | Display name; drives delegation (it's in the tool description). |
+| `description` | What it does — the model uses this to decide *when* to delegate. |
+| `model` | A served chat alias to drive it; empty = the resolved default chat model. |
+| `tools` / `disallowed-tools` | Allow/deny lists over the live tool registry. |
+| `skills` | Skill slugs whose full body is preloaded into the subagent's system prompt. |
+| `max-turns` | Step budget for the subagent's own tool loop (clamped). |
+| `enabled` | User agents: on unless `false`. Plugin agents: driven by the plugin row. |
+
+<Note>
+We intentionally **skip** Claude Code's `memory` / `hooks` / `permissionMode` / `worktree` / `fork` fields — they're harness features that don't map to Leash's on-device, single-turn loop. The fields above are the ones that do.
+</Note>
+
+## Two things that will bite you on-device
+
+These are the non-obvious constraints — learned the hard way — that make a subagent actually *run* on the qvac serve:
+
+<Warning>
+**1 · A subagent needs at least one tool.** The serve runs the chat model with `tools:true / toolsMode:"dynamic"` ("tools_compact"), which **rejects a request that carries no tools** — a pure-reasoning subagent would otherwise hang at zero tokens. The runner guards this: a tool-less agent is handed one harmless no-op keep-alive tool so it can run. (Same guard the main chat route uses.)
+</Warning>
+
+<Warning>
+**2 · The serve model must have tools enabled.** If the served chat model isn't configured with `tools:true / toolsMode:"dynamic"`, the model will *talk about* delegating and calling tools but emit **zero** actual tool calls (it even hallucinates "I queried the agent"). Tool-calling and delegation simply won't fire. Configure the model in [Models](/models); dashboard-added chat models now default to this.
+</Warning>
+
+There's also no `abortSignal` anywhere in the runner, and `maxRetries: 0` — aborting a decode mid-flight wedges the qvac serve, so subagents are bounded by `max-turns` and `max_tokens`, never by a client abort.
+
+## Create one (try it)
+
+<Steps>
+  <Step title="Make a subagent">
+    Brain → **Agents** → create one: a name, a description (this is what the model matches on to delegate), a system-prompt body, optional `tools` / `skills` to preload, and enable it.
+  </Step>
+  <Step title="Delegate to it in chat">
+    Name it: *"Use the &lt;name&gt; agent to …"*. The main agent calls its tool; the **Sub-agent card** renders its run inline.
+  </Step>
+</Steps>
+
+## When to use one
+
+| Use a subagent when | Skip it when |
+| --- | --- |
+| The task explores a lot of tokens you don't want in the main thread | The task is simple and focused |
+| You want to isolate tool access by capability | All tools can safely coexist on the main turn |
+| You want a reusable specialist (reviewer, drafter, checker) | A one-off [skill](/capabilities/skills) in the main turn is enough |
+
+For deterministic multi-step *workflows* (rather than a delegated specialist), see [`run_skill` pipelines](/agents/delegation) and [plan mode](/agents/plan-mode) — those are deliberately *not* subagents, because the qwen-class small model is more reliable when the harness owns the step order.
+
+## Verify
+
+```bash
+npm run smoke:agents          # the user store ∪ plugin agents, dispatch, enable/quarantine, delete
+npm run smoke:orchestration   # on-device: subagent streams + calls a tool + loads a skill,
+                              # and the main agent delegates to it (main → subagent → tool → summary)
+```
+
+A passing `smoke:orchestration` run streams the subagent as hundreds of UIMessage updates whose transcript contains the nested `tool-…` parts, confirms the tool fired and the preloaded skill was followed, and shows `main tool calls: [agent__…]` — the full multi-agent loop, on-device.

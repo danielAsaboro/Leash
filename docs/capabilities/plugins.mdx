@@ -1,0 +1,132 @@
+---
+title: "Plugins"
+description: "One installable bundle of skills, MCP servers, and subagents — Claude-Code-compatible, registered virtually, quarantined until you enable it."
+sidebarTitle: "Plugins"
+---
+
+A **plugin** is one installable unit that bundles the three things Leash is already good at — [skills](/capabilities/skills), [MCP servers](/capabilities/mcp), and [subagents](/agents/subagents) — into something you can install, enable, and share. It's how you turn the *general* assistant into a *specialist* (a law pack, a medicine pack) without forking the harness.
+
+The format is **Claude-Code-compatible** on purpose: a `.claude-plugin/plugin.json` manifest, a `skills/` folder, an `.mcp.json`, an `agents/` folder. That choice buys an instant ecosystem — bundles written for Claude Code mostly just work here.
+
+## The one idea that makes it simple
+
+Leash already had skills, MCP, and subagents working independently. A plugin doesn't reinvent any of that — it's **aggregation + lifecycle + distribution** layered on top. The design decision that keeps it small is this:
+
+<Note>
+**A plugin is registered *virtually*, never materialized.** Its components are *not* copied into your skill/MCP/agent stores. Instead they surface by *augmenting the reads the chat turn already does* — `listSkills()`, `listMcpServers()`, `listAgents()` each gain the enabled plugins' contributions.
+</Note>
+
+Why that matters, concretely:
+
+- **Enabled-state lives in exactly one place** — the plugin's registry bit. There's no second copy in `leash-skills/` to drift out of sync.
+- **Uninstall is `rm -r <dir>` + drop the row.** No orphan reconciliation across three stores, no write-amplification race with your own hand-edits.
+- **Enable/disable/uninstall propagate for free** — the next turn's reads simply include or exclude the plugin's components.
+
+So enabling a plugin doesn't *do* anything dramatic; it flips a bit, and the existing skill matcher / MCP reconcile loop / agent registry pick the components up on the next turn.
+
+## Namespacing — the constraint that makes it safe
+
+Every plugin component is named `<plugin-id>:<name>` (e.g. `law-assistant:contract-review`). That `:` is the whole trick:
+
+<Tip>
+The skills slug rule (`SLUG_RE`) has **always forbidden `:`**. So a namespaced plugin slug can *never* collide with a user-created skill or agent. No reserved prefixes, no collision table — one character the user could never type does the isolation.
+</Tip>
+
+The skills store dispatches on it: a slug matching `<id>:<name>` resolves under `data/leash-plugins/<id>/skills/<name>/` instead of your `leash-skills/`. Agent tool keys map `:` → `__` (`agent__law-assistant__clause-drafter`) because AI-SDK tool keys reject `:` — the human-readable slug stays in the tool description.
+
+## Trust: quarantine by default
+
+A plugin is third-party prompt input that can carry stdio commands and side-effect tools. So:
+
+<Warning>
+**Every install lands `enabled: false`, regardless of what the bundle's manifest claims.** A disabled plugin contributes **zero** components to a chat turn. You review the full inventory in the dashboard, then explicitly enable it. Side-effect tools keep their existing `needsApproval` gates even after that.
+</Warning>
+
+The **Brain → Plugins** tab shows, per plugin, every skill / MCP server / agent it *will* register, and flags the risky bits — stdio `command`s, approval-gated/side-effecting tools, skills that ship executable scripts — before you flip the switch.
+
+## What's in a plugin
+
+```
+my-plugin/
+  .claude-plugin/plugin.json   # manifest — only "name" is required
+  skills/<name>/SKILL.md        # folder-shaped skills (+ references/scripts/assets)
+  .mcp.json                     # MCP servers (or "mcpServers" inline in plugin.json)
+  agents/<name>.md              # subagents (see /agents/subagents)
+```
+
+A plugin may ship any subset — skills only, an MCP server only, a couple of subagents, or all three.
+
+### `${CLAUDE_PLUGIN_ROOT}`
+
+A bundled MCP server references its own files with `${CLAUDE_PLUGIN_ROOT}`:
+
+```json
+{ "drug-reference": { "type": "stdio", "command": "node",
+    "args": ["${CLAUDE_PLUGIN_ROOT}/server/drug-reference.mjs"] } }
+```
+
+<Note>
+We store the variable **unexpanded** on disk and expand it to the absolute `data/leash-plugins/<id>/` path *at load time*. If we baked in an absolute path at install, moving your `data/` dir would brick every plugin's MCP command. Stored-unexpanded, expanded-late survives a move.
+</Note>
+
+## Where plugins come from
+
+Every source resolves to the same thing — a staged directory — and then the single `installStagedPlugin` choke-point validates it (path-containment, no escaping symlinks, size caps), derives the id, builds the inventory, and writes the row **disabled**. Because they all funnel through one choke-point, the channels layer in cleanly:
+
+<CardGroup cols={2}>
+  <Card title="Upload / Folder" icon="folder">
+    A local `.zip` upload, or an absolute path to a plugin directory on disk.
+  </Card>
+  <Card title="GitHub" icon="github">
+    A repo URL (`owner/repo[/tree/ref[/subfolder]]`) — fetched as a zipball, root-stripped, subfolder-filtered.
+  </Card>
+  <Card title="Mesh (P2P)" icon="share-nodes">
+    Replicated over your device mesh on the same Hypercore-blob path that ships LoRA adapters — sha256-verified, offline-after-warm.
+  </Card>
+  <Card title="Marketplace" icon="store">
+    A `marketplace.json` index whose entries resolve to GitHub or mesh sources; cached locally so browsing works offline.
+  </Card>
+</CardGroup>
+
+<Note>
+The **mesh** channel is built and type-clean (it reuses the adapter replication on a sibling `plugin-feed` core with a per-id catalog), but the live two-device round-trip isn't part of the verified suite yet. Folder / upload / GitHub / marketplace-over-GitHub are exercised end-to-end.
+</Note>
+
+## Install one (try it)
+
+Two example plugins ship in the repo at `resources/example-plugins/` — a **law-pack** (a `contract-review` skill + a `clause-drafter` subagent) and a **medicine-pack** (a `symptom-triage` skill + an `interaction-checker` subagent + a *real* bundled `drug-reference` MCP server).
+
+<Steps>
+  <Step title="Install from the folder">
+    Brain → **Plugins** → Install → **Folder**, paste the absolute path, e.g.
+    `…/mycelium/resources/example-plugins/medicine-pack`. It lands **disabled**.
+  </Step>
+  <Step title="Review, then enable">
+    Expand the plugin to see its skill, agent, and MCP server. Flip the **Enable** switch.
+  </Step>
+  <Step title="Use it in chat">
+    Ask a domain question — *"I've had a fever and a stiff neck since this morning, should I be worried?"* The `symptom-triage` skill activates and the answer follows its structure. Or delegate: *"Use the interaction-checker agent to check ibuprofen with warfarin."*
+  </Step>
+</Steps>
+
+<Warning>
+For the agent/tool-calling path to fire, your served chat model must be configured with `tools: true` / `toolsMode: "dynamic"` — see [Models](/models). Without it the model *narrates* tool use instead of calling tools. (Models added through the dashboard now get this by default.)
+</Warning>
+
+## How it actually surfaces
+
+| Component | Surfaces via | Becomes, in a turn |
+| --- | --- | --- |
+| `skills/<name>/SKILL.md` | `listSkills()` → the skill matcher | An auto-activatable skill (its `tools:` become the focused toolset) |
+| `.mcp.json` server | `listMcpServers()` → MCP reconcile | A live MCP client (`plugin:<id>:<key>`), tools merged into the turn |
+| `agents/<name>.md` | `listAgents()` → `buildAgentTools()` | A callable [subagent](/agents/subagents) tool |
+
+The harness never learns there's such a thing as a "plugin" — it just sees more skills, servers, and agents than before. That's the win.
+
+## Verify
+
+```bash
+npm run smoke:plugins          # store lifecycle: install → quarantine → enable → uninstall (no orphans)
+npm run smoke:plugins-domain   # the real law + medicine bundles, end to end
+npm run smoke:plugins-live     # on-device: activation routing + a skill-driven specialist answer
+```

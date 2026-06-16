@@ -126,6 +126,7 @@
           {
             "group": "Multi-agent",
             "pages": [
+              "agents/subagents",
               "agents/multi-agent",
               "agents/council",
               "agents/delegation"
@@ -196,6 +197,12 @@
                   "capabilities/background-tasks"
                 ]
               }
+            ]
+          },
+          {
+            "group": "Plugins",
+            "pages": [
+              "capabilities/plugins"
             ]
           }
         ]
