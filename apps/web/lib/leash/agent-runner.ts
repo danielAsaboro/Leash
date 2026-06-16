@@ -31,6 +31,20 @@ const AGENT_TOOLS_CAP = 8;
 /** Orchestration tools a sub-agent can never reach (no agent/skill nesting). */
 const NO_NEST = new Set(["run_skill", "submit_plan"]);
 
+/**
+ * Toolless-hang guard (mirrors the main chat route): the qvac serve runs qwen3-4b with
+ * tools:true/toolsMode:dynamic ("tools_compact"), which REJECTS a chat request that carries no tools.
+ * So a pure-reasoning subagent (a drafter/reviewer with no declared tools) would hang. We hand it ONE
+ * harmless keep-alive tool to satisfy the serve; the model can ignore it.
+ */
+const KEEPALIVE_TOOLS: ToolSet = {
+  note: tool({
+    description: "Optionally jot a brief working note to yourself. You usually don't need this.",
+    inputSchema: z.object({ note: z.string().describe("A short note.") }),
+    execute: async ({ note }) => ({ noted: note }),
+  }),
+};
+
 /** The AI-SDK-safe tool key for an agent (its `<plugin>:<name>` slug can't contain `:`). */
 export function agentToolKey(slug: string): string {
   return `agent__${slug.replace(/:/g, "__")}`;
@@ -91,7 +105,9 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
           temperature: 0.6,
           topP: 0.95,
           maxRetries: 0,
-          ...(names.length ? { tools, stopWhen: stepCountIs(agent.maxTurns) } : {}),
+          // Always ≥1 tool (toolless-hang guard): a pure-reasoning agent gets the no-op keep-alive.
+          tools: names.length ? tools : KEEPALIVE_TOOLS,
+          stopWhen: stepCountIs(agent.maxTurns),
         });
         try {
           const result = await sub.stream({ prompt: task });
