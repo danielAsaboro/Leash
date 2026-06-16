@@ -64,6 +64,7 @@
     "smoke:plugins-domain": "tsx scripts/smoke-plugins-domain.ts",
     "smoke:plugins-live": "tsx scripts/smoke-plugins-live.ts",
     "smoke:agents": "tsx scripts/smoke-agents.ts",
+    "smoke:orchestration": "tsx scripts/smoke-orchestration.ts",
     "smoke:bash": "tsx scripts/smoke-bash-tool.ts",
     "gate:firewall-revocation": "tsx scripts/gate-firewall-revocation.ts",
     "probe:metered-continuation": "tsx scripts/probe-metered-continuation.ts",
