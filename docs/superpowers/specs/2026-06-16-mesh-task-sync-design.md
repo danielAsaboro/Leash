@@ -1,10 +1,21 @@
 # Mesh-native task sync — vertical slice (desktop · web · mobile)
 
 **Date:** 2026-06-16
-**Status:** approved design, ready for implementation plan
+**Status:** approved design (revised post-spike), ready for implementation plan
 **Scope:** ONE data type (**tasks**) made mesh-replicated end-to-end across all three
 clients, as the proving vertical slice for the broader "your data syncs across your
 private mesh" goal.
+
+> **Architecture decision (proven by spike, 2026-06-16):** the phone is a **first-class
+> private-mesh member that runs the CRDT natively** — not a thin spoke. A throwaway Bare
+> worklet ran the full stack on a physical iPhone (Release build) end to end:
+> `new Corestore` (RocksDB-backed, iOS sandbox) → `store.ready()` → `new Autobase` →
+> `base.ready()` (`writable=true`) → `append` → `update` → read back through the Hyperbee
+> view (`got={"k":"hello","v":"world"}`). `corestore`/`autobase`/`hyperbee`/`hypercore`/
+> `rocksdb-native` all load and run in `react-native-bare-kit`'s Bare runtime on iOS.
+> The only obstacle was a bundling detail (native-addon patch versions in the worklet
+> bundle must match the vendored `ios/addons/*.xcframework` versions); see "Bundling note".
+> This **supersedes** the earlier "phone syncs to a pinned hub, no CRDT on the phone" plan.
 
 ## Context & problem
 
@@ -22,8 +33,10 @@ everything from any device"). Today none of that is true:
   JSON, and the phone touches the mesh only for **delegated inference** (a
   `providerPublicKey` over the QVAC SDK's Hyperswarm). It is not a mesh member.
 
-So "sync everything" is two pieces of work, and the desktop piece is the prerequisite:
-the phone must have a mesh-backed source of truth to sync against.
+So "sync everything" is two pieces of work: (A) make the desktop/web app-data mesh-native
+(it isn't today), and (B) make the phone a real mesh member that holds the same replicated
+data. (A) is the prerequisite — there must be a mesh-native task type for any device,
+phone included, to replicate.
 
 This slice proves the entire pipe with **tasks** before fanning out to the other types.
 
@@ -51,38 +64,41 @@ This slice proves the entire pipe with **tasks** before fanning out to the other
 - **Mesh host** — `packages/mesh/src/mesh-host.ts` (`MeshHost`, `PRIMARY_MESH_ID`):
   one root Corestore + one shared Hyperswarm for N private meshes; `"primary"` is the
   anchor mesh.
-- **Hub topology** — the **hypha daemon** (`apps/hypha`, localhost `:11437`) owns
-  `MeshHost`, the swarm, and the economy. **Web (`:6801`) and the Electron desktop are
-  already spokes** that drive the mesh through hypha's HTTP API
-  (`apps/web/app/api/leash/hypha/*` → `apps/hypha/src/shim.ts`). The browser never runs
-  mesh libs; it calls hypha. **Mobile becomes another spoke of the same kind.**
-- **Mobile↔hub P2P RPC, proven both ends** — `apps/hypha/src/forward-control.ts`
-  (`ForwardControlServer`) runs its own Hyperswarm, joins **per-pair topics**
-  (`topicForPair(providerPublicKey, consumerPublicKey)` = `sha256("hypha-forward-v1:"…)`),
-  accepts connections **only from allow-listed consumers**, and carries OpenAI-style
-  request/response over one long-lived Noise-encrypted, multiplexed connection. The
-  phone side is `apps/mobile/worklets/forward-worklet.mjs` (Hyperswarm inside the
-  react-native-bare-kit Bare worker). Task sync adds **verbs** to this transport family;
-  it invents no new transport and runs **no CRDT on the phone**.
+- **Process topology** — on desktop the **hypha daemon** (`apps/hypha`, localhost
+  `:11437`) owns `MeshHost`, the swarm, and the economy; web (`:6801`) and the Electron
+  desktop drive it over HTTP (`apps/web/app/api/leash/hypha/*` → `apps/hypha/src/shim.ts`).
+  The browser can't run mesh libs, so it calls hypha. **The phone is different:** it
+  *can* run the mesh libs (in Bare), so it hosts its **own** `MeshHost`/`MeshGraph` inside
+  a Bare worklet and joins the mesh directly — the phone is the analogue of the hypha
+  daemon, not of the browser.
+- **Hyperswarm in Bare on the phone, already shipping** — `apps/mobile/worklets/forward-worklet.mjs`
+  runs Hyperswarm inside `react-native-bare-kit` for mesh vision. The spike extended this
+  to the full CRDT (corestore/autobase/hyperbee/rocksdb), proven on-device. So mesh
+  membership + replication from the phone is feasible with the existing toolchain.
+- **Blind-pairing** — `MeshGraph.mintInvite()` / `MeshGraph.pair({invite,…})` (built on the
+  `blind-pairing` module over Hyperswarm) is how a device joins a mesh and is admitted as a
+  writer (`add-writer` entry). The phone joins the same way (replacing the test-only
+  `providerKey` pin in `apps/mobile/mesh.ts`).
 - **Live dashboard updates** — `apps/hypha/src/mesh-events.ts` (`MeshEventBus`) already
-  feeds the dashboard via SSE; task changes emit on it.
+  feeds the desktop dashboard via SSE; task changes emit on it.
 
 ## Goals
 
 1. Two paired **desktops** see the same tasks, live (create/edit/complete/delete).
-2. The paired **phone** pulls those tasks, edits them (incl. offline), and syncs back;
-   both desktops reflect the change. Deletes propagate as tombstones.
-3. No fabricated data; offline-first preserved on the phone (local cache remains).
-4. The mechanism is a **template** the other three data types reuse later with minimal
-   new design.
+2. The **phone**, as a real mesh member, holds the same tasks; edits made on it (incl.
+   offline) replicate to both desktops, and theirs replicate to it. Deletes propagate as
+   tombstones.
+3. No fabricated data; offline-first preserved on the phone (it owns a local CRDT replica).
+4. The mesh-membership + leader + replication foundation, and the LWW task model, are a
+   **template** the other three data types reuse later with minimal new design.
 
 ## Non-goals (this slice)
 
 - memories / notes / notifications (next slices, same pattern).
 - Public mesh changes (untouched).
-- Phone as a first-class CRDT **writer** (it stays a spoke; the hub writes to the CRDT
-  on its behalf).
-- A new pairing flow (reuse the existing consumer pairing / allow-list).
+- A **new** pairing mechanism — reuse the existing `MeshGraph` blind-pairing invite/join.
+  (The phone does start joining the mesh as a writer, replacing the test-only
+  `providerKey` inference pin; that's wiring an existing flow, not inventing one.)
 - Merge UI / interactive conflict resolution (LWW is the policy).
 - **Multiple private meshes.** Per the confirmed constraint, everything targets the
   single primary mesh; per-mesh task ownership / mesh selection is out of scope.
@@ -164,52 +180,84 @@ hypha is unreachable (degraded, read-only).
 *Acceptance for Part A:* two desktops paired into one mesh, create/edit/complete/delete
 on one, observe on the other within seconds.
 
-## Part B — mobile: tasks spoke (no CRDT on the phone)
+## Part B — mobile: the phone as a real mesh member
 
-**B1. Hub side** — a `sync-control` verb set on the forward-control transport family
-(extend `forward-control.ts` or add a sibling `sync-control.ts` reusing
-`topicForPair` + the consumer allow-list):
-- `tasks.pull { sinceCursor }` → `{ tasks: MeshTask[], cursor }` (changed since cursor).
-- `tasks.push { deltas: MeshTask[] }` → applies each via `publishTask`/`deleteTask` into
-  the hub's `MeshGraph`; returns `{ ok, cursor }`.
-- **Authorization is the existing one:** the phone is already an allow-listed consumer
-  of the hub; the Noise handshake on the per-pair topic IS the auth. No new token, no
-  new pairing. (If the phone is not yet an allowed consumer, sync is simply unavailable —
-  same gate as delegated inference.)
+The phone runs the same `@mycelium/mesh` `MeshHost`/`MeshGraph` the desktop does, but
+inside a Bare worklet, and joins the single private mesh as a writer. The React Native UI
+talks to that worklet over `BareKit.IPC` (the `forward-worklet` pattern), not over HTTP.
 
-**B2. Phone side** — `apps/mobile/worklets/sync-worklet.mjs` (clone of
-`forward-worklet.mjs`): Hyperswarm in Bare, dials the hub's sync topic, does
-push/pull request-response (newline-JSON, same framing as forward). A
-`apps/mobile/syncClient.ts` RN bridge (mirrors `forwardWorklet.ts`) exposes
-`pullTasks(cursor)` / `pushTasks(deltas)`.
+**B1. Mesh worklet** — `apps/mobile/worklets/mesh-worklet.mjs`: boots a `MeshHost` on a
+Corestore under the app's Documents dir, opens/joins the primary mesh, joins the swarm,
+and exposes an IPC command set to RN:
+- `join { invite }` → `MeshGraph.pair(...)` (first join; persists the bootstrapKey).
+- `tasks.list` → current tasks; `tasks.upsert { task }` / `tasks.delete { id, ts }` →
+  `publishTask` / `deleteTask`.
+- `tasks.changed` (push) → emitted whenever the replicated view updates, so the UI is live.
+- `status` → `{ writable, peers, leader, lastSeen }` for the UI + leader display.
+Identity: the worklet derives its mesh seed from the device seed per CLAUDE.md
+(`sha256(seed + ":mesh")`), distinct from the QVAC SDK worker's `QVAC_HYPERSWARM_SEED`, so
+the two Hyperswarms never collide. The phone's writer key is its `MeshGraph.localWriterKey`.
 
-**B3. Reconcile** — `apps/mobile/tasks.ts` gains a sync layer: persist a `lastCursor`;
-on app foreground / a timer (e.g. 30s while Tasks is open) / manual "Sync now":
-1. `pushTasks(localChangesSince(lastCursor))`,
-2. `pullTasks(lastCursor)` → merge LWW into the local store,
-3. advance `lastCursor`.
-Local store stays the offline cache; merges are LWW by `updatedAt`.
+**B2. RN bridge** — `apps/mobile/meshClient.ts` (mirrors `forwardWorklet.ts`): starts the
+worklet once, wraps the IPC command set in promises, and exposes an event for `tasks.changed`.
 
-**B4. UI** — a sync-status chip on `TasksScreen` (synced ✓ / syncing… / offline) + a
-"Sync now" action. Offline = hub unreachable; the screen still works on the local cache.
+**B3. tasks.ts becomes a thin view over the worklet** — `apps/mobile/tasks.ts` keeps its
+current API (`listTasks`/`createTask`/`updateTask`/`deleteTask`/`taskCounts`) but backs it
+with the mesh worklet: writes go to `tasks.upsert`/`tasks.delete`; reads come from
+`tasks.list`; a cached snapshot (the existing JSON file) is the **offline replica** the UI
+renders instantly and when the worklet is still booting. The CRDT in the worklet is the
+source of truth; the JSON file is a fast local cache refreshed on `tasks.changed`.
 
-*Acceptance for Part B:* phone (paired) pulls a desktop-created task; edits it offline;
-on reconnect both desktops reflect the edit; a delete on the phone tombstones everywhere.
+**B4. Pairing UX** — the existing Mesh screen gains "join a mesh": scan/enter an invite
+minted by a desktop (`MeshGraph.mintInvite()` via hypha's `/mesh/invite`), passed to the
+worklet's `join`. This replaces the `providerKey` inference-only pin. Delegated inference
+keeps working (unchanged) — it's a separate concern from membership.
+
+**B5. UI** — `TasksScreen` shows a mesh-status chip (member ✓ · N peers · leader=you/other ·
+offline) sourced from `status`. Tasks render from the local replica and update live on
+`tasks.changed`.
+
+*Acceptance for Part B:* the phone joins the mesh via an invite; a desktop-created task
+appears on it; an edit on the phone (incl. offline, then reconnect) appears on both
+desktops; a delete tombstones everywhere.
+
+## Leader election (oldest active member) — designed here
+
+The user's model: **the leader is the oldest member that is currently active; if the
+leader goes offline, leadership passes to the next-oldest active member.** Autobase data
+sync is leaderless (any writer appends; the view linearizes), so the leader is **not**
+needed for task convergence — it's a *coordination* role for things that want a single
+owner (e.g. who runs the proactive heartbeat loop, who is the canonical rendezvous, who
+performs one-shot mesh chores). Designing it now so the model is consistent across clients.
+
+- **Seniority key** = the timestamp of a device's `add-writer` entry in the Autobase
+  (its join order — already in the replicated log), tiebroken by writer key. This is a
+  deterministic, replicated total order every member computes identically.
+- **Liveness** = the existing capability heartbeat: a member is "active" if its
+  `capability.lastSeen` is within the staleness window (reuse `failover.ts` `liveProviders`
+  semantics / `staleMs`). Each device already re-advertises on a timer.
+- **Leader** = the most-senior member whose capability is live. Pure function of the
+  replicated state (`add-writer` order + live capabilities); every device derives the same
+  leader with no election messages. When the leader's heartbeat goes stale, the
+  next-senior live member becomes leader automatically on the next evaluation.
+- **Exposed** as `MeshGraph.leader()` (in `packages/mesh`), surfaced by hypha (`/peers`
+  gains `leader`) and the phone worklet (`status.leader`), and shown in the UI.
+- **Scope guard:** this slice only *computes + displays* the leader and uses it for the
+  rendezvous/"is it me" check. Moving the heartbeat loop to "leader-only" is a follow-on
+  (it touches the proactivity daemon), noted but not built here.
 
 ## Identity / transport / security
 
-- **Hub** = the phone's already-paired provider node (`apps/mobile/mesh.ts`
-  `providerKey`). One hub per phone in this slice.
-- **Topic** = a per-pair topic in the forward-control family
-  (`sha256("hypha-sync-v1:" + hubKey + phoneConsumerKey)` — a `-sync-v1` sibling of the
-  forward topic so the two channels don't collide). Honors CLAUDE.md seed rules: it's a
-  derived per-pair topic announced on forward-control's own swarm, **not** a second
-  Hyperswarm under the raw device seed.
-- **Encryption** = Hyperswarm Noise (transport). Data-at-rest on the hub is the existing
-  Corestore (unencrypted on disk) — unchanged by this slice; acceptable for a
-  single-user trusted mesh, same as today.
-- **Authorization** = the consumer allow-list the hub already enforces for forward/
-  delegated paths.
+- **Membership** = the phone is a writer in the single primary mesh via blind-pairing; its
+  writer key is `MeshGraph.localWriterKey` (distinct per mesh, derived from the device seed).
+- **Transport** = Hyperswarm (Noise-encrypted) replicating the Corestore between members —
+  the same mechanism desktops already use. The phone's mesh swarm uses a derived seed
+  (`sha256(seed + ":mesh")`), never the raw SDK seed (CLAUDE.md rule: no two swarms under
+  one seed).
+- **Encryption** = Hyperswarm Noise in transit; Corestore at rest is unencrypted on disk
+  (unchanged from desktop today; acceptable for a single-user trusted mesh).
+- **Authorization** = mesh writer admission (`add-writer`, gated by the inviter). A device
+  that isn't paired isn't a writer and sees nothing.
 
 ## Testing / verification
 
@@ -219,29 +267,60 @@ on reconnect both desktops reflect the edit; a delete on the phone tombstones ev
   graphs, replicate over loopback, assert convergence).
 - **Integration (hypha):** two hypha instances paired over loopback; `POST /tasks` on
   one → `GET /tasks` on the other converges; SSE emits.
-- **Mobile:** `tsc --noEmit` + `expo export -p ios` bundle; on-device — pull a
-  desktop task, edit offline (airplane mode), reconnect, confirm convergence + tombstone.
-- **Regression:** desktop chat/cron/daemons that read tasks still work (the web reads via
-  hypha; the local-file fallback covers hypha-down).
+- **Mobile:** `tsc --noEmit` + `expo export -p ios` bundle; on-device — join via invite,
+  see a desktop task, edit offline (airplane mode), reconnect, confirm convergence +
+  tombstone on both desktops. (Verification harness: the autonomous build→install→launch→
+  pull-progress-file loop proven during the spike works for the worklet too.)
+- **Regression:** desktop chat/cron/daemons that read tasks still work (web reads via
+  hypha; local-file fallback covers hypha-down); mobile delegated inference + mesh vision
+  unchanged (the mesh worklet is additive, on a derived seed/separate swarm).
+
+## Bundling note (the spike's lesson — must-honor)
+
+The mesh worklet bundle must be built so every **native-addon patch version** in the
+bundle matches the vendored `node_modules/react-native-bare-kit/ios/addons/*.xcframework`
+versions (and the manifest `qvac/addons.manifest.json` must allowlist them — it already
+lists `rocksdb-native`, `sodium-native`, `simdle-native`, `quickbit-native`,
+`fs-native-extensions`, `udx-native`, `rabin-native`). A hand-rolled `bare-pack --linked`
+emitted *older* patch versions (e.g. `rocksdb-native.3.15.1` vs the linked `3.15.2`),
+causing `ADDON_NOT_FOUND` at worklet load. Build the worklet through the project's
+`withMobileBundle` pipeline (the path that produces the working SDK worker bundle, which
+references consistent versions), or apply a version-alignment pass against the vendored
+frameworks. This is a build-config task, not a code one, but it's load-bearing.
 
 ## Risks & mitigations
 
 - **Web reads now depend on hypha being up.** Mitigation: local-file read-through
   fallback (degraded read-only) when hypha is unreachable; writes queue/fail visibly.
-- **`sync-worklet` is a second Bare worklet alongside `forward-worklet`.** Mitigation:
-  same proven pattern; distinct topic; one request in flight (as forward already does).
-- **Clock skew mis-orders same-task edits.** Accepted (documented); revisit with a
-  logical clock if it bites.
-- **Migration double-import.** Mitigation: idempotent (LWW by id) + a `tasks-migrated`
-  marker.
+- **Mesh worklet is a 2nd Bare worklet + 2nd Hyperswarm alongside the SDK worker.**
+  Mitigation: derived seed (`sha256(seed+":mesh")`) so swarms never collide (CLAUDE.md
+  rule); the forward-worklet already proves a 2nd swarm coexists; battery — replication is
+  only while the app is foregrounded (iOS background limits), acceptable and matches user
+  expectation of a phone.
+- **Worklet addon version skew → `ADDON_NOT_FOUND`.** Mitigation: the Bundling note —
+  align bundle addon versions to the vendored xcframeworks via `withMobileBundle`.
+- **Clock skew mis-orders same-task edits.** Accepted (documented); revisit with a logical
+  clock if it bites.
+- **Leader flapping near the staleness boundary.** Mitigation: leader is derived, not
+  messaged (no election traffic to flap); use the same `staleMs` hysteresis as `failover.ts`.
+- **Migration double-import.** Mitigation: idempotent (LWW by id) + a `tasks-migrated` marker.
 
 ## Implementation phasing (for the plan)
 
-1. **mesh data model** — entry types + apply + `MeshGraph` methods + unit tests.
-2. **hypha task endpoints** — shim routes + `MeshEventBus` emit + integration test.
-3. **web tasks-client** — proxy route + `TasksPanel` wiring + migration; verify two-desktop sync.
-4. **hub sync-control** — `tasks.pull`/`tasks.push` verbs over the per-pair topic.
-5. **mobile sync** — `sync-worklet` + `syncClient` + `tasks.ts` reconcile + status UI.
-6. **end-to-end verify** — desktop↔desktop↔phone, including offline + delete; sawdust entry.
+1. **mesh data model** — `task` / `task-delete` entry types + LWW apply + `MeshGraph`
+   methods (`publishTask`/`deleteTask`/`tasks`/`tasksSince`) + `leader()` + unit tests
+   (loopback convergence, leader derivation).
+2. **hypha task endpoints + leader** — shim `/tasks*` routes, `/peers` gains `leader`,
+   `MeshEventBus` emit; integration test (two hypha over loopback converge).
+3. **web tasks-client** — proxy route + `TasksPanel` reads/writes via hypha + SSE live +
+   migration of `data/leash-tasks.json`; verify two-desktop sync.
+4. **mobile mesh worklet** — `mesh-worklet.mjs` (MeshHost/MeshGraph in Bare) + `meshClient.ts`
+   bridge, built through `withMobileBundle` with addon versions aligned; bring-up: join via
+   invite, `status` reports `writable=true`.
+5. **mobile tasks over the worklet** — back `tasks.ts` with the worklet + local-replica
+   cache + `tasks.changed` live updates + mesh/leader status chip; Mesh-screen join UX.
+6. **end-to-end verify** — desktop↔desktop↔phone, incl. offline + delete + leader display;
+   sawdust entry.
 
-Each phase: `tsc`/build sanity, then the phase's acceptance check.
+Each phase: `tsc`/build sanity, then the phase's acceptance check. Phase 4 uses the
+autonomous on-device verification loop (build→install→launch→pull progress) proven in the spike.
