@@ -1,217 +1,1357 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   SafeAreaView,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import { Mic, Square, ArrowUp, Plus, X, Phone, Menu } from "./icons";
+import { AddToChat } from "./AddToChat";
+import { VoiceCall } from "./VoiceCall";
+import { ChatHistory } from "./ChatHistory";
+import { MarkdownText } from "./markdown";
+import {
+  listChats,
+  loadChat,
+  saveChat,
+  deleteChat,
+  newChatId,
+  deriveTitle,
+  type ChatSummary,
+  type ChatRecord,
+} from "./chats";
+import { meshVision } from "./forwardWorklet";
+import { loadStt, startRecording, stopRecording, transcribeWav, type RecHandle } from "./voice";
+import { useFonts } from "expo-font";
+import {
+  Fraunces_400Regular,
+  Fraunces_400Regular_Italic,
+  Fraunces_600SemiBold,
+  Fraunces_900Black,
+} from "@expo-google-fonts/fraunces";
+import {
+  Newsreader_400Regular,
+  Newsreader_400Regular_Italic,
+  Newsreader_500Medium,
+  Newsreader_600SemiBold,
+} from "@expo-google-fonts/newsreader";
+import {
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+} from "@expo-google-fonts/ibm-plex-mono";
 
 import {
+  cancel,
   completion,
   downloadAsset,
-  LLAMA_3_2_1B_INST_Q4_0,
+  QWEN3_1_7B_INST_Q4,
   loadModel,
   type ModelProgressUpdate,
   unloadModel,
   VERBOSITY,
 } from "@qvac/sdk";
 
+import { C, F, TRACKING_LABEL } from "./theme";
+import { LeashMark } from "./LeashMark";
+import { type MeshStatus } from "./MeshSheet";
+import { NavDrawer, type Route } from "./NavDrawer";
+import { HomeScreen } from "./HomeScreen";
+import { MeshScreen } from "./MeshScreen";
+import { SettingsScreen } from "./SettingsScreen";
+import { TasksScreen } from "./TasksScreen";
+import { AlertsScreen } from "./AlertsScreen";
+import { BrainScreen } from "./BrainScreen";
+import { EconomyScreen } from "./EconomyScreen";
+import { ServicesScreen } from "./ServicesScreen";
+import { DesktopScreen, type DesktopRoute } from "./DesktopScreen";
+import { loadMeshConfig, saveMeshConfig, isValidProviderKey, pingProvider, notifyPairing } from "./mesh";
+import { getPrompts, DEFAULT_SYSTEM, DEFAULT_VOICE } from "./prompts";
+import { getConstitution } from "./constitution";
+import { listMemories, type Memory } from "./memories";
+import { addNotification, unreadCount } from "./notifications";
+import * as Device from "expo-device";
+
+const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
+
 /**
- * Leash mobile — a fully on-device LLM chat. The QVAC SDK runs inference natively on the phone
- * (no server, no network after the first model download), via the @qvac/sdk Expo integration.
+ * Leash mobile — your mind, on your own devices. A fully on-device LLM chat: @qvac/sdk
+ * runs inference natively on the phone (no server, offline after the first download),
+ * dressed in "The Understory" broadsheet brand shared with the web + desktop clients.
  * Requires a PHYSICAL device — llamacpp does not run on the iOS simulator / Android emulator.
  */
 
+const MODEL_LABEL = "Qwen3 · 1.7B";
+
+/**
+ * Compose the chat system message from the user's Brain edits — the persisted System prompt
+ * override (or its default) plus the constitution's soul/goals and the enabled memories. This is
+ * what makes Brain → Prompts / Proactivity / Memory genuinely change how Leash answers (Rule 4),
+ * rather than being decorative tabs. The voice directive and `/no_think` are appended at call time.
+ */
+function composeBaseSystem(system: string, soul: string, goals: string, memories: Memory[]): string {
+  let s = system.trim() || DEFAULT_SYSTEM;
+  if (soul.trim()) s += `\n\nWho you are:\n${soul.trim()}`;
+  if (goals.trim()) s += `\n\nWhat the user is working toward:\n${goals.trim()}`;
+  if (memories.length) {
+    const lines = memories.map((m) => `- (${m.type}) ${m.text}`).join("\n");
+    s += `\n\nWhat you know about the user — carry this across conversations:\n${lines}`;
+  }
+  return s;
+}
+
+/** Strip Qwen3 `<think>…</think>` reasoning from displayed/returned text (we run /no_think, but
+ *  the model still emits an empty block; also hide an un-closed block mid-stream). */
+function stripThink(s: string): string {
+  let out = s.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  const open = out.indexOf("<think>");
+  if (open !== -1) out = out.slice(0, open);
+  return out.replace(/^\s+/, "");
+}
+
+const SUGGESTIONS = [
+  "What can you do offline?",
+  "Summarize an idea for me",
+  "Draft a short note",
+  "Explain a concept simply",
+];
+
 type Role = "user" | "assistant";
-type ChatMessage = { id: string; role: Role; content: string };
+type Telemetry = { tokens: number; tps: number; ttftMs: number; where: "mesh" | "local"; device?: string };
+type ChatMessage = { id: string; role: Role; content: string; telemetry?: Telemetry; image?: string };
 
 let idSeq = 0;
-function makeId(): string {
-  // Deterministic-enough unique key for list items (avoids Math.random in render paths).
-  idSeq += 1;
-  return `m${idSeq}`;
+const makeId = () => `m${(idSeq += 1)}`;
+
+/** "⛓ mesh · 142 tok · 18 tok/s · ttft 120 ms" — broadsheet telemetry under a finished answer. */
+function telemetryLine(t: Telemetry): string {
+  const place = t.where === "mesh" ? `⛓ mesh${t.device ? ` · ${t.device}` : ""}` : "⌂ on-device";
+  return [
+    place,
+    `${t.tokens} tok`,
+    t.tps ? `${t.tps} tok/s` : "",
+    t.ttftMs ? `ttft ${t.ttftMs} ms` : "",
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
 }
 
 export default function App(): React.JSX.Element {
+  const [fontsLoaded] = useFonts({
+    Fraunces_400Regular,
+    Fraunces_400Regular_Italic,
+    Fraunces_600SemiBold,
+    Fraunces_900Black,
+    Newsreader_400Regular,
+    Newsreader_400Regular_Italic,
+    Newsreader_500Medium,
+    Newsreader_600SemiBold,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+    IBMPlexMono_600SemiBold,
+  });
+
   const [modelId, setModelId] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("Initializing…");
-  const [downloadPct, setDownloadPct] = useState<number | null>(null);
+  const [status, setStatus] = useState("Waking the press…");
+  const [progress, setProgress] = useState<number | null>(null);
+  const [booting, setBooting] = useState(true);
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // Persisted conversations (on-device). The text chat AND the voice call share the current one.
+  const [chatId, setChatId] = useState("");
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [chatList, setChatList] = useState<ChatSummary[]>([]);
+  const chatCreatedRef = useRef(Date.now());
+
+  // Attachment busy state + the "+" Add-to-Chat sheet + the staged (not-yet-sent) attachments
+  // (up to 5, shown as thumbnails hoisted inside the composer box).
+  const [attaching, setAttaching] = useState(false);
+  const [addSheetOpen, setAddSheetOpen] = useState(false);
+  const [attachments, setAttachments] = useState<{ dataUrl: string; uri: string }[]>([]);
+
+  // Voice input — mic push-to-talk (record → on-device Whisper → fill the input).
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const recHandleRef = useRef<RecHandle | null>(null);
+
   const listRef = useRef<FlatList<ChatMessage>>(null);
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
+  const cancelRef = useRef(false);
+  const modelIdRef = useRef<string | null>(null);
 
-  const canSend = useMemo(
-    () => !!modelId && !isGenerating && input.trim().length > 0,
-    [modelId, isGenerating, input],
-  );
+  // Brain-composed prompt parts (loaded from prompts/constitution/memories on mount, refreshed when
+  // the Brain screen edits them). Held in refs so runCompletion — whose deps are empty — reads the
+  // latest without re-binding. Initialized to the defaults so the very first turn still has identity.
+  const baseSystemRef = useRef<string>(DEFAULT_SYSTEM);
+  const voiceDirectiveRef = useRef<string>(DEFAULT_VOICE);
+
+  // Mesh offload — delegate inference to a provider on the private mesh.
+  const [providerKey, setProviderKey] = useState("");
+  const [meshOn, setMeshOn] = useState(false);
+  const [meshStatus, setMeshStatus] = useState<MeshStatus>("unset");
+  // The dashboard shell: which screen is showing + the left nav drawer.
+  const [route, setRoute] = useState<Route>("chat");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  // Unread alerts → the drawer bell badge.
+  const [unread, setUnread] = useState(0);
+  const [delegatedId, setDelegatedId] = useState<string | null>(null);
+  // Full-screen live voice call (hands-free conversation).
+  const [callOpen, setCallOpen] = useState(false);
+  // The pairing web page's callback + provider name (set when paired via QR), so we can
+  // tell the page when this phone connects/disconnects.
+  const [providerCb, setProviderCb] = useState<string | undefined>(undefined);
+  const [providerName, setProviderName] = useState<string | undefined>(undefined);
+  const delegatedIdRef = useRef<string | null>(null);
+  const meshOnRef = useRef(false);
+  meshOnRef.current = meshOn && !!delegatedId;
+
+  const hasContent = input.trim().length > 0 || attachments.length > 0;
+  const canSend = !!modelId && !isGenerating && hasContent;
+  const MAX_ATTACH = 5;
+  const addAttachment = useCallback((a: { dataUrl: string; uri: string }) => {
+    setAttachments((prev) => {
+      if (prev.length >= MAX_ATTACH) {
+        Alert.alert("Attachments", `You can attach up to ${MAX_ATTACH} images.`);
+        return prev;
+      }
+      return [...prev, a];
+    });
+  }, []);
 
   useEffect(() => {
-    const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 0);
+    const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     return () => clearTimeout(t);
   }, [messages]);
 
   // Download + load the model once on mount.
   useEffect(() => {
     let cancelled = false;
+    let didDownload = false;
     (async () => {
       try {
-        setStatus("Downloading model…");
+        setStatus("Fetching the model");
         await downloadAsset({
-          assetSrc: LLAMA_3_2_1B_INST_Q4_0,
+          assetSrc: QWEN3_1_7B_INST_Q4,
           onProgress: (p: ModelProgressUpdate) => {
-            if (!cancelled) setDownloadPct(Math.round(p.percentage));
+            if (p.percentage < 100) didDownload = true;
+            if (!cancelled) setProgress(Math.round(p.percentage));
           },
         });
         if (cancelled) return;
 
-        setStatus("Loading model into memory…");
+        setStatus("Loading into memory");
+        setProgress(null);
         const id = await loadModel({
-          modelSrc: LLAMA_3_2_1B_INST_Q4_0,
+          modelSrc: QWEN3_1_7B_INST_Q4,
           modelType: "llm",
-          modelConfig: { device: "gpu", ctx_size: 2048, verbosity: VERBOSITY.ERROR },
+          modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR },
           onProgress: (p: ModelProgressUpdate) => {
-            if (!cancelled) setDownloadPct(Math.round(p.percentage));
+            if (!cancelled) setProgress(Math.round(p.percentage));
           },
         });
         if (cancelled) return;
 
+        modelIdRef.current = id;
         setModelId(id);
-        setStatus("Ready");
-        setDownloadPct(null);
+        setStatus("On the press");
+        setProgress(null);
+        setBooting(false);
+        // Real on-device event → Alerts feed (only when weights were actually fetched, not a cache hit).
+        if (didDownload) {
+          void addNotification({
+            title: "Model ready",
+            body: `${MODEL_LABEL} finished downloading and is loaded on-device.`,
+            why: "First run fetches the GGUF weights once; it now runs fully offline.",
+            tier: "auto",
+          });
+        }
       } catch (e) {
-        if (!cancelled) setStatus(`Init failed: ${(e as Error)?.message ?? String(e)}`);
+        if (!cancelled) {
+          const msg = (e as Error)?.message ?? String(e);
+          setStatus(`Couldn't start: ${msg}`);
+          setBooting(false);
+          void addNotification({ title: "Model failed to load", body: msg, tier: "ask" });
+        }
       }
     })();
-
     return () => {
       cancelled = true;
-      const id = modelId;
+      const id = modelIdRef.current;
       if (id) void unloadModel({ modelId: id, clearStorage: false }).catch(() => {});
     };
-    // Init runs once; intentionally not keyed on modelId.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function handleSend(): Promise<void> {
-    if (!modelId || isGenerating) return;
-    const trimmed = input.trim();
-    if (!trimmed) return;
+  // Pre-warm Whisper once the chat model is up, so the first mic tap transcribes
+  // near-instantly instead of stalling on a cold model load/download.
+  useEffect(() => {
+    if (!modelId) return;
+    const t = setTimeout(() => void loadStt().catch(() => {}), 1500);
+    return () => clearTimeout(t);
+  }, [modelId]);
 
-    setInput("");
-    setIsGenerating(true);
+  // Restore the saved mesh pairing on first mount.
+  useEffect(() => {
+    void (async () => {
+      const cfg = await loadMeshConfig();
+      setProviderKey(cfg.providerKey);
+      setProviderCb(cfg.cb);
+      setProviderName(cfg.providerName);
+      setMeshOn(cfg.meshOn && isValidProviderKey(cfg.providerKey));
+    })();
+  }, []);
 
-    const userMsg: ChatMessage = { id: makeId(), role: "user", content: trimmed };
-    const assistantId = makeId();
-    setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
+  // Load (and re-load, after a Brain edit) the composed system prompt parts: the System/Voice
+  // prompt overrides, the constitution's soul+goals, and the enabled memories.
+  const refreshBrain = useCallback(async () => {
+    const [prompts, constitution, memories] = await Promise.all([getPrompts(), getConstitution(), listMemories()]);
+    baseSystemRef.current = composeBaseSystem(prompts.system, constitution.soul, constitution.goals, memories);
+    voiceDirectiveRef.current = prompts.voice || DEFAULT_VOICE;
+  }, []);
 
-    try {
-      const history = [...messagesRef.current, userMsg].map((m) => ({ role: m.role, content: m.content }));
-      const result = completion({ modelId, history, stream: true });
+  useEffect(() => {
+    void refreshBrain();
+  }, [refreshBrain]);
 
+  // Keep the drawer bell badge fresh — on mount, when the drawer opens, and on route changes
+  // (the Alerts screen also calls this via onChanged after mark-read / snooze / dismiss).
+  const refreshUnread = useCallback(() => void unreadCount().then(setUnread), []);
+  useEffect(() => {
+    refreshUnread();
+  }, [refreshUnread, drawerOpen, route]);
+
+  // Restore the most recent conversation on first mount (or start a fresh one).
+  useEffect(() => {
+    void (async () => {
+      const list = await listChats();
+      if (list.length) {
+        const rec = await loadChat(list[0]!.id);
+        if (rec) {
+          chatCreatedRef.current = rec.createdAt;
+          setChatId(rec.id);
+          setMessages(rec.messages as ChatMessage[]);
+          return;
+        }
+      }
+      setChatId(newChatId());
+    })();
+  }, []);
+
+  // Persist the current conversation whenever it settles (a turn finished, not mid-stream).
+  useEffect(() => {
+    if (!chatId || isGenerating || messages.length === 0) return;
+    const rec: ChatRecord = {
+      id: chatId,
+      createdAt: chatCreatedRef.current,
+      updatedAt: Date.now(),
+      title: deriveTitle(messages),
+      messages,
+    };
+    void saveChat(rec);
+  }, [messages, isGenerating, chatId]);
+
+  // (Re)register a delegated model whenever mesh is on with a valid provider key. The
+  // delegated load is cheap (no local weights move) and `completion()` then runs on the
+  // provider; fallbackToLocal degrades to this device if the link drops.
+  useEffect(() => {
+    if (!meshOn || !isValidProviderKey(providerKey)) {
+      delegatedIdRef.current = null;
+      setDelegatedId(null);
+      if (meshStatus !== "unset") setMeshStatus("unset");
+      return;
+    }
+    let cancelled = false;
+    setMeshStatus("checking");
+    void (async () => {
+      try {
+        const id = await loadModel({
+          modelSrc: QWEN3_1_7B_INST_Q4,
+          modelType: "llm",
+          modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR },
+          delegate: { providerPublicKey: providerKey.trim(), timeout: 60_000, fallbackToLocal: true },
+          onProgress: () => {},
+        } as any);
+        if (cancelled) return;
+        delegatedIdRef.current = id;
+        setDelegatedId(id);
+        const ok = await pingProvider(providerKey);
+        if (!cancelled) setMeshStatus(ok ? "online" : "offline");
+      } catch {
+        if (!cancelled) setMeshStatus("offline");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meshOn, providerKey]);
+
+  // Keep the provider status fresh while offloading.
+  useEffect(() => {
+    if (!meshOn || !isValidProviderKey(providerKey)) return;
+    const t = setInterval(() => {
+      void pingProvider(providerKey).then((ok) => setMeshStatus(ok ? "online" : "offline"));
+    }, 20_000);
+    return () => clearInterval(t);
+  }, [meshOn, providerKey]);
+
+  // Mesh connect/disconnect → Alerts feed (a real on-device event). Tracks the last online/offline
+  // value so we only emit on an actual transition, not on every 20s re-ping.
+  const lastMeshOnlineRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!meshOn) {
+      lastMeshOnlineRef.current = null;
+      return;
+    }
+    const online = meshStatus === "online";
+    if ((meshStatus !== "online" && meshStatus !== "offline") || lastMeshOnlineRef.current === online) return;
+    const first = lastMeshOnlineRef.current === null;
+    lastMeshOnlineRef.current = online;
+    if (first && online) return; // don't announce the initial healthy connection
+    const name = providerName ? ` · ${providerName}` : "";
+    void addNotification(
+      online
+        ? { title: "Mesh connected", body: `Offloading inference to your provider${name}.`, tier: "auto" }
+        : { title: "Mesh provider unreachable", body: `Your mesh provider${name} went offline; chat falls back to on-device.`, tier: "notify" },
+    );
+  }, [meshStatus, meshOn, providerName]);
+
+  // Manual key entry — no web pairing page involved, so clear any saved callback.
+  const onChangeKey = useCallback((k: string) => {
+    setProviderKey(k);
+    setProviderCb(undefined);
+    setProviderName(undefined);
+    setMeshOn(false);
+    void saveMeshConfig({ providerKey: k, meshOn: false });
+  }, []);
+
+  // Paired via QR — remember the provider key, name, and the web page's callback.
+  const onPair = useCallback((key: string, name?: string, cb?: string) => {
+    setProviderKey(key);
+    setProviderName(name);
+    setProviderCb(cb);
+    setMeshOn(true);
+    void saveMeshConfig({ providerKey: key, meshOn: true, cb, providerName: name });
+  }, []);
+
+  const onToggleMesh = useCallback(
+    (on: boolean) => {
+      setMeshOn(on);
+      void saveMeshConfig({ providerKey, meshOn: on, cb: providerCb, providerName });
+      // Reflect the connect/disconnect on the pairing web page.
+      void notifyPairing(providerCb, SELF_DEVICE, on);
+    },
+    [providerKey, providerCb, providerName],
+  );
+
+  const onPing = useCallback(() => {
+    if (!isValidProviderKey(providerKey)) return;
+    setMeshStatus("checking");
+    void pingProvider(providerKey).then((ok) => setMeshStatus(ok ? "online" : "offline"));
+  }, [providerKey]);
+
+  const runCompletion = useCallback(
+    async (
+      history: { role: Role; content: string }[],
+      assistantId: string,
+      onToken?: (full: string) => void,
+      voice?: boolean,
+    ): Promise<string> => {
+      cancelRef.current = false;
+      const useMesh = meshOnRef.current && !!delegatedIdRef.current;
+      const id = useMesh ? delegatedIdRef.current : modelIdRef.current;
+      const where: "mesh" | "local" = useMesh ? "mesh" : "local";
+      if (!id) return "";
+
+      const started = Date.now();
+      let firstAt = 0;
+      let chunks = 0;
       let acc = "";
-      for await (const token of result.tokenStream) {
-        acc += token;
-        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)));
+
+      // Prepend the Brain-composed identity (System prompt + soul/goals + memories); on spoken turns
+      // also append the "short + no markdown" voice directive. `/no_think` keeps Qwen3 in
+      // direct-answer mode (fast; no long reasoning) on this small model.
+      const system = (voice ? baseSystemRef.current + voiceDirectiveRef.current : baseSystemRef.current) + " /no_think";
+      const fullHistory = [{ role: "system" as const, content: system }, ...history];
+
+      try {
+        const result = completion({ modelId: id, history: fullHistory, stream: true });
+        for await (const token of result.tokenStream) {
+          if (cancelRef.current) break;
+          if (!firstAt) firstAt = Date.now();
+          chunks += 1;
+          acc += token;
+          const display = stripThink(acc);
+          onToken?.(display);
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: display } : m)));
+        }
+        acc = stripThink(acc);
+
+        const elapsed = (Date.now() - started) / 1000;
+        let stats: any = null;
+        try {
+          stats = await (result as any).stats;
+        } catch {}
+        const tokens: number = stats?.tokens ?? stats?.totalTokens ?? stats?.completionTokens ?? chunks;
+        const tpsRaw: number =
+          stats?.tokensPerSecond ?? stats?.tps ?? (elapsed > 0 ? tokens / elapsed : 0);
+        const ttftMs: number = Math.round(
+          stats?.ttftMs ?? stats?.timeToFirstTokenMs ?? stats?.timeToFirstToken ?? (firstAt ? firstAt - started : 0),
+        );
+        const device: string | undefined = stats?.backendDevice ?? stats?.device;
+        const telemetry: Telemetry = { tokens, tps: Math.round(tpsRaw), ttftMs, where, device };
+
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: acc || (cancelRef.current ? "⏸ Stopped." : ""), telemetry }
+              : m,
+          ),
+        );
+      } catch (e) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: `⚠ ${(e as Error)?.message ?? String(e)}` }
+              : m,
+          ),
+        );
+      } finally {
+        setIsGenerating(false);
+      }
+      return acc;
+    },
+    [],
+  );
+
+  // A spoken turn from the live call: lands in the shared transcript and runs the LLM
+  // (mesh or local), streaming tokens to the caller for the on-screen caption + TTS.
+  const handleVoiceTurn = useCallback(
+    async (text: string, onToken?: (full: string) => void): Promise<string> => {
+      if (!modelId) return "";
+      const userMsg: ChatMessage = { id: makeId(), role: "user", content: text };
+      const assistantId = makeId();
+      setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
+      setIsGenerating(true);
+      const history = [...messagesRef.current, userMsg].map((m) => ({ role: m.role, content: m.content }));
+      return runCompletion(history, assistantId, onToken, true);
+    },
+    [modelId, runCompletion],
+  );
+
+  const send = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!modelId || isGenerating || !trimmed) return;
+      setInput("");
+      setIsGenerating(true);
+
+      const userMsg: ChatMessage = { id: makeId(), role: "user", content: trimmed };
+      const assistantId = makeId();
+      setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
+
+      const history = [...messagesRef.current, userMsg].map((m) => ({ role: m.role, content: m.content }));
+      void runCompletion(history, assistantId);
+    },
+    [modelId, isGenerating, runCompletion],
+  );
+
+  const stop = useCallback(() => {
+    cancelRef.current = true;
+    const id = modelIdRef.current;
+    if (id) void (cancel as any)?.({ modelId: id })?.catch?.(() => {});
+  }, []);
+
+  // ── Image(s) → vision over the mesh ──────────────────────────────────
+  const sendImage = useCallback(
+    async (items: { dataUrl: string; uri: string }[]) => {
+      if (isGenerating || items.length === 0) return;
+      const prompt = input.trim() || "What's in this image?";
+      setInput("");
+      setIsGenerating(true);
+      const userMsg: ChatMessage = { id: makeId(), role: "user", content: prompt, image: items[0]!.uri };
+      const assistantId = makeId();
+      setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
+      let acc = "";
+      try {
+        const full = await meshVision(items.map((i) => i.dataUrl), prompt, (chunk) => {
+          acc += chunk;
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)));
+        });
+        const text = full || acc;
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: text, telemetry: { tokens: text.length, tps: 0, ttftMs: 0, where: "mesh", device: "qwen3vl" } }
+              : m,
+          ),
+        );
+      } catch (e) {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === assistantId ? { ...m, content: `⚠ Mesh vision: ${(e as Error)?.message ?? String(e)}` } : m,
+          ),
+        );
+      } finally {
+        setIsGenerating(false);
+      }
+    },
+    [isGenerating, input],
+  );
+
+  const pickImage = useCallback(async () => {
+    try {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) return Alert.alert("Photos", "Allow photo access to attach an image.");
+      setAttaching(true);
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: "images",
+        base64: true,
+        quality: 0.6,
+        allowsMultipleSelection: true,
+        selectionLimit: MAX_ATTACH,
+      });
+      setAttaching(false);
+      if (res.canceled) return;
+      for (const a of res.assets ?? []) {
+        if (a.base64) addAttachment({ dataUrl: `data:${a.mimeType || "image/jpeg"};base64,${a.base64}`, uri: a.uri });
       }
     } catch (e) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId ? { ...m, content: `❌ Error: ${(e as Error)?.message ?? String(e)}` } : m,
-        ),
-      );
-    } finally {
-      setIsGenerating(false);
+      setAttaching(false);
+      Alert.alert("Couldn't attach image", (e as Error)?.message ?? String(e));
     }
+  }, []);
+
+  const takePhoto = useCallback(async () => {
+    try {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) return Alert.alert("Camera", "Allow the camera to take a photo.");
+      setAttaching(true);
+      const res = await ImagePicker.launchCameraAsync({ base64: true, quality: 0.6 });
+      setAttaching(false);
+      const a = res.assets?.[0];
+      if (res.canceled || !a?.base64) return;
+      addAttachment({ dataUrl: `data:${a.mimeType || "image/jpeg"};base64,${a.base64}`, uri: a.uri });
+    } catch (e) {
+      setAttaching(false);
+      Alert.alert("Couldn't take photo", (e as Error)?.message ?? String(e));
+    }
+  }, []);
+
+  const pickFile = useCallback(async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({ type: ["image/*", "text/*"], copyToCacheDirectory: true });
+      const a = res.assets?.[0];
+      if (res.canceled || !a) return;
+      const FS = await import("expo-file-system/legacy");
+      if ((a.mimeType || "").startsWith("image/")) {
+        const b64 = await FS.readAsStringAsync(a.uri, { encoding: "base64" as any });
+        addAttachment({ dataUrl: `data:${a.mimeType};base64,${b64}`, uri: a.uri });
+      } else {
+        const text = await FS.readAsStringAsync(a.uri);
+        setInput((prev) => (prev ? prev + "\n" : "") + text.slice(0, 4000));
+      }
+    } catch (e) {
+      Alert.alert("Couldn't attach file", (e as Error)?.message ?? String(e));
+    }
+  }, []);
+
+  // Send the draft: attached image(s) (with the text as the prompt) go to mesh vision;
+  // otherwise a plain text turn.
+  const handleSend = useCallback(() => {
+    if (!modelId || isGenerating) return;
+    if (attachments.length > 0) {
+      const items = attachments;
+      setAttachments([]);
+      void sendImage(items);
+    } else if (input.trim().length > 0) {
+      send(input);
+    }
+  }, [modelId, isGenerating, attachments, input, sendImage, send]);
+
+  // Mic push-to-talk: tap to record, tap to stop → transcribe on-device (Whisper) → fill input.
+  const toggleRecord = useCallback(async () => {
+    if (transcribing) return;
+    if (recording) {
+      const h = recHandleRef.current;
+      recHandleRef.current = null;
+      setRecording(false);
+      if (!h) return;
+      setTranscribing(true);
+      try {
+        const wav = await stopRecording(h);
+        const sttId = await loadStt();
+        const text = await transcribeWav(sttId, wav);
+        if (text) setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text));
+      } catch (e) {
+        Alert.alert("Voice", (e as Error)?.message ?? String(e));
+      } finally {
+        setTranscribing(false);
+      }
+    } else {
+      try {
+        void loadStt().catch(() => {}); // warm the model in the background while we record
+        const h = await startRecording();
+        recHandleRef.current = h;
+        setRecording(true);
+      } catch (e) {
+        Alert.alert("Voice", (e as Error)?.message ?? String(e));
+      }
+    }
+  }, [recording, transcribing]);
+
+  const regenerate = useCallback(() => {
+    if (!modelId || isGenerating) return;
+    const msgs = messagesRef.current;
+    // Drop the trailing assistant turn, keep history through the last user message.
+    let cut = msgs.length;
+    while (cut > 0 && msgs[cut - 1]!.role === "assistant") cut -= 1;
+    const history = msgs.slice(0, cut).map((m) => ({ role: m.role, content: m.content }));
+    if (!history.length) return;
+    setIsGenerating(true);
+    const assistantId = makeId();
+    setMessages([...msgs.slice(0, cut), { id: assistantId, role: "assistant", content: "" }]);
+    void runCompletion(history, assistantId);
+  }, [modelId, isGenerating, runCompletion]);
+
+  // Start a fresh conversation. The current one was already auto-saved after its last turn, so
+  // clearing here just opens a new thread (works from the masthead AND mid-call).
+  const newChat = useCallback(() => {
+    if (isGenerating) stop();
+    chatCreatedRef.current = Date.now();
+    setChatId(newChatId());
+    setMessages([]);
+    setInput("");
+  }, [isGenerating, stop]);
+
+  const openHistory = useCallback(async () => {
+    setChatList(await listChats());
+    setHistoryOpen(true);
+  }, []);
+
+  const selectChat = useCallback(
+    async (id: string) => {
+      if (id === chatId) return;
+      if (isGenerating) stop();
+      const rec = await loadChat(id);
+      if (!rec) return;
+      chatCreatedRef.current = rec.createdAt;
+      setChatId(rec.id);
+      setMessages(rec.messages as ChatMessage[]);
+      setInput("");
+    },
+    [chatId, isGenerating, stop],
+  );
+
+  const removeChat = useCallback(
+    async (id: string) => {
+      await deleteChat(id);
+      setChatList(await listChats());
+      if (id === chatId) newChat();
+    },
+    [chatId, newChat],
+  );
+
+  const lastAssistantId = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) if (messages[i]!.role === "assistant") return messages[i]!.id;
+    return null;
+  }, [messages]);
+
+  if (!fontsLoaded) {
+    return (
+      <View style={[styles.safe, styles.center]}>
+        <LeashMark size={44} mark={C.ink} tile={C.cream} cutout={C.cream} />
+      </View>
+    );
   }
 
   return (
     <SafeAreaView style={styles.safe}>
+      <StatusBar barStyle="dark-content" backgroundColor={C.cream} />
+      {route === "chat" ? (
       <KeyboardAvoidingView
         style={styles.safe}
-        behavior="padding"
-        keyboardVerticalOffset={Platform.OS === "ios" ? 8 : StatusBar.currentHeight || 0}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 4 : 0}
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Leash</Text>
-          <Text style={styles.subtitle}>
-            {status}
-            {downloadPct != null ? ` (${downloadPct}%)` : ""}
-          </Text>
-          {downloadPct != null && (
-            <View style={styles.progressBar}>
-              <View style={[styles.progressFill, { width: `${downloadPct}%` }]} />
+        {/* ── Masthead ─────────────────────────────────────────────── */}
+        <View style={styles.masthead}>
+          <View style={styles.mastheadRow}>
+            <Pressable onPress={() => setDrawerOpen(true)} hitSlop={8} style={styles.markTile}>
+              <LeashMark size={26} mark={C.cream} cutout={C.ink} />
+            </Pressable>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.wordmark}>Leash</Text>
+              <Text style={styles.tagline}>your mind · on your own devices</Text>
+            </View>
+            <Pressable onPress={openHistory} hitSlop={10} style={styles.histBtn}>
+              <Menu size={20} color={C.inkSoft} strokeWidth={2} />
+            </Pressable>
+            <Pressable onPress={newChat} hitSlop={10} style={styles.newBtn}>
+              <Text style={styles.newBtnText}>NEW</Text>
+            </Pressable>
+          </View>
+          <View style={styles.ruleStrong} />
+          <View style={styles.statusRow}>
+            <View style={styles.statusLeft}>
+              <View style={[styles.dot, { backgroundColor: modelId ? C.sage : C.faint }]} />
+              <Text style={styles.kicker}>
+                {modelId ? MODEL_LABEL : status}
+                {progress != null ? ` · ${progress}%` : ""}
+              </Text>
+            </View>
+            <Pressable onPress={() => setRoute("mesh")} hitSlop={8}>
+              {meshOnRef.current ? (
+                <Text style={[styles.kicker, { color: meshStatus === "offline" ? C.brick : C.sageDeep }]}>
+                  ⛓ MESH{meshStatus === "online" ? " · LIVE" : meshStatus === "offline" ? " · DOWN" : ""}
+                </Text>
+              ) : (
+                <Text style={styles.kicker}>⌂ ON-DEVICE</Text>
+              )}
+            </Pressable>
+          </View>
+          {progress != null && (
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progress}%` }]} />
             </View>
           )}
         </View>
 
-        <View style={styles.chat}>
+        {/* ── Conversation ─────────────────────────────────────────── */}
+        {messages.length === 0 ? (
+          <ScrollView contentContainerStyle={styles.emptyWrap} keyboardShouldPersistTaps="handled">
+            <Text style={styles.emptyKicker}>TODAY'S EDITION</Text>
+            <Text style={styles.emptyHead}>
+              Ask your{"\n"}
+              <Text style={styles.emptyHeadItalic}>exocortex.</Text>
+            </Text>
+            <Text style={styles.emptyDek}>
+              A private mind that runs entirely on this device. No servers, no cloud — it keeps working in
+              airplane mode.
+            </Text>
+            <View style={styles.suggestList}>
+              {SUGGESTIONS.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => send(s)}
+                  disabled={!modelId}
+                  style={({ pressed }) => [styles.suggest, pressed && styles.suggestPressed, !modelId && styles.suggestDisabled]}
+                >
+                  <Text style={styles.suggestArrow}>→</Text>
+                  <Text style={styles.suggestText}>{s}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </ScrollView>
+        ) : (
           <FlatList
             ref={listRef}
             data={messages}
             keyExtractor={(m) => m.id}
+            contentContainerStyle={styles.feed}
+            keyboardShouldPersistTaps="handled"
             renderItem={({ item }) => (
-              <View style={[styles.bubble, item.role === "user" ? styles.bubbleUser : styles.bubbleAssistant]}>
-                <Text style={styles.bubbleText}>{item.content}</Text>
-              </View>
+              <MessageBlock
+                message={item}
+                generating={isGenerating && item.id === lastAssistantId}
+                canRegenerate={!isGenerating && item.id === lastAssistantId && item.role === "assistant"}
+                onRegenerate={regenerate}
+              />
             )}
-            contentContainerStyle={styles.chatContent}
           />
-        </View>
+        )}
 
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder={modelId ? "Message your on-device assistant…" : "Loading model…"}
-            placeholderTextColor="#7E7E8A"
-            editable={!!modelId && !isGenerating}
-            returnKeyType="send"
-            onSubmitEditing={() => canSend && void handleSend()}
-            blurOnSubmit={false}
-          />
-          {isGenerating ? <ActivityIndicator /> : null}
+        {/* ── Composer — Claude-style box: attachments hoisted inside, actions in a toolbar ── */}
+        <View style={styles.composerWrap}>
+          <View style={styles.pill}>
+            {attachments.length > 0 ? (
+              <View style={styles.attachRow}>
+                {attachments.map((a, i) => (
+                  <View key={`${a.uri}-${i}`} style={styles.attachChip}>
+                    <Image source={{ uri: a.uri }} style={styles.attachThumb} resizeMode="cover" />
+                    <Pressable
+                      onPress={() => setAttachments((prev) => prev.filter((_, j) => j !== i))}
+                      style={styles.attachRemove}
+                      hitSlop={8}
+                    >
+                      <X size={11} color={C.cream} strokeWidth={3} />
+                    </Pressable>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+            <TextInput
+              style={styles.pillInput}
+              value={input}
+              onChangeText={setInput}
+              placeholder={modelId ? "Message your exocortex…" : "Loading the model…"}
+              placeholderTextColor={C.faint}
+              editable={!!modelId}
+              multiline
+              blurOnSubmit={false}
+            />
+            <View style={styles.pillToolbar}>
+              <Pressable onPress={() => setAddSheetOpen(true)} disabled={isGenerating} style={styles.toolBtn} hitSlop={6}>
+                <Plus size={22} color={C.inkSoft} strokeWidth={2} />
+              </Pressable>
+              <View style={{ flex: 1 }} />
+              {attaching ? <ActivityIndicator size="small" color={C.sage} style={{ marginHorizontal: 6 }} /> : null}
+              <Pressable onPress={() => setCallOpen(true)} disabled={!modelId} style={styles.toolBtn} hitSlop={6}>
+                <Phone size={19} color={modelId ? C.inkSoft : C.faint} strokeWidth={1.9} />
+              </Pressable>
+              {transcribing ? (
+                <View style={[styles.toolBtn, styles.toolBtnBusy]}>
+                  <ActivityIndicator size="small" color={C.cream} />
+                </View>
+              ) : (
+                <Pressable onPress={toggleRecord} style={[styles.toolBtn, recording && styles.toolBtnRec]} hitSlop={6}>
+                  {recording ? (
+                    <Square size={14} color={C.cream} fill={C.cream} strokeWidth={1.5} />
+                  ) : (
+                    <Mic size={20} color={C.inkSoft} strokeWidth={1.8} />
+                  )}
+                </Pressable>
+              )}
+              {isGenerating ? (
+                <Pressable onPress={stop} style={styles.pillSend} hitSlop={6}>
+                  <Square size={14} color={C.cream} fill={C.cream} strokeWidth={1.5} />
+                </Pressable>
+              ) : (
+                <Pressable
+                  onPress={handleSend}
+                  disabled={!canSend}
+                  style={[styles.pillSend, !hasContent && styles.pillSendIdle]}
+                  hitSlop={6}
+                >
+                  <ArrowUp size={20} color={hasContent ? C.cream : C.faint} strokeWidth={2.4} />
+                </Pressable>
+              )}
+            </View>
+          </View>
+          <Text style={styles.footerKicker}>PRIVATE · OFFLINE-CAPABLE · NOTHING LEAVES THIS DEVICE</Text>
         </View>
-
-        <Text style={styles.hint}>Runs entirely on-device via QVAC — private and offline after the first load.</Text>
       </KeyboardAvoidingView>
+      ) : route === "home" ? (
+        <HomeScreen
+          onMenu={() => setDrawerOpen(true)}
+          modelLabel={MODEL_LABEL}
+          modelReady={!!modelId}
+          meshOn={meshOnRef.current}
+          meshLive={meshStatus === "online"}
+          onNewChat={() => {
+            newChat();
+            setRoute("chat");
+          }}
+          onCall={() => setCallOpen(true)}
+          onOpenChat={(id) => {
+            void selectChat(id);
+            setRoute("chat");
+          }}
+          onGoTasks={() => setRoute("tasks")}
+          onGoModels={() => setRoute("brain")}
+        />
+      ) : route === "mesh" ? (
+        <MeshScreen
+          onMenu={() => setDrawerOpen(true)}
+          providerKey={providerKey}
+          meshOn={meshOn}
+          status={meshStatus}
+          onChangeKey={onChangeKey}
+          onToggle={onToggleMesh}
+          onPair={onPair}
+          onPing={onPing}
+          selfNote={`this device · consumer · ${MODEL_LABEL.toLowerCase()}`}
+        />
+      ) : route === "settings" ? (
+        <SettingsScreen
+          onMenu={() => setDrawerOpen(true)}
+          modelLabel={MODEL_LABEL}
+          onGoMesh={() => setRoute("mesh")}
+          onClearedConversations={() => newChat()}
+          deviceName={SELF_DEVICE}
+          mesh={{ on: meshOnRef.current, providerName, providerKey, status: meshStatus }}
+          onResetDevice={() => {
+            newChat();
+            void refreshBrain();
+          }}
+        />
+      ) : route === "brain" ? (
+        <BrainScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshBrain} onPair={() => setRoute("mesh")} />
+      ) : route === "tasks" ? (
+        <TasksScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+      ) : route === "alerts" ? (
+        <AlertsScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshUnread} />
+      ) : route === "economy" ? (
+        <EconomyScreen
+          onMenu={() => setDrawerOpen(true)}
+          onPair={() => setRoute("mesh")}
+          mesh={{ on: meshOnRef.current, providerName, providerKey, status: meshStatus }}
+        />
+      ) : route === "services" ? (
+        <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+      ) : (
+        <DesktopScreen route={route as DesktopRoute} onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+      )}
+
+      <NavDrawer
+        visible={drawerOpen}
+        route={route}
+        unread={unread}
+        onNavigate={setRoute}
+        onClose={() => setDrawerOpen(false)}
+      />
+
+      <AddToChat
+        visible={addSheetOpen}
+        onClose={() => setAddSheetOpen(false)}
+        onCamera={takePhoto}
+        onPhotos={pickImage}
+        onFiles={pickFile}
+      />
+
+      <VoiceCall
+        visible={callOpen}
+        onClose={() => setCallOpen(false)}
+        onVoiceTurn={handleVoiceTurn}
+        ready={!!modelId}
+        messages={messages}
+        onNew={newChat}
+      />
+
+      <ChatHistory
+        visible={historyOpen}
+        chats={chatList}
+        currentId={chatId}
+        onSelect={selectChat}
+        onNew={newChat}
+        onDelete={removeChat}
+        onClose={() => setHistoryOpen(false)}
+      />
     </SafeAreaView>
   );
 }
 
+/** One turn rendered as a broadsheet column: a mono kicker byline + serif body. */
+function MessageBlock({
+  message,
+  generating,
+  canRegenerate,
+  onRegenerate,
+}: {
+  message: ChatMessage;
+  generating: boolean;
+  canRegenerate: boolean;
+  onRegenerate: () => void;
+}) {
+  const isUser = message.role === "user";
+  const isError = message.content.startsWith("⚠") || message.content.startsWith("⏸");
+
+  // User turns: a right-aligned bubble. Assistant turns: left-aligned prose with a byline.
+  if (isUser) {
+    return (
+      <View style={styles.rowRight}>
+        <View style={styles.userBubble}>
+          {message.image ? <Image source={{ uri: message.image }} style={styles.bubbleImage} resizeMode="cover" /> : null}
+          {message.content ? (
+            <Text style={styles.userBubbleText} selectable>
+              {message.content}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.asstBlock}>
+      <View style={styles.bylineRow}>
+        <View style={styles.bylineBullet} />
+        <Text style={[styles.byline, styles.bylineAssistant]}>LEASH</Text>
+      </View>
+      {message.image ? <Image source={{ uri: message.image }} style={styles.msgImage} resizeMode="cover" /> : null}
+      {generating && !message.content ? (
+        <View style={styles.thinkingRow}>
+          <ActivityIndicator size="small" color={C.sage} />
+          <Text style={styles.thinking}>Composing…</Text>
+        </View>
+      ) : isError ? (
+        <Text style={[styles.bodyText, styles.bodyTextError]} selectable>
+          {message.content}
+        </Text>
+      ) : (
+        <MarkdownText content={message.content} baseStyle={styles.bodyText} />
+      )}
+      {message.telemetry && (
+        <View style={styles.telemetryRow}>
+          <Text style={styles.telemetry}>{telemetryLine(message.telemetry)}</Text>
+          {canRegenerate && (
+            <Pressable onPress={onRegenerate} hitSlop={8}>
+              <Text style={styles.regen}>↻ REGENERATE</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0B0B0F", paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0 },
-  header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
-  title: { color: "white", fontSize: 18, fontWeight: "600" },
-  subtitle: { color: "#A7A7B3", marginTop: 4 },
-  progressBar: { height: 8, backgroundColor: "#1A1A22", borderRadius: 4, overflow: "hidden", marginTop: 8 },
-  progressFill: { height: "100%", backgroundColor: "#22C55E", borderRadius: 4 },
-  chat: { flex: 1 },
-  chatContent: { paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  bubble: { maxWidth: "85%", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 14 },
-  bubbleUser: { alignSelf: "flex-end", backgroundColor: "#2B2BFF" },
-  bubbleAssistant: { alignSelf: "flex-start", backgroundColor: "#1A1A22" },
-  bubbleText: { color: "white", lineHeight: 20 },
-  inputRow: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#2A2A33",
-    flexDirection: "row",
-    gap: 10,
+  safe: { flex: 1, backgroundColor: C.cream },
+  center: { alignItems: "center", justifyContent: "center" },
+
+  // Masthead
+  masthead: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10 },
+  mastheadRow: { flexDirection: "row", alignItems: "center", gap: 12, paddingBottom: 10 },
+  markTile: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: C.ink,
     alignItems: "center",
+    justifyContent: "center",
   },
-  input: { flex: 1, backgroundColor: "#121219", color: "white", paddingHorizontal: 12, paddingVertical: 10, borderRadius: 12 },
-  hint: { paddingHorizontal: 16, paddingBottom: 12, color: "#7E7E8A", fontSize: 12 },
+  wordmark: { fontFamily: F.display, fontSize: 30, color: C.ink, letterSpacing: -0.5, lineHeight: 34 },
+  tagline: {
+    fontFamily: F.mono,
+    fontSize: 9.5,
+    color: C.muted,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+    marginTop: 1,
+  },
+  histBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 2,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.ruleStrong,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
+  },
+  newBtn: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.ruleStrong,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 2,
+  },
+  newBtnText: { fontFamily: F.monoMed, fontSize: 10, color: C.inkSoft, letterSpacing: TRACKING_LABEL },
+  ruleStrong: { height: StyleSheet.hairlineWidth, backgroundColor: C.ink },
+  rule: { height: StyleSheet.hairlineWidth, backgroundColor: C.rule },
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 8,
+  },
+  statusLeft: { flexDirection: "row", alignItems: "center", gap: 7 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+  kicker: {
+    fontFamily: F.monoMed,
+    fontSize: 10,
+    color: C.muted,
+    letterSpacing: TRACKING_LABEL,
+    textTransform: "uppercase",
+  },
+  progressTrack: {
+    height: 3,
+    backgroundColor: C.rule,
+    borderRadius: 2,
+    overflow: "hidden",
+    marginTop: 10,
+  },
+  progressFill: { height: "100%", backgroundColor: C.sageDeep, borderRadius: 2 },
+
+  // Empty state
+  emptyWrap: { paddingHorizontal: 24, paddingTop: 30, paddingBottom: 24 },
+  emptyKicker: {
+    fontFamily: F.monoMed,
+    fontSize: 10,
+    color: C.sageDeep,
+    letterSpacing: TRACKING_LABEL,
+    marginBottom: 14,
+  },
+  emptyHead: { fontFamily: F.display, fontSize: 46, color: C.ink, lineHeight: 46, letterSpacing: -1 },
+  emptyHeadItalic: { fontFamily: F.displayItalic, color: C.sageDeep },
+  emptyDek: {
+    fontFamily: F.body,
+    fontSize: 17,
+    lineHeight: 26,
+    color: C.inkSoft,
+    marginTop: 16,
+    maxWidth: 460,
+  },
+  suggestList: { marginTop: 26, gap: 0 },
+  suggest: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.rule,
+  },
+  suggestPressed: { opacity: 0.55 },
+  suggestDisabled: { opacity: 0.4 },
+  suggestArrow: { fontFamily: F.body, fontSize: 18, color: C.sage },
+  suggestText: { fontFamily: F.bodyMed, fontSize: 17, color: C.ink, flex: 1 },
+
+  // Feed
+  feed: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 18 },
+  // User turns → right-aligned bubble; assistant turns → left-aligned prose.
+  rowRight: { flexDirection: "row", justifyContent: "flex-end", paddingVertical: 7 },
+  userBubble: {
+    maxWidth: "82%",
+    backgroundColor: C.sageDeep,
+    borderRadius: 18,
+    borderBottomRightRadius: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  userBubbleText: { fontFamily: F.bodyMed, fontSize: 16.5, lineHeight: 24, color: C.cream },
+  bubbleImage: { width: 200, height: 200, borderRadius: 10, marginBottom: 8, backgroundColor: C.rule, alignSelf: "stretch" },
+  asstBlock: { paddingTop: 10, paddingBottom: 14 },
+  bylineRow: { flexDirection: "row", alignItems: "center", gap: 7, marginBottom: 7 },
+  bylineBullet: { width: 7, height: 7, backgroundColor: C.sage, transform: [{ rotate: "45deg" }] },
+  byline: { fontFamily: F.monoSemi, fontSize: 10.5, letterSpacing: TRACKING_LABEL },
+  bylineUser: { color: C.muted },
+  bylineAssistant: { color: C.sageDeep },
+  bodyText: { fontFamily: F.body, fontSize: 17.5, lineHeight: 27, color: C.inkSoft },
+  bodyTextUser: { fontFamily: F.bodyMed, color: C.ink },
+  bodyTextError: { fontFamily: F.mono, fontSize: 14, color: C.brick, lineHeight: 21 },
+  thinkingRow: { flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 4 },
+  thinking: { fontFamily: F.displayItalic, fontSize: 17, color: C.muted },
+  telemetryRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 12,
+    gap: 12,
+  },
+  telemetry: { fontFamily: F.mono, fontSize: 10, color: C.faint, letterSpacing: 0.6, flex: 1 },
+  regen: { fontFamily: F.monoMed, fontSize: 10, color: C.sageDeep, letterSpacing: TRACKING_LABEL },
+
+  // Composer — Claude-style input pill with actions inside.
+  composerWrap: { paddingHorizontal: 20, paddingTop: 0, paddingBottom: 8 },
+  pill: {
+    backgroundColor: C.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.ruleStrong,
+    borderRadius: 26,
+    paddingHorizontal: 8,
+    paddingTop: 6,
+    paddingBottom: 6,
+    marginTop: 10,
+  },
+  pillInput: {
+    fontFamily: F.body,
+    fontSize: 17,
+    color: C.ink,
+    paddingHorizontal: 8,
+    paddingTop: 10,
+    paddingBottom: 4,
+    minHeight: 48,
+    maxHeight: 150,
+  },
+  pillToolbar: { flexDirection: "row", alignItems: "center", gap: 4, paddingTop: 2 },
+  toolBtn: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
+  toolBtnRec: { backgroundColor: C.brick },
+  toolBtnBusy: { backgroundColor: C.sageDeep },
+  pillSend: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.sageDeep, alignItems: "center", justifyContent: "center" },
+  pillSendIdle: { backgroundColor: C.rule },
+  attachRow: { flexDirection: "row", flexWrap: "wrap", gap: 10, paddingTop: 8, paddingHorizontal: 4, paddingBottom: 2 },
+  attachChip: { width: 58, height: 58 },
+  attachThumb: {
+    width: 58,
+    height: 58,
+    borderRadius: 12,
+    backgroundColor: C.rule,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.rule,
+  },
+  attachRemove: {
+    position: "absolute",
+    top: -6,
+    right: -6,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: C.ink,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: C.paper,
+  },
+  actionRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingTop: 10 },
+  actionBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 8,
+    backgroundColor: C.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.rule,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  actionBtnRec: { backgroundColor: C.brick, borderColor: C.brick },
+  actionGlyph: { fontSize: 18 },
+  recHint: { fontFamily: F.mono, fontSize: 10.5, color: C.brick, marginLeft: 8, letterSpacing: 0.3 },
+  msgImage: { width: 180, height: 180, borderRadius: 8, marginBottom: 10, backgroundColor: C.rule },
+  composer: { flexDirection: "row", alignItems: "flex-end", gap: 10, paddingTop: 12 },
+  input: {
+    flex: 1,
+    fontFamily: F.body,
+    fontSize: 17,
+    color: C.ink,
+    backgroundColor: C.paper,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: C.ruleStrong,
+    borderRadius: 4,
+    paddingHorizontal: 14,
+    paddingTop: 11,
+    paddingBottom: 11,
+    maxHeight: 130,
+  },
+  sendBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 4,
+    backgroundColor: C.sageDeep,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sendBtnDisabled: { backgroundColor: C.ruleStrong },
+  sendArrow: { color: C.cream, fontSize: 22, fontWeight: "700", lineHeight: 24 },
+  stopBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 4,
+    backgroundColor: C.brick,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stopSquare: { width: 14, height: 14, borderRadius: 2, backgroundColor: C.cream },
+  footerKicker: {
+    fontFamily: F.mono,
+    fontSize: 8.5,
+    color: C.faint,
+    letterSpacing: 1.6,
+    textAlign: "center",
+    marginTop: 12,
+  },
 });

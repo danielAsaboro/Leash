@@ -7,9 +7,18 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "jsEngine": "jsc",
     "ios": {
       "bundleIdentifier": "com.mycelium.leash",
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Leash connects to provider devices on your local network to confirm pairing and offload inference.",
+        "NSPhotoLibraryUsageDescription": "Leash sends a photo you choose to your mesh for an on-device vision answer.",
+        "NSMicrophoneUsageDescription": "Leash records your voice to transcribe it on-device into a message.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
     },
     "android": {
       "package": "com.mycelium.leash"
@@ -17,9 +26,27 @@
     "plugins": [
       [
         "expo-build-properties",
-        { "android": { "minSdkVersion": 29 } }
+        {
+          "android": {
+            "minSdkVersion": 29
+          }
+        }
       ],
-      "@qvac/sdk/expo-plugin"
+      "@qvac/sdk/expo-plugin",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Leash scans a pairing QR to connect to a provider on your mesh."
+        }
+      ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Leash records your voice to transcribe it on-device into a message."
+        }
+      ],
+      "expo-secure-store"
     ]
   }
 }

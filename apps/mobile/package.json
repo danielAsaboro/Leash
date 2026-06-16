@@ -11,17 +11,32 @@
     "android": "expo run:android --device"
   },
   "dependencies": {
+    "@expo-google-fonts/fraunces": "^0.4.1",
+    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
+    "@expo-google-fonts/newsreader": "^0.4.1",
     "@qvac/sdk": "^0.13.0",
     "bare-rpc": "^1.3.2",
     "expo": "~54.0.0",
+    "expo-av": "~16.0.8",
+    "expo-build-properties": "~1.0.10",
+    "expo-camera": "~17.0.10",
+    "expo-device": "~8.0.10",
+    "expo-document-picker": "~14.0.8",
+    "expo-file-system": "~19.0.23",
+    "expo-font": "~14.0.12",
+    "expo-image-picker": "~17.0.11",
+    "expo-secure-store": "~15.0.8",
     "expo-status-bar": "~3.0.9",
+    "lucide-react-native": "^1.18.0",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-bare-kit": "^0.14.0"
+    "react-native-bare-kit": "^0.14.0",
+    "react-native-svg": "15.12.1"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
     "bare-pack": "^1.5.1",
+    "qrcode": "^1.5.4",
     "typescript": "~5.9.2"
   }
 }
