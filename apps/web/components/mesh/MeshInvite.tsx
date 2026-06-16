@@ -27,7 +27,7 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
       return;
     }
     let alive = true;
-    QRCode.toDataURL(invite, { margin: 1, width: 220 })
+    QRCode.toDataURL(invite, { margin: 1, width: 320 })
       .then((d) => {
         if (alive) setQr(d);
       })
@@ -81,18 +81,33 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
       </div>
 
       {invite && (
-        <div className="mt-2 flex flex-wrap items-start gap-4 border p-3" style={{ borderColor: "var(--color-rule)", background: "var(--color-cream)" }}>
+        <div className="mt-2 flex flex-col items-center gap-3 border p-5" style={{ borderColor: "var(--color-rule)", background: "var(--color-cream)" }}>
           {qr && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={qr} alt={`Invite QR for ${label}`} width={160} height={160} style={{ imageRendering: "pixelated" }} />
+            <img src={qr} alt={`Invite QR for ${label}`} width={240} height={240} style={{ imageRendering: "pixelated" }} />
           )}
-          <div className="min-w-0 flex-1">
-            <p className="kicker" style={kicker("var(--color-faint)")}>
-              Sync key for &ldquo;{label}&rdquo; — paste on the other device&rsquo;s &ldquo;Join a mesh&rdquo;. Single-use; expires shortly.
-            </p>
-            <textarea readOnly value={invite} onFocus={(e) => e.currentTarget.select()} rows={3} className="mt-1 w-full border bg-transparent p-2" style={{ fontFamily: "var(--font-mono)", fontSize: "0.7rem", wordBreak: "break-all", borderColor: "var(--color-rule-strong)" }} />
-            <button type="button" onClick={() => void copy()} className="kicker mt-1 border px-2 py-0.5 transition-opacity hover:opacity-70" style={{ borderColor: "var(--color-ink)" }}>
-              {copied ? "copied" : "copy key"}
+          <p className="kicker max-w-[320px] text-center" style={kicker("var(--color-faint)")}>
+            Scan from the Leash phone app — Mesh tab → &ldquo;Scan mesh invite QR&rdquo;. Single-use; expires shortly.
+          </p>
+          <div className="flex items-center gap-2">
+            <code
+              title={invite}
+              className="px-2.5 py-1 text-xs"
+              style={{ fontFamily: "var(--font-mono)", background: "var(--color-paper)", border: "1px solid var(--color-rule)", color: "var(--color-muted)" }}
+            >
+              {invite.slice(0, 10)}…{invite.slice(-6)}
+            </code>
+            <button
+              type="button"
+              onClick={() => void copy()}
+              className="kicker border px-3 py-1 transition-opacity hover:opacity-80"
+              style={{
+                background: copied ? "var(--color-sage-deep)" : "transparent",
+                color: copied ? "var(--color-cream)" : "var(--color-ink)",
+                borderColor: copied ? "var(--color-sage-deep)" : "var(--color-ink)",
+              }}
+            >
+              {copied ? "✓ copied" : "copy key"}
             </button>
           </div>
         </div>
