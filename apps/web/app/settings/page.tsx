@@ -16,10 +16,12 @@ import { AppDataCard } from "../../components/AppDataCard.tsx";
 import { PermissionsCard } from "../../components/PermissionsCard.tsx";
 import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
 import { SecretsCard } from "../../components/SecretsCard.tsx";
+import { AccountCard } from "../../components/AccountCard.tsx";
+import { listUsers } from "../../lib/leash/auth.ts";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["storage", "devices", "secrets", "permissions", "about"] as const;
+const TABS = ["account", "storage", "devices", "secrets", "permissions", "about"] as const;
 type Tab = (typeof TABS)[number];
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -74,13 +76,23 @@ async function AboutTab() {
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const raw = Array.isArray(params["tab"]) ? params["tab"][0] : params["tab"];
-  const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "storage";
-  const tabDefs: TabDef[] = TABS.map((t) => ({ key: t, label: t[0]!.toUpperCase() + t.slice(1), href: t === "storage" ? "/settings" : `/settings?tab=${t}` }));
+  const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "account";
+  const tabDefs: TabDef[] = TABS.map((t) => ({ key: t, label: t[0]!.toUpperCase() + t.slice(1), href: t === "account" ? "/settings" : `/settings?tab=${t}` }));
+
+  const activeId = process.env["LEASH_ACTIVE_USER"] ?? null;
+  const me = activeId ? listUsers().find((u) => u.userId === activeId) : undefined;
 
   return (
-    <DashShell kicker="Device & app" title="Settings" lede="What this app stores, the devices it connects to, and what it can access.">
+    <DashShell kicker="Device & app" title="Settings" lede="Your account, what this app stores, the devices it connects to, and what it can access.">
       <TabNav tabs={tabDefs} active={tab} />
 
+      {tab === "account" && (
+        <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
+          <DashCard title="Account">
+            <AccountCard username={me?.username ?? "—"} userId={activeId ?? "—"} />
+          </DashCard>
+        </div>
+      )}
       {tab === "storage" && (await StorageTab())}
       {tab === "devices" && (await DevicesTab())}
       {tab === "secrets" && (

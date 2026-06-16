@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   makeUser,
+  setPassword,
   verifyPassword as vp,
   signSession as sign,
   verifySession as vs,
@@ -119,6 +120,23 @@ export function verifySession(token: string | undefined): string | null {
   if (!info) return null;
   const u = findById(readRegistry().users, info.userId);
   return u && vs(u, token, Date.now()) ? u.userId : null;
+}
+
+/** Change a user's password: verify the current one, set a fresh hash, and rotate the session
+ *  secret so OTHER devices' sessions drop (the caller re-issues this session's cookie). Returns
+ *  ok, or an error string (wrong current password / too short / unknown user). */
+export function changePassword(userId: string, currentPw: string, newPw: string): Promise<{ ok: true } | { error: string }> {
+  if (newPw.length < 6) return Promise.resolve({ error: "new password must be at least 6 characters" });
+  return withLock(() => {
+    const reg = readRegistry();
+    const i = reg.users.findIndex((u) => u.userId === userId);
+    if (i < 0) return { error: "no such user" };
+    const u = reg.users[i] as UserEntry;
+    if (!vp(u, currentPw)) return { error: "current password is incorrect" };
+    reg.users[i] = rotate(setPassword(u, newPw));
+    writeRegistry(reg);
+    return { ok: true as const };
+  });
 }
 
 /** Rotate one user's secret (invalidates only THAT user's existing sessions). */

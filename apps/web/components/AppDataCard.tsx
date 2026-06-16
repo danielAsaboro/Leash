@@ -31,16 +31,12 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
     }
   };
 
-  const reset = async (scope: "user" | "factory") => {
-    const msg =
-      scope === "user"
-        ? "Reset THIS account? Permanently deletes your data, database, model cache and settings, then signs you out. Other accounts are untouched."
-        : "FACTORY RESET? Permanently deletes EVERY account, all data and all downloaded models on this device, returning the app to first-run setup.";
-    if (!window.confirm(msg)) return;
-    if (scope === "factory" && !window.confirm("This wipes everything for every user. Are you absolutely sure?")) return;
+  const factoryReset = async () => {
+    if (!window.confirm("FACTORY RESET? Permanently deletes EVERY account, all data and all downloaded models on this device, returning the app to first-run setup.")) return;
+    if (!window.confirm("This wipes everything for every user. Are you absolutely sure?")) return;
     setBusy(true);
     try {
-      const r = await fetchWithTimeout("/api/leash/data/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope }) });
+      const r = await fetchWithTimeout("/api/leash/data/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "factory" }) });
       if (!r.ok) {
         window.alert((await r.json().catch(() => ({})))?.error ?? "Reset failed.");
         setBusy(false);
@@ -79,16 +75,7 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
           <button
             type="button"
             disabled={busy}
-            onClick={() => void reset("user")}
-            className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70 disabled:opacity-40"
-            style={{ borderColor: "var(--color-brick)", color: "var(--color-brick)" }}
-          >
-            reset this account
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void reset("factory")}
+            onClick={() => void factoryReset()}
             className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70 disabled:opacity-40"
             style={{ borderColor: "var(--color-brick)", color: "var(--color-cream)", background: "var(--color-brick)" }}
           >
@@ -96,7 +83,7 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
           </button>
         </div>
         <p className="kicker" style={{ color: "var(--color-faint)", marginTop: "0.4rem" }}>
-          Reset wipes this account&rsquo;s data, models &amp; settings and signs you out. Factory reset wipes every account on this device.
+          Factory reset wipes every account on this device. To reset just your own account, see Account → Danger zone.
         </p>
       </div>
     </div>

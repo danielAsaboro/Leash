@@ -33,6 +33,14 @@ export function makeUser(username: string, userId: string, pw: string): UserEntr
   return { username, userId, salt, passwordHash: hash(pw, salt).toString("hex"), sessionSecret: randomBytes(32).toString("hex") };
 }
 
+/** Set a fresh password (new salt + hash). Leaves sessionSecret alone — the caller decides
+ *  whether to also rotate (a password change should, to drop other devices' sessions). */
+export function setPassword(u: UserEntry, newPw: string): UserEntry {
+  if (newPw.length < 6) throw new Error("password too short (min 6)");
+  const salt = randomBytes(16).toString("hex");
+  return { ...u, salt, passwordHash: hash(newPw, salt).toString("hex") };
+}
+
 export function verifyPassword(u: UserEntry, pw: string): boolean {
   const got = hash(pw, u.salt);
   const want = Buffer.from(u.passwordHash, "hex");

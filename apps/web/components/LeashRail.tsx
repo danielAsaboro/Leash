@@ -2,17 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { LogOut } from "lucide-react";
 import { LeashMark } from "./LeashMark.tsx";
 import { siteHome } from "../lib/site.ts";
-import { activateAndGo } from "../lib/auth-handshake.ts";
-
-async function signOut(): Promise<void> {
-  await fetch("/api/leash/auth/logout", { method: "POST" });
-  // logout drops the supervisor back to BOOTSTRAP (no active user); wait for that respawn
-  // before landing on /login so we don't race a connection-refused.
-  await activateAndGo(null, "/login");
-}
 
 /**
  * The Leash shell's left rail — the app's primary nav.
@@ -225,9 +216,6 @@ export function LeashRail() {
       <Link href="/settings" className="leash-rail-foot" title="Settings" aria-label="Settings">
         <SettingsIcon />
       </Link>
-      <button className="leash-rail-foot" title="Sign out" aria-label="Sign out" onClick={signOut}>
-        <LogOut size={22} strokeWidth={1.7} aria-hidden />
-      </button>
     </nav>
   );
 }
