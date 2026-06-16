@@ -534,6 +534,23 @@ export class MeshGraph {
     return out;
   }
 
+  /**
+   * The oldest-active-member leader: the live capability with the smallest `joinedAt`
+   * (tiebroken by deviceId). Derived purely from replicated state — no election messages,
+   * so it can't flap from network jitter. A member is "live" if its capability `lastSeen`
+   * is within `staleMs` (same liveness window as failover.ts). Returns the leader's
+   * deviceId, or null if no dated, live capability exists.
+   */
+  async leader(staleMs = 30_000, now: number = Date.now()): Promise<string | null> {
+    const caps = await this.capabilities();
+    const live = caps.filter(
+      (c) => typeof c.joinedAt === "number" && Number.isFinite(Date.parse(c.lastSeen)) && now - Date.parse(c.lastSeen) <= staleMs,
+    );
+    if (!live.length) return null;
+    live.sort((a, b) => (a.joinedAt! - b.joinedAt!) || (a.deviceId < b.deviceId ? -1 : a.deviceId > b.deviceId ? 1 : 0));
+    return live[0]!.deviceId;
+  }
+
   /** Advertise one signed paid-session receipt into the mesh-visible replicated state. */
   async publishReceipt(receipt: SessionSettlementReceipt): Promise<void> {
     await this.base.append({ type: "receipt", receipt });
