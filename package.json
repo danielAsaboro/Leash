@@ -35,6 +35,7 @@
     "spike:autobase": "tsx spike/05-autobase-pairing.ts",
     "spike:mcp-cron": "tsx spike/09-mcp-cron.ts",
     "mesh:smoke": "tsx packages/mesh/scripts/smoke-mesh-graph.ts",
+    "test:mesh:tasks": "tsx packages/mesh/scripts/task-sync.test.ts",
     "smoke:registry": "tsx packages/mesh/scripts/smoke-registry.ts",
     "smoke:failover": "tsx packages/mesh/scripts/smoke-failover.ts",
     "smoke:allowlist": "tsx packages/mesh/scripts/smoke-allowlist.ts",
