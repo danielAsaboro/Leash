@@ -39,6 +39,7 @@ function MeshMembershipCard() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [status, setStatus] = useState<MeshMemberStatus | null>(null);
+  const [scanOpen, setScanOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -48,9 +49,9 @@ function MeshMembershipCard() {
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  const join = async () => {
-    const inv = invite.trim();
-    if (inv.length < 16) { setErr("Paste the full invite from your desktop."); return; }
+  const join = async (explicit?: string) => {
+    const inv = (explicit ?? invite).trim();
+    if (inv.length < 16) { setErr("Scan or paste the full invite from your desktop."); return; }
     setBusy(true); setErr(null);
     try {
       await joinMesh(inv);
@@ -64,7 +65,7 @@ function MeshMembershipCard() {
   const joined = status?.joined;
   const line = joined
     ? `Member ✓ · ${status!.peers} peer${status!.peers === 1 ? "" : "s"}${status!.leader ? (status!.leader === status!.deviceId ? " · leader: you" : " · leader: a peer") : ""}${status!.writable ? "" : " · syncing…"}`
-    : "Not in a mesh — paste an invite to join";
+    : "Not in a mesh — scan an invite to join";
 
   return (
     <View style={mstyles.card}>
@@ -73,6 +74,15 @@ function MeshMembershipCard() {
         {busy ? <ActivityIndicator size="small" color={C.sage} /> : <View style={[mstyles.dot, { backgroundColor: joined ? C.sage : C.faint }]} />}
         <Text style={[mstyles.statusLineText, { color: joined ? C.sageDeep : C.muted }]}>{line}</Text>
       </View>
+
+      {/* Primary: scan the mesh-invite QR the desktop shows (Settings → Devices → your mesh → Invite a device). */}
+      <Pressable onPress={() => { setErr(null); setScanOpen(true); }} disabled={busy} style={mstyles.scanInviteBtn}>
+        <Text style={mstyles.scanInviteGlyph}>⌑</Text>
+        <Text style={mstyles.scanInviteText}>{joined ? "SCAN TO JOIN ANOTHER MESH" : "SCAN MESH INVITE QR"}</Text>
+      </Pressable>
+
+      {/* Fallback: paste the sync key. */}
+      <Text style={mstyles.orLabel}>or paste the sync key</Text>
       <TextInput
         style={mstyles.inviteInput}
         value={invite}
@@ -84,9 +94,16 @@ function MeshMembershipCard() {
         multiline
       />
       {err ? <Text style={mstyles.err}>{err}</Text> : null}
-      <Pressable onPress={join} disabled={busy || invite.trim().length < 16} style={[mstyles.joinBtn, (busy || invite.trim().length < 16) && { opacity: 0.45 }]}>
-        <Text style={mstyles.joinBtnText}>{joined ? "JOIN ANOTHER MESH" : "JOIN MESH"}</Text>
+      <Pressable onPress={() => void join()} disabled={busy || invite.trim().length < 16} style={[mstyles.joinBtn, (busy || invite.trim().length < 16) && { opacity: 0.45 }]}>
+        <Text style={mstyles.joinBtnText}>JOIN FROM PASTED KEY</Text>
       </Pressable>
+
+      {scanOpen && (
+        <QRScanner
+          onClose={() => setScanOpen(false)}
+          onInvite={(inv) => { setScanOpen(false); void join(inv); }}
+        />
+      )}
     </View>
   );
 }
@@ -97,6 +114,10 @@ const mstyles = StyleSheet.create({
   statusLine: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 },
   dot: { width: 8, height: 8, borderRadius: 5 },
   statusLineText: { fontFamily: F.monoMed, fontSize: 11, letterSpacing: 0.4 },
+  scanInviteBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 10, backgroundColor: C.ink, borderRadius: 8, paddingVertical: 13, marginBottom: 12 },
+  scanInviteGlyph: { fontSize: 18, color: C.glow },
+  scanInviteText: { fontFamily: F.monoSemi, fontSize: 12, color: C.cream, letterSpacing: TRACKING_LABEL },
+  orLabel: { fontFamily: F.mono, fontSize: 10, color: C.faint, letterSpacing: 0.5, marginBottom: 6 },
   inviteInput: { fontFamily: F.mono, fontSize: 12, color: C.ink, backgroundColor: C.cream, borderWidth: StyleSheet.hairlineWidth, borderColor: C.rule, borderRadius: 4, padding: 10, minHeight: 52 },
   err: { fontFamily: F.mono, fontSize: 11, color: C.brick, marginTop: 8 },
   joinBtn: { marginTop: 10, backgroundColor: C.sageDeep, borderRadius: 8, paddingVertical: 12, alignItems: "center" },

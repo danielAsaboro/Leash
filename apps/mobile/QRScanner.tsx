@@ -18,6 +18,23 @@ export function parseProviderKey(data: string): string | null {
   return null;
 }
 
+/**
+ * Pull a MESH INVITE out of a scanned payload — the blind-pairing invite the web's MeshInvite QR
+ * encodes (a long even-length hex string, ~132 chars; distinct from a 64-hex provider key). Also
+ * tolerates a `leash://join?invite=…` URI or `{ "invite": "…" }` JSON. Returns the hex or null.
+ */
+export function parseMeshInvite(data: string): string | null {
+  const t = (data ?? "").trim().toLowerCase();
+  if (/^[0-9a-f]+$/.test(t) && t.length >= 96 && t.length % 2 === 0) return t;
+  const m = t.match(/invite=([0-9a-f]{96,})/i);
+  if (m) return m[1].toLowerCase();
+  try {
+    const j = JSON.parse(data);
+    if (typeof j?.invite === "string" && /^[0-9a-f]{96,}$/i.test(j.invite)) return j.invite.toLowerCase();
+  } catch {}
+  return null;
+}
+
 /** Parse the full pairing payload — provider key, optional friendly name, optional callback URL. */
 export function parsePairPayload(data: string): { key: string; name?: string; cb?: string } | null {
   const key = parseProviderKey(data);
@@ -37,13 +54,17 @@ export function parsePairPayload(data: string): { key: string; name?: string; cb
 export function QRScanner({
   onClose,
   onScanned,
+  onInvite,
 }: {
   onClose: () => void;
-  onScanned: (providerKey: string, name?: string, cb?: string) => void;
+  /** Provider-pairing mode (inference offload): scans a 64-hex provider key. */
+  onScanned?: (providerKey: string, name?: string, cb?: string) => void;
+  /** Mesh-membership mode: scans the blind-pairing invite the web's MeshInvite QR shows. */
+  onInvite?: (invite: string) => void;
 }) {
   const [permission, requestPermission] = useCameraPermissions();
   const [bad, setBad] = useState(false);
-  const [done, setDone] = useState<{ name?: string } | null>(null);
+  const [done, setDone] = useState<{ name?: string; mesh?: boolean } | null>(null);
   const handled = useRef(false);
 
   // On open: reset the one-shot guard and proactively ask for the camera if we can.
@@ -57,6 +78,19 @@ export function QRScanner({
 
   function handleScan(data: string) {
     if (handled.current) return;
+    // Mesh-membership mode: accept the blind-pairing invite and hand it to joinMesh.
+    if (onInvite) {
+      const inv = parseMeshInvite(data);
+      if (!inv) {
+        setBad(true);
+        return;
+      }
+      handled.current = true;
+      Vibration.vibrate(40);
+      setDone({ mesh: true });
+      setTimeout(() => onInvite(inv), 650);
+      return;
+    }
     const parsed = parsePairPayload(data);
     if (!parsed) {
       setBad(true);
@@ -75,7 +109,7 @@ export function QRScanner({
       }).catch(() => {});
     }
     // Hold the success flash briefly, then hand the key (+ callback) back to the sheet.
-    setTimeout(() => onScanned(parsed.key, parsed.name, parsed.cb), 850);
+    setTimeout(() => onScanned?.(parsed.key, parsed.name, parsed.cb), 850);
   }
 
   return (
@@ -110,7 +144,7 @@ export function QRScanner({
             {/* Broadsheet overlay */}
             <View style={styles.overlay} pointerEvents="box-none">
               <View style={styles.topbar}>
-                <Text style={styles.scanKicker}>SCAN TO PAIR</Text>
+                <Text style={styles.scanKicker}>{onInvite ? "SCAN MESH INVITE" : "SCAN TO PAIR"}</Text>
                 <Pressable onPress={onClose} hitSlop={12}>
                   <Text style={styles.close}>✕</Text>
                 </Pressable>
@@ -125,7 +159,13 @@ export function QRScanner({
               </View>
               <View style={styles.hintWrap} pointerEvents="none">
                 <Text style={styles.hint}>
-                  {bad ? "That isn't a Leash pairing code — try again." : "Point at the QR in your web app"}
+                  {bad
+                    ? onInvite
+                      ? "That isn't a mesh invite QR — show it from Settings → Devices → your mesh → Invite a device."
+                      : "That isn't a Leash pairing code — try again."
+                    : onInvite
+                      ? "Point at the mesh invite QR your desktop shows"
+                      : "Point at the QR in your web app"}
                 </Text>
               </View>
             </View>
@@ -133,9 +173,9 @@ export function QRScanner({
               <View style={styles.successWrap} pointerEvents="none">
                 <View style={styles.successCard}>
                   <Text style={styles.successCheck}>✓</Text>
-                  <Text style={styles.successTitle}>Paired</Text>
+                  <Text style={styles.successTitle}>{done.mesh ? "Invite scanned" : "Paired"}</Text>
                   <Text style={styles.successSub}>
-                    {done.name ? `Connecting to ${done.name}…` : "Connecting to provider…"}
+                    {done.mesh ? "Joining the mesh…" : done.name ? `Connecting to ${done.name}…` : "Connecting to provider…"}
                   </Text>
                 </View>
               </View>
