@@ -34,7 +34,8 @@ type Entry =
   | { type: "forget-capability"; deviceId: string }
   | { type: "unpair"; a: string; b: string; active: boolean; ts: string }
   | { type: "receipt"; receipt: SessionSettlementReceipt }
-  | { type: "adapter"; meta: AdapterMeta };
+  | { type: "adapter"; meta: AdapterMeta }
+  | { type: "plugin"; meta: MeshPluginMeta };
 
 /**
  * The TINY pointer a published LoRA adapter rides on the CRDT. The adapter BYTES live
@@ -60,18 +61,54 @@ export interface AdapterMeta {
   publishedAt: string;
 }
 
+/**
+ * The TINY pointer a published plugin bundle rides on the CRDT — the plugin analogue of
+ * {@link AdapterMeta}. The zip BYTES live on a sibling Hypercore (`plugin-feed`); only this
+ * meta touches the graph. UNLIKE adapters (single `adapter:latest` winner), plugins form a
+ * per-id catalog: the reducer keys each by `plugin:<pluginId>`, so many coexist. The first
+ * six fields mirror the web's `MeshPluginMeta` contract (apps/web/lib/leash/plugin-sources/mesh.ts);
+ * the trailing blob coords are how `fetchPlugin` finds + verifies the bytes.
+ */
+export interface MeshPluginMeta {
+  pluginId: string;
+  name: string;
+  version?: string;
+  description?: string;
+  sha256: string;
+  /** Zip size in bytes (the `size` field the web catalog expects). */
+  size: number;
+  /** Hex key of the sibling Hypercore holding the bytes. */
+  feedKey: string;
+  /** First block index of this plugin on the feed (that block = the manifest JSON). */
+  startBlock: number;
+  /** Total blocks for this plugin (1 manifest + N zip chunks). */
+  blockCount: number;
+  /** Zip chunk size in bytes (manifest block excluded). */
+  chunkSize: number;
+  publishedAt: string;
+}
+
 /** gguf chunk size on the adapter feed (256 KiB — well under Hypercore's block cap). */
 const ADAPTER_CHUNK = 256 * 1024;
 
-/** Verify reassembled adapter bytes against the pointer's checksum + size. Throws on mismatch. */
-export function verifyAdapterBytes(bytes: Buffer, meta: Pick<AdapterMeta, "sha256" | "sizeBytes">): void {
-  if (bytes.length !== meta.sizeBytes) {
-    throw new Error(`adapter size mismatch: ${bytes.length} != ${meta.sizeBytes} bytes (truncated / corrupt)`);
+/** zip chunk size on the plugin feed (256 KiB — same cap discipline as the adapter feed). */
+const PLUGIN_CHUNK = 256 * 1024;
+
+/** Verify reassembled bytes against a pointer's checksum + size. Throws on mismatch. Generic over
+ *  both AdapterMeta (`sizeBytes`) and MeshPluginMeta (`size`) — pass whichever size field you hold. */
+export function verifyBytes(bytes: Buffer, expect: { sha256: string; size: number }, label = "blob"): void {
+  if (bytes.length !== expect.size) {
+    throw new Error(`${label} size mismatch: ${bytes.length} != ${expect.size} bytes (truncated / corrupt)`);
   }
   const sha = createHash("sha256").update(bytes).digest("hex");
-  if (sha !== meta.sha256) {
-    throw new Error(`adapter sha256 mismatch: ${sha.slice(0, 12)}… != ${meta.sha256.slice(0, 12)}… (corrupt or tampered block)`);
+  if (sha !== expect.sha256) {
+    throw new Error(`${label} sha256 mismatch: ${sha.slice(0, 12)}… != ${expect.sha256.slice(0, 12)}… (corrupt or tampered block)`);
   }
+}
+
+/** Verify reassembled adapter bytes against the pointer's checksum + size. Throws on mismatch. */
+export function verifyAdapterBytes(bytes: Buffer, meta: Pick<AdapterMeta, "sha256" | "sizeBytes">): void {
+  verifyBytes(bytes, { sha256: meta.sha256, size: meta.sizeBytes }, "adapter");
 }
 
 /** Bounded read of a block range from a (possibly remote) core — R6: never an unbounded wait. */
@@ -220,6 +257,12 @@ async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { 
       await bee.put("adapter:" + meta.version, meta);
       const cur = (await bee.get("adapter:latest")) as { value?: AdapterMeta } | null;
       if (!cur?.value || meta.version >= cur.value.version) await bee.put("adapter:latest", meta);
+    }
+    if (value?.type === "plugin") {
+      // Plugin catalog: keyed PER ID (`plugin:<pluginId>`) so every published plugin coexists
+      // (unlike adapters, which keep a single `adapter:latest` winner). A re-publish of the same
+      // id overwrites its row (latest bytes win) — last-writer by linearization order.
+      await bee.put("plugin:" + value.meta.pluginId, value.meta);
     }
   }
 }
@@ -686,6 +729,85 @@ export class MeshGraph {
 
     this.audit?.record({ event: "adapter_fetch", extra: { version: meta.version, status: "ok", sha256: meta.sha256, sizeBytes: meta.sizeBytes } });
     return { version: meta.version, ggufPath, manifestPath, meta };
+  }
+
+  // ── Plugin distribution ──────────────────────────────────────────────────────────
+  // The plugin analogue of the adapter path above: zip bytes ride a SIBLING `plugin-feed`
+  // Hypercore (kept separate from `adapter-feed`), and only the tiny MeshPluginMeta pointer
+  // touches the Autobase. Difference from adapters: a PER-ID catalog (`plugin:<id>`) — many
+  // plugins coexist; there is no single "latest" winner.
+
+  /**
+   * Publish a plugin bundle to the mesh: chunk the zip `bytes` onto the sibling `plugin-feed`
+   * Hypercore (block 0 of its range = the manifest JSON), then append a tiny `plugin` pointer to
+   * the CRDT keyed by `meta.pluginId`. The caller supplies the catalog fields (id/name/version/
+   * description) plus the verified `sha256`/`size`; the blob coords are filled here. Requires a
+   * writable mesh.
+   */
+  async publishPlugin(
+    meta: Pick<MeshPluginMeta, "pluginId" | "name" | "version" | "description" | "sha256" | "size">,
+    bytes: Buffer,
+  ): Promise<MeshPluginMeta> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot publish a plugin");
+    if (bytes.length !== meta.size) throw new Error(`plugin size mismatch: ${bytes.length} != ${meta.size} bytes`);
+
+    const feed = this.store.get({ name: "plugin-feed" });
+    await feed.ready();
+    const startBlock = feed.length;
+
+    const manifestObj = { pluginId: meta.pluginId, name: meta.name, version: meta.version, description: meta.description, sha256: meta.sha256, size: meta.size };
+    const blocks: Buffer[] = [b4a.from(JSON.stringify(manifestObj))];
+    for (let off = 0; off < bytes.length; off += PLUGIN_CHUNK) blocks.push(bytes.subarray(off, Math.min(off + PLUGIN_CHUNK, bytes.length)));
+    await feed.append(blocks);
+
+    const full: MeshPluginMeta = {
+      pluginId: meta.pluginId,
+      name: meta.name,
+      ...(meta.version ? { version: meta.version } : {}),
+      ...(meta.description ? { description: meta.description } : {}),
+      sha256: meta.sha256,
+      size: meta.size,
+      feedKey: b4a.toString(feed.key, "hex"),
+      startBlock,
+      blockCount: blocks.length,
+      chunkSize: PLUGIN_CHUNK,
+      publishedAt: new Date().toISOString(),
+    };
+    await this.base.append({ type: "plugin", meta: full });
+    this.audit?.record({ event: "note", extra: { role: "plugin_publish", pluginId: full.pluginId, size: full.size, blocks: full.blockCount, feedKey: full.feedKey } });
+    return full;
+  }
+
+  /** Every published plugin's catalog row in the replicated view. update() never blocks on peers (R6). */
+  async listPlugins(): Promise<MeshPluginMeta[]> {
+    await this.base.update();
+    const out: MeshPluginMeta[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "plugin:", lt: "plugin;" })) out.push(value as MeshPluginMeta);
+    return out;
+  }
+
+  /**
+   * Fetch a published plugin's bytes by id: read the `plugin:<id>` pointer → open the feed core by
+   * key → BOUNDED download of its block range (R6) → reassemble the zip → VERIFY sha256+size
+   * (rejects a corrupt/tampered/truncated transfer) → return the bytes. Returns null when no plugin
+   * with that id has been published.
+   */
+  async fetchPlugin(pluginId: string, opts: { timeoutMs?: number } = {}): Promise<{ bytes: Buffer; meta: MeshPluginMeta } | null> {
+    const timeoutMs = opts.timeoutMs ?? 30_000;
+    await this.base.update();
+    const rec = (await this.base.view.get("plugin:" + pluginId)) as { value?: MeshPluginMeta } | null;
+    const meta = rec?.value;
+    if (!meta) return null;
+
+    const feed = this.store.get({ key: b4a.from(meta.feedKey, "hex") });
+    await feed.ready();
+    const blocks = await fetchRange(feed, meta.startBlock, meta.blockCount, timeoutMs);
+
+    const zipBuf = blocks.length > 1 ? Buffer.concat(blocks.slice(1)) : Buffer.alloc(0); // block 0 = manifest
+    verifyBytes(zipBuf, { sha256: meta.sha256, size: meta.size }, "plugin"); // throws on sha256/size mismatch
+
+    this.audit?.record({ event: "note", extra: { role: "plugin_fetch", pluginId: meta.pluginId, status: "ok", sha256: meta.sha256, size: meta.size } });
+    return { bytes: zipBuf, meta };
   }
 
   async close(): Promise<void> {

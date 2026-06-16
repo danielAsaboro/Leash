@@ -1,0 +1,7 @@
+{
+  "name": "Law Assistant",
+  "version": "1.0.0",
+  "description": "Turns the general assistant into a legal specialist: contract review + clause drafting.",
+  "author": "Mycelium Example Plugins",
+  "license": "Apache-2.0"
+}

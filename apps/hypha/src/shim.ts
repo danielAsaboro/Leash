@@ -14,14 +14,17 @@
  * is read through a getter because the mesh comes online lazily (only once paired).
  */
 import http from "node:http";
-import { randomUUID } from "node:crypto";
-import { writeFileSync, unlinkSync } from "node:fs";
+import { randomUUID, createHash } from "node:crypto";
+import { writeFileSync, unlinkSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
+import { zipSync, type Zippable } from "fflate";
 import type { AuditLog, SessionSettlementReceipt } from "@mycelium/shared";
 import { completion, unloadModel } from "@qvac/sdk";
 import type { CompletionFinal } from "@qvac/sdk";
 import { loadDelegated } from "@mycelium/mesh";
+import type { MeshGraph } from "@mycelium/mesh";
+import { getPlugin, PLUGINS_DIR } from "./plugin-store.ts";
 import type { MeshRouter } from "./mesh-router.ts";
 import type { DiscoveredDevice } from "./discovery.ts";
 import type { KvSessions } from "@mycelium/shared";
@@ -157,6 +160,34 @@ async function readJsonBody(req: http.IncomingMessage): Promise<Record<string, u
   } catch {
     return {};
   }
+}
+
+/** Walk an installed plugin tree into a flat `{ relPath: bytes }` map fflate's zipSync accepts.
+ *  Relative POSIX paths, no wrapping root folder — exactly what the web's unzipSync expects
+ *  (apps/web/lib/leash/plugin-sources/upload.ts). Bounded to mirror the install-side caps. */
+function zipEntriesForTree(root: string): Zippable {
+  const MAX_FILES = 1000;
+  const MAX_TOTAL_BYTES = 64 * 1024 * 1024;
+  const out: Zippable = {};
+  let files = 0;
+  let bytes = 0;
+  const walk = (dir: string, depth: number): void => {
+    if (depth > 8) throw new Error("plugin tree is nested too deeply");
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (e.isSymbolicLink()) continue; // never follow symlinks out of the tree
+      const abs = join(dir, e.name);
+      if (e.isDirectory()) { walk(abs, depth + 1); continue; }
+      if (!e.isFile()) continue;
+      if (++files > MAX_FILES) throw new Error(`plugin has too many files (> ${MAX_FILES})`);
+      const data = readFileSync(abs);
+      bytes += data.length;
+      if (bytes > MAX_TOTAL_BYTES) throw new Error(`plugin is too large (> ${Math.round(MAX_TOTAL_BYTES / 1024 / 1024)} MB)`);
+      out[relative(root, abs).split(sep).join("/")] = new Uint8Array(data);
+    }
+  };
+  walk(root, 1);
+  if (Object.keys(out).length === 0) throw new Error("plugin tree is empty");
+  return out;
 }
 
 /** Re-attach an already-raced first result to the rest of its iterator (TTFB guard plumbing). */
@@ -402,10 +433,12 @@ export interface ShimDeps {
   /** Per-alias sharing: the deny-set of aliases NOT advertised to the mesh, and a per-alias toggle. */
   getUnsharedModels?: () => string[];
   setAliasShared?: (alias: string, on: boolean) => void | Promise<void>;
+  /** The PRIMARY mesh's writable MeshGraph, bringing it online lazily — for plugin distribution. */
+  getPrimaryGraph?: () => Promise<MeshGraph>;
 }
 
 export function createShim(deps: ShimDeps): http.Server {
-  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, forward, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared } = deps;
+  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, forward, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared, getPrimaryGraph } = deps;
   const json = (res: http.ServerResponse, code: number, body: unknown): void => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
@@ -467,6 +500,57 @@ export function createShim(deps: ShimDeps): http.Server {
       const on = Boolean(body["on"]);
       await setShareModels?.(on);
       return json(res, 200, { ok: true, shareModels: on });
+    }
+
+    // ── plugin distribution over the mesh (the LoRA-adapter replication, for plugins) ──
+    // The web's mesh plugin source (apps/web/lib/leash/plugin-sources/mesh.ts) drives these:
+    // publish zips a locally-installed plugin onto the `plugin-feed` Hypercore + announces a
+    // catalog row; catalog lists those rows; fetch reassembles + verifies the zip and returns it.
+    if (url.startsWith("/plugins/")) {
+      if (!getPrimaryGraph) return json(res, 503, { error: "hypha: plugin distribution not wired" });
+      if (method === "GET" && url === "/plugins/catalog") {
+        const graph = await getPrimaryGraph();
+        const plugins = await graph.listPlugins();
+        // The web contract is the catalog subset (pluginId/name/version?/description?/sha256/size).
+        return json(res, 200, { plugins: plugins.map((p) => ({ pluginId: p.pluginId, name: p.name, ...(p.version ? { version: p.version } : {}), ...(p.description ? { description: p.description } : {}), sha256: p.sha256, size: p.size })) });
+      }
+      if (method === "POST" && url === "/plugins/publish") {
+        const pluginId = String((await readJsonBody(req))["pluginId"] ?? "").trim();
+        if (!pluginId) { res.writeHead(400, { "content-type": "text/plain" }); return void res.end("a pluginId is required"); }
+        const entry = getPlugin(pluginId);
+        if (!entry) { res.writeHead(404, { "content-type": "text/plain" }); return void res.end(`no installed plugin "${pluginId}" on this device`); }
+        let zip: Uint8Array;
+        try {
+          zip = zipSync(zipEntriesForTree(join(PLUGINS_DIR, pluginId)), { level: 6 });
+        } catch (err) {
+          res.writeHead(400, { "content-type": "text/plain" });
+          return void res.end(`couldn't zip plugin "${pluginId}": ${err instanceof Error ? err.message : String(err)}`);
+        }
+        const buf = Buffer.from(zip);
+        const sha256 = createHash("sha256").update(buf).digest("hex");
+        const graph = await getPrimaryGraph();
+        const meta = await graph.publishPlugin(
+          { pluginId, name: entry.name, ...(entry.version ? { version: entry.version } : {}), ...(entry.description ? { description: entry.description } : {}), sha256, size: buf.length },
+          buf,
+        );
+        return json(res, 200, { pluginId: meta.pluginId, name: meta.name, ...(meta.version ? { version: meta.version } : {}), ...(meta.description ? { description: meta.description } : {}), sha256: meta.sha256, size: meta.size });
+      }
+      if (method === "POST" && url === "/plugins/fetch") {
+        const pluginId = String((await readJsonBody(req))["pluginId"] ?? "").trim();
+        if (!pluginId) { res.writeHead(400, { "content-type": "text/plain" }); return void res.end("a pluginId is required"); }
+        const graph = await getPrimaryGraph();
+        let got: { bytes: Buffer; meta: { pluginId: string } } | null;
+        try {
+          got = await graph.fetchPlugin(pluginId); // verifies sha256 + size internally
+        } catch (err) {
+          res.writeHead(502, { "content-type": "text/plain" });
+          return void res.end(`couldn't fetch plugin "${pluginId}" from the mesh: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        if (!got) { res.writeHead(404, { "content-type": "text/plain" }); return void res.end(`no plugin "${pluginId}" published to the mesh`); }
+        res.writeHead(200, { "content-type": "application/zip", "content-length": String(got.bytes.length) });
+        return void res.end(got.bytes);
+      }
+      return json(res, 404, { error: `hypha: no plugin route ${method} ${url}` });
     }
 
     // ── pairing control (localhost only — this device's own dashboard) ───────────

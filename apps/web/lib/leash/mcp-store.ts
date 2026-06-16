@@ -18,6 +18,7 @@ import { randomUUID } from "node:crypto";
 import { readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
 import { validateServerInput, validateUserIcon, serverSignature, type McpServerEntry, type McpServerInput, type McpTransport } from "./mcp-config.ts";
 import { MCP_BUILTINS, builtinById, builtinEntry } from "./mcp-builtins.ts";
+import { pluginMcpServers } from "./plugins-store.ts";
 
 export type { McpServerEntry, McpTransport } from "./mcp-config.ts";
 
@@ -77,7 +78,11 @@ export async function listMcpServers(): Promise<McpServerEntry[]> {
     return builtinEntry(b, ov?.enabled ?? (inherited || b.defaultEnabled), { name: ov?.name, userIcon: ov?.userIcon });
   });
   const visibleOthers = others.filter((o) => !builtinSigs.has(serverSignature(o)));
-  return [...builtins, ...visibleOthers];
+  // Plugin-provided servers (id `plugin:<plugin-id>:<key>`, parallel to `env:`/`builtin:`): appended
+  // so they flow into reconcile() + the per-turn tool merge with zero extra wiring. Enabled is driven
+  // by the owning plugin's row; they're read-only in update/remove (the plugin owns them).
+  const plugins = (await pluginMcpServers()).filter(sane);
+  return [...builtins, ...visibleOthers, ...plugins];
 }
 
 /** Add a server (validated + normalized + deduped); returns the new entry. */
@@ -158,6 +163,7 @@ function mergeSecrets(prev: Record<string, string> | undefined, incoming: Record
 export async function updateMcpServer(id: string, patch: McpServerPatch): Promise<McpServerEntry | null> {
   if (builtinById(id)) return patchBuiltin(id, patch);
   if (id.startsWith("env:")) throw new Error("env-configured servers are read-only — edit LEASH_MCP_SERVERS instead");
+  if (id.startsWith("plugin:")) throw new Error("plugin-provided servers are read-only — enable/disable the plugin instead");
   const servers = await storedServers();
   const i = servers.findIndex((s) => s.id === id);
   if (i === -1) return null;
@@ -196,6 +202,7 @@ export async function updateMcpServer(id: string, patch: McpServerPatch): Promis
 export async function removeMcpServer(id: string): Promise<boolean> {
   if (builtinById(id)) throw new Error("built-in servers can't be removed — turn it off instead");
   if (id.startsWith("env:")) throw new Error("env-configured servers are read-only — edit LEASH_MCP_SERVERS instead");
+  if (id.startsWith("plugin:")) throw new Error("plugin-provided servers are read-only — uninstall the plugin instead");
   const servers = await storedServers();
   const next = servers.filter((s) => s.id !== id);
   if (next.length === servers.length) return false;

@@ -1,0 +1,7 @@
+{
+  "name": "Medicine Assistant",
+  "version": "1.0.0",
+  "description": "Turns the general assistant into a clinical specialist: symptom triage, interaction checking, and a bundled drug-reference MCP tool.",
+  "author": "Mycelium Example Plugins",
+  "license": "Apache-2.0"
+}

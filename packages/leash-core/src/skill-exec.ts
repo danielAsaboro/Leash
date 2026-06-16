@@ -14,7 +14,7 @@
 import { spawn } from "node:child_process";
 import { realpath } from "node:fs/promises";
 import { join, extname, sep } from "node:path";
-import { getSkill, safeRelPath, SKILLS_DIR } from "./skills-store.ts";
+import { getSkill, safeRelPath, skillRoot } from "./skills-store.ts";
 
 const TIMEOUT_MS = 60_000;
 const OUTPUT_CAP = 16 * 1024;
@@ -58,7 +58,9 @@ export async function runSkillScript(slug: string, script: string, args: string[
 
   // Realpath containment: the script's REAL location must stay under <skill>/scripts
   // (a symlink pointing outside the folder is rejected even though the path looks right).
-  const skillDir = join(SKILLS_DIR, slug);
+  // `skillRoot` dispatches plugin slugs (`<id>:<name>`) to the plugin tree; a disabled plugin's
+  // skill already failed the `skill.enabled` gate above (getSkill stamps the plugin's bit).
+  const skillDir = skillRoot(slug);
   let absReal: string;
   let scriptsReal: string;
   try {

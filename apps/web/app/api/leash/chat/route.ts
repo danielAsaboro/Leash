@@ -19,6 +19,8 @@ import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
 import { skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
 import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES } from "../../../../lib/leash/tool-lanes.ts";
 import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skill-runner.ts";
+import { buildAgentTools } from "../../../../lib/leash/agent-runner.ts";
+import { listAgents } from "../../../../lib/leash/agents-store.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
@@ -175,8 +177,9 @@ export async function POST(req: Request): Promise<Response> {
   // whether the NEXT step launches.
   const planTool = buildPlanTool({ registry: baseTools, getTask: () => planTask, getWriter: () => planStream.writer, getAbort: () => req.signal.aborted || interjectRequested(id), planId });
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
-  // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself).
-  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...planTool };
+  // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
+  // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
+  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools(await listAgents(), baseTools), ...planTool };
 
   // Rebuild the working history from the store + the incoming trigger.
   const record = await loadRecord(id);

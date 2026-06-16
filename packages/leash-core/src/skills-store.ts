@@ -26,6 +26,9 @@
 import { readFile, writeFile, readdir, rm, mkdir, stat, realpath } from "node:fs/promises";
 import { join, resolve, dirname, sep } from "node:path";
 import { DATA_DIR } from "./json-store.ts";
+import { parseFrontmatter, parseToolList, parseLineList } from "./frontmatter.ts";
+import { parsePluginSlug } from "./plugin-manifest.ts";
+import { PLUGINS_DIR, pluginEnabled, pluginSkills } from "./plugins-store.ts";
 
 export const SKILLS_DIR = process.env["LEASH_SKILLS_DIR"] ?? join(DATA_DIR, "leash-skills");
 
@@ -106,12 +109,29 @@ export function safeRelPath(p: string): string | null {
 }
 
 /**
+ * The absolute folder a skill lives in. A NAMESPACED plugin slug `<id>:<name>` resolves under
+ * `PLUGINS_DIR/<id>/skills/<name>/` (the plugin is registered virtually — its skills are never
+ * copied into SKILLS_DIR); every other slug is a user skill under `SKILLS_DIR/<slug>/`. This is
+ * the slug dispatcher every read path (getSkill / containedPath / skillFiles / readSkillFile)
+ * funnels through, so a plugin skill's files resolve + stay contained exactly like a user skill's.
+ */
+export function skillRoot(slug: string): string {
+  const p = parsePluginSlug(slug);
+  return p ? join(PLUGINS_DIR, p.id, "skills", p.name) : join(SKILLS_DIR, slug);
+}
+
+/** A slug the read paths accept: a user skill slug OR a namespaced plugin-skill slug. */
+function isReadableSlug(slug: string): boolean {
+  return SLUG_RE.test(slug) || parsePluginSlug(slug) !== null;
+}
+
+/**
  * Resolve `rel` under the skill folder with symlink containment: the resolved REAL path
  * (of the file, or of its nearest existing ancestor for to-be-created files) must stay
  * under the skill folder's real path. Null when it escapes.
  */
 async function containedPath(slug: string, rel: string): Promise<string | null> {
-  const root = join(SKILLS_DIR, slug);
+  const root = skillRoot(slug);
   const abs = resolve(root, rel);
   if (abs !== root && !abs.startsWith(root + sep)) return null;
   let rootReal: string;
@@ -140,65 +160,8 @@ async function containedPath(slug: string, rel: string): Promise<string | null> 
 
 const KNOWN_KEYS = new Set(["name", "description", "enabled"]);
 
-/**
- * Parse `--- … ---` frontmatter lines. Supports `key: value` (optionally single/double
- * quoted) and `key: >|` block scalars (`>` folds with spaces, `|` keeps newlines; `-`
- * chomping accepted). Indented lines never start a new key (block content only).
- */
-function parseFrontmatter(src: string): Record<string, string> {
-  const fields: Record<string, string> = {};
-  const lines = src.split(/\r?\n/);
-  for (let i = 0; i < lines.length; i++) {
-    const kv = /^([A-Za-z_][A-Za-z0-9_-]*):\s*(.*)$/.exec(lines[i] as string);
-    if (!kv) continue;
-    const key = (kv[1] as string).toLowerCase();
-    let val = (kv[2] as string).trim();
-    if (/^[>|]-?$/.test(val)) {
-      const fold = val.startsWith(">");
-      const block: string[] = [];
-      while (i + 1 < lines.length && (/^\s+\S/.test(lines[i + 1] as string) || (lines[i + 1] as string).trim() === "")) {
-        i++;
-        block.push((lines[i] as string).trim());
-      }
-      while (block.length > 0 && block[block.length - 1] === "") block.pop();
-      val = block.join(fold ? " " : "\n").trim();
-    } else if (val.length >= 2 && ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'")))) {
-      val = val.slice(1, -1);
-    }
-    fields[key] = val;
-  }
-  return fields;
-}
-
-/**
- * Parse a `tools:` frontmatter value into a clean tool-name list. Accepts both the
- * `[a, b, c]` array form and a bare `a, b, c` (comma/space-separated) string; strips
- * brackets/quotes and keeps only tool-name-shaped tokens (so prose can't smuggle in
- * junk). Round-tripping is handled by `extras` (the raw value survives a save verbatim).
- */
-function parseToolList(raw: string | undefined): string[] {
-  if (!raw) return [];
-  return raw
-    .replace(/^\s*\[/, "")
-    .replace(/\]\s*$/, "")
-    .split(/[\s,]+/)
-    .map((t) => t.trim().replace(/^["']|["']$/g, ""))
-    .filter((t) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t));
-}
-
-/**
- * Parse a block-scalar value into a clean line list — one item per line, any leading list marker
- * (`- `, `* `, `1. `) stripped, blanks dropped, bounded. Used for both `steps:` (ordered sub-tasks)
- * and `examples:` (routing utterances). The block value is produced by the `|`/`>` frontmatter parser.
- */
-function parseLineList(raw: string | undefined, cap: number): string[] {
-  if (!raw) return [];
-  return raw
-    .split(/\r?\n/)
-    .map((l) => l.replace(/^\s*(?:[-*]|\d+[.)])\s+/, "").trim())
-    .filter((l) => l.length > 0)
-    .slice(0, cap);
-}
+// `parseFrontmatter` / `parseToolList` / `parseLineList` now live in the shared `frontmatter.ts`
+// (lifted out so the agents store reuses the exact same YAML-subset parser — imported above).
 
 /** Parse one SKILL.md: frontmatter + body. Null on bad shape. `enabled` absent ⇒ DISABLED. */
 function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
@@ -243,16 +206,16 @@ function serializeSkill(s: { name: string; description: string; enabled: boolean
 // ── Listing / loading ──────────────────────────────────────────────────────────
 
 /**
- * Attachment paths inside a skill folder, recursive to depth 3 (everything but the root
+ * Attachment paths inside a skill folder `absRoot`, recursive to depth 3 (everything but the root
  * SKILL.md; no dotfiles), sorted relative POSIX paths (`references/x.md`, `scripts/y.sh`).
  */
-async function skillFiles(slug: string): Promise<string[]> {
+async function skillFilesIn(absRoot: string): Promise<string[]> {
   const out: string[] = [];
   const walk = async (rel: string, depth: number): Promise<void> => {
     if (depth > MAX_DEPTH || out.length >= MAX_FILES) return;
     let entries;
     try {
-      entries = await readdir(join(SKILLS_DIR, slug, rel), { withFileTypes: true });
+      entries = await readdir(join(absRoot, rel), { withFileTypes: true });
     } catch {
       return;
     }
@@ -268,15 +231,37 @@ async function skillFiles(slug: string): Promise<string[]> {
   return out.sort();
 }
 
-/** Load one skill by slug — folder shape first, then legacy flat `<slug>.md`. */
-export async function getSkill(slug: string): Promise<Skill | null> {
-  if (!SLUG_RE.test(slug)) return null;
+/**
+ * Read + parse one skill from an ABSOLUTE folder (folder shape only — no legacy flat fallback).
+ * The single skill-folder reader, shared by `getSkill` (both user + plugin skills via the slug
+ * dispatcher) and the plugin surfacer. `enabled` reflects the SKILL.md frontmatter; plugin
+ * callers OVERRIDE it with the owning plugin's bit.
+ */
+export async function loadSkillFromDir(absDir: string, slug: string): Promise<Skill | null> {
+  let raw: string;
   try {
-    const raw = await readFile(join(SKILLS_DIR, slug, "SKILL.md"), "utf8");
-    return parseSkill(slug, raw, await skillFiles(slug));
+    raw = await readFile(join(absDir, "SKILL.md"), "utf8");
   } catch {
-    /* fall through to legacy flat file */
+    return null;
   }
+  return parseSkill(slug, raw, await skillFilesIn(absDir));
+}
+
+/**
+ * Load one skill by slug. A NAMESPACED plugin slug (`<id>:<name>`) resolves under the plugin tree
+ * and has its `enabled` driven by the plugin's registry row (so disabling the plugin disables its
+ * skill everywhere `getSkill` is consulted — run_skill, read_skill, …). A user slug reads the
+ * folder shape first, then the legacy flat `<slug>.md`.
+ */
+export async function getSkill(slug: string): Promise<Skill | null> {
+  const plugin = parsePluginSlug(slug);
+  if (plugin) {
+    const skill = await loadSkillFromDir(skillRoot(slug), slug);
+    return skill ? { ...skill, enabled: await pluginEnabled(plugin.id) } : null;
+  }
+  if (!SLUG_RE.test(slug)) return null;
+  const folder = await loadSkillFromDir(join(SKILLS_DIR, slug), slug);
+  if (folder) return folder;
   try {
     return parseSkill(slug, await readFile(join(SKILLS_DIR, `${slug}.md`), "utf8"), []);
   } catch {
@@ -284,13 +269,18 @@ export async function getSkill(slug: string): Promise<Skill | null> {
   }
 }
 
-/** All skills, name-sorted (`[]` when the directory doesn't exist yet). Both shapes. */
+/**
+ * All skills, name-sorted — the user's own skills (folder + legacy flat shapes under SKILLS_DIR)
+ * CONCATENATED with the virtual skills of installed plugins (`pluginSkills()`, namespaced
+ * `<id>:<name>`, enabled driven by the plugin row). The `:` namespace guarantees no slug collision.
+ * `[]` when nothing is installed.
+ */
 export async function listSkills(): Promise<Skill[]> {
-  let entries: string[];
+  let entries: string[] = [];
   try {
     entries = await readdir(SKILLS_DIR);
   } catch {
-    return [];
+    /* no user skills dir yet — plugin skills may still exist */
   }
   const slugs = new Set<string>();
   for (const e of entries) {
@@ -304,8 +294,8 @@ export async function listSkills(): Promise<Skill[]> {
       }
     }
   }
-  const skills = await Promise.all([...slugs].map((slug) => getSkill(slug)));
-  return skills.filter((s): s is Skill => s !== null).sort((a, b) => a.name.localeCompare(b.name));
+  const [user, plugins] = await Promise.all([Promise.all([...slugs].map((slug) => getSkill(slug))), pluginSkills()]);
+  return [...user.filter((s): s is Skill => s !== null), ...plugins].sort((a, b) => a.name.localeCompare(b.name));
 }
 
 /**
@@ -324,7 +314,7 @@ export async function saveSkill(input: { slug?: string; name: string; descriptio
   } catch {
     /* none existed */
   }
-  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["allowed-tools"] ?? input.extras?.["tools"]), steps: parseLineList(input.extras?.["steps"], 12), examples: parseLineList(input.extras?.["examples"], 12), whenToUse: input.extras?.["when_to_use"] ?? "", builtin: input.extras?.["builtin"] === "true", files: await skillFiles(slug), extras: input.extras ?? {} };
+  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["allowed-tools"] ?? input.extras?.["tools"]), steps: parseLineList(input.extras?.["steps"], 12), examples: parseLineList(input.extras?.["examples"], 12), whenToUse: input.extras?.["when_to_use"] ?? "", builtin: input.extras?.["builtin"] === "true", files: await skillFilesIn(join(SKILLS_DIR, slug)), extras: input.extras ?? {} };
 }
 
 /** Delete a skill — folder and/or legacy flat file (no-op if already gone). */
@@ -386,10 +376,11 @@ export async function importSkill(entries: Array<{ path: string; data: Uint8Arra
 
 // ── Attachments ────────────────────────────────────────────────────────────────
 
-/** Read one attachment as text (64 KB cap; nested paths ok). Honest message for binary content. */
+/** Read one attachment as text (64 KB cap; nested paths ok). Honest message for binary content.
+ *  Accepts a user slug OR a namespaced plugin-skill slug (read path — the dispatcher resolves the root). */
 export async function readSkillFile(slug: string, file: string): Promise<{ ok: true; text: string } | { ok: false; error: string }> {
   const rel = safeRelPath(file);
-  if (!SLUG_RE.test(slug) || !rel || rel === "SKILL.md") return { ok: false, error: `invalid file path "${file}"` };
+  if (!isReadableSlug(slug) || !rel || rel === "SKILL.md") return { ok: false, error: `invalid file path "${file}"` };
   const abs = await containedPath(slug, rel);
   if (!abs) return { ok: false, error: `invalid file path "${file}"` };
   let buf: Buffer;

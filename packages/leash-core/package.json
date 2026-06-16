@@ -43,6 +43,26 @@
       "types": "./dist/skills-store.d.ts",
       "default": "./dist/skills-store.js"
     },
+    "./frontmatter": {
+      "types": "./dist/frontmatter.d.ts",
+      "default": "./dist/frontmatter.js"
+    },
+    "./plugin-manifest": {
+      "types": "./dist/plugin-manifest.d.ts",
+      "default": "./dist/plugin-manifest.js"
+    },
+    "./plugin-loader": {
+      "types": "./dist/plugin-loader.d.ts",
+      "default": "./dist/plugin-loader.js"
+    },
+    "./plugins-store": {
+      "types": "./dist/plugins-store.d.ts",
+      "default": "./dist/plugins-store.js"
+    },
+    "./agents-store": {
+      "types": "./dist/agents-store.d.ts",
+      "default": "./dist/agents-store.js"
+    },
     "./skill-exec": {
       "types": "./dist/skill-exec.d.ts",
       "default": "./dist/skill-exec.js"

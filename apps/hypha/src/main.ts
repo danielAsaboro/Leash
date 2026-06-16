@@ -847,6 +847,8 @@ async function runDaemon(): Promise<void> {
     setShareModels,
     getUnsharedModels: () => [...unsharedModels],
     setAliasShared,
+    // Plugin distribution rides the PRIMARY mesh's writable graph (bring it online lazily, like adapters).
+    getPrimaryGraph: async () => (await ensureMeshOnline()).graph,
   });
 
   // Feed reputation from the replicated settled receipts (read-only snapshot, refreshed on a tick).
