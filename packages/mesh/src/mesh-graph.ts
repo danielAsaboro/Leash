@@ -26,6 +26,24 @@ import BlindPairing from "blind-pairing";
 import b4a from "b4a";
 import type { GraphNode, GraphNodeInput, AuditLog, DeviceCapability, SessionSettlementReceipt } from "@mycelium/shared";
 
+/**
+ * A task replicated across the private mesh. Superset of the desktop `LeashTask`
+ * (packages/leash-core) and the mobile `Task` (apps/mobile/tasks.ts); both map onto it.
+ * LWW by `updatedAt`; a delete is a tombstone (`deleted: true`) so it converges too.
+ */
+export interface MeshTask {
+  id: string;
+  title: string;
+  detail?: string;
+  status: "open" | "in_progress" | "done" | "dropped";
+  priority: "low" | "normal" | "high";
+  tags: string[];
+  source: string; // "user" | "assistant" | device origin
+  createdAt: number;
+  updatedAt: number; // LWW key (epoch ms)
+  deleted?: boolean; // tombstone
+}
+
 type Entry =
   | { type: "node"; node: GraphNode }
   | { type: "add-writer"; key: string }
@@ -35,7 +53,9 @@ type Entry =
   | { type: "unpair"; a: string; b: string; active: boolean; ts: string }
   | { type: "receipt"; receipt: SessionSettlementReceipt }
   | { type: "adapter"; meta: AdapterMeta }
-  | { type: "plugin"; meta: MeshPluginMeta };
+  | { type: "plugin"; meta: MeshPluginMeta }
+  | { type: "task"; task: MeshTask }
+  | { type: "task-delete"; id: string; ts: number };
 
 /**
  * The TINY pointer a published LoRA adapter rides on the CRDT. The adapter BYTES live

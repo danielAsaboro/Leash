@@ -13,7 +13,7 @@ export { loadDelegated } from "./consumer.ts";
 export type { LoadDelegatedParams } from "./consumer.ts";
 export { CapabilityRegistry } from "./registry.ts";
 export { MeshGraph, unpairKey, verifyAdapterBytes, verifyBytes } from "./mesh-graph.ts";
-export type { MeshGraphOptions, PairOptions, UnpairRecord, AdapterMeta, MeshPluginMeta } from "./mesh-graph.ts";
+export type { MeshGraphOptions, PairOptions, UnpairRecord, AdapterMeta, MeshPluginMeta, MeshTask } from "./mesh-graph.ts";
 export { MeshHost, PRIMARY_MESH_ID } from "./mesh-host.ts";
 export type { MeshHostOptions, OpenMeshOptions, PairMeshOptions } from "./mesh-host.ts";
 export { unionAllowedConsumers, routeDelegation, meshEligible, maxVisibilityFor, isRouteHit } from "./delegation-policy.ts";
