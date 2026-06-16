@@ -16,7 +16,7 @@ Open **Brain → Models → Catalog** ([http://localhost:6801/brain](http://loca
 
 | Column | What it is |
 |--------|------------|
-| **Name** | The SDK constant, e.g. `QWEN3_4B_Q4_K_M`. |
+| **Name** | The SDK constant, e.g. `QWEN3_4B_INST_Q4_K_M`. |
 | **Category** | chat / embedding / transcription / speech / image / ocr / translation. |
 | **Params** | Model size, e.g. `4B`, `1.5B`. |
 | **Quantization** | Precision, e.g. `q4_k_m`, `q8_0`. |
@@ -56,11 +56,11 @@ The **Kit** button (Brain → Models) wires the recommended set of aliases in on
 
 | Role | Alias | Model |
 |------|-------|-------|
-| Chat | `chat` | `QWEN3_4B_Q4_K_M` |
+| Chat | `chat` | `QWEN3_4B_INST_Q4_K_M` |
 | Embeddings | `gte-large` | `GTE_LARGE` |
-| Vision | `qwen3vl` | `QWEN3_VL_2B_Q4_K_M` |
+| Vision | `qwen3vl` | `QWEN3VL_2B_MULTIMODAL_Q4_K` |
 | STT | `parakeet` | `PARAKEET_TDT_CTC_110M` |
-| TTS | `supertonic` | `SUPERTONIC_TTS_V1` |
+| TTS | `supertonic` | `TTS_EN_SUPERTONIC_Q8_0` |
 | Image | `sd` | *(stable diffusion variant)* |
 
 The Kit validates **every** SKU (each role's weight plus the vision projection/mmproj) against the catalog before writing — all-or-nothing — so a half-resolved kit never produces a broken config. After wiring the Kit, download the weights (individually or all at once) and restart the serve.

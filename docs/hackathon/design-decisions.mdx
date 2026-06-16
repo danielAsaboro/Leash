@@ -1,0 +1,123 @@
+---
+title: "Design decisions"
+description: "The hard engineering calls behind Leash — what we weighed, what we shipped, and the darlings we killed when the evidence said no."
+---
+
+This page is about judgment, not features. A first-place "production-ready, local-first" project is separated from a demo by the decisions made when the easy path and the correct path diverge. Three principles run through every call below:
+
+- **Spike-gate before build.** Prove the riskiest assumption cheaply, end-to-end, before writing the product code that depends on it.
+- **Additive and feature-flagged.** New behavior lands behind a flag that defaults off; flag-off is byte-identical to the proven core, so a working system is never at risk while it's being extended.
+- **The honesty ledger.** Never claim more enforcement, more proof, or more capability than actually exists. Negative results and honor-system gaps are reported, not sanded off.
+
+For what Leash *is* and how it maps to the rubric, read the [Hackathon overview](/hackathon/overview) and [How we meet the criteria](/hackathon/how-we-meet-the-criteria) — this page does not repeat them.
+
+## De-risking before building
+
+**Decision: gate the entire build on a four-primitive spike.**
+
+- **Forces.** The project depends on four things that could each independently sink it: on-device inference + embeddings, on-device RAG, encrypted P2P delegated compute, and on-device LoRA. If any one didn't work on real hardware through `@qvac/sdk`, the architecture would need rethinking — and finding that out three weeks into the build is fatal.
+- **Options.** Start building the vertical slice and discover limits as you hit them; or stop and prove each primitive in isolation first.
+- **Choice & tradeoff.** We spent the first days proving all four for real on-device before any product code existed. The cost was visible time with nothing "shippable" to show; the payoff was that Week-1 build started on a known-good foundation.
+- **Evidence.** Gate **PASSED 2026-05-31**, GO on all four, on `@qvac/sdk@0.11.0`: chat warm TTFT 56 ms / 70.6 tok/s on a 1B; `gte-large` embedding dim 1024; RAG retrieval 23 ms at top score 0.768 with grounding visibly changing the answer; encrypted P2P round-trip 1.27 s (TTFT 257 ms, 45.4 tok/s, tokens generated on the provider); LoRA fine-tune completed in 152.7 s producing a 20 MB adapter that measurably changed behavior. Each script appends JSONL to `spike/logs/`. See [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) and `submission/SPIKE_RESULTS.md`.
+
+**Decision: kill the Layer-1 reconnection patch a 20-line spike disproved.**
+
+This is the decision we're proudest of, because it is a plan we *disproved and abandoned*.
+
+- **Forces.** Delegated-inference sessions sometimes needed "restart both ends" to recover. The payment plane survives restarts because it wraps `dht.connect` to force `localConnection:false`; the inference plane didn't. The obvious fix: hoist that wrap process-wide so the SDK's dial inherits it. A full resilience layer — the patch plus transparent mid-request failover — was scoped at roughly 300 lines.
+- **Options.** Build the resilience layer as designed; or first write a tiny spike to confirm the patch can even reach the SDK's dial.
+- **Choice & tradeoff.** We wrote the ~20-line spike first. It proved the plan **unbuildable**: the consumer's delegated dial is `swarm.dht.connect(...)` *inside the SDK's Bare worker* — a separate runtime — with the connect options hardcoded and no `localConnection` hook. A Node-process monkey-patch can't reach a different runtime. So we killed Layer 1 before writing the 300 lines. Then the humbling part: reproducing the original failure cleanly (restart the mini only, leave the peer untouched) showed the SDK's own `ensureRPCConnection` already reconnects. The persistent `HOLEPUNCH_ABORTED` that started the whole thread was **self-inflicted DHT pollution** — two hyperdht servers announcing under one keypair, where the Noise handshake succeeds against the wrong process. "Restart both" was a symptom of a mistake we'd made, not a property of the system.
+- **Evidence.** The real fix was small and correct: derive a distinct swarm identity (`sha256(seed + ":<role>")`) so only the SDK worker uses the raw `QVAC_HYPERSWARM_SEED`, and force `localConnection:false` on the payment-control client. What survived of the resilience design is a de-scoped `connectivity-manager.ts` with a pure `decideHeal` reducer, gated by `HYPHA_RESILIENT_RECONNECT` (default off → not started → "byte-identical proven core"). The over-engineered two-thirds is documented, not built. See [How the mesh routes work](/explanation/how-the-mesh-routes-work) and [Operations: mesh](/help/operations-mesh) for the two-seed rule and the orphaned-process LAN trap.
+
+## Protecting a working system while iterating
+
+**Decision: every new behavior ships behind a default-off flag, byte-identical when off.**
+
+- **Forces.** The economy and routing were working and demoable. Each new capability (metered sessions, reputation scoring, self-heal, broader model sharing) risks regressing that proven path.
+- **Options.** Edit the hot path in place; or guard each addition behind a flag whose off-state is exactly the prior code path.
+- **Choice & tradeoff.** Additive + flagged. The discipline is enforced in the source comments, not just intent: the reputation scorer keeps unsettled receipts out of the disabled path so "pre-Phase-4 scoring is byte-identical"; the watchdog cutoff's firewall behavior is "the proven path, firewall byte-identical"; the resilience loop is "default off → not started." The cost is more branches to reason about; the payoff is that a green core is never one commit away from broken.
+- **Evidence.** Flags live in `apps/hypha/src/config.ts` (`HYPHA_RESILIENT_RECONNECT`, metered-session toggles); the byte-identical guarantees are stated and grep-able across `apps/hypha/src/main.ts`, `reputation.ts`, and `connectivity-manager.ts`. See [Environment variables](/help/environment-variables).
+
+**Decision: a metered economy with an escalating witness ladder, not a per-token on-chain settle.**
+
+- **Forces.** Pay-as-you-go inference means the charge isn't known until the session ends, but a single x402 "upto" signature can't have its cap raised after the fact. Settling per token would mean a transaction per chunk — gas cost scaling with token count.
+- **Options.** One on-chain settle per token/chunk; or a ladder of escalating Permit2 witnesses where the consumer pre-authorizes higher cumulative caps and the provider settles once.
+- **Choice & tradeoff.** The ladder. Before each new decode chunk the consumer sends a fresh Permit2 witness for a higher cumulative token cap (each an independent authorization against the same reused max-uint allowance). The provider appends each verified rung — strictly monotonic in both `tierIndex` and `cumulativeTokens` — and at close settles exactly **one** rung: the highest reached, not the sum. Money moves once; gas is O(1) per session. An idle watchdog force-settles the authorized cap if a consumer abandons mid-session.
+- **Evidence.** Real on-chain runs: session `fee32a84` laddered tier-0→tier-1 (cap 512), decoded 512 tokens, **settled 512 µUSDT0 in one tx** `0x645c56c3…` — the highest rung (512), not the rung sum (768). A 5-rung run settled 360 in one tx `0x067348ad…`. The watchdog was proved live: a consumer streamed 128 tokens then went silent 40 s; `sweepMeteredIdle` force-settled the cap in tx `0x6f7dcbce…`. Mechanism in `apps/hypha/src/metered.ts` (`appendRung`, `rungToSettle`, `isIdleExpired`) and `economy-types.ts`. See [The agent economy](/explanation/the-agent-economy) and [Local settlement on anvil](/help/local-settlement-anvil).
+
+## Honest engineering under a deadline
+
+**Decision: state the honesty ledger — what's hard-enforced vs. honor-system — instead of overclaiming.**
+
+- **Forces.** A judge should be able to trust every enforcement claim. A code-grounded read of our own economy found that the token count at close is **consumer self-reported** — `closePaidSession(actualTokens)` is the consumer telling the provider how much to charge itself, because the SDK gives the provider no usage hook. The receipt's HMAC signature is over a local seed, so it isn't third-party-verifiable; the only trust anchor is the on-chain txHash.
+- **Options.** Quietly present the economy as fully enforced; or write the threat model and an explicit hard-enforced-vs-honor-system ledger that names the gaps.
+- **Choice & tradeoff.** We wrote the ledger (threat model T1–T6, the hard-vs-honor split) and surface the honor-system parts everywhere they appear. The cost is admitting a soft edge to judges; the payoff is that every *enforced* claim we make is actually true. "Never claim more enforcement/capability than exists" is a written rule.
+- **Evidence.** The ledger spec and the self-reported-token finding are recorded in `submission/HANDOFF-2026-06-10.md`/`HANDOFF-2026-06-11.md`; the on-chain settle remains the one cryptographically anchored fact. See [Why QVAC-only](/explanation/why-qvac-only) and [QVAC-only proof](/hackathon/qvac-only-proof).
+
+**Decision: ship the iPhone `null.download` fix on regression + host-parity evidence, not a green repro.**
+
+- **Forces.** An iPhone that blind-paired into the desktop **Primary** mesh reached `pair: writable=true`, then autobase threw `Cannot read properties of null (reading 'download')` during linearization (a null deref at `apply-state.js:1228`). Root cause: the desktop mesh lives in the corestore **default (root) namespace**, but a "clean re-join" commit had moved the joiner's autobase onto `store.namespace("mesh-<gen>")`, so its name-derived system/encryption/view cores never reconciled with the replicated host cores.
+- **Options.** Hold the fix until a minimal repro reproduces the bug green; or ship on the regression evidence plus host-parity once the offending commit is identified.
+- **Choice & tradeoff.** We git-pinned the regression to the "clean re-join" commit and fixed it by opening the joiner's autobase on the **root store** (handling re-join by wiping the store rather than bumping a namespace generation). The honest part: a throwaway pure-Node `tsx` harness, isolating the single variable, **refused to reproduce** the bug — namespace and root both went `writable+linearized`. The read is that the bug is bare-vendored-corestore-specific (corestore 7.10.1 vs desktop 7.10.0). We shipped on the regression + host-parity evidence rather than pretend a green repro existed.
+- **Evidence.** The rebuilt Release iOS build comes up clean (worklet `init: done`, no `null.download`); full on-device `writable=true` end-to-end is held until re-join. Recorded in `submission/sawdust.md` (2026-06-16). See [Mesh and membership](/explanation/mesh-and-membership).
+
+**Decision: report the LoRA evolve loop as honest WIP, including a 0% result.**
+
+- **Forces.** The nightly self-improvement loop is wired and the mechanism is proven, but the recall *improvement* it's meant to deliver is unproven on a small base.
+- **Options.** Claim the self-improvement loop "works"; or state exactly what's banked (the mechanism, the smoke tests) and what isn't (the live recall numbers).
+- **Choice & tradeoff.** We report the negative result. The 600M trainable base scored **0% recall at 2 epochs**; the bet that a bigger base plus more passes recovers recall is still UNPROVEN — and that's written in the code, not just the log.
+- **Evidence.** `packages/memory/scripts/evolve.ts` carries the comment "*the 600M scored 0% recall at 2 — the bigger base + more passes is the recall bet*" (the catalog's 4B/8B/20B ship as un-finetunable Q4_K_M, which is why the bigger-base path needs a trainable-quant gguf). See [The memory-evolution loop](/explanation/the-memory-evolution-loop).
+
+## Performance & coverage tradeoffs
+
+**Decision: a multi-model Council to close 1B citation variance — quality bought with latency.**
+
+- **Forces.** The spike showed a 1B model grounded correctly but dropped the `[Source N]` citation tag run-to-run — the classic small-model reliability weakness.
+- **Options.** Accept the variance for speed; always use a larger model; or run a proposer/critic Council on harder queries and keep the fast local path for trivial ones.
+- **Choice & tradeoff.** A Council (proposer + critic across models) on the same hardware out-reasons a single model and cites correctly, at the cost of more inference per answer. Routing keeps the tradeoff sane: trivial queries stay on the local 600M, hard ones go to the delegated Council.
+- **Evidence.** In the spike, the no-RAG baseline failed to name the Pi's model while the Council answered correctly and cited it (`runCouncil`, wired via `packages/memory/src/council-hook.ts`). See [Mycelium as an agent harness](/explanation/mycelium-as-an-agent-harness) and [Benchmarks](/reference/benchmarks).
+
+**Decision: pin mobile to JavaScriptCore, not Hermes.**
+
+- **Forces.** On iOS, the `@qvac/sdk` React Native path drags in `bare-process` web-API polyfills written in modern syntax that Hermes 0.81.5 can't compile — `hermesc` threw 30 hard errors on the production bundle (`SyntaxError: private properties are not supported`).
+- **Options.** Wait for an SDK/Hermes fix and ship nothing on mobile; or swap the JS engine to JSC, which compiles the modern syntax natively.
+- **Choice & tradeoff.** Swap to JSC (`app.json` and `ios/Podfile.properties.json` set `jsEngine: "jsc"`). The tradeoff is giving up Hermes's bytecode precompile; the payoff is a working on-device iOS build today. A bug report to Tether on the SDK→Hermes incompatibility is planned (hold until filed).
+- **Evidence.** `apps/mobile/app.json` and `apps/mobile/ios/Podfile.properties.json` both pin `jsc`; the failure is recorded in `submission/sawdust.md` (2026-06-15).
+
+**Decision: standardize subagents on the Vercel AI SDK `ToolLoopAgent`, not hand-rolled `generateText`.**
+
+- **Forces.** The subagent runner was hand-rolled around `generateText`, which couldn't stream a subagent's progress into the `/chat` UI as it worked.
+- **Options.** Keep the bespoke loop; or rebuild each subagent on the AI SDK's `ToolLoopAgent` primitive so its work streams as first-class tool output.
+- **Choice & tradeoff.** Standardize on `ToolLoopAgent`. Each subagent is wrapped in a `tool()` whose `execute` is an async generator streaming `readUIMessageStream(...)`, so `/chat` renders subagent progress as preliminary tool results, with a `toModelOutput` that trims the orchestrator's view. The tradeoff is conforming to the SDK's shape (e.g. `ToolLoopAgentSettings` omits `abortSignal` structurally); the payoff is a standards-based, observable agent layer end to end.
+- **Evidence.** `npm run smoke:orchestration` passes on-device, streaming 679 UIMessage updates. Code in `apps/web/lib/leash/agent-runner.ts` and `agent.ts`. See [Multi-agent](/agents/multi-agent) and [Orchestration](/agents/orchestration).
+
+**Decision: serve MedGemma 4B (`medpsy`) first-class with health-intent routing.**
+
+- **Forces.** The hackathon runs a Psy-Models track for meaningful use of QVAC's MedPsy/MedGemma. Standing up a separate project for it would split effort.
+- **Options.** Ignore the Psy track; or fold a medical specialist into the General Purpose build and route to it automatically.
+- **Choice & tradeoff.** Serve `medpsy` (QVAC's **MedGemma 4B IT**) as a first-class alias and route to it on health intent, with a dashboard-editable prompt suffix. One build covers two tracks; the cost is the extra routing branch and a model in the catalog.
+- **Evidence.** Health routing lives in `apps/web/app/api/leash/chat/route.ts` (`isHealthIntent`, `HEALTH_RE`, `MEDPSY_MODEL`), with the `medpsy` alias bound to `MEDGEMMA_4B_IT_Q4_1` in the hypha catalog. See [Models and the catalog](/explanation/models-and-the-catalog) and [Models reference](/reference/models-and-aliases).
+
+**Decision: bring the mesh up lazily — shim + pairing first, full Autobase on first pair.**
+
+- **Forces.** A daemon that founded its own mesh on startup couldn't later pair with another running daemon — you cannot merge two already-populated Autobases.
+- **Options.** Found a mesh eagerly at boot; or run only the localhost shim and LAN pairing until the device actually pairs, founding or joining the mesh *at* pairing.
+- **Choice & tradeoff.** Lazy mesh. A fresh device serves nobody before it has peers, so there's nothing to bring up; the first PIN confirm founds the base (and a restart records and recovers the same base rather than merging). The cost is the serialized-bring-up bookkeeping; the payoff is that two devices can always pair cleanly.
+- **Evidence.** `apps/hypha/src/main.ts` header documents the lazy-mesh design; the serialized bring-up is gated behind a single in-flight promise. See [Mesh and membership](/explanation/mesh-and-membership) and [Operations: mesh](/help/operations-mesh).
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="How we meet the criteria" icon="list-check" href="/hackathon/how-we-meet-the-criteria">
+    The feature-to-criterion mapping these decisions stand behind.
+  </Card>
+  <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
+    The spike gates, audit logs, and offline acceptance behind the numbers.
+  </Card>
+  <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
+    Every AI path through `@qvac/sdk` — the hard gate every decision sits on.
+  </Card>
+  <Card title="Benchmarks" icon="gauge" href="/reference/benchmarks">
+    The indicative performance numbers referenced above.
+  </Card>
+</CardGroup>

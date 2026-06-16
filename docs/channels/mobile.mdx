@@ -5,7 +5,7 @@ sidebarTitle: "Mobile (WIP)"
 ---
 
 <Warning>
-  Mobile is in **early development**. Today it does one thing well: on-device text chat with a small local model. The richer features below are planned, not shipped.
+  Mobile is in **early development**. Today the **iPhone** does on-device text chat **and** joins your private mesh as a real member (syncing the task CRDT). The richer features below — memory, tools, voice — are still planned. Android runs chat only for now.
 </Warning>
 
 The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@qvac/sdk` directly and runs an LLM **natively on the phone** — no server, and no network at all after the first model download.
@@ -50,11 +50,22 @@ The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@q
   A **physical device is required** — llamacpp does not run on the iOS simulator or the Android emulator. Run it with `npx expo start` and open on a real phone.
 </Warning>
 
+<Note>
+  The iOS app runs the **JSC** JavaScript engine, not Hermes: `@qvac/sdk`'s React Native path ships
+  syntax Hermes 0.81.5 can't compile, so flipping it to Hermes red-screens the app at launch. This is
+  pinned on purpose — don't revert it. See [Mobile platform](/platforms/mobile) for the full reason
+  and [iOS install](/install/ios) for the native build recipe.
+</Note>
+
+## Mesh membership (iPhone)
+
+The iPhone is a **real member of your private mesh**, not a thin client. It runs a Corestore + multi-writer Autobase + Hyperbee + Hyperswarm + blind-pairing stack inside a Bare worklet, so it replicates the same encrypted **task** CRDT as your Macs. Pair it from the **Mesh** tab by scanning an invite QR your desktop mints; tap the mesh card to see peers and this phone's models, or **Leave mesh** to drop out. See [The mesh and membership](/explanation/mesh-and-membership) for the model and [Mesh](/platforms/mesh) for the operations.
+
 ## What's planned
 
 <CardGroup cols={2}>
   <Card title="Remote-Leash mode" icon="link">
-    Connect to your Mac's hypha daemon over the encrypted mesh, giving the phone the **full** Leash feature set (memory, tools, larger models) without running a big model locally.
+    Extend the phone's mesh role past task sync to the **full** Leash feature set (memory, tools, larger models) over the encrypted mesh.
   </Card>
   <Card title="Voice call" icon="microphone">
     Mic + STT + TTS via the `@qvac/sdk` audio APIs, mirroring the desktop [voice](/channels/voice) channel.
@@ -71,7 +82,7 @@ The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@q
     Platform-specific setup and requirements.
   </Card>
   <Card title="Mesh" icon="network-wired" href="/platforms/mesh">
-    The encrypted device mesh that remote-Leash mode will ride on.
+    The encrypted device mesh the phone is a member of.
   </Card>
   <Card title="Chat" icon="comment" href="/channels/chat">
     The full desktop chat experience mobile is growing toward.

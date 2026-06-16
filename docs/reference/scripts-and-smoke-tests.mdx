@@ -44,17 +44,40 @@ These come from the root `package.json`.
 
 ## Root smoke and probe scripts
 
+Most are pure-logic (no serve/peers needed) and run instantly; a few marked **live** need
+`qvac serve` and/or peer devices.
+
 | Script | Purpose |
 |---|---|
 | `npm run smoke:registry` | registry behavior |
 | `npm run smoke:failover` | peer failover |
 | `npm run smoke:allowlist` | pairing allowlist |
 | `npm run smoke:adapter` | adapter sharing |
-| `npm run smoke:economy` | economy path |
-| `npm run smoke:metered` | metered settlement |
-| `npm run smoke:reconnect` | reconnect path |
-| `npm run smoke:mcp` | MCP path |
-| `npm run smoke:bash` | bash tool path |
+| `npm run smoke:economy` | economy settlement path |
+| `npm run smoke:metered` | metered streaming settlement |
+| `npm run smoke:reconnect` | suspend/resume reconnect path |
+| `npm run smoke:mcp` | MCP tool path |
+| `npm run smoke:bash` | sandboxed bash tool path |
+| `npm run smoke:agents` | first-class subagents store surfaces with plugin agents (user ∪ plugin) |
+| `npm run smoke:plugins` | plugin store lifecycle: stage → install (quarantine) → review → enable → namespaced surfacing → uninstall (no orphans) |
+| `npm run smoke:plugins-domain` | install real law + medicine bundles; the assistant gains specialist components without touching the harness |
+| `npm run smoke:plugins-live` | **live** — activation routing on `gte-large` + a skill-driven specialist answer |
+| `npm run smoke:orchestration` | **live** — multi-agent orchestration + tool calling on `qwen3-4b` (streaming subagent pattern) |
+| `npm run smoke:reputation` | self-dealing / wash-trading provider scores below a legit one with distinct payers |
+| `npm run smoke:revoke` | non-destructive metered-watchdog cutoff: transient revoke excludes a consumer, auto-re-admits after TTL |
+| `npm run smoke:identity` | costly-identity: a real ethers wallet↔provider-key binding signed and recovered; ERC-20 Transfer log matched |
+| `npm run smoke:supersede` | supersede-based ghost cleanup when a device's mesh writer key changes but its seed identity stays |
+| `npm run smoke:mesh-entry` | Settings → Devices New/Join visibility-first form mapping (new/private/public/join) |
+| `npm run smoke:model-fit` | device-fit estimator math behind the context-size slider |
+| `npm run smoke:model-rows` | Models-tab unified list: addon→kind classifier, configured/on-disk/catalog merge, per-row state |
+| `npm run smoke:model-type` | mesh model-type classifier (chat/vision/embedding/stt/tts) + borrowable-set derivation |
+| `npm run smoke:storage-paging` | Settings → Storage cache list paging and selected-bytes summation |
+| `npm run smoke:receipt-view` | receipts-ledger view: modality derivation, filter facets, day grouping + pagination |
+| `npm run smoke:multipart` | shim multipart parser round-trip (the `/v1/audio/transcriptions` body) |
+| `npm run smoke:chat-attachments` | vision-over-mesh content parser: text/image split, `image_url` decode |
+| `npm run smoke:forward-loopback` | forward transport round-trip over a real Hyperswarm in one process |
+| `npm run smoke:forward-provider` | provider-side forward proxy: chat SSE / embeddings JSON / speech binary framing |
+| `npm run smoke:forward-metering` | forward-path billable accounting — each modality bills in its natural unit |
 | `npm run probe:metered-continuation` | metered continuation probe |
 | `npm run gate:firewall-revocation` | firewall revocation gate |
 

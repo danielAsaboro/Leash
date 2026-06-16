@@ -70,6 +70,7 @@ override it because tool-carrying turns need larger budgets.
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `QVAC_HYPERSWARM_SEED` | loaded from `data/hypha-seed.hex` | 64-hex DHT identity seed; it IS the SDK worker's DHT identity, so other swarms must derive from it (`sha256(seed + ":<role>")`) rather than reuse it |
 | `HYPHA_PORT` | `11437` | local Hypha control and overflow shim |
 | `HYPHA_PAIR_PORT` | `11438` | LAN pairing port |
 | `HYPHA_DATA_DIR` | `data/hypha` | private Hypha state directory |
@@ -86,6 +87,7 @@ override it because tool-carrying turns need larger budgets.
 | `HYPHA_REPUTATION` | `0` | enable reputation-weighted routing |
 | `HYPHA_RESILIENT_RECONNECT` | `0` | enable suspend/resume based reconnect healing |
 | `HYPHA_TTFB_MS` | `60000` | first-token timeout for delegated completions |
+| `HYPHA_DEBUG_LANPROBE` | unset | `<host:port>` — log LAN reachability to that address every 10s (diagnoses the macOS orphaned-process Local Network denial) |
 
 ## Environment variables - economy (opt-in)
 

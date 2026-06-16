@@ -5,20 +5,20 @@ sidebarTitle: "Mobile (WIP)"
 ---
 
 <Warning>
-The mobile app is in early access. It supports basic on-device chat only. The full tool suite, mesh connectivity, and computer-use features require the desktop app or headless setup.
+The mobile app is in early access. On **iPhone** it does on-device chat **and** is a real member of your private mesh (it syncs the task CRDT peer-to-peer). The full tool suite, memory, and computer-use still require the desktop app. Android shares the codebase but mesh membership there is not yet wired (see below).
 </Warning>
 
 ## What works now
 
-- **On-device chat** — `Llama 3.2 1B Q4_0` runs fully on-device, no network required after first download
-- **Download on first run** — the model downloads and loads on launch; progress is shown in the UI
-- **Basic completions** — text input → inference → streamed output; `ctx_size: 2048`
+- **On-device chat** — runs fully on-device, no network required after first download; streamed output
+- **Private-mesh membership (iPhone)** — pair by scanning an invite QR; the phone runs a real Corestore + Autobase + Hyperbee + Hyperswarm + blind-pairing stack inside a Bare worklet and replicates the same encrypted **task** CRDT as your Macs — not a thin delegated client
+- **Borrow a brain** — delegated inference: offload chat to a stronger provider device over the encrypted mesh
 
 ## What's coming
 
-- **Remote Leash mode** — connect to a desktop Leash session over the mesh (use the full 4B model + tools on your phone)
-- **Voice** — on-device STT + TTS via Expo AV
-- **Memory sync** — notes and constitution synced over the mesh
+- **Remote Leash mode** — the rest of the desktop feature set (memory, tools, larger models) over the mesh, beyond task sync
+- **Voice** — on-device STT + TTS
+- **Android mesh parity** — the mesh worklet is built for iOS today; Android currently runs chat only
 
 ## Requirements
 
@@ -45,3 +45,20 @@ Scan the QR code with Expo Go on your device. On first launch the model download
 | Context size | 2048 tokens |
 | Hardware | GPU (via Metal on iOS, Vulkan on Android) |
 | Inference | `@qvac/sdk` — fully on-device |
+
+## Why the iOS app runs JSC, not Hermes
+
+The iOS app is pinned to the **JSC** JavaScript engine (`app.json` `"jsEngine": "jsc"` and
+`ios/Podfile.properties.json` `"expo.jsEngine": "jsc"`), not Hermes — and that is deliberate, not
+an oversight.
+
+The reason is the runtime. `@qvac/sdk`'s React Native code path bundles polyfills (`bare-process`,
+`URL`/`URLSearchParams`, web-streams) that ship modern JavaScript syntax Hermes 0.81.5 cannot
+compile — running the pods' own `hermesc` over the production bundle produces hard errors like
+*"private properties are not supported"*. On Hermes the app red-screens at launch. JSC is a full
+engine with no bytecode-precompile limits, so it runs that syntax natively with no Babel workarounds.
+
+The practical rule: **don't "fix" the engine back to Hermes.** If a future SDK release claims Hermes
+support, re-verify before switching — compile the `expo export:embed` bundle with the pods'
+`hermesc` first, and only flip if it compiles clean. The build recipe lives in
+[iOS install](/install/ios).

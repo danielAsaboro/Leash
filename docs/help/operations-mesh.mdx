@@ -1,0 +1,114 @@
+---
+title: "Running a multi-device mesh"
+description: "Launch hypha daemons across several Macs, pair a new device, advertise its models, and keep the mesh in sync."
+sidebarTitle: "Multi-device mesh"
+---
+
+This page is the operator runbook for a real, several-machine mesh: how to start each device's `hypha` daemon so macOS does not silently cut its LAN traffic, how to bring a new device into the mesh, what it takes to advertise a model, and how the non-git machines stay in sync. It describes a three-Mac setup (`mini`, `pro`, `mac3`) but the procedure generalizes to any number of devices.
+
+## Launch daemons session-attached, never orphaned
+
+**The rule:** start every remote `hypha` daemon from a held-open SSH session. Never `nohup … &` it and let the session exit.
+
+macOS denies the **Local Network** entitlement to orphaned background processes. A daemon whose SSH session has already exited gets `EHOSTUNREACH` on **all** LAN traffic from `t=0`. That kills two things at once: hyperdht's LAN holepunch (so peers never connect) and any LAN RPC the daemon needs. The failure is total and immediate, not intermittent, so it is easy to misread as a code bug.
+
+Launch each remote daemon like this, with `ssh -n -f` holding the session open on the controlling machine:
+
+```bash
+# From the mini, launch the Pro's consumer daemon
+ssh -n -f pro 'zsh -lc "cd ~/mycelium && set -a && source data/.economy.cons.env && set +a && npx tsx apps/hypha/src/main.ts > /tmp/hypha-cons.out 2>&1"'
+
+# From the mini, launch mac3's provider daemon
+ssh -n -f mac3 'zsh -lc "cd ~/mycelium && set -a && source data/.economy.prov.env && set +a && npx tsx apps/hypha/src/main.ts > /tmp/hypha-mac3.out 2>&1"'
+```
+
+The `ssh -n -f` process stays alive on the controlling machine and keeps the remote session attached, so the daemon keeps its Local Network entitlement.
+
+A login shell (`zsh -lc`) is required on machines where Node only resolves under a login shell (mac3 is one). A bare non-interactive `ssh mac3 '…'` has no Node on `PATH`.
+
+### localhost RPC survives orphaning
+
+A **loopback** forward is never blocked by Local Network, so a localhost RPC tunnel survives even an orphaned launch. Use one to reach the economy RPC (anvil) that lives on the controlling machine:
+
+```bash
+# On the Pro / mac3: forward the mini's anvil RPC to local 8545
+ssh -f -N -L 8545:127.0.0.1:8545 mini
+```
+
+The remote daemon then talks to `http://127.0.0.1:8545` and the traffic rides the loopback, not the LAN. This is why the RPC forward is reliable while a LAN-bound daemon launched the wrong way is not.
+
+### Diagnose LAN reachability
+
+If peers will not connect, set `HYPHA_DEBUG_LANPROBE=<host:port>` on the daemon. It logs LAN reachability every 10 seconds, so you can see whether the orphan/entitlement problem is biting before you chase anything else.
+
+## Pair a new device
+
+There are two paths, and they are not interchangeable.
+
+### Fresh device — programmatic invite/join
+
+For a brand-new device, pair it with the control endpoints in `apps/hypha/src/shim.ts` — no PIN, no Leash UI. The invite **is** the capability:
+
+```bash
+# On a writable mesh member (e.g. the mini), mint an invite
+curl -s -X POST http://127.0.0.1:<HYPHA_PORT>/mesh/invite \
+  -H 'content-type: application/json' \
+  -d '{"meshId":"primary"}'
+
+# On the new device, join with that invite
+curl -s -X POST http://127.0.0.1:<HYPHA_PORT>/mesh/join \
+  -H 'content-type: application/json' \
+  -d '{"invite":"<invite-from-previous-step>"}'
+```
+
+The mesh stays lazy until the join lands, so a fresh device runs only its localhost shim and LAN pairing beforehand. See [The mesh and membership](/platforms/mesh) for the membership model.
+
+### Existing-but-broken member — use the PIN flow
+
+Re-promoting an **existing** member whose state is broken (for example a device that was previously unpaired at the gate) does **not** work through programmatic invite/join — that path **hangs**. Re-promote it through the Leash **PIN flow** instead. Programmatic join is for fresh devices only.
+
+## Advertise a model
+
+A device advertises serve **aliases** from `qvac.config.base.json`, but peers delegate by `modelSrc`. The catalog logic in `apps/hypha/src/catalog.ts` resolves each alias's registry model name against the per-machine `data/leash-models-catalog.json` (the `@qvac/ai-sdk-provider` model dump) to get the delegable `modelSrc`. Two requirements follow:
+
+1. **The catalog file must be present.** Without `data/leash-models-catalog.json`, an alias that maps to a registry model cannot be resolved to a `modelSrc`, so it is not advertised as delegable.
+2. **A custom-GGUF model must exist locally on every serving machine.** For a custom `.src` GGUF (for example `medpsy`), the gossiped `modelSrc` is **this machine's own absolute path**. `catalog.ts` checks `existsSync(src)` and **skips advertising** the alias if the file is missing locally. The file must live at the same `~/`-relative path on every Mac that serves it.
+
+## The two-seed rule
+
+`QVAC_HYPERSWARM_SEED` **is** the QVAC SDK worker's hyperdht identity. Never seed a second Hyperswarm with that raw value: two hyperdht servers under one keypair half-open every dial (the handshake succeeds against the wrong process). Every additional swarm must **derive** its own seed from the raw one.
+
+This is exactly what `apps/hypha/src/payment-control.ts` does — it hashes a role suffix onto the seed:
+
+```ts
+const seed = createHash("sha256").update(`${this.seedHex}:payment-control-client`).digest();
+```
+
+The server side derives `…:payment-control-server` the same way. If you stand up your own swarm, follow the same pattern: `sha256(seed + ":<your-role>")`, never the raw seed.
+
+One more hyperdht trap to know about: its same-public-IP "LAN shortcut" aborts the **whole** dial when the LAN ping fails, with no fallback. Because two machines behind one router share a public IP, both `payment-control.ts` and `forward-control.ts` force `localConnection: false` on every dial to disable that shortcut:
+
+```ts
+dht.connect = (key, opts) => origConnect(key, { ...opts, localConnection: false });
+```
+
+## Keep the non-git machines in sync
+
+Only the `mini` is a git checkout. The other machines (`pro`, `mac3`) pull code over rsync with a `pullmesh` alias — never `git pull`:
+
+```bash
+# Run from the machine being synced (the Pro / mac3)
+rsync -a --delete \
+  --exclude node_modules --exclude data --exclude logs --exclude .git --exclude .next \
+  "/Volumes/Development/qvac/mycelium/" ~/mycelium/
+```
+
+The excludes are per-machine on purpose: `data/` holds each device's identity, and `logs/` holds its audit evidence — `--delete` without those excludes would wipe them. Everything that **is** synced must be machine-neutral: no absolute home paths in shared files. Model paths in the shipped config use a `~/` prefix that the config wrapper expands to each machine's home.
+
+After a `package.json` change, run `npm install` on the synced machine in the **foreground** — a background install has raced and emptied `node_modules`.
+
+## See also
+
+- [Hypha daemon won't connect to peers](/help/troubleshooting) — the LAN/seed/orphan failure modes as Symptom/Fix.
+- [Debugging](/help/debugging) — `HYPHA_DEBUG_LANPROBE` and the hypha control endpoints.
+- [Storage and corestore](/help/storage-and-corestore) — never copy a device's corestore between machines.

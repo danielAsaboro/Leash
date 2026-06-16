@@ -1,0 +1,68 @@
+---
+title: "KV-cache reuse on delegated turns"
+description: "How an overflow turn reuses a mesh peer's KV cache when it can prove the prefix matches — and why correctness wins over speed."
+---
+
+When a chat turn overflows to a mesh peer, that peer has to process the conversation
+prefix before it can decode the next token. Re-processing the whole history on every turn
+is wasteful when the peer already holds it. Hypha layers a KV-cache session ledger over the
+forward path so a continuing conversation can reuse the cache the peer already primed —
+but only when reuse is provably correct. This sits on top of the warm-peer routing
+explained in [How the mesh routes work](/explanation/how-the-mesh-routes-work).
+
+## Why reuse has to be proven
+
+QVAC's custom-key KV cache lives on the **decoding** device — the peer that runs the
+completion — and its custom keys are **count-based**, not content-addressed. On a key hit
+the SDK sends only the turns beyond what the cache already holds; it never compares
+content. So a key may only be reused when Hypha can prove the request's prefix is *exactly*
+what the cache holds. Reusing a key whose stored count no longer matches the request would
+silently corrupt the context. The ledger exists to make that proof, and its governing
+principle is correctness over speed.
+
+## Session keying
+
+A session is "this conversation". Its id is derived from the model alias plus the first two
+turns — the system message and the first user message — hashed together. Continuing the
+same conversation therefore resolves to the same session id, while a different conversation
+gets a different one.
+
+The actual cache key is the session id plus a **generation** number. On each request, the
+ledger reuses the current generation's key only when the request strictly extends the exact
+committed prefix on the **same peer** — same session, longer history, and a matching prefix
+hash. Anything else — an edit, a regenerate, a switch to a different peer, an uncommitted
+prior turn, or a daemon restart — bumps the generation to a fresh key and re-primes from
+scratch. A turn's reuse is committed only after it completes; an aborted or errored turn
+leaves the entry dirty so the next request takes a fresh key rather than trusting unknown
+state.
+
+The session id also folds in a **per-process salt**. Keys from a previous daemon run can
+never be reused, because their on-disk count state is unknowable after a restart — so a
+fresh process always re-primes rather than risk a stale hit.
+
+## How it relates to cold starts
+
+Reuse is the optimization that sits *above* the routing layer's cold-start avoidance.
+Routing already biases toward peers that hold the alias warm, so the model is loaded before
+the request arrives; the KV cache then avoids re-processing the prefix on top of that warm
+model. Note that a **paid, metered session skips KV reuse** — a per-session settlement
+grant takes its own path, and the cache ledger applies to the free delegated path.
+
+## The TTL janitor
+
+Bumped generations and prior runs' sessions leave orphaned cache directories on the
+decoding device's disk. Because the consumer side can't reach across the delegation
+boundary to delete a peer's cache, every device sweeps its own. A janitor runs **hourly**
+(and once at boot, to clear the prior run's orphans), removing session-cache directories
+whose files are older than the TTL — **24 hours** by default. The sweep matches only the
+delegated (`shim.`) and local-serve (`leash.`) key prefixes, so it never touches unrelated
+cache state.
+
+## The env flags
+
+KV-cache reuse on delegated completions is on by default and can be turned off with
+`HYPHA_KV_CACHE=0`, which makes every delegated completion run uncached. The in-memory
+ledger is bounded by `HYPHA_KV_MAX_SESSIONS` (default 8); when it fills, the least recently
+used session is evicted, and its on-disk cache becomes the janitor's problem. The exact
+flag values and defaults live in the reference pages; this page is only the why. The daemon
+that owns this ledger is described in [The hypha daemon](/explanation/the-hypha-daemon).

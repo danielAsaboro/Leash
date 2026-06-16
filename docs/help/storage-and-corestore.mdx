@@ -1,0 +1,47 @@
+---
+title: "Corestore and the registry lock"
+description: "Fix the \"Invalid device file, was moved unsafely\" landmine, copy corestores safely, and download models past the single-process registry lock."
+sidebarTitle: "Corestore & registry"
+---
+
+This page covers two storage landmines you will hit when you move data between machines or download a model on a busy device: the corestore `device-file` xattr and the registry's single-process lock. Both have clean, lossless workarounds.
+
+## "Invalid device file, was moved unsafely"
+
+**Symptom:** Opening a corestore-backed store (anything under `~/.qvac`) fails with `Invalid device file, was moved unsafely`. It usually appears right after you copied `~/.qvac` (or a model/registry store) from one Mac to another.
+
+**Cause:** corestore stamps a `device-file` extended attribute onto each store's `CORESTORE` file (`<store>/<key>/CORESTORE`). macOS `rsync -a` and `cp` **strip xattrs**, so the copied store arrives without that stamp and corestore refuses to open it, treating it as a store that was moved unsafely.
+
+**Fix (lossless):** delete the store's `CORESTORE` file. It holds only the store's device identity — the actual data lives in `db/` — and it is recreated automatically on the next open.
+
+```bash
+# Find and remove the offending CORESTORE file, then reopen normally
+find ~/.qvac -name CORESTORE
+rm <store>/<key>/CORESTORE
+```
+
+Nothing in `db/` is touched, so no data is lost.
+
+**Prevention:** do not move corestore-backed dirs across machines with plain `rsync -a`/`cp`. Pick one of:
+
+- **Download per machine.** Weights and registry blobs come over P2P (`downloadAsset(...)`) anyway, so it is usually simplest to fetch them on each machine rather than copy.
+- **Copy with xattrs preserved.** If you must copy, use `rsync -aX` — the `-X` flag preserves extended attributes, including the `device-file` stamp.
+
+## The registry is single-process — stop serve before downloading
+
+**Symptom:** A dashboard model download fails with `File descriptor could not be locked` on a machine where Model Serve (or hypha) is already running.
+
+**Cause:** The registry corestore is **single-process**. The SDK takes an exclusive fd-lock with roughly a 10-second retry budget. A serve or hypha process that ever touched the registry — for example because preload had to fetch blobs — **holds that lock until it stops**. A concurrent download then loses the race for the lock.
+
+**Fix:** free the lock for the duration of the download.
+
+1. Stop **Model Serve** and **Hypha** on that machine.
+2. Download the model.
+3. Start Model Serve and Hypha again.
+
+A serve whose blobs are all already cached never opens the registry client, so it never takes this lock — that is why a fully warm machine does not hit this and a freshly-fetching one does. If you are unsure, stop both before downloading and you will avoid the lock contention entirely.
+
+## See also
+
+- [Running a multi-device mesh](/help/operations-mesh) — per-machine model paths and how aliases get advertised.
+- [General troubleshooting](/help/troubleshooting) — the registry-lock symptom listed among the hypha connection failure modes.

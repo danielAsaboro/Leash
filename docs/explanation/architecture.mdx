@@ -59,6 +59,36 @@ the cron daemon and writes its adapter back into the serve as a `<base>-me` alia
 replicates to peers over the mesh. It is the one path that changes the model itself rather than
 just the prompt; see [The memory evolution loop](/explanation/the-memory-evolution-loop).
 
+## What delegation moves, and what it doesn't
+
+A defining constraint runs through the whole architecture: the QVAC SDK delegates **inference
+only**. `completion()` and the other OpenAI-shaped endpoints can run on a peer; `ragIngest` and
+`ragSearch` have no delegate option. So retrieval is always **local**, run against a
+CRDT-replicated graph that every member converges on — the graph travels to the device, the search
+runs on the device, and your private corpus never leaves it. The [Hypha daemon](/explanation/the-hypha-daemon)
+forwards inference between peers; the [task and graph sync](/explanation/mesh-task-sync) keeps the
+underlying graph consistent so a local search sees the same world a peer would.
+
+This split is also why the **Mind** layer runs a council rather than a single delegated call. A
+proposer (which may call `search_graph` locally) and a separate verifier each issue `completion()`
+— and those completions can run on a warm peer while retrieval stays home. On the same model and
+hardware, the council out-reasons a lone model: it catches the small-model failure of retrieving
+the right source but dropping the citation. Borrowing a stronger brain for the reasoning while
+keeping retrieval and orchestration local is the architectural payoff of inference-only delegation.
+
+Warm provider-side state can be reused across delegated turns where it's safe to — see
+[KV-cache delegation](/explanation/kv-cache-delegation) for how a provider reuses a session's KV
+cache instead of re-prefilling every borrowed turn.
+
+## Why membership changes are idempotent
+
+The delegation firewall is a **union** of every mesh's allowed-consumer set, reconciled by the
+daemon, not a flag flipped per request. The provider stops and restarts with the new allow-list
+**only when the union actually changed**, so re-applying the same membership is a no-op and a clean
+stop→restart is the way to change who may borrow your models — including revoking one peer without
+disturbing live links to the rest. That idempotence is what makes membership a piece of converged
+state rather than a fragile sequence of mutations.
+
 ## Why the docs split lookup from explanation
 
 In the old docs, architecture pages also tried to carry port numbers, config defaults,

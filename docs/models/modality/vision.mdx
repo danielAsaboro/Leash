@@ -46,6 +46,16 @@ The `vision` route does **not** enable tools — `qwen3vl` isn't a tools-enabled
 with an image routes to vision, runs single-shot, and returns text.
 </Note>
 
+<Note>
+Vision needs a recent runtime: image turns work on SDK **≥ 0.12.2** with the CLI's
+`image_url` → `attachments` patch (0.12.1 tokenizes the image then 500s). The shipped
+desktop runtime (0.13.1 + patch) includes both, so a current install describes screenshots
+end-to-end. If a hand-built dev runtime returns `messages: Invalid input` on an image, it's
+running an unpatched serve — rebuild the runtime with the patch applied. The unrelated note
+in [Configuration](/models/config): `projectionModelSrc` must resolve to a real file on disk
+(in a scoped serve, `~/` expands to that scope's `.qvac`, so prefer an absolute path).
+</Note>
+
 ## Adding a vision model
 
 The cleanest path is the [Assistant Kit](/models/catalog) — it ships the base weight **and** the

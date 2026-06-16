@@ -8,6 +8,27 @@ The day-by-day release history of Leash / Mycelium across the QVAC Hackathon bui
 (May 31 – June 21, 2026). Everything here runs on-device through `@qvac/sdk` — no cloud AI.
 Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
 
+<Update label="June 16" description="Plugins, first-class subagents, mesh-native task sync & the phone as a real mesh member" tags={["Leash", "Skills", "Mesh", "Agent"]}>
+  Four landings. A **plugin system** — Claude-Code-compatible bundles (skills + MCP servers +
+  subagents) registered *virtually* and quarantined on install, with five install sources
+  (folder / upload / GitHub / marketplace / mesh). **First-class subagents** — a user-level
+  store and dashboard parallel to skills, standardized on the AI-SDK agent primitives. **Mesh-native
+  task sync** — the task list became a replicated CRDT (LWW `MeshTask` + delete tombstones, an
+  oldest-active-member leader), with the web app reading/writing tasks through hypha over live SSE
+  and a guarded one-time migration of local tasks into the mesh. And **mobile parity**: the iPhone
+  joins the mesh as a real CRDT member (Corestore + Autobase + Hyperbee + Hyperswarm in a Bare
+  worklet), syncing the task list peer-to-peer, plus a redesigned Mesh tab, QR-invite scanning with
+  expiry timers, and 1:1 dashboard parity with an on-device data layer.
+
+  `202674e` plugin system · `c935453` first-class subagents · `20a4888` subagents on AI-SDK
+  primitives · `b7b4cde` MeshTask type · `4f04879` LWW task + delete tombstones · `9a1dfec`
+  publishTask/deleteTask/tasksSince · `5cb02d9` oldest-active-member leader · `2630c3c` task ops +
+  leader on the mesh controller · `73cd6b6` /tasks routes · `f3ca21a` mesh task bridge ·
+  `f6e3ea4` web tasks over hypha + SSE · `6544576` one-time task migration · `017da55` mobile
+  dashboard parity + on-device data layer · `7dd0e9a` mesh worklet + RN bridge · `bf4967b` mobile
+  task sync · `5914c39` scan invite QR to join · `4e99666` iPhone replication + dedup + QR timers
+</Update>
+
 <Update label="June 15" description="The proactive assistant + the mcp-cron scheduler" tags={["Leash", "Agent", "Models"]}>
   Leash became **proactive**. The Assistant Kit (`qwen3-4b` chat + a `classifier` triage model +
   `gte-large` + `qwen3vl`), an editable **constitution** (`soul.md` / `goals.md` / `heartbeat.md`)

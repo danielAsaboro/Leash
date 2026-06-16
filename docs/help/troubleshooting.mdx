@@ -63,6 +63,57 @@ sidebarTitle: "General troubleshooting"
 3. **Orphaned background process** — macOS denies Local Network to processes whose SSH session has exited. Launch hypha session-attached: `ssh -n -f pro 'zsh -lc "cd ~/mycelium && npx tsx apps/hypha/src/main.ts"'`
 4. **Registry lock** — if the serve and hypha both try to open the corestore registry, one holds the fd-lock. Stop model serve before downloading new models on a machine where serve has touched the registry.
 
+## Chat won't load — `MODEL_SRC_TYPE_MISMATCH`
+
+**Symptom:** The serve refuses to load your chat alias and the worker throws `MODEL_SRC_TYPE_MISMATCH`.
+
+**Cause:** You pointed the alias at `QWEN3_4B_Q4_K_M` — the constant **without** `INST`. Despite the name, that SKU is a **diffusion** model (`sdcpp-generation` engine), not an LLM, so loading it as chat is rejected.
+
+**Fix:** Use the instruct variant `QWEN3_4B_INST_Q4_K_M` — the real 4B chat LLM (this is what `qvac.config.base.json` ships). Always check a constant's catalog `engine`/`addon` before trusting its name; only the `…_INST_…` Qwen3 4B constant is a chat model. See [Configuration](/models/config) and [Chat & reasoning](/models/modality/chat).
+
+## Tool calls are never made
+
+**Symptom:** The agent answers in prose but never calls a tool, even when a tool is clearly needed; `LEASH_DEBUG_LOOP=1` shows `finish=stop toolCalls=0`.
+
+**Fix:** Tool calls are silently never parsed unless the **serve config** opts in. The chat alias in `qvac.config.base.json` must set:
+
+```json
+"config": { "tools": true, "toolsMode": "dynamic", "ctx_size": 32768 }
+```
+
+Without `tools: true` + `toolsMode: "dynamic"` the model returns plain text and tool-call syntax is ignored. A too-small `ctx_size` also drops the tool schemas off the front of the prompt — keep chat aliases at the `32768` default (`DEFAULT_CTX_SIZE`). See [Configuration](/models/config). Note the opposite trap (a `tools: true` route with **zero** active tools hangs at zero tokens) under [The chat model hangs](#the-chat-model-hangs-no-tokens-generated).
+
+## Qwen3 overflows context while "thinking"
+
+**Symptom:** A Qwen3 turn fails with `processPromptImpl: context overflow`, or emits a long chain-of-thought and then no answer.
+
+**Fix:** Qwen3 emits a chain-of-thought that overflows a small context. Two things fix it:
+
+1. Set `ctx_size ≥ 2048` (chat aliases already default to `32768`).
+2. Disable thinking with `reasoning_budget: 0` — and note it lives in **`generationParams`**, not `modelConfig`:
+
+```ts
+completion({ modelId, history, generationParams: { predict, reasoning_budget: 0 } })
+```
+
+Leash already passes `reasoning_budget: 0` on its router, critic, and Council turns. See [Configuration](/models/config).
+
+## Citations vary or go missing on a small model
+
+**Symptom:** A grounded answer cites a source on one run and forgets to on the next, on a 1B-class model.
+
+**Cause:** Citation reliability is a **model ceiling** on small models — not a configuration bug. A 1B model simply varies in whether it attaches the citation.
+
+**Fix:** Run the answer through the [Council](/agents/council), which exists to compensate: multiple passes (drafter / verifier / critic) raise citation consistency above what a single small-model turn delivers. Or serve a larger chat alias for grounded routes.
+
+## Model RAM reads as ~0 in the Node process
+
+**Symptom:** Logging `process.memoryUsage().rss` shows almost no delta after loading a multi-GB model, so it looks like nothing loaded.
+
+**Cause:** Models run in a **separate Bare worker process**, not the Node process — so Node's RSS never reflects model memory.
+
+**Fix:** Measure true model RAM in **Activity Monitor** (look for the Bare worker), not via `process.memoryUsage()`. This is expected, not a leak or a failed load.
+
 ## The desktop app won't open
 
 **Symptom:** App bounces in the dock then closes, or shows a blank window.

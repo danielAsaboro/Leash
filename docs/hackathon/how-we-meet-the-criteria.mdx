@@ -6,7 +6,7 @@ description: "A feature-to-criterion mapping against the QVAC Hackathon judging 
 This page maps Leash's shipped surfaces to the hackathon's judging criteria. Each row points at the docs that explain the feature and, where relevant, the evidence in `submission/`.
 
 <Note>
-Read this alongside the [Hackathon overview](/hackathon/overview) (what Leash is and which track it targets) and the [QVAC-only proof](/hackathon/qvac-only-proof) (the hard gate every row depends on).
+Read this alongside the [Hackathon overview](/hackathon/overview) (what Leash is and which track it targets), the [QVAC-only proof](/hackathon/qvac-only-proof) (the hard gate every row depends on), and [Design decisions & tradeoffs](/hackathon/design-decisions) (the engineering judgment behind these rows — what we weighed, chose, and disproved).
 </Note>
 
 ## Hard gates
@@ -38,14 +38,20 @@ These are pass/fail prerequisites, not scored dimensions:
 The hackathon awards an early-bird bonus for submissions before **June 17**. Leash's submission timeline targets that window; the submission checklist and status live in `submission/`.
 
 <Warning>
-A few submission-form artifacts are tracked as tasks in `submission/` rather than claimed done here: the final ≤5-minute demo video cut/upload, a structured remote-API-call disclosure file, and hardware-spec screenshots. The underlying capabilities are shipped and documented; the packaging of those specific artifacts is the remaining submission step. **(hold final claims until done.)**
+A few submission-form artifacts are still tracked as tasks in `submission/` rather than claimed done here: the final ≤5-minute demo video cut/upload, and hardware-spec screenshots. (The structured remote-API-call disclosure is now filed — see [Remote network calls](/hackathon/network-disclosure).) The underlying capabilities are shipped and documented; the packaging of those remaining artifacts is the last submission step. **(hold final claims until done.)**
 </Warning>
 
 ## Related
 
 <CardGroup cols={2}>
+  <Card title="Design decisions & tradeoffs" icon="scale-balanced" href="/hackathon/design-decisions">
+    The engineering judgment behind these rows.
+  </Card>
   <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
     Every AI path through `@qvac/sdk`.
+  </Card>
+  <Card title="Remote network calls" icon="network-wired" href="/hackathon/network-disclosure">
+    Full disclosure — every outbound call, all non-AI.
   </Card>
   <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
     Spike gates, audit logs, offline acceptance.

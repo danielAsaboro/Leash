@@ -5,7 +5,7 @@ sidebarTitle: "Android (WIP)"
 ---
 
 <Warning>
-  Android support is in early development. It shares the React Native + Expo codebase with iOS and has the same limits: chat only, no mesh or tools.
+  Android support is in early development. It shares the React Native + Expo codebase with iOS but runs **chat only** today — the mesh worklet is built for iOS, so private-mesh membership (which the [iPhone](/install/ios) now has) is not yet wired on Android.
 </Warning>
 
 The Android app runs **Llama 3.2 1B (Q4_0)** entirely on the device via the `@qvac/sdk` Expo integration — no server, and no network after the first model download.
@@ -46,7 +46,7 @@ The app downloads the model (progress %), then loads it into **GPU** memory with
 
 ## Capabilities
 
-Same as iOS: on-device chat and streaming today; no memory, tools, mesh, voice, research, or economy yet. See [iOS (WIP)](/install/ios) for the full breakdown.
+On-device chat and streaming today. Unlike [iOS](/install/ios) — which now joins the private mesh and syncs tasks — Android does not yet have mesh membership (the worklet bundle is iOS-only), nor memory, tools, voice, research, or economy.
 
 ## Related
 

@@ -48,6 +48,14 @@ Supertonic speaks the agent's reply. Its serve config carries the TTS engine blo
 The default (and currently only on-device) voice is **`F1`**. The dashboard's Kit wizard fills
 this block in automatically.
 
+<Warning>
+The `ttsEngine` block is **required**. Serving `TTS_EN_SUPERTONIC_Q8_0` without
+`config.ttsEngine` (plus `language`/`voice`) leaves the model `model_not_ready` — the serve
+can't resolve the engine. Leash's `defaultModelConfig` writes this block whenever you configure
+a TTS alias, so a Kit-wired `supertonic` comes up ready; only hand-edited configs hit this.
+See [Configuration](/models/config).
+</Warning>
+
 ## What they power
 
 Together these drive the [voice call](/channels/voice) state machine

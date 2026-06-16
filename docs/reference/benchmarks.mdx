@@ -1,0 +1,109 @@
+---
+title: "Benchmarks"
+description: "Measured inference, RAG, P2P, sensing, fine-tuning, and footprint numbers for the current Mycelium runtime."
+---
+
+<Note>
+Numbers are **indicative**, measured on Apple Silicon (M4-class) with Metal
+acceleration. They are single-run observations, not averages, unless stated
+otherwise. Figures come from `submission/sawdust.md` and the committed
+`spike/logs/*.jsonl` evidence bundle.
+</Note>
+
+## Inference throughput
+
+Decode throughput scales inversely with model size. All values are GPU (Metal).
+
+| Model | Size class | tok/s | TTFT |
+|---|---|---|---|
+| `QWEN3_600M_INST_Q4` | 600M | 113.7 (up to ~177 on a trivial prompt) | 20–33 ms |
+| `LLAMA_3_2_1B` | 1B | 70.6–74.7 | 56 ms |
+| `QWEN3_4B_INST_Q4_K_M` | 4B | 24.1 | 329 ms |
+
+<Note>
+600M peaks were measured across runs: a trivial `"2+2=4"` prompt hit **177 tok/s @
+20 ms TTFT**; a routed trivial turn read **141.9–142 tok/s @ 33 ms**; the locked
+verification figure is **113.7 tok/s @ 31 ms**. 1B was measured at **70.6 tok/s**
+(spike) and **74.7 tok/s** (device-fit). On SDK 0.12.1, 600M read a lower **57.9
+tok/s** (not a clean delta — different run conditions).
+</Note>
+
+## RAG retrieval
+
+3 documents → 7 chunks, embedded with `GTE_LARGE_FP16` (1024-dim vectors).
+
+| Metric | Value |
+|---|---|
+| Retrieval latency | 23–26 ms (locked figure: 23 ms) |
+| Top similarity score (text) | 0.768 |
+| Top score (voice-transcribed query) | 0.844 |
+| Top score (cross-process council chain) | 0.887 |
+
+## P2P delegated compute
+
+Two-process Mac↔Mac, seeded identity, Noise-encrypted by design. Tokens are
+generated on the provider and streamed back.
+
+| Metric | Value |
+|---|---|
+| Cold DHT consumer→provider register | 4.57 s (also observed ~8 s for a cold delegation) |
+| Round-trip delegated completion | 1.27 s @ 45.4 tok/s |
+| Delegated completion TTFT | 257 ms |
+| Cross-machine delegated decode (saturated-GPU shed) | 100.7–101.1 tok/s |
+| P2P model pull via `downloadAsset` | 2382 MB in 159 s (~15 MB/s) |
+
+## Sensing
+
+| Capability | Model | Result |
+|---|---|---|
+| OCR | `OCR_LATIN_RECOGNIZER_1` | ~3.7 s on Metal; photo fact retrieved at score 0.864 |
+| Speech-to-text | `WHISPER_BASE_Q8_0` (~78 MB) | transcribed; node retrieved at 0.844 |
+| Speech-to-text (Parakeet) | `PARAKEET_TDT_0_6B_V3` | ~4.6 s for a 13 s clip (CPU backend, not Metal) |
+| Image generation (diffusion) | `SD_V2_1_1B_Q8_0` (v-prediction) | 768×512 PNG (~1.1 MB), ~98–106 s per image |
+| Text-to-speech | TTS narration | 32.2 s, 44.1 kHz I16 WAV synthesized in 2.08 s |
+
+<Note>
+The diffusion figure is measured at **~98–106 s** per 768×512 image with
+`SD_V2_1_1B_Q8_0` on the M4 Metal GPU — there is no ~4 s diffusion figure in the
+source evidence.
+</Note>
+
+## On-device fine-tuning (LoRA via QVAC Fabric)
+
+| Metric | Value |
+|---|---|
+| Fine-tune duration | 152.7 s (reported 152 s) |
+| Train accuracy | 0.86 |
+| Validation accuracy | 0.85 |
+| Adapter artifact | 20 MB `.gguf` |
+| Effect | Observable behavior change (base "Mesh" → adapter "Nexon") |
+
+## Warm-cache footprint
+
+After the one-time download, everything re-runs offline. The base spike warm-cache
+is the 5-model chat/RAG/STT set.
+
+| Model | On-disk size |
+|---|---|
+| `GTE_LARGE_FP16` (embeddings) | 639 MB |
+| `QWEN3_600M_INST_Q4` | 364 MB |
+| `LLAMA_3_2_1B` | 737 MB |
+| `QWEN3_4B_INST_Q4_K_M` | 2.38 GB |
+| `WHISPER_BASE_Q8_0` | 78 MB |
+| **5-model warm-cache total** | **~4.2 GB** (the post-spike cache is ~4.0 GB) |
+
+Additional sensing/generation models expand the cache: `SD_V2_1_1B_Q8_0`,
+TTS (~252 MB), the FLUX.2 split-layout trio (~5.1 GB), and the Wan T2V split-layout
+set (~14.5 GB, dominated by `UMT5_XXL_FP16` at 11.4 GB — this set OOM-kills the
+M4's `recommendedMaxWorkingSetSize` of 19069 MB). The full QVAC model cache on the
+build machine (`~/.qvac`: models + registry + RAG store) is ~4.9 GB.
+
+## Fit estimation
+
+The dashboard estimates whether a model fits before download: weights + KV-cache
+(by ctx) + 0.5 GB overhead vs ~80% of `hw.memsize` (24 GB on the build Mac).
+
+| Model | Estimate | Verdict |
+|---|---|---|
+| `qwen3-4b` | ≈3.1 GB | Fits |
+| GPT-OSS-120B | ≈67 GB | Won't fit |

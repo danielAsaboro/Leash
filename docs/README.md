@@ -1,55 +1,49 @@
-# Mintlify Starter Kit
+# Leash documentation
 
-Use the starter kit to get your docs deployed and ready to customize.
+This directory is the **Leash docs site** — a [Mintlify](https://mintlify.com) project that documents
+Leash (the dashboard + the `hypha` daemon) and the Mycelium device-mesh it runs on. It is the only place
+inside `mycelium/` where product-documentation markdown belongs (see "Rule 6" below).
 
-Click the green **Use this template** button at the top of this repo to copy the Mintlify starter kit. The starter kit contains examples with
+## Preview locally
 
-- Guide pages
-- Navigation
-- Customizations
-- API reference pages
-- Use of popular components
-
-**[Follow the full quickstart guide](https://starter.mintlify.com/quickstart)**
-
-## AI-assisted writing
-
-Set up your AI coding tool to work with Mintlify:
+From this `docs/` directory (where `docs.json` lives):
 
 ```bash
-npx skills add https://mintlify.com/docs
+npx mint dev
 ```
 
-This command installs Mintlify's documentation skill for your configured AI tools like Claude Code, Cursor, Windsurf, and others. The skill includes component reference, writing standards, and workflow guidance.
+The local preview runs at `http://localhost:3000`. To check for broken internal links:
 
-See the [AI tools guides](/ai-tools) for tool-specific setup.
-
-## Development
-
-Install the [Mintlify CLI](https://www.npmjs.com/package/mint) to preview your documentation changes locally. To install, use the following command:
-
-```
-npm i -g mint
+```bash
+npx mint broken-links
 ```
 
-Run the following command at the root of your documentation, where your `docs.json` is located:
+If the dev server misbehaves, `npx mint update` refreshes the CLI.
 
-```
-mint dev
-```
+## Structure
 
-View your local preview at `http://localhost:3000`.
+Navigation is defined in [`docs.json`](./docs.json). Every page is an `.mdx` file referenced there by its
+path without extension. The tabs:
 
-## Publishing changes
+- **Get Started** — index, quickstart, and the first-local-mesh tutorial.
+- **Install** — per-platform install guides (macOS, Linux, Windows, iOS, Android).
+- **Channels** — chat, voice, computer-use, mobile, Telegram.
+- **Agents** — the agent harness: context, runtime, sessions, memory, queue, multi-agent, orchestration.
+- **Capabilities** — skills, MCP and its tools, automation, plugins.
+- **Models** — the model catalog, aliases, config, and per-modality pages.
+- **Platforms** — desktop, mesh, economy, mobile.
+- **Reference** — workspace map, ports/processes, configuration, the audit-log and benchmark references,
+  plus the *explanation* pages (the system, the agent, the mesh, models & media).
+- **Help** — troubleshooting, debugging, FAQ, testing, an **Operations** group (multi-device mesh,
+  corestore/registry, local anvil settlement), diagnostics, and community/meta.
+- **Changelog** and **Hackathon**.
 
-Install our GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app) to propagate changes from your repo to your deployment. Changes are deployed to production automatically after pushing to the default branch.
+Content follows the [Diátaxis](https://diataxis.fr) model: `explanation/` pages cover the *why*, `help/`
+pages are how-to/troubleshooting, and `reference/` pages are neutral fact tables. Keep the modes separate.
 
-## Need help?
+## Rule 6 — only docs markdown lives here
 
-### Troubleshooting
-
-- If your dev environment isn't running: Run `mint update` to ensure you have the most recent version of the CLI.
-- If a page loads as a 404: Make sure you are running in a folder with a valid `docs.json`.
-
-### Resources
-- [Mintlify documentation](https://mintlify.com/docs)
+Per the repo conventions in the root `CLAUDE.md`, `mycelium/docs/` is the **only** location inside the code
+repo where product-documentation markdown is allowed. Reporting, submission, build-in-public, and
+evidence markdown live in `submission/` (outside `mycelium/`); reference docs derived from external sources
+live in `resources/`. Do not scatter markdown elsewhere under `mycelium/`.

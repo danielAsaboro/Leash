@@ -24,6 +24,10 @@ The runtime expects these aliases. Missing one disables the feature that depends
   Chat fails without `gte-large`. The embedding model isn't optional for a grounded assistant — wire it whenever you wire `chat`.
 </Warning>
 
+<Warning>
+  Point `chat` at the **instruct** constant `QWEN3_4B_INST_Q4_K_M`. The lookalike `QWEN3_4B_Q4_K_M` (no `INST`) is a **diffusion** model, not an LLM — aliasing `chat` to it raises `MODEL_SRC_TYPE_MISMATCH`. A chat alias also needs `tools: true` in its config or tool calls are silently never parsed; the numbers and config keys live in [Configuration](/models/config), the failure symptoms in [Troubleshooting](/help/troubleshooting).
+</Warning>
+
 ## Configuring an alias
 
 <Steps>
@@ -65,7 +69,7 @@ Set `use_gpu: true` or `use_gpu: false` per alias. Leave it unset to take the SD
 
 ## Measured tok/s
 
-The Models table shows **measured tok/s** per alias — the **median of the last 10 real chat turns** for that alias, computed from chat telemetry, not a spec sheet. It's blank until an alias has actually generated a few replies, then reflects your real hardware. (For reference, `chat` on Qwen3 4B runs ~15–20 tok/s on an M1 GPU.)
+The Models table shows **measured tok/s** per alias — the **median of the last 10 real chat turns** for that alias, computed from chat telemetry, not a spec sheet. It's blank until an alias has actually generated a few replies, then reflects your real hardware. (For reference, `chat` on Qwen3 4B runs ~15–20 tok/s on an M1 GPU.) See [Benchmarks](/reference/benchmarks) for indicative tok/s across sizes.
 
 ## Multiple chat models
 

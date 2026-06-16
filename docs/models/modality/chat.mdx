@@ -40,6 +40,29 @@ serve config:
 turn with **zero** active tools hangs at zero tokens, which is why every text route keeps at
 least one tool active (the toolless-hang guard). See [Chat](/channels/chat).
 
+## Chat-model gotchas
+
+A chat alias has a few traps that the constant name and a happy-path config won't warn you about:
+
+- **Diffusion-vs-chat naming.** `QWEN3_4B_INST_Q4_K_M` is the chat LLM. The lookalike
+  `QWEN3_4B_Q4_K_M` (no `INST`) is a **diffusion** model — serving it as chat raises
+  `MODEL_SRC_TYPE_MISMATCH`.
+- **Tools must be opted in.** Without `tools: true` + `toolsMode: "dynamic"` in the serve config,
+  tool-call syntax is silently never parsed — the agent answers in prose and never acts.
+- **Kill Qwen3 "thinking" on call.** Qwen3 emits a chain-of-thought that can overflow the prompt.
+  Leash passes `reasoning_budget: 0` to suppress it — and that lives in `generationParams` on the
+  `completion()` call, **not** in the serve `config`:
+
+  ```ts
+  completion({ modelId, history, generationParams: { predict, reasoning_budget: 0 } })
+  ```
+
+- **Keep `ctx_size` ≥ 2048 (default 32768).** Too small a context drops the tool schemas off the
+  front of the prompt and overflows on a long reasoning trace — the turn emits zero text.
+
+The exact config keys and a numbers table are in [Configuration](/models/config); the failure
+symptoms and fixes are in [Troubleshooting](/help/troubleshooting).
+
 ## Context window
 
 Chat aliases default to `ctx_size: 32768` (`DEFAULT_CTX_SIZE`). KV cache scales with it:

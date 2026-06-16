@@ -46,6 +46,8 @@ The **Brain → Plugins** tab shows, per plugin, every skill / MCP server / agen
 
 ## What's in a plugin
 
+The layout is the **Claude Code plugin bundle** — the same four parts a Claude Code plugin uses, so a bundle written for Claude Code mostly just works here:
+
 ```
 my-plugin/
   .claude-plugin/plugin.json   # manifest — only "name" is required
@@ -54,7 +56,7 @@ my-plugin/
   agents/<name>.md              # subagents (see /agents/subagents)
 ```
 
-A plugin may ship any subset — skills only, an MCP server only, a couple of subagents, or all three.
+A plugin may ship any subset — skills only, an MCP server only, a couple of subagents, or all three; the install is rejected only if it carries *none* of the three. The three folders map straight onto the surfaces Leash already runs: [skills](/capabilities/skills), [MCP servers](/capabilities/mcp), and [subagents](/agents/subagents).
 
 ### `${CLAUDE_PLUGIN_ROOT}`
 
@@ -71,25 +73,28 @@ We store the variable **unexpanded** on disk and expand it to the absolute `data
 
 ## Where plugins come from
 
-Every source resolves to the same thing — a staged directory — and then the single `installStagedPlugin` choke-point validates it (path-containment, no escaping symlinks, size caps), derives the id, builds the inventory, and writes the row **disabled**. Because they all funnel through one choke-point, the channels layer in cleanly:
+Every source resolves to the same thing — a staged extracted directory — and then the single `installStagedPlugin` choke-point validates it (path-containment, no escaping symlinks, an empty-bundle reject), copies the tree under `data/leash-plugins/<id>/`, derives the id, builds the inventory, and writes the row **disabled**. There are **five** install sources, each its own dashboard route (`POST /api/leash/plugins/install/<source>`); because they all funnel through the one choke-point, the channels layer in cleanly:
 
 <CardGroup cols={2}>
-  <Card title="Upload / Folder" icon="folder">
-    A local `.zip` upload, or an absolute path to a plugin directory on disk.
+  <Card title="Folder" icon="folder">
+    An absolute path to a plugin directory already on disk — staged in place.
+  </Card>
+  <Card title="Upload" icon="file-zipper">
+    A local `.zip` you upload through the dashboard — extracted into a staged tree.
   </Card>
   <Card title="GitHub" icon="github">
     A repo URL (`owner/repo[/tree/ref[/subfolder]]`) — fetched as a zipball, root-stripped, subfolder-filtered.
   </Card>
+  <Card title="Marketplace" icon="store">
+    A `marketplace.json` index whose entries resolve to a GitHub or mesh source; cached locally so browsing works offline.
+  </Card>
   <Card title="Mesh (P2P)" icon="share-nodes">
     Replicated over your device mesh on the same Hypercore-blob path that ships LoRA adapters — sha256-verified, offline-after-warm.
-  </Card>
-  <Card title="Marketplace" icon="store">
-    A `marketplace.json` index whose entries resolve to GitHub or mesh sources; cached locally so browsing works offline.
   </Card>
 </CardGroup>
 
 <Note>
-The **mesh** channel is built and type-clean (it reuses the adapter replication on a sibling `plugin-feed` core with a per-id catalog), but the live two-device round-trip isn't part of the verified suite yet. Folder / upload / GitHub / marketplace-over-GitHub are exercised end-to-end.
+The **mesh** channel is built and type-clean (it reuses the adapter replication on a sibling `plugin-feed` core with a per-id catalog), but the live two-device round-trip isn't part of the verified suite yet. Folder / upload / GitHub / marketplace-over-GitHub are exercised end-to-end by the smoke suite.
 </Note>
 
 ## Install one (try it)
@@ -110,7 +115,7 @@ Two example plugins ship in the repo at `resources/example-plugins/` — a **law
 </Steps>
 
 <Warning>
-For the agent/tool-calling path to fire, your served chat model must be configured with `tools: true` / `toolsMode: "dynamic"` — see [Models](/models). Without it the model *narrates* tool use instead of calling tools. (Models added through the dashboard now get this by default.)
+For the agent/tool-calling path to fire, your served chat model must be configured with `tools: true` / `toolsMode: "dynamic"` — see [Models](/models/overview). Without it the model *narrates* tool use instead of calling tools. (Models added through the dashboard now get this by default.)
 </Warning>
 
 ## How it actually surfaces

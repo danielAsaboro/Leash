@@ -21,17 +21,17 @@ Leash has four allowlisted background jobs that can be scheduled or run on deman
 
 ## evolve — On-device LoRA fine-tuning (WIP)
 
-`evolve` is the nightly LoRA step — it takes your recent conversations and evolves a personalized adapter (`qwen3-4b-me`) from your interactions. This is Layer 4 of Mycelium ("The Understory").
+`evolve` is the nightly LoRA step — it runs the full **curate → train → eval → manifest** loop on-device, training a personalized adapter from your recent interactions. This is Layer 4 of Mycelium ("The Understory"). See [Nightly consolidation](/agents/consolidation) for the knobs and the growth chart.
 
 **What it does:**
-1. Samples recent conversations from `data/leash-chats/`
-2. Runs QVAC Fabric fine-tuning on `qwen3-4b`
-3. Saves the updated LoRA adapter to `~/.qvac/models/<name>.gguf`
+1. Curates training data from your recent conversations
+2. Runs QVAC Fabric LoRA fine-tuning on the trainable base
+3. Evaluates the adapter against the base and writes a manifest; a promotable adapter surfaces one card on `/tasks`
 
 **When to schedule:** Nightly — `evolve` every night at 2am is typical (after `dream` at midnight).
 
 <Warning>
-`evolve` is early — QVAC Fabric LoRA training on the 4B model requires ~8 GB RAM and takes 30–60 minutes on Apple Silicon. Don't schedule it to run more than once per day.
+**`evolve` is early / WIP — no recall improvement is claimed yet.** The catalog's 4B/8B/20B all ship as un-finetunable `Q4_K_M`, so the default trainable base is the **600M** (`QWEN3_600M_INST_Q4`) — which scored **0% recall at 2 epochs**. The "bigger-base-plus-more-passes" path (drop in a trainable `Q4_0`/`Q8_0`/`F16` gguf via `MYCELIUM_LORA_BASE_GGUF` and raise `MYCELIUM_LORA_EPOCHS`) is the **recall bet — still being proven**, not a finished result. It's a heavy GPU op; don't schedule it more than once per day.
 </Warning>
 
 ## tag-photos — Auto-classify your photo library

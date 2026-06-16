@@ -1,0 +1,94 @@
+---
+title: "Audit log"
+description: "The JSONL audit-record schema, the events it captures, where the logs live, and jq query recipes."
+---
+
+Every Mycelium layer and app emits append-only JSONL audit records through the
+shared `AuditLog` class (`packages/shared/src/audit.ts`; the spike keeps a
+build-step-free copy at `spike/lib/audit-log.ts`). One record is written per line.
+These logs are the hackathon's 3-stage verification evidence — they are retained,
+not rotated away.
+
+## Record shape
+
+Each line is a JSON object of type `AuditRecord`. `ts` and `source` are always
+present; every other field is optional and present only when meaningful for the event.
+
+| Field | Type | Always present | Meaning |
+|---|---|---|---|
+| `ts` | string | yes | ISO-8601 timestamp (`new Date().toISOString()`) |
+| `source` | string | yes | Emitting subsystem/app (the log file's basename, e.g. `hypha`, `edge-node`) |
+| `event` | enum | yes | The audited action (see the event table) |
+| `modelId` | string | no | Model alias or id involved in the action |
+| `modelSrc` | string | no | Model descriptor source (constant name or `registry://…` src) |
+| `device` | `"cpu"` \| `"gpu"` | no | Backend the model ran on |
+| `prompt` | string | no | Prompt text (for `prompt`/`completion` events) |
+| `tokens` | number | no | Token count produced or processed |
+| `ttftMs` | number | no | Time-to-first-token in milliseconds |
+| `tokensPerSecond` | number | no | Decode throughput |
+| `durationMs` | number | no | Wall-clock duration of the action in milliseconds |
+| `extra` | object | no | Free-form key/value bag for event-specific context |
+
+## Events
+
+The `event` field is one of the following literals.
+
+| Event | Captures |
+|---|---|
+| `model_load` | A model was loaded into the worker |
+| `model_unload` | A model was unloaded / released |
+| `prompt` | A prompt was submitted for inference |
+| `completion` | A completion finished (carries `ttftMs`, `tokens`, `tokensPerSecond`) |
+| `embedding` | An embedding vector was produced |
+| `rag_ingest` | Documents were chunked and embedded into the RAG store |
+| `rag_search` | A retrieval query ran against the RAG store |
+| `finetune_progress` | A LoRA fine-tune step / progress update |
+| `finetune_result` | A LoRA fine-tune completed (adapter produced) |
+| `delegation` | Work was delegated to or served for a mesh peer |
+| `graph_sync` | A CRDT mesh-graph operation synced |
+| `pairing` | A device pairing / mesh-join action |
+| `capability` | A capability token was minted or exercised |
+| `curate` | Training signals were curated for the nightly LoRA |
+| `eval` | A model was scored on the fixed eval set |
+| `adapter_publish` | A LoRA adapter was published to the mesh |
+| `adapter_fetch` | A LoRA adapter was fetched from the mesh |
+| `note` | A free-form operational note (no model action) |
+
+## Log locations
+
+`AuditLog` writes `<source>.jsonl` into a caller-chosen directory. Each app passes
+its own `logs/` so evidence stays scoped per device and process.
+
+| Location | Source(s) | Written by |
+|---|---|---|
+| `spike/logs/<source>.jsonl` | `00-warm-cache`, `01-inference`, `02-rag`, `03-p2p-consumer`, `03-p2p-provider`, `04-lora`, `04b-lora-4b`, `05-autobase-<role>`, `06-ocr` | the spike scripts |
+| `apps/hypha/logs/hypha.jsonl` | `hypha` | the Hypha daemon (`apps/hypha/src/main.ts`); `reputation.ts` reads it back for local TTFB/success observations |
+| `apps/edge-node/logs/edge-node.jsonl` | `edge-node` | `apps/edge-node/src/ask.ts` |
+| `apps/hub/logs/hub.jsonl` | `hub` | `apps/hub/src/main.ts` |
+| `apps/newsroom/logs/newsroom.jsonl` | `newsroom` | `apps/newsroom/src/context.ts` |
+| `apps/leash-watch/logs/leash-watch.jsonl` | `leash-watch` | `apps/leash-watch/src/vision.ts` |
+| `apps/leash-telegram/logs/leash-telegram.jsonl` | `leash-telegram` | `apps/leash-telegram/src/main.ts` |
+| `packages/*/logs/<source>.jsonl` | e.g. `memory-evolve`, `mind-smoke`, `senses-*`, `mesh-smoke-<role>` | package smoke scripts and the LoRA train loop (`packages/memory/src/train.ts`) |
+
+<Note>
+`data/leash-activity.jsonl` is the screen-watcher trail, **not** an `AuditRecord`
+log. It is written by `npm run watch` (`apps/leash-watch/src/config.ts`,
+`LEASH_ACTIVITY_LOG`) and read by `apps/web/lib/leash/graph.ts`; its rows have a
+different shape. See [Configuration](/reference/configuration) for its path and
+override variable.
+</Note>
+
+## Query recipes
+
+`jq` one-liners over a JSONL audit file. Replace the filename as needed.
+
+| Goal | Command |
+|---|---|
+| All completions for one model | `jq 'select(.event=="completion" and .modelId=="qwen3-4b")' apps/hypha/logs/hypha.jsonl` |
+| tok/s over time | `jq -r 'select(.tokensPerSecond) \| "\(.ts) \(.modelId) \(.tokensPerSecond)"' spike/logs/01-inference.jsonl` |
+| TTFT for a model | `jq -r 'select(.event=="completion" and .modelId=="qwen3-4b") \| .ttftMs' apps/hypha/logs/hypha.jsonl` |
+| Count completions per model | `jq -r 'select(.event=="completion") \| .modelId' apps/hypha/logs/hypha.jsonl \| sort \| uniq -c` |
+| Average tok/s for a model | `jq -s 'map(select(.event=="completion" and .modelId=="qwen3-4b") \| .tokensPerSecond) \| add/length' apps/hypha/logs/hypha.jsonl` |
+| Model load/unload timeline | `jq -r 'select(.event \| test("model_(load\|unload)")) \| "\(.ts) \(.event) \(.modelId)"' apps/hypha/logs/hypha.jsonl` |
+| Every delegation event | `jq 'select(.event=="delegation")' apps/hypha/logs/hypha.jsonl` |
+| Slowest completions (by TTFT) | `jq -s 'map(select(.ttftMs)) \| sort_by(.ttftMs) \| reverse \| .[0:5]' apps/hypha/logs/hypha.jsonl` |

@@ -5,10 +5,10 @@ sidebarTitle: "iOS (WIP)"
 ---
 
 <Warning>
-  The iOS app is in early development. It currently supports on-device chat only — no mesh, no memory, no tools. The full feature set lives in the macOS desktop app.
+  The iOS app is in early development. It now **joins your private mesh** as a real member — pairing with your Mac and syncing tasks peer-to-peer — on top of on-device chat. Memory, skills, and tool use still live in the macOS desktop app.
 </Warning>
 
-The iOS app runs **Llama 3.2 1B (Q4_0)** entirely on the phone via the `@qvac/sdk` Expo integration — no server, and no network after the first model download.
+The iOS app runs an on-device LLM via the `@qvac/sdk` Expo integration — no server, and no network after the first model download — and runs a real mesh member in a background worklet so the phone replicates the same encrypted task CRDT as your Macs.
 
 ## Requirements
 
@@ -18,15 +18,14 @@ The iOS app runs **Llama 3.2 1B (Q4_0)** entirely on the phone via the `@qvac/sd
 
 ## What works
 
-- On-device text chat with Llama 3.2 1B
-- Token streaming — words appear as they generate
-- Offline after the first download (the model is cached on device)
+- On-device text chat with token streaming, offline after the first download (the model is cached on device)
+- **Private-mesh membership** — pair to your Mac by scanning an invite QR; the phone runs a real Corestore + multi-writer Autobase + Hyperbee CRDT inside a Bare worklet and syncs the shared **task** list peer-to-peer (no cloud). See [Joining the mesh](#joining-the-mesh).
+- **Borrow a brain** — offload chat to a stronger provider device over the encrypted mesh (delegated inference)
 
 ## Not yet available
 
 - Memory and grounding (notes, screen activity, RAG)
 - Skills and tool use
-- Mesh (connecting to your Mac's Leash instance)
 - Voice, research, feed, economy
 
 ## Run from source
@@ -49,13 +48,82 @@ The iOS app runs **Llama 3.2 1B (Q4_0)** entirely on the phone via the `@qvac/sd
   </Step>
 </Steps>
 
+## Native release build (device)
+
+For a signed, embedded, offline build, build natively rather than over the Expo dev server.
+
+<Warning>
+The app is pinned to the **JSC** JavaScript engine (`app.json` `"jsEngine": "jsc"` +
+`ios/Podfile.properties.json` `"expo.jsEngine": "jsc"`), **not Hermes** — do not switch it back.
+The `@qvac/sdk` React Native code path ships syntax Hermes 0.81.5 cannot compile (the app
+red-screens at launch). If a future SDK bump claims Hermes support, re-verify by compiling the
+`expo export:embed` bundle with the pods `hermesc` before flipping. See
+[Mobile platform](/platforms/mobile) for the full rationale.
+</Warning>
+
+<Steps>
+  <Step title="Activate the iOS toolchain">
+    ```bash
+    export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+    ```
+    Use the env var rather than `xcode-select -s` if the latter won't stick on your machine.
+  </Step>
+  <Step title="Find the hardware UDID">
+    ```bash
+    xcrun xctrace list devices
+    ```
+    Use the **hardware UDID** (e.g. `00008101-…`), not the `devicectl` coredevice identifier — passing
+    the coredevice id fails with `No device UDID or name matching …`.
+  </Step>
+  <Step title="Build and sign">
+    ```bash
+    npx expo run:ios --device <hwUDID> --configuration Release
+    ```
+    A free Apple ID gives 7-day signing; `expo run:ios` signs from the CLI. The build prints
+    `Build Succeeded` and the `.app` lands under
+    `~/Library/Developer/Xcode/DerivedData/Leash-*/Build/Products/Release-iphoneos/Leash.app`.
+  </Step>
+  <Step title="Install + launch (if the auto-install fails)">
+    On Xcode/iOS 26.5, Expo's auto-install can fail with `Unexpected devicectl JSON version output`.
+    Install and launch manually with full-Xcode `devicectl`:
+    ```bash
+    xcrun devicectl device install app --device <hwUDID> <…>/Leash.app
+    xcrun devicectl device process launch --device <hwUDID> com.mycelium.leash
+    ```
+    The bundle id is `com.mycelium.leash`.
+  </Step>
+</Steps>
+
+<Note>
+**"Build Succeeded" is not a hang.** After it, `expo run:ios` keeps running: it installs the app
+(`› Installing …Leash.app` → `✔ Complete 100%`, ~1–2 min), then stays attached **streaming device
+logs** ("Logs for your project will appear below"). That log tail looks like a hang but isn't — let
+the install finish before you `pkill` anything.
+</Note>
+
 ## What happens on first launch
 
 The app downloads the model (progress %), then loads it into **GPU** memory with `ctx_size: 2048`. After that, chat is local and offline; subsequent launches reuse the cached weight.
 
-## Connecting to your Mac (planned)
+## Joining the mesh
 
-The roadmap includes a "remote Leash" mode where the phone talks to your Mac's Hypha daemon over the mesh — the full feature set without a large local model. That needs the mesh + auth layers not yet exposed on mobile.
+The iPhone is a **real private-mesh member**, not a thin client. To pair it:
+
+<Steps>
+  <Step title="Mint an invite on your Mac">
+    In the Leash web app: **Settings → Devices → your mesh → Invite a device**. A QR appears (single-use; it auto-expires after 60 seconds — mint a fresh one if it lapses).
+  </Step>
+  <Step title="Scan it on the phone">
+    Open the **Mesh** tab → **+** → point the camera at the QR. The scanner also closes itself after 60 seconds if nothing is scanned.
+  </Step>
+  <Step title="Sync">
+    The phone blind-pairs, becomes a writable member, and replicates the shared task list. Tasks created on either side appear on the other; it works in airplane mode once paired (LAN P2P).
+  </Step>
+</Steps>
+
+Tap the mesh card to expand its peers and this phone's models, or **Leave mesh** to drop the membership (it wipes the phone's local copy; your other devices keep the mesh). For the membership model — leaving, deleting, device identity — see [The mesh and membership](/explanation/mesh-and-membership).
+
+A fuller "remote Leash" mode (memory + tools over the mesh, not just tasks) is still on the roadmap.
 
 ## Related
 

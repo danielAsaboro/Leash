@@ -38,11 +38,68 @@ POST /mesh/invite {meshId: "primary"}
 POST /mesh/join {invite: "<capability blob>"}
 ```
 
-The invite IS the capability — it proves the new device was authorized by the primary.
+The invite IS the capability — it proves the new device was authorized by the primary. An invite is single-use and short-lived: the QR that carries it auto-expires after **60 seconds** (the phone's camera scanner also closes itself after 60s), so mint a fresh one if it lapses. On the **iPhone**, scan it from the **Mesh** tab — the phone then blind-pairs and replicates the task CRDT as a real member.
 
 <Warning>
-The programmatic invite/join only works for **fresh** devices. Re-pairing an existing device (e.g. one that previously paired and then got misconfigured) hangs — use the Leash PIN flow from the desktop app instead.
+Programmatic invite/join works for **fresh** devices — and for the iPhone, which resets its mesh store on each join, so it always pairs cleanly. Re-promoting an existing-but-misconfigured **desktop** member (one that previously paired and then broke) can hang — use the Leash PIN flow from the desktop app for that case.
 </Warning>
+
+### The blind-pairing handshake
+
+Programmatic invite/join and the LAN PIN flow both end in the same blind-pairing exchange (`packages/mesh/src/mesh-graph.ts`). The PIN flow (`apps/hypha/src/pairing.ts`) adds a LAN discovery + screen-PIN step in front of it:
+
+1. The initiator browses for the target over mDNS and `POST /pair/initiate {initiatorName, initiatorWriterKey}` to the target's LAN plane (`HYPHA_PAIR_PORT`).
+2. The target shows a 6-digit PIN and returns a `sessionId`. The operator reads the PIN off the target's screen and types it into the initiator.
+3. The initiator `POST /pair/confirm {sessionId, pin}`. A wrong PIN is rejected; three wrong PINs reset the session.
+4. On the correct PIN the host mints a **blind invite** (`BlindPairing.createInvite(base.key)`) and the joiner redeems it. The invite carries no compute capability — it only lets the joiner reach the host's autobase.
+5. On the host, the candidate's `onadd` callback runs `req.open(publicKey)` — **decrypt-only: it populates `req.userData` (the joiner's writer key) and grants nothing**.
+6. The **allow-list firewall** checks the writer key. If `allowedDevices` is non-empty and the key is not in it, the host calls `req.deny()` and **never proceeds** — a valid invite is necessary but not sufficient.
+7. Only if the key passes does the host append `base.append({type: "add-writer", key})` and `req.confirm({key: base.key})`. The add-writer record replicates to the joiner shortly after, promoting it to a writer.
+
+The load-bearing detail: **a writer is added only by `base.append({type: "add-writer"})`, never by `req.open()`**. `req.open()` just decrypts the candidate's payload so the host can read its writer key; the firewall check sits *between* the decrypt and the add-writer append, so an unlisted device is rejected before it can ever become a writer.
+
+### Two separate allow-lists
+
+The mesh enforces membership at two distinct layers, with two different keys:
+
+- The **mesh writer-key allow-list** (`allowedDevices` in `MeshGraph`) gates *pairing* — who may become an Autobase writer. Keyed by the joiner's autobase **writer key**, checked in step 6 above.
+- The **delegation consumer-key allow-list** (`allowedConsumers` in `DeviceProvider`, `apps/hypha/src/device-provider.ts`) gates *paid/borrowed inference* — which peers the QVAC provider firewall will serve. Keyed by the peer's seed-derived **consumer public key**, not its writer key.
+
+They are deliberately separate: a device's writer key changes whenever its mesh store is reset, but its consumer key is stable across resets. The delegation firewall is the **union** of every mesh's desired consumer set; the provider only reconciles (stop→start) when that union actually changes.
+
+A **closed mesh** is one whose `allowedDevices` is non-empty: only listed writer keys may pair. An **open mesh** has an empty/absent allow-list (`[]`) — the firewall check in step 6 is skipped, so any holder of a live invite may pair. Closing a mesh is what makes a sniffed invite useless to anyone but the intended device.
+
+See [The Hypha daemon](/explanation/the-hypha-daemon) for how the daemon owns the union firewall and the SDK provider behind these allow-lists.
+
+## Managing membership
+
+Every membership action is a `POST` to the hypha daemon (`:11437`); the web app proxies them under `/api/leash/hypha/mesh`.
+
+| Action | Route | What it does |
+|--------|-------|--------------|
+| List memberships | `GET /mesh/list` | The meshes this device belongs to (id, label, visibility, tier, peer count, `creator`) |
+| List devices | `GET /mesh/members` | The devices in a mesh, with liveness |
+| Found a mesh | `POST /mesh/new {label}` | Create a new private mesh you're the **creator** of |
+| Mint an invite | `POST /mesh/invite {meshId}` | A single-use blind invite (QR auto-expires in 60s) |
+| Join (private) | `POST /mesh/join {invite, label}` | Blind-pair into a private mesh |
+| Join (public) | `POST /mesh/public/join {cellId, label}` | Subscribe to a public cell — no pairing |
+| **Leave** | `POST /mesh/leave {meshId}` | Drop **your own** membership (any member; private or public). The primary mesh is never leavable. |
+| **Delete** | `POST /mesh/delete {meshId}` | **Creator-only**; removes a mesh you founded. The primary mesh is never deletable. |
+| Forget a peer | `POST /mesh/forget {deviceKey}` | Hard-disconnect another device (tombstone + revoke writer + firewall cutoff) |
+| Restore a peer | `POST /mesh/restore {deviceKey}` | Reverse a forget |
+| Reap ghosts (safe) | `POST /mesh/reconcile-superseded` | Soft-forget only **superseded** duplicate writer keys of the same identity — never an offline device. Runs automatically on every membership change and on each mesh-page load. |
+| Clear stale (destructive) | `POST /mesh/forget-stale` | Hard-disconnect every peer not seen in ~30s. Use only to clear ghosts an old build left behind. |
+
+See [The mesh and membership](/explanation/mesh-and-membership) for *why* leave/delete/forget differ and how device identity drives the ghost cleanup.
+
+## Public meshes (cells)
+
+A **public** mesh is a leaderless gossip **cell**, not a paired circle. It lives on its own
+per-cell-seeded store (so the cell identity is unlinkable to your private mesh), discovers peer
+feeds over mDNS, and is **broadcast-only** — it carries no compute and can never widen your
+delegated-inference firewall. There's no invite: any device that computes the same cell id meets
+on the same topic. Join with `POST /mesh/public/join {cellId}`, and **Leave** drops it like any
+other membership.
 
 ## DHT identity
 
@@ -54,7 +111,9 @@ Derived seeds for non-DHT swarms use `sha256(seed + ":<role>")`.
 
 ## LAN shortcut
 
-hyperdht detects when two peers are on the same LAN and uses a direct LAN connection instead of relaying through the DHT. This is faster but has a failure mode: if the LAN probe returns no response, hyperdht aborts the whole dial (no fallback to relay).
+hyperdht detects when two peers are on the same LAN (same public IP) and uses a direct LAN connection instead of relaying through the DHT. This is faster but has a failure mode: if the LAN probe returns no response, hyperdht aborts the whole dial (no fallback to relay).
+
+This silently breaks **re-dials** to a restarted peer — a reopened device never re-syncs its Autobase membership and the mesh shows 0 peers. To avoid it, the daemon's swarms force `localConnection: false` on every dial (`apps/hypha/src/payment-control.ts`, `forward-control.ts`, and the shared mesh swarm in `packages/mesh/src/mesh-host.ts`), which skips the LAN shortcut and always holepunches (`<1s` on a normal LAN). Same-machine mesh smokes use `swarm: false` and drive replication by hand instead.
 
 To diagnose LAN connectivity:
 ```bash

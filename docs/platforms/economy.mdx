@@ -91,6 +91,43 @@ HYPHA_ECONOMY_PLASMA_MNEMONIC="word word word ..."   # quoted!
 
 Off by default (`HYPHA_ECONOMY_METERED` = `0`). When on, a session advances its authorization every `HYPHA_ECONOMY_CHUNK_TOKENS` (default `64`) tokens instead of a single pre-auth. If the consumer goes silent past `HYPHA_ECONOMY_ADVANCE_WINDOW_MS` (default `20000`), the provider watchdog force-settles the authorized cap. Optionally (`HYPHA_ECONOMY_REVOKE_ON_CUTOFF` = `1`) the provider also firewall-excludes the stalled consumer for `HYPHA_ECONOMY_REVOKE_TTL_MS` (default `30000`) — a non-destructive cooldown, not an unpair.
 
+### The Permit2-witness ladder
+
+Metered settlement is an **escalating authorization ladder**, not one payment per chunk. The policy is pure and lives in `apps/hypha/src/metered.ts`:
+
+- At open, the consumer authorizes a tier-0 cumulative token cap. Before each new chunk it signs a **fresh Permit2 witness** for a strictly higher *cumulative* cap and sends it as an `advance_authorization`. The provider verifies each rung and appends it (`appendRung`), which enforces strictly increasing `tierIndex` **and** `cumulativeTokens` — the ladder can only ever escalate, and a replayed rung is idempotent (`applied: false`).
+- At close the provider settles **exactly one rung** — the highest reached (`rungToSettle`) — at `min(reportedTokens, acceptedThroughTokens)`. Money moves **once per session**; on-chain gas is O(1) regardless of how many rungs the consumer climbed. A consumer that authorized rungs 256 then 512 and decoded 512 tokens settles `512`, not the rung sum `768`.
+
+### The idle watchdog (force-settle on abandonment)
+
+If the consumer goes silent past the advance window, the provider's `sweepMeteredIdle` watchdog **force-settles the full authorized cap** (`settleTokensAtCutoff` returns `acceptedThroughTokens` — the consumer signed for it, so it is owed) and removes the session. The consumer's next advance then gets `session not found`. This is the abandoned-session backstop: a network-blipped consumer still pays for what it authorized, and the provider never leaves money unsettled. The watchdog state is persisted so the force-settle survives a provider restart.
+
+When `HYPHA_ECONOMY_REVOKE_ON_CUTOFF` = `1`, the watchdog *additionally* drops the stalled consumer from the delegation firewall for `HYPHA_ECONOMY_REVOKE_TTL_MS` — a `transientRevoke` cooldown that auto-re-admits, not a forget/unpair (the writer key stays in the mesh).
+
+### Live on-chain evidence
+
+The metered rail is proven end-to-end across two Macs on a local Anvil fork of Plasma (chain `9746`), settling real USDT0 through the x402 `upto` Permit2 proxy. Representative settle transactions (illustrative — these hashes ship publicly):
+
+| Tx | What it proves |
+|---|---|
+| `0x645c56c3` | Highest-rung settle — a 2-rung ladder (caps 256→512), 512 tokens decoded, **512 settled in one tx** (not the 768 rung sum) |
+| `0x067348ad` | A 5-rung ladder (tiers 1→5, caps 128→384), 360 tokens settled in one tx |
+| `0x6f7dcbce` | The idle watchdog firing — consumer streamed 128 tokens then went silent 40 s; `sweepMeteredIdle` (8 s window) **force-settled the authorized cap 128** |
+| `0xa71a85fd` | An identity-bound provider settle — 219 µUSDT0 moved to the provider's bound payee |
+
+Each settle is a single USDT0 `Transfer` payer→payee. To stand up the local Anvil fork yourself (faucet-free, with the etched `upto` proxy and the fork-clock fix that keeps Permit2's `validAfter` witness fresh), see [Local settlement on Anvil](/help/local-settlement-anvil).
+
+## Verifying the economy
+
+The economy paths are covered by offline smoke and gate scripts (run with `npm run`):
+
+| Script | Covers |
+|---|---|
+| `smoke:metered` | The metered ladder arithmetic + state transitions (`scripts/smoke-metered.ts`, pure policy — no chain) |
+| `smoke:reputation` | Quality-weighted routing tie-break (`effective_cost = pricePerKiloToken / quality`) |
+| `smoke:identity` | The wallet↔provider-key binding + receipt verification |
+| `gate:firewall-revocation` | That a provider firewall stop→start cleanly revokes a consumer without dropping a live link |
+
 ## Reputation (experimental)
 
 Off by default (`HYPHA_REPUTATION` = `0`). When on, **paid** delegation targets are tie-broken by `effective_cost = pricePerKiloToken / quality` — a peer with a poor quality score is penalized. Free peers stay first. The reputation store and `GET /reputation` are always read-only; this flag only changes routing.
@@ -113,5 +150,8 @@ Each device must use a **distinct wallet** so self-dealing (a consumer paying it
   </Card>
   <Card title="Ports & processes" href="/reference/runtime-ports-and-processes" icon="diagram-project">
     Where Hypha and the serve listen.
+  </Card>
+  <Card title="Local settlement on Anvil" href="/help/local-settlement-anvil" icon="flask">
+    Stand up a faucet-free Plasma fork to settle metered sessions on-chain.
   </Card>
 </CardGroup>

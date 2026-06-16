@@ -66,6 +66,8 @@ These are the hackathon verification evidence — keep them. Read the log for pe
 cat data/leash-audit.jsonl | grep '"event":"completion"' | jq '{model, tok_per_sec, ttft_ms}'
 ```
 
+For the full record schema, every event type, and the JSONL log locations, see [Audit log](/reference/audit-log).
+
 ## Serve diagnostics
 
 ```bash
@@ -90,3 +92,17 @@ curl http://localhost:<HYPHA_PORT>/mesh
 ```
 
 Check `HYPHA_DEBUG_LANPROBE=<peer-host:port>` output in the hypha process's stderr for LAN reachability.
+
+## Operations issues — where to look
+
+These failures show up at the daemon/storage/settlement layer, not in a single chat turn. The diagnostic is short; the procedure lives on the linked Operations page.
+
+| You see | Likely cause | Where to fix it |
+|---------|--------------|-----------------|
+| `Invalid device file, was moved unsafely` | A corestore lost its `device-file` xattr (copied with plain `rsync -a`/`cp`) | [Storage & corestore](/help/storage-and-corestore) |
+| `File descriptor could not be locked` while downloading a model | The registry corestore is single-process; a serve/hypha that touched it holds the fd-lock | [Storage & corestore](/help/storage-and-corestore) |
+| `EHOSTUNREACH` on all LAN traffic from a remote hypha | macOS denied Local Network to an **orphaned** background daemon (its SSH session exited) | [Mesh operations](/help/operations-mesh) |
+| No peers; dials half-open or abort | Two swarms seeded with the same raw `QVAC_HYPERSWARM_SEED`, or hyperdht's LAN-shortcut aborted the dial | [Mesh operations](/help/operations-mesh) |
+| Settles revert with `permit2_simulation_failed` | The anvil fork's `block.timestamp` drifted past the x402 witness window | [Local settlement (anvil)](/help/local-settlement-anvil) |
+
+To launch a remote daemon session-attached (the orphaned-process fix), see [Mesh operations](/help/operations-mesh).

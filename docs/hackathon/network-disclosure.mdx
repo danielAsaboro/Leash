@@ -1,0 +1,93 @@
+---
+title: "Remote network calls (full disclosure)"
+description: "Every remote/outbound network call the system makes, classified AI vs non-AI — derived from the code, not from notes."
+sidebarTitle: "Network disclosure"
+---
+
+The hackathon rules require a structured file listing every remote/outbound network call the
+system makes, classified as AI or non-AI. **This page is that file.** It is derived from an
+exhaustive grep of `apps/`, `packages/`, and `scripts/` (excluding `node_modules`, `.next`,
+`dist`), with each hit read and classified.
+
+**Headline: zero cloud-AI calls.** Every AI path — chat, embeddings, RAG, vision, STT, TTS, image
+gen, LoRA — goes through the on-device QVAC serve. Every remote call below is **non-AI**, and each
+is either a one-time first-run warm-cache or an explicitly opt-in feature. See
+[QVAC-only proof](/hackathon/qvac-only-proof) for how the AI chokepoint is structural.
+
+## The AI chokepoint
+
+All model access flows through one stateless HTTP client, `apps/web/lib/leash/provider.ts`, hardcoded
+to `http://127.0.0.1:11435/v1` (`QVAC_OPENAI_URL`) — the local `qvac serve openai` endpoint. The same
+constant is re-exported by `provider-core.ts`, `models.ts`, `serve-control.ts`, and the audio routes
+(`speak`, `transcribe`). There is no code path to a cloud LLM API; a cloud key isn't a config toggle,
+it doesn't exist. Borrowed compute (mesh delegation/forwarding) still targets a **peer's** QVAC serve
+over the encrypted DHT — `apps/hypha/src/forward-provider.ts` proxies to that peer's localhost serve.
+
+## Every outbound surface
+
+Endpoints are grouped by host. "Localhost-only" rows never leave the device; they are listed for
+completeness so the table is exhaustive, not because they are remote. The genuinely remote calls are
+the `first-run warm-cache` and `opt-in feature` rows.
+
+| Call | Endpoint (host) | Triggered by | AI? | When | Code location (file:symbol) |
+|---|---|---|---|---|---|
+| On-device inference / embeddings / vision / STT / TTS / image | `127.0.0.1:11435` | every AI turn | No | localhost-only | `apps/web/lib/leash/provider.ts:QVAC_OPENAI_URL` |
+| Mesh DHT bootstrap (provider/consumer) | public Hyperdht bootstrap nodes | first pair / mesh join | No | first-run warm-cache, then mesh-only | `apps/hypha/src/payment-control.ts:new Hyperswarm`, `packages/mesh/src/mesh-host.ts:new Hyperswarm` |
+| Mesh DHT bootstrap (forward / public-mesh / graph) | public Hyperdht bootstrap nodes | mesh activity | No | first-run warm-cache, then mesh-only | `apps/hypha/src/forward-control.ts:new Hyperswarm`, `packages/mesh/src/mesh-graph.ts:new Hyperswarm`, `packages/mesh/src/public-mesh.ts:new Hyperswarm` |
+| Model weight download | QVAC registry over Hypercore/DHT blobs (`registry://…`) | first use of an alias / explicit pull | No (weights) | first-run warm-cache, then offline | `apps/mobile/modelsInventory.ts:downloadAsset`, `apps/mobile/voice.ts:downloadAsset`, `apps/hypha/src/catalog.ts:sdkRegistryDescriptor` |
+| Web search — DuckDuckGo HTML | `html.duckduckgo.com` | deep-research run | No | opt-in feature | `apps/web/lib/leash/search.ts:duckduckgo` |
+| Web search — SearXNG (optional) | `LEASH_SEARXNG_URL` (self-hosted) | deep research, when configured | No | opt-in feature | `apps/web/lib/leash/search.ts:searxng` |
+| Readable-page fetch | the result URLs (any host) | deep-research run | No | opt-in feature | `apps/web/lib/leash/search.ts:fetchReadable` |
+| Skill / plugin import (GitHub) | `api.github.com` (zipball) | user imports a GitHub skill/plugin | No | opt-in feature | `apps/web/app/api/leash/skills/import-github/route.ts`, `apps/web/lib/leash/plugin-sources/github.ts:fetch` |
+| MCP-server resolution (npm / GitHub) | `registry.npmjs.org`, `raw.githubusercontent.com`, `github.com` | user adds an MCP server by name | No | opt-in feature | `packages/leash-core/src/mcp-install.ts:fetch` |
+| Plugin marketplace refresh | user-supplied `https://…` URL | user adds a marketplace | No | opt-in feature | `apps/web/lib/leash/plugin-sources/marketplace.ts:fetch` |
+| MCP server icon fetch | the icon's `https://` URL | rendering an MCP server with a remote icon | No | opt-in feature (cached) | `apps/web/lib/leash/mcp-icons.ts:resolveIconSrc` |
+| On-chain settlement RPC | `HYPHA_ECONOMY_PLASMA_RPC_URL` / `HYPHA_ECONOMY_SOLANA_RPC_URL` (empty unless economy enabled) | delegated-compute settlement | No | opt-in feature (off by default) | `apps/hypha/src/config.ts:HYPHA_ECONOMY_PLASMA_RPC_URL`, `apps/hypha/src/main.ts:rpcUrl` |
+| Telegram bot client (optional app) | `api.telegram.org` | running the Telegram bridge app | No | opt-in feature (separate app) | `apps/leash-telegram/src/telegram-api.ts:base` |
+| RSS poll (The Understory news app) | `hnrss.org` | running the newsroom daemon | No | opt-in feature (separate app) | `apps/newsroom/src/feeds.ts`, `apps/newsroom/src/rss.ts:fetch` |
+| Desktop runtime/daemon fetch | GitHub Release (`deps-manifest.json.baseUrl`, `LEASH_DEPS_URL`) | first launch of the desktop installer | No (binaries) | first-run warm-cache, then offline | `apps/desktop/src/main/deps.ts:downloadTo` |
+| Pairing-page callback (mobile) | the pairing web page URL (LAN / localhost) | phone confirms a pairing | No | LAN-only, fire-and-forget | `apps/mobile/mesh.ts:notifyPairing` |
+| Localhost control plane (web / hypha / broker / MCP / cron) | `127.0.0.1` ports `6801`, `11436`, `11437`, `11439`, `11440`, `11448` | dashboard ↔ daemons | No | localhost-only | `apps/web/lib/leash/economy.server.ts`, `hypha.ts`, `mesh.server.ts`, `tasks-client.ts`, `cron-client.ts`, `mcp-builtins.ts` |
+
+### Notes on a few rows
+
+- **DHT bootstrap is not a content call.** Hyperswarm/Hyperdht contact public bootstrap nodes only to
+  find peers; the transport is then Noise-encrypted device-to-device. After the first successful pair
+  the mesh runs peer-to-peer. The dashboard never forces a mesh online — polling `/peers` on an
+  unpaired device is a no-op.
+- **Economy RPC is off by default.** `HYPHA_ECONOMY_ENABLED` defaults to `0` and the RPC URLs default
+  to empty strings; with the economy on, the RPC is typically a **local anvil fork at `127.0.0.1:8545`**
+  (loopback). A public testnet RPC (Plasma `9746`) is only used by the readiness probe
+  `scripts/probe-plasma-settle.ts` and when you point the env var at one.
+- **Fonts and the call-avatar are vendored.** The web app uses `next/font/local` (self-hosted woff2,
+  no Google Fonts fetch) and the default `obsidian` Rive persona is served from `public/persona/*.riv`
+  locally — the upstream component's `vercel-storage` URLs belong to unused variants and are not on the
+  hot path.
+- **No telemetry, analytics, or update-check calls exist.** A grep for analytics/Sentry/PostHog/Segment/
+  Expo-updates surfaces only local UI labels named "telemetry" and on-device `DaemonRun` rows — none
+  make a network request.
+
+## After warm-cache: airplane mode
+
+After the one-time first run (weight download + DHT bootstrap), the entire hot path runs with no
+network. The project treats **"works in airplane mode"** as a release gate.
+
+**Still works offline (everything on the hot path):** local chat, embeddings/RAG, vision, STT, TTS,
+image generation, LoRA fine-tune, and on-device mesh operations (pairing, task sync, delegated compute
+to an already-known peer over the LAN/mesh).
+
+**Needs network (opt-in online features only):** web search / deep research, pulling a **new** model or
+skill/plugin, and on-chain settlement. None of these is on the assistant's hot path.
+
+## How to verify
+
+1. **Run in airplane mode.** After a warm cache, disable Wi-Fi and use chat, RAG, vision, and a
+   known-peer delegated turn — they all complete. Only web search and new-model pulls fail.
+2. **Grep the chokepoint.** `grep -rn "QVAC_OPENAI_URL" apps packages` shows every AI call resolving to
+   `127.0.0.1:11435`; there is no cloud-LLM host anywhere in the tree.
+3. **Watch the live socket monitor.** `apps/web/lib/leash/netmon.ts` lists the stack's established TCP
+   sockets via `lsof`, classifies each remote as loopback / lan-mesh / cloud, and surfaces the
+   **cloud count that must be 0** in the dashboard's offline HUD. On any failure it reports
+   `ok:false` rather than a fabricated `0`.
+4. **Read the audit log.** The JSONL audit records (`spike/lib/audit-log.ts`) show inference events
+   served from localhost; see [Evidence & reproducibility](/hackathon/evidence-and-reproducibility).

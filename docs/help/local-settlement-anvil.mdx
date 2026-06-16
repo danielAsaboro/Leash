@@ -1,0 +1,63 @@
+---
+title: "Local settlement on an anvil fork"
+description: "Bring up the Leash economy against a local anvil fork: fix the clock-drift settle failures, pin the right RPC, and confirm with smoke and gate targets."
+sidebarTitle: "Local anvil settlement"
+---
+
+This is the operator runbook for running the [Leash economy](/platforms/economy) against a **local anvil fork** of Plasma testnet (chain `9746`) — the self-hosted x402 facilitator setup used for paid delegated inference. It is pure localhost: no real chain is ever touched. The two things that will bite you are clock drift and the wrong RPC. Both have clean fixes.
+
+## Settles revert with `permit2_simulation_failed` — it is the clock, not your code
+
+**Symptom:** Every metered settle reverts with `permit2_simulation_failed` (you may also see `PaymentTooEarly`). It looks exactly like a code bug. It is **not**.
+
+**Cause:** anvil's fork `block.timestamp` goes **stale when the fork sits idle**. The x402 "upto" witness signs `validAfter = now − 600`, which is checked **on-chain** against `block.timestamp`. Once the fork clock drifts more than 600 seconds behind real time, the witness looks like it is from the future and every settle's static-call simulation fails. The drift has been observed at minutes-to-hours of staleness on an idle fork.
+
+**Fix:** check the drift, then resync the clock and mine a block. Keep interval mining on so the clock stays fresh.
+
+```bash
+# Check the drift: fork block timestamp vs. real time
+cast block latest --rpc-url http://127.0.0.1:8545 --field timestamp
+date +%s
+
+# Resync the fork clock to real time, then mine
+cast rpc anvil_setTime $(date +%s) --rpc-url http://127.0.0.1:8545
+cast rpc evm_mine --rpc-url http://127.0.0.1:8545
+```
+
+Interval mining keeps `block.timestamp` advancing, which prevents the drift from recurring. (`evm_mine` and `anvil_mine` are equivalent here; the setup script `scripts/anvil-plasma-setup.sh` uses `anvil_mine` and also resyncs the clock as its final step — re-run it any time after an anvil restart.)
+
+## Always pin the local RPC
+
+**Symptom:** `cast` or an ad-hoc script reports a settle as missing or hits the wrong chain even though the local fork is healthy — for example a known-good tx hash returns a null receipt against the wrong endpoint.
+
+**Cause:** the shell's `$RPC` environment variable points at a **public testnet**. Any `cast` call or `process.env.RPC`-reading script that does not override it silently talks to the wrong chain.
+
+**Fix:** always pin the local fork explicitly. Never rely on `$RPC`:
+
+```bash
+cast block latest --rpc-url http://127.0.0.1:8545
+```
+
+The hypha daemon itself uses its configured `HYPHA_ECONOMY_PLASMA_RPC_URL`, so it is unaffected — this trap only hits ad-hoc commands and scripts. One more quirk to expect: a **fresh** ethers `JsonRpcProvider` against the fork can return `null` on its **first** `getTransactionReceipt` call. Retry; the second call resolves.
+
+## Confirm bring-up
+
+Run the economy smoke and gate targets to confirm settlement works end-to-end. These are real `tsx` scripts (defined in the root `package.json`), not mocks — they use real ethers wallets and produce real on-chain settles on the fork:
+
+```bash
+# Metered pay-as-you-go: escalating Permit2-witness ladder, one settle per session
+npm run smoke:metered
+
+# Identity / receipt verification with a real ethers wallet
+npm run smoke:identity
+
+# Firewall-revocation gate: a revoked provider is cut off
+npm run gate:firewall-revocation
+```
+
+A clean run of these three confirms the fork, the Permit2 etching, the wallet funding, and the settle path are all healthy.
+
+## See also
+
+- [Economy](/platforms/economy) — the `HYPHA_ECONOMY_*` knobs, settlement rails, and roles.
+- [Running a multi-device mesh](/help/operations-mesh) — the localhost RPC forward (`ssh -f -N -L 8545:127.0.0.1:8545 mini`) that lets a remote provider reach this fork.

@@ -1,0 +1,78 @@
+---
+title: "How tasks sync across the mesh"
+description: "Why tasks are a CRDT, how last-writer-wins and tombstones converge, and how the oldest active member is derived as leader."
+---
+
+Your tasks are not stored in one device's database with the others reading from it. They
+live in the private mesh itself, as a CRDT, so every paired device — Macs and the iPhone
+alike — converges on the same task list with no central server to ask. This page explains
+why that model holds together. The membership and CRDT foundations it builds on are in
+[The mesh and membership](/explanation/mesh-and-membership).
+
+## Tasks as last-writer-wins records
+
+A task is a small record carried on the same Autobase-over-Hyperbee MeshGraph that holds
+membership. It is keyed `task:<id>`, and its conflict rule is **last-writer-wins by
+`updatedAt`** (epoch milliseconds). When two devices edit the same task while partitioned,
+both edits replicate; on merge, the record with the larger `updatedAt` wins, and every
+device computes the same winner because they apply the same rule to the same replicated
+log. There is no merge dialog and no coordinator — the timestamp decides.
+
+This is why an edit on your laptop and an edit on your phone don't fight: whichever you
+touched last is the one that survives, deterministically, on every device.
+
+## Deletes are tombstones, not gaps
+
+A delete cannot simply remove the row, because a removal can't propagate — a peer that
+never saw the row has nothing to delete, and a peer that re-adds it would resurrect it. So
+a delete is a **tombstone**: a record with `deleted: true` that replicates like any other.
+
+The tombstone follows the same last-writer-wins discipline, with one guard. A delete wins
+only if its timestamp is **greater than or equal to** the stored task's `updatedAt`. That
+ordering is what lets a later edit beat an earlier delete: if you delete a task on one
+device and then meaningfully update it on another a moment later, the update's newer
+`updatedAt` keeps it alive. A stale delete arriving late can't silently remove a task you
+just changed.
+
+## Who runs a task — the derived leader
+
+Data sync is leaderless: any writer appends, and the view linearizes, so no leader is
+needed for tasks to *converge*. But some work wants a single owner — who runs a scheduled
+task, who is the canonical rendezvous, who performs a one-shot mesh chore. For that, the
+mesh derives a leader rather than electing one.
+
+The leader is the **oldest active member**. Each member's seniority is its `joinedAt` — the
+epoch-ms moment that device first brought the mesh online, stamped once, persisted, and
+re-advertised on every heartbeat. The leader is the live member with the smallest
+`joinedAt` (ties broken by device id). "Live" means its capability heartbeat is within the
+staleness window (~30 s), the same liveness test the routing layer uses.
+
+Because the leader is a **pure function of replicated state** — join order plus live
+capabilities — every device derives the same leader with no election messages, so it can't
+flap from network jitter. When the leader's heartbeat goes stale, leadership passes to the
+next-oldest live member automatically, on the next evaluation. Hypha surfaces this as the
+`leader` field on `GET /peers`. In this slice the leader is *computed and displayed* and
+used for an "is it me?" check; moving work like the heartbeat loop to leader-only is a
+later step.
+
+## Migrating local tasks once
+
+A device that used tasks before they were mesh-native still has a local
+`leash-tasks.json`. The first time it is online in a mesh, Hypha seeds those local tasks
+into the mesh — publishing each one — and writes a `.tasks-migrated` marker so it never
+re-imports.
+
+The migration is safe to run on every device because it is **idempotent**: tasks merge by
+last-writer-wins keyed on their `id`, so importing the same task from several devices
+converges to one record rather than creating duplicates. A mesh-less device defers the
+migration (it writes no marker) and runs it on the first boot after it joins or founds a
+mesh. The local JSON stays as an offline read-through cache; the mesh becomes the source of
+truth.
+
+## Live refresh in the dashboard
+
+The dashboard does not poll for task changes. Hypha publishes routing and task activity on
+a server-sent-events stream that the browser subscribes to, and a task upsert or delete
+emits an event on it. The dashboard reads through the daemon's task API and refreshes its
+view live when that event arrives, so a change made on another device appears without a
+manual reload — and when Hypha is unreachable, the local read-through cache still answers.

@@ -260,7 +260,9 @@
               "reference/configuration",
               "reference/models-and-aliases",
               "reference/tools-and-approvals",
-              "reference/scripts-and-smoke-tests"
+              "reference/scripts-and-smoke-tests",
+              "reference/audit-log",
+              "reference/benchmarks"
             ]
           },
           {
@@ -286,6 +288,9 @@
             "pages": [
               "explanation/mesh-and-membership",
               "explanation/how-the-mesh-routes-work",
+              "explanation/the-hypha-daemon",
+              "explanation/mesh-task-sync",
+              "explanation/kv-cache-delegation",
               "explanation/modality-borrowing",
               "explanation/the-agent-economy"
             ]
@@ -308,6 +313,14 @@
             "pages": [
               "help/troubleshooting",
               "help/debugging"
+            ]
+          },
+          {
+            "group": "Operations",
+            "pages": [
+              "help/operations-mesh",
+              "help/storage-and-corestore",
+              "help/local-settlement-anvil"
             ]
           },
           {
@@ -356,7 +369,9 @@
         "pages": [
           "hackathon/overview",
           "hackathon/how-we-meet-the-criteria",
+          "hackathon/design-decisions",
           "hackathon/qvac-only-proof",
+          "hackathon/network-disclosure",
           "hackathon/evidence-and-reproducibility"
         ]
       }

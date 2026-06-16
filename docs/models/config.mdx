@@ -39,7 +39,7 @@ sidebarTitle: "Configuration"
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `model` | string | SDK catalog constant (e.g. `QWEN3_4B_Q4_K_M`) |
+| `model` | string | SDK catalog constant (e.g. `QWEN3_4B_INST_Q4_K_M`) |
 | `src` | string | Raw file path (for custom GGUFs not in the catalog). Mutually exclusive with `model`. |
 | `preload` | boolean | Load this model on serve start. Default: `true` |
 | `default` | boolean | Use this alias when no alias is specified. Only one alias should be `default: true`. |
@@ -52,7 +52,7 @@ Speech (TTS) models require extra fields:
 
 ```json
 "supertonic": {
-  "model": "SUPERTONIC_TTS_V1",
+  "model": "TTS_EN_SUPERTONIC_Q8_0",
   "preload": true,
   "config": {
     "ttsEngine": "supertonic",
@@ -72,15 +72,41 @@ Vision models (`qwen3vl`) need a `projectionModelSrc` pointing at the mmproj GGU
 
 ```json
 "qwen3vl": {
-  "model": "QWEN3_VL_2B_Q4_K_M",
+  "model": "QWEN3VL_2B_MULTIMODAL_Q4_K",
   "preload": true,
   "config": {
-    "projectionModelSrc": "~/.qvac/models/qwen3vl-mmproj.gguf"
+    "ctx_size": 8192,
+    "projectionModelSrc": "~/.qvac/models/<mmproj-cacheFile>.gguf"
   }
 }
 ```
 
-The Kit wizard computes this path from the catalog's `cacheFile` for the projection SKU.
+The Kit wizard computes this path from the catalog's `cacheFile` for the projection SKU (`MMPROJ_QWEN3VL_2B_MULTIMODAL_Q4_K`).
+
+## Chat config — the fields that matter
+
+The constant name is not enough: a chat alias needs the right `config` block, or tool calls, reasoning, or loading itself silently break.
+
+### The diffusion-vs-chat naming trap
+
+`QWEN3_4B_Q4_K_M` — the constant **without** `INST` — is a **diffusion** model (`sdcpp-generation`), not an LLM. Pointing a chat alias at it raises `MODEL_SRC_TYPE_MISMATCH`. The real 4B chat LLM is `QWEN3_4B_INST_Q4_K_M`. Always confirm a constant's catalog `engine`/`addon` before serving it as chat.
+
+### Chat config keys
+
+| Key | Where | Value | Why |
+|-----|-------|-------|-----|
+| `tools` | `config` | `true` | Tool calls are silently never parsed unless this is set |
+| `toolsMode` | `config` | `"dynamic"` | Required alongside `tools: true` for the agent to call tools |
+| `ctx_size` | `config` | `32768` (`DEFAULT_CTX_SIZE`) | Below ~2048 the tool schemas and Qwen3 chain-of-thought overflow the prompt |
+| `reasoning_budget` | **`generationParams`** | `0` | Disables Qwen3 "thinking" so it doesn't burn the context. Lives in `generationParams` on the `completion()` call, **not** in the serve `config` / `modelConfig` |
+
+The shipped chat config is `{ "tools": true, "toolsMode": "dynamic", "ctx_size": 32768 }`. `reasoning_budget` is passed at call time, not in the config file:
+
+```ts
+completion({ modelId, history, generationParams: { predict, reasoning_budget: 0 } })
+```
+
+See [Chat & reasoning](/models/modality/chat) for the model picture, [Troubleshooting](/help/troubleshooting) for the failure symptoms, and [Benchmarks](/reference/benchmarks) for measured tok/s by size.
 
 ## Editing safely
 

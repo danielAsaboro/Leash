@@ -19,14 +19,65 @@ are shipped and documented vs. submission-packaging steps still open:
 | Public GitHub repo | Shipped | the repository |
 | Reproducibility / out-of-the-box run path | Shipped | [Quickstart](/quickstart), [macOS install](/install/macos) |
 | Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL) | `spike/lib/audit-log.ts`, `submission/evidence/` |
-| Hardware specs + system-profiler screenshots | **Pending** (packaging) | tracked in `submission/` |
-| Structured remote-API-call disclosure file | **Pending** (packaging) | non-AI calls enumerated in `submission/day7-audit.md` |
+| Hardware specs + reproducible capture | Filed | [Hardware setup](#hardware-setup) below |
+| Structured remote-API-call disclosure file | Filed | [Remote network calls](/hackathon/network-disclosure) |
 | Demo video (≤5 min, unlisted) | **Pending** (final cut) | script in `submission/submission-video-script.md` |
 
 <Warning>
 Pages in this section never claim a pending artifact as done. The underlying *capability* is shipped
 and documented; the "pending" rows are the final packaging steps tracked in `submission/`.
 </Warning>
+
+## Hardware setup
+
+Leash targets the **General Purpose** track — retail Apple-Silicon devices with ≤32 GB RAM — and
+runs as a small mesh of personal Macs, each running its **own single** QVAC serve. This is P2P
+delegation between independent devices, not a pooled multi-GPU cluster ([why that distinction
+matters](/hackathon/qvac-only-proof)): the mesh passes whole completions between machines, it does
+not pool their memory, so each device satisfies its own RAM budget.
+
+### Verified device
+
+Captured on the development machine with `system_profiler` (reproduce with the command below):
+
+| Field | Value |
+|---|---|
+| Model | MacBook Pro (`Mac15,7`) |
+| Chip | Apple M3 Pro |
+| Cores | 12 (6 performance + 6 efficiency) |
+| Unified memory | 36 GB |
+| GPU | Apple M3 Pro integrated — **Metal** |
+| macOS | 26.5.1 (build 25F80) |
+
+This machine is a **mesh peer**. The General Purpose **primary** device is an Apple-Silicon
+**Mac mini inside the ≤32 GB envelope**; the spike and [benchmark](/reference/benchmarks) numbers
+were measured on Apple-Silicon Macs with Metal acceleration.
+
+### Capture the spec on any device
+
+Hardware proof is reproducible — run this on each mesh device and attach the output (or a screenshot):
+
+```bash
+system_profiler SPHardwareDataType | grep -E "Model (Name|Identifier)|Chip|Total Number of Cores|Memory"
+sw_vers   # macOS product version + build
+```
+
+### Toolchain
+
+| Component | Version |
+|---|---|
+| Node.js | 24.x (24.13–24.16 across the mesh machines) |
+| npm | 11.x |
+| `@qvac/sdk` | `^0.13.0` (the spike below ran on `0.11.0`) |
+| Runner | `tsx` for TypeScript entrypoints; the SDK runs on Node, Bare, and Expo |
+
+### Storage and the model cache
+
+Model weights live under `~/.qvac/models/` as flat GGUF files; the warm cache is **~4.2–4.9 GB**
+across the default model set (per-model sizes on [Benchmarks](/reference/benchmarks)). On
+space-constrained machines `~/.qvac` can be symlinked to an external drive — the SDK follows the
+symlink with no config change and no reproducibility impact, since a fresh clone still resolves the
+default `~/.qvac`. After the one-time warm-cache, that cache is all the system needs to run offline.
 
 ## The four spike gates — all GO
 
