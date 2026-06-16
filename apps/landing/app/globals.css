@@ -2459,3 +2459,59 @@
     }
   }
 }
+
+/* ── Downloads page ─────────────────────────────────────────────── */
+.dl-intro {
+  max-width: 60ch;
+  margin: 0 auto 2.5rem;
+  text-align: center;
+  font-family: var(--font-newsreader), Georgia, serif;
+  color: var(--color-ink-soft, var(--color-ink));
+}
+.dl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1px;
+  background: var(--color-rule, currentColor);
+  border: 1px solid var(--color-rule, currentColor);
+}
+.dl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.5rem 1.25rem;
+  background: var(--color-paper, var(--color-cream));
+  min-height: 160px;
+}
+.dl-card-name {
+  font-family: var(--font-fraunces), Georgia, serif;
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+.dl-card-note {
+  font-family: var(--font-plex), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-ink-soft, var(--color-ink));
+}
+.dl-card-action { margin-top: auto; }
+.dl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-plex), ui-monospace, monospace;
+  font-size: 0.8rem;
+  text-decoration: none;
+  border: 1px solid var(--color-ink);
+  padding: 0.4rem 0.75rem;
+  color: var(--color-ink);
+}
+.dl-btn:hover { background: var(--color-ink); color: var(--color-paper, var(--color-cream)); }
+.dl-soon {
+  font-family: var(--font-plex), ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.5;
+}
