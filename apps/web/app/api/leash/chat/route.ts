@@ -12,7 +12,7 @@
  */
 import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
-import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
+import { CHAT_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
 import { conduct } from "../../../../lib/leash/conductor.ts";
 import { tagsForAlias, type RouteOption } from "@mycelium/leash-core/routing";
@@ -116,13 +116,6 @@ function lastUserText(messages: LeashUIMessage[]): string {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((lastUser?.parts as any[]) ?? []).filter((p) => p?.type === "text").map((p) => p.text ?? "").join(" ");
-}
-
-/** P4 specialist routing: health/medical/mental-health intent → the MedPsy specialist. */
-const HEALTH_RE =
-  /\b(symptom|diagnos|treatment|medicat|dosage|dose|prescri|disease|illness|infection|fever|nausea|migraine|asthma|diabet|pneumonia|antibiotic|blood ?pressure|cholesterol|doctor|physician|clinic|therap|anxiet|depress|mental health|insomnia|panic|trauma|psych|wellbeing|well-being)\w*/i;
-function isHealthIntent(messages: LeashUIMessage[]): boolean {
-  return HEALTH_RE.test(lastUserText(messages));
 }
 
 /** Vision routing: the latest user message carries an image (file part) → use the VLM. */
@@ -304,10 +297,9 @@ export async function POST(req: Request): Promise<Response> {
   const filesEnabled = [...BASH_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
   const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
   const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
-  const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);
   // The model actually driving this turn (for telemetry) — chat uses the user-chosen alias, else the
   // configured default; NOT the hardcoded CHAT_MODEL (which is just the last-resort fallback).
-  // Conductor: for the generalist chat lane (not image/computer/health) we run the Conductor to pick
+  // Conductor: for the generalist chat lane (not image/computer) we run the Conductor to pick
   // the best available route (local vs. peer). Specialist routes keep their dedicated models — the
   // Conductor only overrides the generalist chat model selection.
   const defaultAlias = chosenModel ?? (base.model || resolvedChatAlias());
@@ -349,21 +341,21 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
   // Vision hard-rule: image turns ALWAYS use the vision VLM regardless of the Conductor decision.
-  // Specialist routes (computer, health) keep their dedicated models.
-  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : conductorDecision.route.alias || defaultAlias;
+  // Specialist routes (computer) keep their dedicated models.
+  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : conductorDecision.route.alias || defaultAlias;
   // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
   // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
   const conductorModel =
-    !imageTurn && !filesTurn && !computerTurn && !health && conductorDecision.route.peerKey
+    !imageTurn && !filesTurn && !computerTurn && conductorDecision.route.peerKey
       ? routedChatModel({ alias: activeModel, sensitivity: conductorDecision.sensitivity, ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), peerKey: conductorDecision.route.peerKey })
       : undefined;
 
   // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
   // job is to call `submit_plan` (approval-gated → the Plan card); on approval its `execute` runs the
-  // steps through the deterministic pipeline. Restricted to the plain chat turn — image/files/computer/
-  // health carry their own specialized toolsets + prompts, and a skill `steps:` pipeline (below) is a
+  // steps through the deterministic pipeline. Restricted to the plain chat turn — image/files/computer
+  // carry their own specialized toolsets + prompts, and a skill `steps:` pipeline (below) is a
   // deterministic workflow already, so plan mode stands down for those.
-  const planMode = !!plan && !imageTurn && !filesTurn && !computerTurn && !health;
+  const planMode = !!plan && !imageTurn && !filesTurn && !computerTurn;
 
   // Dynamic effort: grade each non-image turn (text + voice) into a tier and derive its params
   // (tools on/off, step cap, `/no_think`, token ceiling). A spoken turn must answer in seconds,
@@ -378,7 +370,7 @@ export async function POST(req: Request): Promise<Response> {
   const lastText = lastUserText(validated);
   planTask = lastText; // the overall task each approved plan step is executed against
   const [systemPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([getPrompt("system", base.body), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts(), getConstitution()]);
-  const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
+  const baseSystem = systemPrompt;
   // The constitution (soul + goals) makes EVERY turn goal-aware, not just heartbeats. Bounded by the
   // store's per-file cap. Trimmed so an unedited/empty file contributes nothing to the prompt.
   const soulSection = constitution.soul.trim() ? "Who you're assisting (their soul.md):\n" + constitution.soul.trim() : "";
@@ -546,7 +538,7 @@ export async function POST(req: Request): Promise<Response> {
   // (summary + recent tail); the full thread is still saved via `originalMessages`.
   const agent = buildLeashAgent(enabledTools, () => interjectRequested(id), conductorModel);
   const callOptions: LeashCallOptions = {
-    route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : health ? "health" : "chat",
+    route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.

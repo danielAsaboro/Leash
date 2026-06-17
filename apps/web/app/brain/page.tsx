@@ -33,6 +33,7 @@ import { ForagePanel } from "../../components/ForagePanel.tsx";
 import { McpPanel } from "../../components/McpPanel.tsx";
 import { ProactivityPanel } from "../../components/ProactivityPanel.tsx";
 import { getConstitution } from "../../lib/leash/constitution.ts";
+import { loadMainAgentBase } from "../../lib/leash/main-agent.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -90,7 +91,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       )}
       {tab === "skills" && <SkillsPanel skills={await listSkills()} />}
       {tab === "plugins" && <PluginsPanel plugins={await listPlugins()} />}
-      {tab === "agents" && <AgentsPanel agents={await listAgents()} />}
+      {tab === "agents" && <AgentsPanel agents={await listAgents()} mainAgent={{ name: loadMainAgentBase().name }} />}
       {tab === "tools" && <ToolsPanel tools={await toolRows()} />}
       {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
