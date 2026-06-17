@@ -50,6 +50,14 @@ async function main() {
   assert.strictEqual(b.permissionMode, "", "invalid permissionMode ⇒ empty");
   assert.strictEqual(b.color, "", "invalid color ⇒ empty");
 
+  // 6. saveAgent persists + getUserAgent reads back the new fields (round-trip through serializeAgent)
+  await store.saveAgent({ slug: "rt", name: "RT", description: "d", memory: "user", permissionMode: "plan", color: "pink", mcpServers: { refs: ["github"], inline: [] } });
+  const rt = (await getUserAgent("rt"))!;
+  assert.strictEqual(rt.memory, "user", "saveAgent persists memory");
+  assert.strictEqual(rt.permissionMode, "plan", "saveAgent persists permissionMode");
+  assert.strictEqual(rt.color, "pink", "saveAgent persists color");
+  assert.deepStrictEqual(rt.mcpServers.refs, ["github"], "saveAgent persists mcpServers refs");
+
   rmSync(dir, { recursive: true });
   console.log("agent-frontmatter: PASS");
 }
