@@ -9,18 +9,21 @@ import { MemoryPanel } from "./brain/MemoryPanel";
 import { PromptsPanel } from "./brain/PromptsPanel";
 import { ModelsPanel } from "./brain/ModelsPanel";
 import { ProactivityPanel } from "./brain/ProactivityPanel";
+import { AgentsPanel } from "./brain/AgentsPanel";
 
 /**
- * BRAIN — 1:1 with the desktop /brain tab set (9 tabs, same order): Memory · Skills · Tools · MCP ·
- * Prompts · Models · Growth · Forage · Proactivity. Memory, Prompts, Models, and Proactivity are
- * real on-device features (and Memory/Prompts/Proactivity edits feed the live chat via onChanged).
- * Skills / Tools / MCP / Growth / Forage need a tool-execution / LoRA / MCP runtime the phone
- * doesn't have, so they show the honest DesktopNote (Rule 4).
+ * BRAIN — matches the desktop /brain tab set: Memory · Skills · Agents · Tools · MCP · Prompts ·
+ * Models · Growth · Forage · Proactivity. Memory, Prompts, Models, and Proactivity are real
+ * on-device features (and Memory/Prompts/Proactivity edits feed the live chat via onChanged).
+ * Agents shows the real roster read-only (Leash orchestrates on-device; the specialists' tools live
+ * on a paired desktop). Skills / Tools / MCP / Growth / Forage need a tool-execution / LoRA / MCP
+ * runtime the phone doesn't have, so they show the honest DesktopNote (Rule 4).
  */
-type Tab = "memory" | "skills" | "tools" | "mcp" | "prompts" | "models" | "growth" | "forage" | "proactivity";
+type Tab = "memory" | "skills" | "agents" | "tools" | "mcp" | "prompts" | "models" | "growth" | "forage" | "proactivity";
 const TABS: { key: Tab; label: string }[] = [
   { key: "memory", label: "Memory" },
   { key: "skills", label: "Skills" },
+  { key: "agents", label: "Agents" },
   { key: "tools", label: "Tools" },
   { key: "mcp", label: "MCP" },
   { key: "prompts", label: "Prompts" },
@@ -70,6 +73,8 @@ export function BrainScreen({ onMenu, onChanged, onPair, selectChatModel, chatKe
           <ModelsPanel selectChatModel={selectChatModel} currentChatKey={chatKey} />
         ) : tab === "proactivity" ? (
           <ProactivityPanel onChanged={onChanged} onPair={onPair} />
+        ) : tab === "agents" ? (
+          <AgentsPanel onPair={onPair} />
         ) : desktop ? (
           <DesktopNote Icon={Brain} title={desktop.title} line={desktop.line} onPair={onPair} />
         ) : null}
