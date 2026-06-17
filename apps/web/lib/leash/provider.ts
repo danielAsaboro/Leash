@@ -19,6 +19,7 @@ import { createQvac } from "@qvac/ai-sdk-provider";
 import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel, type LanguageModelV2Middleware } from "ai";
 import { Agent, fetch as undiciFetch } from "undici";
 import { loopDiagnosticMiddleware, loopDebugOn } from "./loop-diagnostics.ts";
+import type { Sensitivity } from "@mycelium/leash-core/routing";
 
 /**
  * Compose the standard chat middleware: reasoning-extraction (always), and — only when
@@ -186,4 +187,46 @@ export const IMAGE_MODEL = process.env["LEASH_IMAGE_MODEL"] ?? "sd";
 /** The on-device diffusion model for the `generate_image` tool. */
 export function imageModel() {
   return qvac.imageModel(IMAGE_MODEL);
+}
+
+/**
+ * A chat model whose POST body carries the Conductor's routing directive at the TOP LEVEL so
+ * the hypha shim (shim.ts) reads `body.sensitivity` / `body.meshId` / `body.peerKey` and
+ * places the turn on the chosen peer. When `peerKey` is unset the shim uses its default
+ * availability ladder (sensitivity gate still applies).
+ *
+ * Body-field mechanism: a custom fetch wrapper that JSON-parses the outgoing body, merges
+ * the three fields, and re-stringifies before the HTTP POST. This is the only reliable path
+ * because `createQvac` → `createExternalQvac` only passes `name/baseURL/apiKey/headers/fetch`
+ * into `createOpenAICompatible` — it does NOT forward `transformRequestBody`. The wrapper
+ * reuses `patientFetch` so body/headers timeout behaviour is unchanged.
+ *
+ * Proof the fields land top-level: `shim.ts` lines ~798-807 read `body.sensitivity`,
+ * `body.peerKey`, `body.meshId` directly from the parsed JSON body passed to
+ * `POST /v1/chat/completions`. The wrapper merges them at that top-level key before the POST
+ * reaches the shim.
+ */
+export function routedChatModel(opts: { alias: string; sensitivity: Sensitivity; meshId?: string; peerKey?: string }): LanguageModel {
+  const directive: Record<string, string> = { sensitivity: opts.sensitivity };
+  if (opts.meshId) directive["meshId"] = opts.meshId;
+  if (opts.peerKey) directive["peerKey"] = opts.peerKey;
+
+  const routedFetch: typeof fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+    if (init?.body && typeof init.body === "string") {
+      try {
+        const parsed = JSON.parse(init.body) as Record<string, unknown>;
+        const merged = { ...parsed, ...directive };
+        return patientFetch(input, { ...init, body: JSON.stringify(merged) });
+      } catch {
+        /* fall through on any JSON parse error */
+      }
+    }
+    return patientFetch(input, init);
+  }) as unknown as typeof fetch;
+
+  const provider = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: routedFetch, headers: { "x-leash-priority": "interactive" } });
+  return wrapLanguageModel({
+    model: provider(opts.alias),
+    middleware: chatMiddleware("chat"),
+  });
 }

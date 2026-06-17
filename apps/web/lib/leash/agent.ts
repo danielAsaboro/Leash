@@ -26,7 +26,7 @@
 import "server-only";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { ToolLoopAgent, stepCountIs, type ToolSet } from "ai";
+import { ToolLoopAgent, stepCountIs, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import { chatModel, medpsyModel, visionModel, computerModel } from "./provider.ts";
 import { repairLeashToolCall } from "./json-repair.ts";
@@ -171,8 +171,13 @@ function continuationNudge(steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<{ to
 /**
  * Build the per-request agent over the gated+filtered registry. `prepareCall` does
  * the per-turn mapping the route used to inline around `streamText`.
+ *
+ * `overrideModel` (optional): when the Conductor selected a peer route, the route passes
+ * the pre-built `routedChatModel` here so `prepareCall` uses it for the `"chat"` lane
+ * instead of constructing a plain `chatModel(...)`. Ignored for vision/computer/health
+ * routes — those always use their dedicated models.
  */
-export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean): ToolLoopAgent<LeashCallOptions, ToolSet> {
+export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, overrideModel?: LanguageModel): ToolLoopAgent<LeashCallOptions, ToolSet> {
   const names = Object.keys(tools);
   // Per-request closure: the call's assembled system prompt, captured in prepareCall so prepareStep can
   // re-emit it (prepareStep's `system` override REPLACES the system for that step — we must re-include
@@ -195,7 +200,9 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean): To
       currentRoute = options.route;
       return {
         ...settings,
-        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : chatModel("chat", options.model),
+        // For the "chat" route, prefer the Conductor's pre-built routedChatModel (peer directive)
+        // when provided; otherwise fall back to the user-chosen or default chatModel.
+        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : (overrideModel ?? chatModel("chat", options.model)),
         instructions: options.system,
         activeTools,
         // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision

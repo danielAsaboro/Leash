@@ -12,8 +12,10 @@
  */
 import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
-import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias } from "../../../../lib/leash/provider.ts";
+import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
+import { conduct } from "../../../../lib/leash/conductor.ts";
+import { tagsForAlias, type RouteOption } from "@mycelium/leash-core/routing";
 import { leashTools } from "../../../../lib/leash/tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
 import { skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
@@ -138,6 +140,62 @@ function isFilesIntent(messages: LeashUIMessage[]): boolean {
   return FILES_RE.test(lastUserText(messages));
 }
 
+/** Hypha daemon base URL (same base used by hypha.ts, economy.server.ts, etc.). */
+const HYPHA_BASE = process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11437";
+
+/**
+ * Build RouteOption[] from the live hypha daemon for the Conductor's pre-pass.
+ *
+ * - Peers come from `GET /peers` (each row has `providerKey` = full key, `models` = alias names,
+ *   `inflight`, `pricePerKiloToken?`, `meshId?`). LOCAL device is NOT in /peers — its aliases
+ *   come from `GET /health` (`warmAliases[]`).
+ * - Returns [] on ANY failure (network error, daemon down) so the route is always offline-capable.
+ */
+async function fetchRouteOptions(): Promise<RouteOption[]> {
+  try {
+    type PeerRow = { providerKey?: string; models?: string[]; inflight?: number; pricePerKiloToken?: number; meshId?: string };
+    type HealthBody = { warmAliases?: string[] };
+
+    const [peersRes, healthRes] = await Promise.all([
+      fetch(`${HYPHA_BASE}/peers`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
+      fetch(`${HYPHA_BASE}/health`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
+    ]);
+
+    const options: RouteOption[] = [];
+
+    // Local device — warmAliases from /health as tier "device", price 0
+    if (healthRes.ok) {
+      const hb = (await healthRes.json()) as HealthBody;
+      for (const alias of hb.warmAliases ?? []) {
+        options.push({ tier: "device", alias, tags: tagsForAlias(alias), pricePerKiloToken: 0, inflight: 0 });
+      }
+    }
+
+    // Peers — each row's full providerKey is the pin key the shim expects
+    if (peersRes.ok) {
+      const pb = (await peersRes.json()) as { peers?: PeerRow[] };
+      for (const row of pb.peers ?? []) {
+        if (!row.providerKey) continue;
+        for (const alias of row.models ?? []) {
+          options.push({
+            tier: "private",
+            alias,
+            tags: tagsForAlias(alias),
+            peerKey: row.providerKey,
+            ...(row.meshId ? { meshId: row.meshId } : {}),
+            pricePerKiloToken: row.pricePerKiloToken ?? 0,
+            inflight: row.inflight ?? 0,
+          });
+        }
+      }
+    }
+
+    return options;
+  } catch {
+    return [];
+  }
+}
+
 /** Step budget for computer-use turns — a GUI loop is screenshot → act → screenshot → verify. */
 const COMPUTER_STEPS = 10;
 /** Step budget for files turns — a retrieval loop is grep → read → grep → answer. */
@@ -229,7 +287,23 @@ export async function POST(req: Request): Promise<Response> {
   const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);
   // The model actually driving this turn (for telemetry) — chat uses the user-chosen alias, else the
   // configured default; NOT the hardcoded CHAT_MODEL (which is just the last-resort fallback).
-  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : chosenModel ?? resolvedChatAlias();
+  // Conductor: for the generalist chat lane (not image/computer/health) we run the Conductor to pick
+  // the best available route (local vs. peer). Specialist routes keep their dedicated models — the
+  // Conductor only overrides the generalist chat model selection.
+  const defaultAlias = chosenModel ?? resolvedChatAlias();
+  // fetchRouteOptions returns [] on failure — Conductor then falls back to local (always offline-safe).
+  const conductorOptions = await fetchRouteOptions();
+  const conductorDecision = await conduct({ text: lastUserText(validated), isImageTurn: imageTurn, options: conductorOptions, defaultAlias });
+  console.log(`leash[conductor]: route=${conductorDecision.route.tier}/${conductorDecision.route.alias} sensitivity=${conductorDecision.sensitivity} reason="${conductorDecision.reason}"`);
+  // Vision hard-rule: image turns ALWAYS use the vision VLM regardless of the Conductor decision.
+  // Specialist routes (computer, health) keep their dedicated models.
+  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : conductorDecision.route.alias || defaultAlias;
+  // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
+  // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
+  const conductorModel =
+    !imageTurn && !computerTurn && !health && conductorDecision.route.peerKey
+      ? routedChatModel({ alias: activeModel, sensitivity: conductorDecision.sensitivity, ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), peerKey: conductorDecision.route.peerKey })
+      : undefined;
 
   // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
   // job is to call `submit_plan` (approval-gated → the Plan card); on approval its `execute` runs the
@@ -416,7 +490,7 @@ export async function POST(req: Request): Promise<Response> {
   // completion server-side (bounded by the tier's maxOutputTokens) and the next turn
   // queues briefly behind it — slow beats dead. Messages are compacted for the model
   // (summary + recent tail); the full thread is still saved via `originalMessages`.
-  const agent = buildLeashAgent(enabledTools, () => interjectRequested(id));
+  const agent = buildLeashAgent(enabledTools, () => interjectRequested(id), conductorModel);
   const callOptions: LeashCallOptions = {
     route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : health ? "health" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
