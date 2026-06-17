@@ -1,0 +1,52 @@
+---
+title: "Known issues & honest limitations"
+description: "What does not work, what is partial, and what is pending — stated plainly, because the judging framework rewards transparency."
+sidebarTitle: "Known issues"
+---
+
+The QVAC Hackathon judges on transparency and honesty. This page is the single place where we
+state, plainly, what is **not** working, what is **partial**, and what is **pending**. Nothing on
+the other pages or in the demo claims a capability that contradicts this list.
+
+## Does not work (yet)
+
+- **Cross-mesh vision (image delegation).** On a single device, `qwen3vl` vision works. What does
+  **not** work is borrowing a peer's GPU for an *image* turn: the SDK's `attachments` are
+  **path-only** and the path is resolved on the **provider**, which cannot read the consumer's local
+  image file. So only **text/chat** is borrowable across the P2P mesh; vision stays **local-only**.
+  Tracked in `apps/hypha/src/model-type.ts`. (Text delegation, RAG, and voice are unaffected.)
+
+## Partial
+
+- **Computer-use mesh delegation.** Local computer-use (screenshot, file read/write/edit, shell,
+  `cliclick`, all jailed + approval-gated) works. Routing the computer-use model to a peer
+  (`LEASH_COMPUTER_MODEL` on the Pro) is wired but has not been hardened in a live two-Mac run.
+- **Delegated-compute economy.** Off by default (`HYPHA_ECONOMY_ENABLED=0`). When enabled it
+  settles against a **local anvil fork**, not a public chain. It is a metering/trust mechanism for
+  **personal-device P2P delegation**, not a hosted compute service.
+
+## Pending verification before final submission
+
+- **Airplane-mode acceptance re-run.** "Works in airplane mode" is our release gate. It was proven
+  in Week 1; it must be **re-run on the final build** and the clean session log attached before we
+  call it done. Until that re-run, we describe it as *expected to pass*, not *passing*.
+- **Repository visibility.** The code is pushed and current on `github.com/danielAsaboro/Leash`;
+  the repo must be **made public** before judging (it is the one remaining hard-gate action).
+
+## Resolved (previously reported broken)
+
+These were broken earlier in the build and are now fixed — listed so older notes that still say
+"broken" are not mistaken for current state:
+
+- **TTS (`supertonic`)** — now works on-device (fixed 2026-06-16, `@qvac/sdk` ≥ 0.12.2).
+- **On-device vision (single device)** — works end-to-end via the image-attachment path (the
+  *cross-mesh* case above is the remaining limitation, not local vision).
+- **Repo push** — local `main` is fully pushed (`origin/main`); only the public-visibility flip
+  remains.
+
+## Working (for contrast)
+
+On-device chat, embeddings, RAG (grounded + cited), STT (`parakeet`), TTS (`supertonic`), local
+vision (`qwen3vl`), image generation (Stable Diffusion), on-device LoRA (QVAC Fabric), the
+encrypted P2P **text** delegation + KV-cache reuse, the CRDT context graph, the mobile app on an
+iPhone 12 Pro Max, and the MedPsy health-record RAG workflow.

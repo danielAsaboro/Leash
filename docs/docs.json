@@ -372,7 +372,9 @@
           "hackathon/design-decisions",
           "hackathon/qvac-only-proof",
           "hackathon/network-disclosure",
-          "hackathon/evidence-and-reproducibility"
+          "hackathon/evidence-and-reproducibility",
+          "hackathon/medpsy-workflow",
+          "hackathon/known-issues"
         ]
       }
     ]

@@ -1,0 +1,87 @@
+---
+title: "MedPsy health-record RAG (Psy Models track)"
+description: "A real specialized-model workflow: MedGemma answers grounded in your private health records, with citations, claim-verification, a non-diagnostic disclaimer, and emergency escalation — fully on-device."
+sidebarTitle: "MedPsy workflow"
+---
+
+The Psy Models track asks for **strong use of a specialized health model**, not a keyword
+model-swap. MedPsy is a genuine clinical-adjacent workflow built on the **MedGemma 4B** model
+(the `medpsy` alias) — and it runs entirely on-device through `@qvac/sdk`, with **zero cloud calls**.
+
+## What it does
+
+A **retrieve-then-read** RAG consult specialized for personal health:
+
+1. **Ingest** your private health records — notes, lab panels, medications, allergies, visit
+   summaries — into a dedicated `health-records` RAG workspace (gte-large embeddings, on-device).
+2. **Retrieve** the relevant records for the question (the same `search_graph` backend the Mind
+   council uses). We retrieve up front rather than waiting for the model to elect a tool call —
+   for a health-record domain we *always* want the records, which also makes grounding robust.
+3. **Answer** with MedGemma, grounded strictly in the retrieved records, citing each claim as
+   `[Source N]` and never inventing a value that isn't in the records.
+4. **Verify** the answer's claims against the sources with a second critic pass.
+5. **Safety-wrap**: a non-diagnostic clinician disclaimer is *guaranteed* on every answer, and an
+   emergency / red-flag question (chest pain, trouble breathing, stroke signs, suicidal thoughts…)
+   prepends an urgent-care escalation banner.
+
+Implementation: `packages/mind/src/medpsy.ts` (`runMedPsyConsult`), composed from the
+`packages/senses` RAG layer and the council's critic (`packages/mind/src/critic.ts`).
+
+## Run it
+
+```bash
+npm run medpsy:demo
+```
+
+This ingests the synthetic health-record fixtures in `spike/fixtures/health-records/`, loads
+MedGemma + gte-large, runs a grounded consult and an emergency consult, and writes an audit log to
+`packages/mind/logs/medpsy-demo.jsonl`. The records are synthetic fixtures; the inference,
+embeddings, RAG retrieval, and verification are all real on-device `@qvac/sdk` calls.
+
+## Real run output (2026-06-17, Apple-Silicon, Metal)
+
+Grounded question — *"What were my most recent cholesterol numbers, are they improving, and should
+I be worried?"* — answered from the records, with citations and the actual values:
+
+```
+📁 Ingested 4 health records → 10 chunks in workspace "mycelium-health-records".
+📝 · rag_search  model=GTE_LARGE_FP16  dur=28ms
+
+My most recent cholesterol numbers were:
+*   Total cholesterol: 214 mg/dL
+*   LDL cholesterol: 139 mg/dL
+*   HDL cholesterol: 48 mg/dL
+*   Triglycerides: 156 mg/dL
+My LDL cholesterol is still above the optimal target of less than 100 mg/dL. [Source 1] ...
+My cholesterol numbers are improving compared to six months ago ... [Source 1]
+I should discuss a statin with Dr. Okafor if my LDL stays above 130 mg/dL ... [Source 2]
+I am not a substitute for a licensed clinician.
+
+sources=3 · cited=true · verdict=pass · disclaimer=true · usesRecordValue=true
+✅ grounded in records, cited, verified, disclaimer present.
+```
+
+Emergency question — *"I've had crushing chest pain and shortness of breath for the last 20
+minutes — what should I do?"*:
+
+```
+⚠️ If this is a medical emergency, call your local emergency number or seek urgent care now...
+You are experiencing crushing chest pain and shortness of breath, which are serious symptoms.
+I would strongly recommend seeking urgent medical care immediately.
+
+redFlag=true · escalated=true
+✅ emergency escalation fired.
+```
+
+Every line above has a matching record in `packages/mind/logs/medpsy-demo.jsonl`
+(`rag_ingest`, `rag_search`, `completion`, `note`) — see the
+[audit-log reference](/reference/audit-log).
+
+## Why this is "strong use"
+
+- The model is a **medical specialist** (MedGemma), not the general chat model with a prompt suffix.
+- The answer is **grounded in the user's own records** and **cited**, then **independently
+  verified** — the failure mode a single small model can't self-catch.
+- Safety is **structural**, not hoped-for: the disclaimer is always present and emergencies escalate.
+- It is **private and offline** — the records never leave the device, and after warm-cache the whole
+  consult runs in airplane mode.
