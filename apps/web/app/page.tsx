@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { LeashMark } from "../components/LeashMark.tsx";
 import { AppEmbed } from "../components/landing/AppEmbed.tsx";
 import { WaitlistForm } from "../components/landing/WaitlistForm.tsx";
 
@@ -49,7 +49,7 @@ export default function Landing() {
       {/* Masthead nav */}
       <header className="landing-topbar">
         <a href="#top" className="landing-brand" aria-label="Leash">
-          <LeashMark className="landing-brand-mark" cutoutColor="var(--color-ink)" />
+          <Image src="/icon-512.png" alt="" width={32} height={32} className="landing-brand-mark" priority />
           <span className="landing-brand-word">Leash</span>
         </a>
         <nav className="landing-topnav">

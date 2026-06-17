@@ -1,8 +1,8 @@
 "use client";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { LeashMark } from "./LeashMark.tsx";
 import { siteHome } from "../lib/site.ts";
 
 /**
@@ -175,7 +175,7 @@ export function LeashRail() {
         title={external ? "useleash.xyz" : "Leash home"}
         aria-label="Leash home"
       >
-        <LeashMark className="leash-rail-mark-icon" cutoutColor="var(--color-ink)" />
+        <Image src="/icon-512.png" alt="" width={40} height={40} className="leash-rail-mark-icon" priority />
       </a>
 
       <div className="leash-rail-nav">
