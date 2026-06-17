@@ -63,6 +63,8 @@ export interface Agent {
   maxTurns: number;
   /** Enabled — user agents: frontmatter (`enabled: false` to disable); plugin agents: the plugin row. */
   enabled: boolean;
+  /** Ships with the app (frontmatter `builtin: true`) vs. user-created. Mirrors builtin skills. */
+  builtin: boolean;
 }
 
 /** A clamped, sane `max-turns:` value (default when absent / unparseable). */
@@ -99,6 +101,7 @@ function buildAgent(slug: string, source: "user" | "plugin", pluginId: string, f
     maxTurns: parseMaxTurns(fields["max-turns"] ?? fields["maxturns"]),
     // User: enabled unless explicitly false. Plugin: the surfacer overrides with the plugin row's bit.
     enabled: fields["enabled"] !== "false",
+    builtin: fields["builtin"] === "true",
   };
 }
 
@@ -119,9 +122,10 @@ function parseUserAgent(slug: string, raw: string): Agent | null {
   return buildAgent(slug, "user", "", split.fields, split.body);
 }
 
-function serializeAgent(a: Pick<Agent, "name" | "description" | "body" | "model" | "tools" | "disallowedTools" | "skills" | "maxTurns" | "enabled">): string {
+function serializeAgent(a: Pick<Agent, "name" | "description" | "body" | "model" | "tools" | "disallowedTools" | "skills" | "maxTurns" | "enabled" | "builtin">): string {
   const oneLine = (v: string): string => v.replace(/\s+/g, " ").trim();
   let fm = `name: ${oneLine(a.name)}\ndescription: ${oneLine(a.description)}\nenabled: ${a.enabled}\n`;
+  if (a.builtin) fm += `builtin: true\n`;
   if (a.model) fm += `model: ${a.model}\n`;
   if (a.tools.length) fm += `tools: ${a.tools.join(", ")}\n`;
   if (a.disallowedTools.length) fm += `disallowed-tools: ${a.disallowedTools.join(", ")}\n`;
@@ -167,6 +171,7 @@ export async function saveAgent(input: {
   skills?: string[];
   maxTurns?: number;
   enabled?: boolean;
+  builtin?: boolean;
 }): Promise<Agent> {
   const slug = input.slug?.trim() || slugify(input.name);
   if (!USER_AGENT_SLUG_RE.test(slug)) throw new Error(`invalid agent slug "${slug}"`);
@@ -181,6 +186,7 @@ export async function saveAgent(input: {
     skills: input.skills ?? [],
     maxTurns: input.maxTurns ? parseMaxTurns(String(input.maxTurns)) : DEFAULT_AGENT_MAX_TURNS,
     enabled: input.enabled ?? true,
+    builtin: input.builtin ?? false,
   };
   await mkdir(AGENTS_DIR, { recursive: true });
   await writeFile(join(AGENTS_DIR, `${slug}.md`), serializeAgent(a));
