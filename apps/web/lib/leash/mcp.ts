@@ -366,3 +366,15 @@ export async function mcpToolIcons(): Promise<Record<string, string>> {
   for (const conn of registry.connections.values()) Object.assign(out, conn.toolIcons ?? {});
   return out;
 }
+
+/** Tool names belonging to the given MCP server NAMES (already-connected servers only). */
+export async function mcpToolNamesForServers(names: string[]): Promise<string[]> {
+  if (!names.length) return [];
+  await reconcile();
+  const want = new Set(names.map((n) => n.trim().toLowerCase()));
+  const out: string[] = [];
+  for (const conn of registry.connections.values()) {
+    if (want.has(conn.entry.name.trim().toLowerCase())) out.push(...conn.toolNames);
+  }
+  return out;
+}

@@ -25,6 +25,8 @@ import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
 import { getSkill } from "./skills-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { Agent } from "./agents-store.ts";
+import { mcpToolNamesForServers } from "./mcp.ts";
+import { grantedNames } from "./agent-grants.ts";
 
 /** Max agent tools emitted at once — each is one schema; cap keeps the active toolset under budget. */
 const AGENT_TOOLS_CAP = 8;
@@ -59,6 +61,14 @@ async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: Too
     if (NO_NEST.has(n) || n.startsWith("agent__") || !registry[n] || off.has(n) || denied.has(n)) continue;
     if (await toolNeedsApproval(n)) continue; // subagents can't pause on a human approval card (AI SDK caveat)
     names.push(n);
+  }
+  if (agent.mcpServers.refs.length) {
+    const serverToolNames = await mcpToolNamesForServers(agent.mcpServers.refs);
+    const chosen = new Set(names);
+    for (const n of grantedNames(serverToolNames, new Set(Object.keys(registry)), chosen, denied)) {
+      if (await toolNeedsApproval(n)) continue; // delegates still can't use approval-gated tools
+      names.push(n);
+    }
   }
   const tools: ToolSet = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
   return { tools, names };
