@@ -45,6 +45,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ slug: st
       skills: body.skills ?? existing.skills,
       maxTurns: body.maxTurns ?? existing.maxTurns,
       enabled: body.enabled ?? existing.enabled,
+      builtin: existing.builtin,
     });
     return Response.json({ agent });
   } catch (err) {

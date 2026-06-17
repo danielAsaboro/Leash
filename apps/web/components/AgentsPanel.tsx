@@ -31,6 +31,7 @@ interface Agent {
   skills: string[];
   maxTurns: number;
   enabled: boolean;
+  builtin: boolean;
 }
 
 interface Draft {
@@ -61,7 +62,7 @@ const draftFrom = (a: Agent): Draft => ({
   maxTurns: a.maxTurns ? String(a.maxTurns) : "",
 });
 
-export function AgentsPanel({ agents }: { agents: Agent[] }) {
+export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent: { name: string } }) {
   const router = useRouter();
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [draft, setDraft] = useState<Draft>(EMPTY);
@@ -69,13 +70,13 @@ export function AgentsPanel({ agents }: { agents: Agent[] }) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<Visibility>("all");
 
-  // Agents have no "built-in" source — "built-in" maps to PLUGIN-provided (read-only), "custom" to USER-created.
+  const isBuiltin = (a: Agent) => a.builtin || a.source === "plugin";
   const counts: Record<Visibility, number> = {
     all: agents.length,
-    builtin: agents.filter((a) => a.source === "plugin").length,
-    custom: agents.filter((a) => a.source === "user").length,
+    builtin: agents.filter(isBuiltin).length,
+    custom: agents.filter((a) => !isBuiltin(a)).length,
   };
-  const visible = agents.filter((a) => (filter === "all" ? true : filter === "builtin" ? a.source === "plugin" : a.source === "user"));
+  const visible = agents.filter((a) => (filter === "all" ? true : filter === "builtin" ? isBuiltin(a) : !isBuiltin(a)));
 
   const call = async (fn: () => Promise<Response>): Promise<boolean> => {
     setBusy(true);
@@ -237,12 +238,18 @@ export function AgentsPanel({ agents }: { agents: Agent[] }) {
           <span className="kicker" style={{ color: "var(--color-faint)" }}>
             one tool per enabled agent
           </span>
-          <VisibilityFilter value={filter} onChange={setFilter} builtinLabel="Plugin" customLabel="User" counts={counts} />
+          <VisibilityFilter value={filter} onChange={setFilter} builtinLabel="Built-in" customLabel="Custom" counts={counts} />
           <IconButton title="New subagent" color="var(--color-sage-deep)" onClick={() => { setEditing("new"); setDraft(EMPTY); }}>
             <PlusIcon size={16} />
           </IconButton>
         </div>
       )}
+
+      <div className="border p-3" style={{ borderColor: "var(--color-rule-strong)" }}>
+        <p className="kicker" style={{ color: "var(--color-muted)" }}>Main orchestrator</p>
+        <p style={{ fontFamily: "var(--font-body)" }}>{mainAgent.name}</p>
+        <p className="kicker" style={{ color: "var(--color-faint)" }}>Always on — routes to the specialists below when a request is outside its strength.</p>
+      </div>
 
       {agents.length === 0 && editing === null ? (
         <p className="kicker py-6 text-center" style={{ color: "var(--color-faint)" }}>
@@ -250,7 +257,7 @@ export function AgentsPanel({ agents }: { agents: Agent[] }) {
         </p>
       ) : visible.length === 0 && editing === null ? (
         <p className="kicker py-6 text-center" style={{ color: "var(--color-faint)" }}>
-          No {filter === "builtin" ? "plugin" : "user"} subagents.
+          No {filter === "builtin" ? "built-in" : "custom"} subagents.
         </p>
       ) : (
         <ul>
