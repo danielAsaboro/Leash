@@ -49,4 +49,11 @@ if (existsSync(join(web, "builtin-skills"))) {
   cpSync(join(web, "builtin-skills"), join(dst, "builtin-skills"), { recursive: true });
 }
 
-console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + built-in skills into the standalone bundle");
+// 5. the committed built-in agents — same rationale as the skills above: data, not imported, so Next
+//    standalone never traces them. Without this the chat route can't read leash.md in the packaged app
+//    and silently falls back to the hardcoded default prompt.
+if (existsSync(join(web, "builtin-agents"))) {
+  cpSync(join(web, "builtin-agents"), join(dst, "builtin-agents"), { recursive: true });
+}
+
+console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + built-in skills + built-in agents into the standalone bundle");

@@ -15,8 +15,11 @@ export interface MainAgentBase {
 const FALLBACK: MainAgentBase = { body: DEFAULT_LEASH_SYSTEM, model: "", name: "Leash" };
 
 const here = dirname(fileURLToPath(import.meta.url));
-// apps/web/lib/leash → apps/web/builtin-agents/leash.md
-const DEFAULT_LEASH_MD = join(here, "..", "..", "builtin-agents", "leash.md");
+// In the packaged standalone build the bundled route module can't resolve the source tree, so
+// server-launch.mjs injects LEASH_BUILTIN_AGENTS_DIR. Dev/tsx/tests fall back to the source-relative
+// path (apps/web/lib/leash → apps/web/builtin-agents).
+const BUILTIN_AGENTS_DIR = process.env["LEASH_BUILTIN_AGENTS_DIR"] ?? join(here, "..", "..", "builtin-agents");
+const DEFAULT_LEASH_MD = join(BUILTIN_AGENTS_DIR, "leash.md");
 
 /**
  * Load the static base (prompt + model + name) for the main Leash agent from leash.md.
