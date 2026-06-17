@@ -7,7 +7,10 @@
 import {
   downloadAsset,
   getModelInfo,
+  QWEN3_600M_INST_Q4,
   QWEN3_1_7B_INST_Q4,
+  QWEN3_4B_INST_Q4_K_M,
+  LLAMA_3_2_1B_INST_Q4_0,
   WHISPER_EN_SMALL_Q8_0,
   TTS_EN_SUPERTONIC_Q8_0,
   type ModelProgressUpdate,
@@ -79,4 +82,48 @@ export function fmtBytes(n: number | null): string {
 
 export function stateLabel(s: ModelState): string {
   return s === "loaded" ? "LOADED" : s === "cached" ? "READY" : s === "not-downloaded" ? "NOT DOWNLOADED" : "—";
+}
+
+/** A selectable on-device chat model (the user picks one; only one is loaded at a time). */
+export type ChatModelEntry = {
+  /** Stable key persisted as the user's choice. */
+  chatKey: string;
+  alias: string;
+  label: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  assetSrc: any;
+  name: string;
+};
+
+/** Curated phone-runnable chat models. Default (qwen3-1.7b) keeps today's behavior on a fresh install. */
+export const CHAT_MODELS: ChatModelEntry[] = [
+  { chatKey: "qwen3-0.6b", alias: "qwen3-0.6b", label: "Qwen3 · 0.6B", assetSrc: QWEN3_600M_INST_Q4, name: (QWEN3_600M_INST_Q4 as any).name },
+  { chatKey: "qwen3-1.7b", alias: "qwen3-1.7b", label: "Qwen3 · 1.7B", assetSrc: QWEN3_1_7B_INST_Q4, name: (QWEN3_1_7B_INST_Q4 as any).name },
+  { chatKey: "qwen3-4b", alias: "qwen3-4b", label: "Qwen3 · 4B", assetSrc: QWEN3_4B_INST_Q4_K_M, name: (QWEN3_4B_INST_Q4_K_M as any).name },
+  { chatKey: "llama-1b", alias: "llama-3.2-1b", label: "Llama 3.2 · 1B", assetSrc: LLAMA_3_2_1B_INST_Q4_0, name: (LLAMA_3_2_1B_INST_Q4_0 as any).name },
+];
+
+export const DEFAULT_CHAT_KEY = "qwen3-1.7b";
+
+/** Resolve a chat-model entry by key, falling back to the default (never undefined). */
+export function chatEntry(key: string | null | undefined): ChatModelEntry {
+  return CHAT_MODELS.find((m) => m.chatKey === key) ?? CHAT_MODELS.find((m) => m.chatKey === DEFAULT_CHAT_KEY)!;
+}
+
+export type ChatModelStatus = ChatModelEntry & { state: ModelState; sizeBytes: number | null };
+
+/** Probe each chat model's live state (loaded/cached/not-downloaded), reusing the SDK getModelInfo path. */
+export async function listChatModels(): Promise<ChatModelStatus[]> {
+  return Promise.all(
+    CHAT_MODELS.map(async (entry): Promise<ChatModelStatus> => {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const info: any = await getModelInfo({ name: entry.name } as any);
+        const state: ModelState = info?.isLoaded ? "loaded" : info?.isCached ? "cached" : "not-downloaded";
+        return { ...entry, state, sizeBytes: info?.actualSize ?? info?.expectedSize ?? null };
+      } catch {
+        return { ...entry, state: "unknown", sizeBytes: null };
+      }
+    }),
+  );
 }

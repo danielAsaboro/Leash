@@ -63,6 +63,8 @@ import {
   unloadModel,
   VERBOSITY,
 } from "@qvac/sdk";
+import { CHAT_MODELS, chatEntry, DEFAULT_CHAT_KEY } from "./modelsInventory";
+import { getSelectedChatKey, setSelectedChatKey } from "./selectedModel";
 
 import { C, F, TRACKING_LABEL } from "./theme";
 import { LeashMark } from "./LeashMark";
@@ -94,7 +96,7 @@ const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
  * Requires a PHYSICAL device — llamacpp does not run on the iOS simulator / Android emulator.
  */
 
-const MODEL_LABEL = "Qwen3 · 1.7B";
+// MODEL_LABEL removed — replaced by dynamic chatKey state + chatEntry(chatKey).label below.
 
 /**
  * Compose the chat system message from the user's Brain edits — the persisted System prompt
@@ -168,6 +170,10 @@ export default function App(): React.JSX.Element {
   const [status, setStatus] = useState("Waking the press…");
   const [progress, setProgress] = useState<number | null>(null);
   const [booting, setBooting] = useState(true);
+
+  // Dynamic chat model — driven by the user's saved choice (or the default on fresh install).
+  const [chatKey, setChatKey] = useState<string>(DEFAULT_CHAT_KEY);
+  const modelLabel = chatEntry(chatKey).label;
 
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -244,15 +250,21 @@ export default function App(): React.JSX.Element {
   // membership and replicates tasks in the background (lazy init covers first use too). Fire-and-forget.
   useEffect(() => { void initMesh().catch(() => {}); }, []);
 
-  // Download + load the model once on mount.
+  // Shared config object for all loadModel calls (mount + selectChatModel switch). Never drift.
+  const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
+
+  // Download + load the model once on mount (using the user's saved chat model choice).
   useEffect(() => {
     let cancelled = false;
     let didDownload = false;
     (async () => {
       try {
+        const savedKey = await getSelectedChatKey();
+        const entry = chatEntry(savedKey);
+        setChatKey(entry.chatKey);
         setStatus("Fetching the model");
         await downloadAsset({
-          assetSrc: QWEN3_1_7B_INST_Q4,
+          assetSrc: entry.assetSrc,
           onProgress: (p: ModelProgressUpdate) => {
             if (p.percentage < 100) didDownload = true;
             if (!cancelled) setProgress(Math.round(p.percentage));
@@ -263,9 +275,8 @@ export default function App(): React.JSX.Element {
         setStatus("Loading into memory");
         setProgress(null);
         const id = await loadModel({
-          modelSrc: QWEN3_1_7B_INST_Q4,
-          modelType: "llm",
-          modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR },
+          modelSrc: entry.assetSrc,
+          ...LLM_CONFIG,
           onProgress: (p: ModelProgressUpdate) => {
             if (!cancelled) setProgress(Math.round(p.percentage));
           },
@@ -281,7 +292,7 @@ export default function App(): React.JSX.Element {
         if (didDownload) {
           void addNotification({
             title: "Model ready",
-            body: `${MODEL_LABEL} finished downloading and is loaded on-device.`,
+            body: `${entry.label} finished downloading and is loaded on-device.`,
             why: "First run fetches the GGUF weights once; it now runs fully offline.",
             tier: "auto",
           });
@@ -300,6 +311,7 @@ export default function App(): React.JSX.Element {
       const id = modelIdRef.current;
       if (id) void unloadModel({ modelId: id, clearStorage: false }).catch(() => {});
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Pre-warm Whisper once the chat model is up, so the first mic tap transcribes
@@ -469,6 +481,42 @@ export default function App(): React.JSX.Element {
     setMeshStatus("checking");
     void pingProvider(providerKey).then((ok) => setMeshStatus(ok ? "online" : "offline"));
   }, [providerKey]);
+
+  // Failure-safe chat model switch — unloads the current model, downloads+loads the new one,
+  // restores the previous on failure so the app is never left without a working chat model.
+  const switchingRef = useRef(false);
+  const selectChatModel = useCallback(async (key: string, onProgress?: (pct: number) => void): Promise<void> => {
+    if (switchingRef.current) return;
+    if (isGenerating) { Alert.alert("Busy", "Finish the current reply before switching models."); return; }
+    const target = chatEntry(key);
+    if (target.chatKey === chatKey) return;
+    switchingRef.current = true;
+    const prev = chatEntry(chatKey);
+    const prevId = modelIdRef.current;
+    try {
+      if (prevId) { try { await unloadModel({ modelId: prevId, clearStorage: false }); } catch { /* continue */ } }
+      modelIdRef.current = null;
+      setModelId(null);
+      await downloadAsset({ assetSrc: target.assetSrc, onProgress: (p: ModelProgressUpdate) => onProgress?.(Math.round(p.percentage)) });
+      const id = await loadModel({ modelSrc: target.assetSrc, ...LLM_CONFIG });
+      modelIdRef.current = id;
+      setModelId(id);
+      setChatKey(target.chatKey);
+      await setSelectedChatKey(target.chatKey);
+    } catch (e) {
+      // Failure-safe: restore the previous model so the app is never left without a chat model.
+      try {
+        await downloadAsset({ assetSrc: prev.assetSrc });
+        const id = await loadModel({ modelSrc: prev.assetSrc, ...LLM_CONFIG });
+        modelIdRef.current = id;
+        setModelId(id);
+        setChatKey(prev.chatKey);
+      } catch { /* leave refs null; mount-style recovery on next launch */ }
+      Alert.alert("Couldn't switch model", e instanceof Error ? e.message : String(e));
+    } finally {
+      switchingRef.current = false;
+    }
+  }, [chatKey, isGenerating]);
 
   const runCompletion = useCallback(
     async (
@@ -816,7 +864,7 @@ export default function App(): React.JSX.Element {
             <View style={styles.statusLeft}>
               <View style={[styles.dot, { backgroundColor: modelId ? C.sage : C.faint }]} />
               <Text style={styles.kicker}>
-                {modelId ? MODEL_LABEL : status}
+                {modelId ? modelLabel : status}
                 {progress != null ? ` · ${progress}%` : ""}
               </Text>
             </View>
@@ -954,7 +1002,7 @@ export default function App(): React.JSX.Element {
       ) : route === "home" ? (
         <HomeScreen
           onMenu={() => setDrawerOpen(true)}
-          modelLabel={MODEL_LABEL}
+          modelLabel={modelLabel}
           modelReady={!!modelId}
           meshOn={meshOnRef.current}
           meshLive={meshStatus === "online"}
@@ -980,12 +1028,12 @@ export default function App(): React.JSX.Element {
           onToggle={onToggleMesh}
           onPair={onPair}
           onPing={onPing}
-          selfNote={`this device · consumer · ${MODEL_LABEL.toLowerCase()}`}
+          selfNote={`this device · consumer · ${modelLabel.toLowerCase()}`}
         />
       ) : route === "settings" ? (
         <SettingsScreen
           onMenu={() => setDrawerOpen(true)}
-          modelLabel={MODEL_LABEL}
+          modelLabel={modelLabel}
           onGoMesh={() => setRoute("mesh")}
           onClearedConversations={() => newChat()}
           deviceName={SELF_DEVICE}
@@ -996,7 +1044,7 @@ export default function App(): React.JSX.Element {
           }}
         />
       ) : route === "brain" ? (
-        <BrainScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshBrain} onPair={() => setRoute("mesh")} />
+        <BrainScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshBrain} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
       ) : route === "tasks" ? (
         <TasksScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
       ) : route === "alerts" ? (
@@ -1008,7 +1056,7 @@ export default function App(): React.JSX.Element {
           mesh={{ on: meshOnRef.current, providerName, providerKey, status: meshStatus }}
         />
       ) : route === "services" ? (
-        <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+        <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
       ) : (
         <DesktopScreen route={route as DesktopRoute} onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
       )}
