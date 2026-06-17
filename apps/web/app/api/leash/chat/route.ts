@@ -307,8 +307,22 @@ export async function POST(req: Request): Promise<Response> {
   // Conductor only overrides the generalist chat model selection.
   const defaultAlias = chosenModel ?? resolvedChatAlias();
   // fetchRouteOptions returns [] on failure — Conductor then falls back to local (always offline-safe).
-  const conductorOptions = await fetchRouteOptions();
-  const conductorDecision = await conduct({ text: lastUserText(validated), isImageTurn: imageTurn, options: conductorOptions, defaultAlias });
+  let conductorDecision;
+  try {
+    const conductorOptions = await fetchRouteOptions();
+    conductorDecision = await conduct({ text: lastUserText(validated), isImageTurn: imageTurn, options: conductorOptions, defaultAlias });
+  } catch (err) {
+    console.error("leash[conductor]: error in fetchRouteOptions/conduct, falling back to local:", err);
+    // Fallback: local device route, private sensitivity (safe default), no fast-path.
+    conductorDecision = {
+      modality: "text" as const,
+      sensitivity: "private" as const,
+      bar: { modality: "text", minParamClass: "small" },
+      route: { tier: "device" as const, alias: defaultAlias },
+      reason: "conductor error → local fallback",
+      viaFastPath: false,
+    };
+  }
   console.log(`leash[conductor]: route=${conductorDecision.route.tier}/${conductorDecision.route.alias} sensitivity=${conductorDecision.sensitivity} reason="${conductorDecision.reason}"`);
   // Audit record — skip fast-path trivial turns to avoid noise; delegation events are always logged.
   if (!conductorDecision.viaFastPath) {
