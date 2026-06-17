@@ -66,10 +66,12 @@ preloaded `skills`. `tools:` allow-lists are finalized at implementation against
 
 | File | `name` | `model:` | `skills:` | `description:` (delegation trigger) |
 |---|---|---|---|---|
-| `health.md` | Health | `medpsy` | `context-grounding` | Medical, health, symptom, medication, and mental-health/wellbeing questions. |
-| `researcher.md` | Researcher | *(empty ⇒ default)* | `deep-research` | In-depth, multi-source web research with citations on a topic. |
-| `summarizer.md` | Summarizer | *(empty)* | — | Condense long documents, notes, or threads into concise summaries. |
-| `coder.md` | Coder | *(empty)* | — | Write, debug, or explain code and scripts. |
+| `health.md` (slug `health`) | **Joy** | `medpsy` | `context-grounding` | Medical, health, symptom, medication, and mental-health/wellbeing questions. |
+| `researcher.md` (slug `researcher`) | **Sage** | *(empty ⇒ default)* | `deep-research` | In-depth, multi-source web research with citations on a topic. |
+| `summarizer.md` (slug `summarizer`) | **Bree** | *(empty)* | — | Condense long documents, notes, or threads into concise summaries. |
+| `coder.md` (slug `coder`) | **Grace** | *(empty)* | — | Write, debug, or explain code and scripts. |
+
+> **Note on naming:** Each specialist has a human persona name (Joy/Sage/Bree/Grace) set in the `name:` frontmatter field. The **filename is the functional slug** (e.g. `health.md` → slug `health` → delegation tool `agent__health`) and is never changed — only the `name:` display field carries the persona. The `description:` field remains domain-based (not persona-based) as it is the delegation trigger Leash reads.
 
 - **Health body** is the existing `DEFAULT_MEDPSY_SUFFIX` text (`apps/web/lib/leash/tools.ts`)
   expanded into a standalone medical-assistant system prompt, preserving the

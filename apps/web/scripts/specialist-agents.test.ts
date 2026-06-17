@@ -18,10 +18,10 @@ async function main() {
   const { getUserAgent } = await import("@mycelium/leash-core/agents-store");
 
   const expected: Record<string, { name: string; model: string }> = {
-    health: { name: "Health", model: "medpsy" },
-    researcher: { name: "Researcher", model: "" },
-    summarizer: { name: "Summarizer", model: "" },
-    coder: { name: "Coder", model: "" },
+    health: { name: "Joy", model: "medpsy" },
+    researcher: { name: "Sage", model: "" },
+    summarizer: { name: "Bree", model: "" },
+    coder: { name: "Grace", model: "" },
   };
   for (const [slug, exp] of Object.entries(expected)) {
     const a = await getUserAgent(slug);
