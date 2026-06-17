@@ -66,6 +66,7 @@ async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: Too
     const serverToolNames = await mcpToolNamesForServers(agent.mcpServers.refs);
     const chosen = new Set(names);
     for (const n of grantedNames(serverToolNames, new Set(Object.keys(registry)), chosen, denied)) {
+      if (off.has(n)) continue; // a globally disabled tool stays disabled even via a reference
       if (await toolNeedsApproval(n)) continue; // delegates still can't use approval-gated tools
       names.push(n);
     }
