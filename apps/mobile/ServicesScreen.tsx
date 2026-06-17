@@ -21,14 +21,14 @@ const DESKTOP_SERVICES: { title: string; line: string }[] = [
   { title: "Schedules", line: "Saved cron schedules — name, command, next/last run — are managed by the desktop scheduler." },
 ];
 
-export function ServicesScreen({ onMenu, onPair }: { onMenu: () => void; onPair: () => void }) {
+export function ServicesScreen({ onMenu, onPair, selectChatModel, chatKey }: { onMenu: () => void; onPair: () => void; selectChatModel: (key: string, onProgress?: (pct: number) => void) => Promise<void>; chatKey: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
       <ScreenHeader kicker="On this device" title="Services" onMenu={onMenu} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Card title="Model runtime">
           <Text style={styles.cardNote}>The phone's on-device serve — the models it runs, with live state.</Text>
-          <ModelsPanel />
+          <ModelsPanel selectChatModel={selectChatModel} currentChatKey={chatKey} />
         </Card>
 
         <Text style={styles.sectionLabel}>DESKTOP DAEMONS</Text>

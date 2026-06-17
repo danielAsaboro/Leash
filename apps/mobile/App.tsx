@@ -485,7 +485,7 @@ export default function App(): React.JSX.Element {
   // Failure-safe chat model switch — unloads the current model, downloads+loads the new one,
   // restores the previous on failure so the app is never left without a working chat model.
   const switchingRef = useRef(false);
-  const selectChatModel = useCallback(async (key: string): Promise<void> => {
+  const selectChatModel = useCallback(async (key: string, onProgress?: (pct: number) => void): Promise<void> => {
     if (switchingRef.current) return;
     if (isGenerating) { Alert.alert("Busy", "Finish the current reply before switching models."); return; }
     const target = chatEntry(key);
@@ -497,7 +497,7 @@ export default function App(): React.JSX.Element {
       if (prevId) { try { await unloadModel({ modelId: prevId, clearStorage: false }); } catch { /* continue */ } }
       modelIdRef.current = null;
       setModelId(null);
-      await downloadAsset({ assetSrc: target.assetSrc });
+      await downloadAsset({ assetSrc: target.assetSrc, onProgress: (p: ModelProgressUpdate) => onProgress?.(Math.round(p.percentage)) });
       const id = await loadModel({ modelSrc: target.assetSrc, ...LLM_CONFIG });
       modelIdRef.current = id;
       setModelId(id);
@@ -1044,7 +1044,7 @@ export default function App(): React.JSX.Element {
           }}
         />
       ) : route === "brain" ? (
-        <BrainScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshBrain} onPair={() => setRoute("mesh")} />
+        <BrainScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshBrain} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
       ) : route === "tasks" ? (
         <TasksScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
       ) : route === "alerts" ? (
@@ -1056,7 +1056,7 @@ export default function App(): React.JSX.Element {
           mesh={{ on: meshOnRef.current, providerName, providerKey, status: meshStatus }}
         />
       ) : route === "services" ? (
-        <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+        <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
       ) : (
         <DesktopScreen route={route as DesktopRoute} onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
       )}

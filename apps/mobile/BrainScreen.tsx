@@ -53,7 +53,7 @@ const DESKTOP_COPY: Partial<Record<Tab, { title: string; line: string }>> = {
   },
 };
 
-export function BrainScreen({ onMenu, onChanged, onPair }: { onMenu: () => void; onChanged: () => void; onPair: () => void }) {
+export function BrainScreen({ onMenu, onChanged, onPair, selectChatModel, chatKey }: { onMenu: () => void; onChanged: () => void; onPair: () => void; selectChatModel: (key: string, onProgress?: (pct: number) => void) => Promise<void>; chatKey: string }) {
   const [tab, setTab] = useState<Tab>("memory");
   const desktop = DESKTOP_COPY[tab];
 
@@ -67,7 +67,7 @@ export function BrainScreen({ onMenu, onChanged, onPair }: { onMenu: () => void;
         ) : tab === "prompts" ? (
           <PromptsPanel onChanged={onChanged} />
         ) : tab === "models" ? (
-          <ModelsPanel />
+          <ModelsPanel selectChatModel={selectChatModel} currentChatKey={chatKey} />
         ) : tab === "proactivity" ? (
           <ProactivityPanel onChanged={onChanged} onPair={onPair} />
         ) : desktop ? (
