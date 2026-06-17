@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { LeashMark } from "../components/LeashMark.tsx";
 import { AppEmbed } from "../components/AppEmbed.tsx";
 
 /**
@@ -49,13 +49,12 @@ export default function Landing() {
       {/* Masthead nav */}
       <header className="landing-topbar">
         <a href="#top" className="landing-brand" aria-label="Leash">
-          <LeashMark className="landing-brand-mark" cutoutColor="var(--color-ink)" />
+          <Image src="/icon-512.png" alt="" width={32} height={32} className="landing-brand-mark" priority />
           <span className="landing-brand-word">Leash</span>
         </a>
         <nav className="landing-topnav">
           <a href={DOCS_URL} target="_blank" rel="noopener noreferrer">Docs</a>
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="/downloads">Download</a>
           <Link href="/downloads" className="landing-topnav-cta">Download →</Link>
         </nav>
       </header>

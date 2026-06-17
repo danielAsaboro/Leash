@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
-import { LeashMark } from "../../components/LeashMark.tsx";
 
 export const metadata: Metadata = {
   title: "Download Leash — every platform",
@@ -35,7 +35,7 @@ export default function Downloads() {
       {/* Masthead nav */}
       <header className="landing-topbar">
         <Link href="/" className="landing-brand" aria-label="Leash">
-          <LeashMark className="landing-brand-mark" cutoutColor="var(--color-ink)" />
+          <Image src="/icon-512.png" alt="" width={32} height={32} className="landing-brand-mark" priority />
           <span className="landing-brand-word">Leash</span>
         </Link>
         <nav className="landing-topnav">
