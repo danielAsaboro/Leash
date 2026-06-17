@@ -16,6 +16,7 @@ import type { ToolSet } from "ai";
 import { createMCPClient, ElicitationRequestSchema, type ElicitResult, type MCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import { listMcpServers, type McpServerEntry } from "./mcp-store.ts";
+import type { NormalizedServer } from "./mcp-config.ts";
 import { builtinById } from "./mcp-builtins.ts";
 import { startService } from "./services.ts";
 import { MCP_REPOS_DIR } from "./mcp-install.ts";
@@ -377,4 +378,53 @@ export async function mcpToolNamesForServers(names: string[]): Promise<string[]>
     if (want.has(conn.entry.name.trim().toLowerCase())) out.push(...conn.toolNames);
   }
   return out;
+}
+
+/**
+ * Connect inline (per-delegate) MCP servers WITHOUT touching the global registry — the parent
+ * conversation never sees their tools (per the Claude sub-agent spec). Returns the merged tools
+ * and a `close()` that disconnects every client. Failures are logged and skipped (that server is
+ * simply absent). Mirrors `connectOne`'s client-creation shape: uses `transportFor`,
+ * `createMCPClient` with `withTimeout`, and `liftStructuredSources` on the tool discovery result.
+ */
+export async function connectInline(defs: NormalizedServer[]): Promise<{ tools: ToolSet; close: () => Promise<void> }> {
+  const clients: MCPClient[] = [];
+  let tools: ToolSet = {};
+  for (const def of defs) {
+    let client: MCPClient | undefined;
+    try {
+      // Build a synthetic McpServerEntry so transportFor/stdioEnv work unchanged.
+      const entry: McpServerEntry = { ...def, id: `inline:${def.name}`, enabled: true };
+      // Mirror connectOne: use a per-entry timeout (PM launchers get the longer budget).
+      const connectTimeout = PM_COMMAND_RE.test((entry.command ?? "").trim()) ? PM_CONNECT_TIMEOUT_MS : CONNECT_TIMEOUT_MS;
+      client = await withTimeout(
+        createMCPClient({
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          transport: transportFor(entry) as any,
+          capabilities: { elicitation: {} },
+        }),
+        connectTimeout,
+        `connect inline ${def.name}`,
+      );
+      // Mirror connectOne: apply liftStructuredSources so Leash tool groups work correctly.
+      const discovered = liftStructuredSources(
+        (await withTimeout(client.tools(), connectTimeout, `discover tools from inline ${def.name}`)) as ToolSet,
+      );
+      clients.push(client);
+      tools = { ...tools, ...discovered };
+    } catch (err) {
+      if (client) {
+        try { await client.close(); } catch { /* ignore */ }
+      }
+      console.warn(`leash mcp: inline server "${def.name}" failed:`, err instanceof Error ? err.message : err);
+    }
+  }
+  return {
+    tools,
+    close: async () => {
+      for (const c of clients) {
+        try { await c.close(); } catch { /* already gone */ }
+      }
+    },
+  };
 }
