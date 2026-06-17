@@ -157,24 +157,24 @@ const HYPHA_BASE = process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11
  *
  * - Peers come from `GET /peers` (each row has `providerKey` = full key, `models` = alias names,
  *   `inflight`, `pricePerKiloToken?`, `meshId?`). LOCAL device is NOT in /peers — its aliases
- *   come from `GET /status` (`warmAliases[]`).
+ *   come from `GET /health` (`warmAliases[]`).
  * - Returns [] on ANY failure (network error, daemon down) so the route is always offline-capable.
  */
 async function fetchRouteOptions(): Promise<RouteOption[]> {
   try {
     type PeerRow = { providerKey?: string; models?: string[]; inflight?: number; pricePerKiloToken?: number; meshId?: string };
-    type StatusBody = { warmAliases?: string[] };
+    type HealthBody = { warmAliases?: string[] };
 
-    const [peersRes, statusRes] = await Promise.all([
+    const [peersRes, healthRes] = await Promise.all([
       fetch(`${HYPHA_BASE}/peers`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
       fetch(`${HYPHA_BASE}/health`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
     ]);
 
     const options: RouteOption[] = [];
 
-    // Local device — warmAliases from /status as tier "device", price 0
-    if (statusRes.ok) {
-      const hb = (await statusRes.json()) as StatusBody;
+    // Local device — warmAliases from /health as tier "device", price 0
+    if (healthRes.ok) {
+      const hb = (await healthRes.json()) as HealthBody;
       for (const alias of hb.warmAliases ?? []) {
         options.push({ tier: "device", alias, tags: tagsForAlias(alias), pricePerKiloToken: 0, inflight: 0 });
       }
