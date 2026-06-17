@@ -38,6 +38,10 @@ export interface PeerView {
   /** Truncated (16-char) provider public key — the SAME prefix `MeshEvent.peer` carries, so a
    *  live-mesh viz can match a routing event to the exact node it lit up. Absent on a pre-viz peer. */
   peerId?: string;
+  /** Full provider public key — required for mesh-router pin matching (capabilityForProviderKey uses
+   *  exact equality on providerPublicKey). Consumers MUST use this field (not peerId) when constructing
+   *  a peer pin. Name mirrors the `self.providerKey` field in the /peers response envelope. */
+  providerKey?: string;
   computeClass: string;
   ramMB: number;
   powerState: string;
@@ -309,6 +313,7 @@ export class WarmPool {
           deviceId: c.deviceId,
           displayName: c.displayName,
           peerId: c.providerPublicKey!.slice(0, 16),
+          providerKey: c.providerPublicKey!,
           computeClass: c.computeClass,
           ramMB: c.ramMB,
           powerState: c.powerState,

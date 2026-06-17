@@ -43,6 +43,9 @@ interface PeerRow {
   /** 16-char truncated provider public key — the wire peer identifier. May be absent on a
    *  pre-SP2 peer that hasn't re-advertised. */
   peerId?: string;
+  /** Full provider public key — populated by the fix-pass PeerView.providerKey field.
+   *  This is the key the mesh-router matches on (exact equality); prefer over peerId/deviceId. */
+  providerKey?: string;
   computeClass: string;
   ramMB: number;
   powerState: string;
@@ -104,9 +107,16 @@ async function fetchHealth(): Promise<HealthResponse | null> {
   }
 }
 
-/** Expand a peer row's served aliases into RouteOptions (one per alias). */
+/** Expand a peer row's served aliases into RouteOptions (one per alias).
+ *
+ * `peerKey` is the FULL providerPublicKey (from `row.providerKey`), which is what
+ * mesh-router's `capabilityForProviderKey` and `forwardTargetsForAlias` match against
+ * (exact-equality `.find(c => c.providerPublicKey === peerKey)`). We fall back to the
+ * 16-char `peerId` prefix or a deviceId slice only for pre-fix hypha builds that don't
+ * yet emit `providerKey` — in those cases pinning will silently fail to match, but at
+ * least the RouteOption is still usable for display/ranking. */
 function rowToOptions(row: PeerRow): RouteOption[] {
-  const peerKey = row.peerId ?? row.deviceId.slice(0, 16);
+  const peerKey = row.providerKey ?? row.peerId ?? row.deviceId.slice(0, 16);
   return row.models.map((alias) => ({
     tier: "private" as const,
     alias,
@@ -138,7 +148,7 @@ export const routerGroup: ToolGroup = {
     defineTool({
       name: "get_device_capability",
       description:
-        "Capabilities of THIS device: RAM (from /health), in-flight load, and the model aliases it currently serves (warm aliases from hypha). Call before deciding whether the local device can handle a turn.",
+        "Capabilities of THIS device: in-flight load count and the model aliases it currently serves (warm aliases from hypha GET /health). Does NOT report RAM — /health carries no RAM field. Call before deciding whether the local device can handle a turn.",
       inputSchema: {},
       handler: async () => {
         const health = await fetchHealth();
