@@ -46,6 +46,15 @@ export async function PUT(req: Request, { params }: { params: Promise<{ slug: st
       maxTurns: body.maxTurns ?? existing.maxTurns,
       enabled: body.enabled ?? existing.enabled,
       builtin: existing.builtin,
+      mcpServers: existing.mcpServers,
+      memory: existing.memory,
+      permissionMode: existing.permissionMode,
+      hooks: existing.hooks,
+      background: existing.background,
+      effort: existing.effort,
+      isolation: existing.isolation,
+      color: existing.color,
+      initialPrompt: existing.initialPrompt,
     });
     return Response.json({ agent });
   } catch (err) {

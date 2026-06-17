@@ -25,6 +25,9 @@ import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
 import { getSkill } from "./skills-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { Agent } from "./agents-store.ts";
+import { mcpToolNamesForServers, connectInline } from "./mcp.ts";
+import { grantedNames } from "./agent-grants.ts";
+import { readMemoryContext, agentMemoryTools } from "./agent-memory.ts";
 
 /** Max agent tools emitted at once — each is one schema; cap keeps the active toolset under budget. */
 const AGENT_TOOLS_CAP = 8;
@@ -59,6 +62,15 @@ async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: Too
     if (NO_NEST.has(n) || n.startsWith("agent__") || !registry[n] || off.has(n) || denied.has(n)) continue;
     if (await toolNeedsApproval(n)) continue; // subagents can't pause on a human approval card (AI SDK caveat)
     names.push(n);
+  }
+  if (agent.mcpServers.refs.length) {
+    const serverToolNames = await mcpToolNamesForServers(agent.mcpServers.refs);
+    const chosen = new Set(names);
+    for (const n of grantedNames(serverToolNames, new Set(Object.keys(registry)), chosen, denied)) {
+      if (off.has(n)) continue; // a globally disabled tool stays disabled even via a reference
+      if (await toolNeedsApproval(n)) continue; // delegates still can't use approval-gated tools
+      names.push(n);
+    }
   }
   const tools: ToolSet = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
   return { tools, names };
@@ -96,20 +108,29 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
       execute: async function* ({ task }) {
         const { tools, names } = await agentTools(agent, registry);
         const skillCtx = await preloadSkills(agent);
-        loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${names.length} tool(s), ${agent.skills.length} preloaded skill(s))`);
-        // The subagent is a ToolLoopAgent — same primitive as the main chat agent — with an isolated context.
-        // QVAC wedge rule: maxRetries 0 and NEVER an abortSignal (an aborted decode wedges the serve).
-        const sub = new ToolLoopAgent({
-          model: chatModel(`agent:${agent.slug}`, agent.model || undefined),
-          instructions: (agent.body || `You are the "${agent.name}" agent. Carry out the task and end with a clear, self-contained summary of your result.`) + skillCtx,
-          temperature: 0.6,
-          topP: 0.95,
-          maxRetries: 0,
-          // Always ≥1 tool (toolless-hang guard): a pure-reasoning agent gets the no-op keep-alive.
-          tools: names.length ? tools : KEEPALIVE_TOOLS,
-          stopWhen: stepCountIs(agent.maxTurns),
-        });
+        // Initialize inline with safe defaults before the try — guaranteed close() in finally.
+        let inline: { tools: ToolSet; close: () => Promise<void> } = { tools: {}, close: async () => {} };
         try {
+          // Connect inline MCP servers for this delegate only — isolated from the parent conversation.
+          if (agent.mcpServers.inline.length) inline = await connectInline(agent.mcpServers.inline);
+          // Compute memory context + sandboxed tools when memory: is set.
+          const memCtx = agent.memory ? await readMemoryContext(agent.slug) : "";
+          const memTools = agent.memory ? agentMemoryTools(agent.slug) : {};
+          // Merge declared tools + inline MCP tools + memory tools; apply toolless-hang guard to the merged set.
+          const merged: ToolSet = { ...(names.length ? tools : {}), ...inline.tools, ...memTools };
+          const runTools = Object.keys(merged).length ? merged : KEEPALIVE_TOOLS;
+          loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${Object.keys(runTools).length} tool(s), ${agent.skills.length} skill(s), ${agent.mcpServers.inline.length} inline mcp)`);
+          // The subagent is a ToolLoopAgent — same primitive as the main chat agent — with an isolated context.
+          // QVAC wedge rule: maxRetries 0 and NEVER an abortSignal (an aborted decode wedges the serve).
+          const sub = new ToolLoopAgent({
+            model: chatModel(`agent:${agent.slug}`, agent.model || undefined),
+            instructions: (agent.body || `You are the "${agent.name}" agent. Carry out the task and end with a clear, self-contained summary of your result.`) + skillCtx + memCtx,
+            temperature: 0.6,
+            topP: 0.95,
+            maxRetries: 0,
+            tools: runTools,
+            stopWhen: stepCountIs(agent.maxTurns),
+          });
           const result = await sub.stream({ prompt: task });
           for await (const message of readUIMessageStream({ stream: result.toUIMessageStream() })) {
             yield message;
@@ -117,6 +138,9 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
         } catch (e) {
           // Surface a UIMessage-shaped error so the tool output stays one consistent type.
           yield { id: `agent-err-${agent.slug}`, role: "assistant", parts: [{ type: "text", text: `The "${agent.slug}" agent failed: ${e instanceof Error ? e.message : String(e)}` }] } as UIMessage;
+        } finally {
+          // Always disconnect inline servers — even on error (scoped to this delegate, not the global registry).
+          await inline.close();
         }
       },
       // The MAIN model sees only the subagent's final summary (context offloading); the UI keeps the full transcript.

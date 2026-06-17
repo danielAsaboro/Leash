@@ -26,6 +26,7 @@ import { splitFrontmatter, parseToolList } from "./frontmatter.ts";
 import { PLUGIN_SLUG_RE } from "./plugin-manifest.ts";
 import { slugify } from "./skills-store.ts";
 import { pluginAgents } from "./plugins-store.ts";
+import { validateServerInput, type NormalizedServer } from "./mcp-config.ts";
 
 /** `data/leash-agents` — the user's own subagents (one `<slug>.md` each). */
 export const AGENTS_DIR = process.env["LEASH_AGENTS_DIR"] ?? join(DATA_DIR, "leash-agents");
@@ -37,6 +38,51 @@ const MAX_AGENT_TURNS = 16;
 
 /** A bare user-agent slug (kebab). Same shape as a skill slug; the `:` in a plugin slug never matches. */
 const USER_AGENT_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+export type MemoryScope = "" | "user" | "project" | "local";
+/** Per-agent MCP: string references (share the global connection) + inline defs (connected for the agent's run). */
+export interface AgentMcpServers {
+  refs: string[];
+  inline: NormalizedServer[];
+}
+const PERMISSION_MODES = new Set(["default", "acceptEdits", "auto", "dontAsk", "bypassPermissions", "plan"]);
+const EFFORT_LEVELS = new Set(["low", "medium", "high", "xhigh", "max"]);
+const COLORS = new Set(["red", "blue", "green", "yellow", "purple", "orange", "pink", "cyan"]);
+
+/** `memory:` scope — Claude's user/project/local; anything else ⇒ "" (off). */
+export function parseMemoryScope(raw: string | undefined): MemoryScope {
+  const s = (raw ?? "").trim().toLowerCase();
+  return s === "user" || s === "project" || s === "local" ? s : "";
+}
+
+/**
+ * Parse `mcpServers:` — a JSON object `{ "<name>": {} | <serverConfig> }` (authored as a block scalar).
+ * Empty/`{}` value ⇒ a REFERENCE to an already-configured server; a populated object ⇒ an INLINE def
+ * validated through the shared `validateServerInput`. Malformed entries are skipped; never throws.
+ */
+export function parseAgentMcpServers(raw: string | undefined): AgentMcpServers {
+  const out: AgentMcpServers = { refs: [], inline: [] };
+  if (!raw?.trim()) return out;
+  let obj: unknown;
+  try { obj = JSON.parse(raw); } catch { return out; }
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return out;
+  for (const [rawName, val] of Object.entries(obj as Record<string, unknown>)) {
+    const name = rawName.trim();
+    if (!name) continue;
+    const isEmpty = !val || (typeof val === "object" && !Array.isArray(val) && Object.keys(val as object).length === 0);
+    if (isEmpty) { out.refs.push(name); continue; }
+    if (typeof val === "object" && !Array.isArray(val)) {
+      try { out.inline.push(validateServerInput({ name, ...(val as Record<string, unknown>) })); } catch { /* skip malformed */ }
+    }
+  }
+  return out;
+}
+
+/** A reserved enum field: keep the raw value only if it's in the allowed set, else "" (parsed-but-inert). */
+function parseEnumField(raw: string | undefined, allowed: ReadonlySet<string>): string {
+  const v = (raw ?? "").trim();
+  return allowed.has(v) ? v : "";
+}
 
 export interface Agent {
   /** Slug — bare kebab for a user agent, namespaced `<plugin-id>:<name>` for a plugin agent. */
@@ -65,6 +111,24 @@ export interface Agent {
   enabled: boolean;
   /** Ships with the app (frontmatter `builtin: true`) vs. user-created. Mirrors builtin skills. */
   builtin: boolean;
+  /** Per-agent MCP servers (frontmatter `mcpServers:`) — references + inline defs. Stripped for plugin agents. */
+  mcpServers: AgentMcpServers;
+  /** Persistent-memory scope (frontmatter `memory:`): "" | user | project | local. */
+  memory: MemoryScope;
+  /** RESERVED (parsed/stored/surfaced, not yet wired). Stripped for plugin agents. */
+  permissionMode: string;
+  /** RESERVED — raw frontmatter value (not yet wired). Stripped for plugin agents. */
+  hooks: string;
+  /** RESERVED — run-as-background flag (not yet wired). */
+  background: boolean;
+  /** RESERVED — effort level (not yet wired). */
+  effort: string;
+  /** RESERVED — worktree isolation (N/A on-device; not wired). */
+  isolation: string;
+  /** RESERVED — UI display color (not yet wired). */
+  color: string;
+  /** RESERVED — auto-submitted first turn for agent-as-main (not yet wired). */
+  initialPrompt: string;
 }
 
 /** A clamped, sane `max-turns:` value (default when absent / unparseable). */
@@ -102,6 +166,17 @@ function buildAgent(slug: string, source: "user" | "plugin", pluginId: string, f
     // User: enabled unless explicitly false. Plugin: the surfacer overrides with the plugin row's bit.
     enabled: fields["enabled"] !== "false",
     builtin: fields["builtin"] === "true",
+    // RESERVED — parsed/stored/surfaced, not yet wired.
+    permissionMode: source === "plugin" ? "" : parseEnumField(fields["permissionmode"] ?? fields["permission-mode"], PERMISSION_MODES),
+    hooks: source === "plugin" ? "" : (fields["hooks"] ?? "").trim(),
+    background: (fields["background"] ?? "").trim() === "true",
+    effort: parseEnumField(fields["effort"], EFFORT_LEVELS),
+    isolation: (fields["isolation"] ?? "").trim(),
+    color: parseEnumField(fields["color"], COLORS),
+    initialPrompt: (fields["initialprompt"] ?? fields["initial-prompt"] ?? "").trim(),
+    // ACTIVE (wired in later tasks). Plugin agents: mcpServers stripped (security parity with Claude).
+    mcpServers: source === "plugin" ? { refs: [], inline: [] } : parseAgentMcpServers(fields["mcpservers"] ?? fields["mcp-servers"]),
+    memory: parseMemoryScope(fields["memory"]),
   };
 }
 
@@ -122,7 +197,7 @@ function parseUserAgent(slug: string, raw: string): Agent | null {
   return buildAgent(slug, "user", "", split.fields, split.body);
 }
 
-function serializeAgent(a: Pick<Agent, "name" | "description" | "body" | "model" | "tools" | "disallowedTools" | "skills" | "maxTurns" | "enabled" | "builtin">): string {
+function serializeAgent(a: Pick<Agent, "name" | "description" | "body" | "model" | "tools" | "disallowedTools" | "skills" | "maxTurns" | "enabled" | "builtin" | "mcpServers" | "memory" | "permissionMode" | "hooks" | "background" | "effort" | "isolation" | "color" | "initialPrompt">): string {
   const oneLine = (v: string): string => v.replace(/\s+/g, " ").trim();
   let fm = `name: ${oneLine(a.name)}\ndescription: ${oneLine(a.description)}\nenabled: ${a.enabled}\n`;
   if (a.builtin) fm += `builtin: true\n`;
@@ -131,6 +206,21 @@ function serializeAgent(a: Pick<Agent, "name" | "description" | "body" | "model"
   if (a.disallowedTools.length) fm += `disallowed-tools: ${a.disallowedTools.join(", ")}\n`;
   if (a.skills.length) fm += `skills: ${a.skills.join(", ")}\n`;
   fm += `max-turns: ${a.maxTurns}\n`;
+  if (a.memory) fm += `memory: ${a.memory}\n`;
+  if (a.permissionMode) fm += `permissionMode: ${a.permissionMode}\n`;
+  if (a.background) fm += `background: true\n`;
+  if (a.effort) fm += `effort: ${a.effort}\n`;
+  if (a.isolation) fm += `isolation: ${a.isolation}\n`;
+  if (a.color) fm += `color: ${a.color}\n`;
+  if (a.initialPrompt) fm += `initialPrompt: ${oneLine(a.initialPrompt)}\n`;
+  if (a.hooks) fm += `hooks: ${a.hooks}\n`;
+  const refs = a.mcpServers?.refs ?? [], inline = a.mcpServers?.inline ?? [];
+  if (refs.length || inline.length) {
+    const obj: Record<string, unknown> = {};
+    for (const r of refs) obj[r] = {};
+    for (const s of inline) { const { name, ...rest } = s; obj[name] = rest; }
+    fm += `mcpServers: |\n  ${JSON.stringify(obj)}\n`;
+  }
   return `---\n${fm}---\n\n${a.body.trim()}\n`;
 }
 
@@ -172,6 +262,15 @@ export async function saveAgent(input: {
   maxTurns?: number;
   enabled?: boolean;
   builtin?: boolean;
+  mcpServers?: AgentMcpServers;
+  memory?: MemoryScope;
+  permissionMode?: string;
+  hooks?: string;
+  background?: boolean;
+  effort?: string;
+  isolation?: string;
+  color?: string;
+  initialPrompt?: string;
 }): Promise<Agent> {
   const slug = input.slug?.trim() || slugify(input.name);
   if (!USER_AGENT_SLUG_RE.test(slug)) throw new Error(`invalid agent slug "${slug}"`);
@@ -187,6 +286,15 @@ export async function saveAgent(input: {
     maxTurns: input.maxTurns ? parseMaxTurns(String(input.maxTurns)) : DEFAULT_AGENT_MAX_TURNS,
     enabled: input.enabled ?? true,
     builtin: input.builtin ?? false,
+    mcpServers: input.mcpServers ?? { refs: [], inline: [] },
+    memory: input.memory ?? "" as MemoryScope,
+    permissionMode: input.permissionMode ?? "",
+    hooks: input.hooks ?? "",
+    background: input.background ?? false,
+    effort: input.effort ?? "",
+    isolation: input.isolation ?? "",
+    color: input.color ?? "",
+    initialPrompt: input.initialPrompt ?? "",
   };
   await mkdir(AGENTS_DIR, { recursive: true });
   await writeFile(join(AGENTS_DIR, `${slug}.md`), serializeAgent(a));
