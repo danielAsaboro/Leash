@@ -32,6 +32,15 @@ interface Agent {
   maxTurns: number;
   enabled: boolean;
   builtin: boolean;
+  mcpServers: { refs: string[]; inline: unknown[] };
+  memory: string;
+  permissionMode: string;
+  hooks: string;
+  background: boolean;
+  effort: string;
+  isolation: string;
+  color: string;
+  initialPrompt: string;
 }
 
 interface Draft {
@@ -287,6 +296,18 @@ export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent:
                     {summary.length > 0 && <span className="kicker ml-2" style={{ color: "var(--color-faint)" }}>{summary.join(" · ")}</span>}
                   </p>
                   <p style={{ color: "var(--color-muted)", fontSize: "0.85rem", fontFamily: "var(--font-body)" }}>{a.description || "(no description — the assistant won't know when to delegate to it)"}</p>
+                  {(a.memory || a.mcpServers.refs.length || a.mcpServers.inline.length) && (
+                    <p className="kicker" style={{ color: "var(--color-muted)" }}>
+                      {[a.memory ? `memory: ${a.memory}` : "", (a.mcpServers.refs.length || a.mcpServers.inline.length) ? `mcp: ${a.mcpServers.refs.length} ref + ${a.mcpServers.inline.length} inline` : ""].filter(Boolean).join(" · ")}
+                    </p>
+                  )}
+                  {[a.permissionMode && `permissionMode=${a.permissionMode}`, a.effort && `effort=${a.effort}`, a.color && `color=${a.color}`, a.background && "background", a.isolation && `isolation=${a.isolation}`, a.initialPrompt && "initialPrompt", a.hooks && "hooks"].filter(Boolean).length > 0 && (
+                    <p className="kicker" style={{ color: "var(--color-faint)" }}>
+                      {"reserved (parsed, not yet wired): "}
+                      {[a.permissionMode && `permissionMode=${a.permissionMode}`, a.effort && `effort=${a.effort}`, a.color && `color=${a.color}`, a.background && "background", a.isolation && `isolation=${a.isolation}`, a.initialPrompt && "initialPrompt", a.hooks && "hooks"].filter(Boolean).join(", ")}
+                      {isPlugin ? " — mcpServers/permissionMode/hooks ignored for plugin agents" : ""}
+                    </p>
+                  )}
                   {isPlugin && (
                     <p className="kicker" style={{ color: "var(--color-faint)" }}>read-only — enable via its plugin</p>
                   )}
