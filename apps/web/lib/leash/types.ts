@@ -67,11 +67,23 @@ export interface ElicitationView {
 /** Transient `data-elicitation` events the chat stream pushes (open / resolved). */
 export type LeashElicitationEvent = { kind: "open"; elicitation: ElicitationView } | { kind: "resolved"; id: string; action: "accept" | "decline" | "cancel" };
 
-/** Typed data parts on the Leash stream. `elicitation` is transient; `skill` is persisted. */
+/** Persisted `data-conductor` part: the Conductor's route decision for an assistant turn. */
+export interface ConductorDecisionEvent {
+  /** "local <alias>" or "→ peer <alias> (<tier>)". */
+  tier: string;
+  alias: string;
+  peerKey?: string;
+  meshId?: string;
+  reason: string;
+  viaFastPath: boolean;
+}
+
+/** Typed data parts on the Leash stream. `elicitation` is transient; `skill` + `conductor` + `plan` are persisted. */
 export type LeashDataParts = {
   elicitation: LeashElicitationEvent;
   skill: LeashSkillEvent;
   plan: PlanData;
+  conductor: ConductorDecisionEvent;
 };
 
 /** The Leash UI message, carrying `LeashMetadata` + typed data parts. */

@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { BrainIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DotIcon, ListChecksIcon, PhoneIcon, RefreshCcwIcon, SparklesIcon, SquareIcon, Volume2Icon, XIcon } from "lucide-react";
+import { BrainIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DotIcon, ListChecksIcon, NetworkIcon, PhoneIcon, RefreshCcwIcon, SparklesIcon, SquareIcon, Volume2Icon, XIcon } from "lucide-react";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from "@/components/ai-elements/chain-of-thought";
@@ -31,7 +31,7 @@ import { VoiceCall } from "./VoiceCall.tsx";
 import { MessageFeedback } from "./MessageFeedback.tsx";
 import { blobToWav } from "@/lib/leash/audio";
 import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
-import type { ElicitationView, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
+import type { ConductorDecisionEvent, ElicitationView, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
 
 /**
  * The Leash chat surface (client) — Vercel AI Elements on the AI SDK, re-skinned with
@@ -49,6 +49,7 @@ const SUGGESTIONS = ["What's in today's paper?", "What did I note about the mesh
 
 const isToolPart = (p: Part): boolean => typeof p?.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool");
 const isSkillPart = (p: Part): p is { type: "data-skill"; data: LeashSkillEvent } => p?.type === "data-skill";
+const isConductorPart = (p: Part): p is { type: "data-conductor"; data: ConductorDecisionEvent } => p?.type === "data-conductor";
 
 /** "qwen3-4b · 142 tok · 18 tok/s" from message metadata, once finished. */
 function telemetry(md: LeashMetadata | undefined): string | null {
@@ -66,7 +67,7 @@ function telemetry(md: LeashMetadata | undefined): string | null {
  * non-text part at all, everything is the answer (a plain reply, no timeline).
  */
 interface TimelineNode {
-  kind: "reasoning" | "tool" | "skill" | "text" | "plan";
+  kind: "reasoning" | "tool" | "skill" | "text" | "plan" | "route-decision";
   part: Part;
   idx: number;
 }
@@ -79,6 +80,7 @@ function buildTimeline(parts: Part[]): { nodes: TimelineNode[]; answer: string }
   parts.forEach((p, idx) => {
     if (p?.type === "reasoning") items.push({ kind: "reasoning", part: p, idx });
     else if (isPlanPart(p)) items.push({ kind: "plan", part: p, idx });
+    else if (isConductorPart(p)) items.push({ kind: "route-decision", part: p, idx });
     else if (isToolPart(p)) items.push({ kind: "tool", part: p, idx });
     else if (isSkillPart(p)) items.push({ kind: "skill", part: p, idx });
     else if (p?.type === "text") items.push({ kind: "text", part: p, idx });
@@ -144,6 +146,17 @@ function planFromTool(part: Part): PlanData {
   };
 }
 
+/** Conductor route-decision step: shows "local <alias>" or "→ peer <alias> (<tier>)" + reason. */
+function RouteDecisionStep({ event }: { event: ConductorDecisionEvent }) {
+  const label = event.peerKey ? `→ peer ${event.alias} (${event.tier})` : `local ${event.alias}`;
+  return (
+    <span className="text-xs" style={{ color: "var(--color-faint)", fontFamily: "var(--font-mono)" }} title={event.reason}>
+      {label}
+      {event.reason ? <span className="ml-1 opacity-60">· {event.reason}</span> : null}
+    </span>
+  );
+}
+
 /** Render one timeline node as a ChainOfThought step (its card nests as the step's children). */
 function renderTimelineNode(node: TimelineNode, live: boolean, approval?: ApprovalHandle) {
   const key = `n-${node.idx}`;
@@ -180,6 +193,9 @@ function renderTimelineNode(node: TimelineNode, live: boolean, approval?: Approv
     );
   }
   if (node.kind === "reasoning") return <ReasoningStep key={key} text={node.part.text ?? ""} live={live} />;
+  if (node.kind === "route-decision") {
+    return <ChainOfThoughtStep key={key} icon={NetworkIcon} label={<RouteDecisionStep event={node.part.data as ConductorDecisionEvent} />} />;
+  }
   if (node.kind === "skill") {
     return <ChainOfThoughtStep key={key} icon={SparklesIcon} label={<SkillEventCard event={node.part.data} />} />;
   }
@@ -521,7 +537,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   // node takes over.
   const assistantVisible =
     last?.role === "assistant" &&
-    lastAssistantParts.some((p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || isToolPart(p) || isSkillPart(p));
+    lastAssistantParts.some((p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || isToolPart(p) || isSkillPart(p) || isConductorPart(p));
   const awaitingModel = busy && !assistantVisible;
   // Prompt queue — on a slow on-device model, let the user stack follow-ups WHILE a turn is
   // generating; they auto-send one at a time as each turn finishes (drained below). Each carries

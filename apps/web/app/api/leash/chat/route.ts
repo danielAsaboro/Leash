@@ -35,6 +35,12 @@ import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
 import { interjectRequested, clearInterject } from "../../../../lib/leash/interject-store.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
+import { AuditLog } from "@mycelium/shared";
+import { DATA_DIR } from "../../../../lib/leash/json-store.ts";
+import { join } from "node:path";
+
+/** Singleton AuditLog for conductor decisions (logs/conductor.jsonl relative to DATA_DIR). */
+const conductorAudit = new AuditLog("conductor", join(DATA_DIR, "..", "logs"));
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +64,15 @@ const metadataSchema = z
 const skillDataSchema = z.object({
   mode: z.enum(["explicit", "automatic"]),
   skills: z.array(z.object({ slug: z.string(), name: z.string() })).min(1),
+});
+
+const conductorDataSchema = z.object({
+  tier: z.string(),
+  alias: z.string(),
+  peerKey: z.string().optional(),
+  meshId: z.string().optional(),
+  reason: z.string(),
+  viaFastPath: z.boolean(),
 });
 
 /**
@@ -265,7 +280,7 @@ export async function POST(req: Request): Promise<Response> {
       messages,
       tools: tools as any,
       metadataSchema,
-      dataSchemas: { skill: skillDataSchema, plan: planDataSchema },
+      dataSchemas: { skill: skillDataSchema, plan: planDataSchema, conductor: conductorDataSchema },
     })) as LeashUIMessage[];
   } catch (err) {
     console.error("leash: UI message validation failed, using raw history:", err);
@@ -295,6 +310,25 @@ export async function POST(req: Request): Promise<Response> {
   const conductorOptions = await fetchRouteOptions();
   const conductorDecision = await conduct({ text: lastUserText(validated), isImageTurn: imageTurn, options: conductorOptions, defaultAlias });
   console.log(`leash[conductor]: route=${conductorDecision.route.tier}/${conductorDecision.route.alias} sensitivity=${conductorDecision.sensitivity} reason="${conductorDecision.reason}"`);
+  // Audit record — skip fast-path trivial turns to avoid noise; delegation events are always logged.
+  if (!conductorDecision.viaFastPath) {
+    try {
+      conductorAudit.record({
+        event: conductorDecision.route.peerKey ? "delegation" : "note",
+        modelId: conductorDecision.route.alias,
+        ...(conductorDecision.route.modelSrc ? { modelSrc: conductorDecision.route.modelSrc } : {}),
+        extra: {
+          tier: conductorDecision.route.tier,
+          peerKey: conductorDecision.route.peerKey ?? null,
+          sensitivity: conductorDecision.sensitivity,
+          bar: conductorDecision.bar,
+          reason: conductorDecision.reason,
+        },
+      });
+    } catch {
+      /* audit write must never break a turn */
+    }
+  }
   // Vision hard-rule: image turns ALWAYS use the vision VLM regardless of the Conductor decision.
   // Specialist routes (computer, health) keep their dedicated models.
   const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : conductorDecision.route.alias || defaultAlias;
@@ -444,6 +478,7 @@ export async function POST(req: Request): Promise<Response> {
             /* stream already closed */
           }
         });
+        writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath } });
         writer.write({ type: "data-skill", data: { mode: activeSkills?.mode ?? "automatic", skills: activeSkills?.skills ?? [{ slug: pipeline.slug, name: pipeline.slug }] } });
         let text: string;
         try {
@@ -531,6 +566,8 @@ export async function POST(req: Request): Promise<Response> {
           /* stream already closed — the GET /elicitations fallback covers reloads */
         }
       });
+      // Conductor decision — always emitted (even fast-path) so the UI has the route context.
+      writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath } });
       if (activeSkills?.skills.length) {
         writer.write({
           type: "data-skill",
