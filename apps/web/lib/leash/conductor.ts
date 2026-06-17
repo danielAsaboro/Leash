@@ -7,36 +7,19 @@
  */
 import "server-only";
 import { generateText } from "ai";
-import type { EffortTier } from "./types.ts";
+import { classifyEffort } from "./effort.ts";
+import { classifierModel } from "./provider.ts";
 import {
-  rankRoutes, tagsForAlias,
-  type CapabilityBar, type Modality, type RouteOption, type Sensitivity, type Tier,
+  rankRoutes,
+  type CapabilityBar, type Modality, type RouteOption, type Sensitivity,
 } from "@mycelium/leash-core/routing";
 
-export interface RouteDecision {
-  modality: Modality;
-  sensitivity: Sensitivity;
-  bar: CapabilityBar;
-  route: { tier: Tier; alias: string; peerKey?: string; meshId?: string; modelSrc?: string };
-  reason: string;
-  viaFastPath: boolean;
-}
-
-const HEALTH = /\b(symptom|diagnos|therapy|anxiety|depress|medication|dosage|blood pressure|clinical|patient)\b/i;
-
-/** Deterministic bar from effort tier + intent regex (the no-LLM fallback). */
-export function barFromFallback(i: { tier: EffortTier; isImageTurn: boolean; text: string }): CapabilityBar {
-  if (i.isImageTurn) return { modality: "vision", minParamClass: "small", specialist: "vision" };
-  if (HEALTH.test(i.text)) return { modality: "text", minParamClass: "small", specialist: "health" };
-  const minParamClass = i.tier === "deep" ? "mid" : "small";
-  return { modality: "text", minParamClass };
-}
-
-/** Cheapest local general text route; synthesizes one for `defaultAlias` if none discovered. */
-export function pickLocalGeneral(options: RouteOption[], defaultAlias: string): RouteOption {
-  const locals = options.filter((o) => o.tier === "device" && o.tags.modality === "text" && o.tags.specialist === "general").sort((a, b) => a.inflight - b.inflight);
-  return locals[0] ?? { tier: "device", alias: defaultAlias, tags: tagsForAlias(defaultAlias), pricePerKiloToken: 0, inflight: 0 };
-}
+// Re-export pure helpers + RouteDecision so existing import sites of conductor.ts keep working.
+export { barFromFallback, pickLocalGeneral } from "./conductor-utils.ts";
+export type { RouteDecision } from "./conductor-utils.ts";
+// Internal use — imported separately so the type is available inside this module.
+import type { RouteDecision } from "./conductor-utils.ts";
+import { barFromFallback, pickLocalGeneral } from "./conductor-utils.ts";
 
 const RUBRIC =
   "You are a request router. Classify the user's turn for placement. Reply with ONLY compact JSON " +
@@ -72,7 +55,6 @@ function decide(bar: CapabilityBar, sensitivity: Sensitivity, options: RouteOpti
 }
 
 export async function conduct(input: { text: string; isImageTurn: boolean; options: RouteOption[]; defaultAlias: string }): Promise<RouteDecision> {
-  const [{ classifyEffort }, { classifierModel }] = await Promise.all([import("./effort.ts"), import("./provider.ts")]);
   const tier = await classifyEffort(input.text);
   // Fast-path: obviously-trivial text turn → cheapest local general, no LLM.
   if (tier === "quick" && !input.isImageTurn) {

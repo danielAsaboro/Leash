@@ -5,7 +5,7 @@
  * and barFromFallback maps effort+intent to a bar. Run: npx tsx apps/web/scripts/conductor.test.ts
  */
 import assert from "node:assert";
-import { barFromFallback, pickLocalGeneral } from "../lib/leash/conductor.ts";
+import { barFromFallback, pickLocalGeneral } from "../lib/leash/conductor-utils.ts";
 import type { RouteOption } from "@mycelium/leash-core/routing";
 
 const local4b: RouteOption = { tier: "device", alias: "qwen3-4b", tags: { modality: "text", paramClass: "small", specialist: "general" }, pricePerKiloToken: 0, inflight: 0 };
