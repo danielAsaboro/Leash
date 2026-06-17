@@ -54,6 +54,7 @@
     "smoke:mesh-entry": "tsx scripts/smoke-mesh-entry.ts",
     "smoke:model-type": "tsx scripts/smoke-model-type.ts",
     "smoke:chat-attachments": "tsx scripts/smoke-chat-attachments.ts",
+    "smoke:chat-attachments-text": "tsx scripts/smoke-chat-attachments-text.ts",
     "smoke:forward-loopback": "HYPHA_FORWARD_FORCE_REMOTE=0 tsx scripts/smoke-forward-loopback.ts",
     "smoke:forward-provider": "HYPHA_FORWARD_FORCE_REMOTE=0 tsx scripts/smoke-forward-provider.ts",
     "smoke:multipart": "tsx scripts/smoke-multipart.ts",

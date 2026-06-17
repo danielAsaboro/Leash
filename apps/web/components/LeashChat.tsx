@@ -4,7 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { BrainIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DotIcon, ListChecksIcon, NetworkIcon, PhoneIcon, RefreshCcwIcon, SparklesIcon, SquareIcon, Volume2Icon, XIcon } from "lucide-react";
+import { BrainIcon, CheckIcon, ChevronDownIcon, ClockIcon, CopyIcon, DotIcon, ListChecksIcon, NetworkIcon, PaperclipIcon, PhoneIcon, RefreshCcwIcon, SparklesIcon, SquareIcon, Volume2Icon, XIcon } from "lucide-react";
 import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from "@/components/ai-elements/conversation";
 import { Message, MessageContent, MessageResponse, MessageActions, MessageAction } from "@/components/ai-elements/message";
 import { ChainOfThought, ChainOfThoughtHeader, ChainOfThoughtContent, ChainOfThoughtStep } from "@/components/ai-elements/chain-of-thought";
@@ -693,19 +693,20 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
         )}
         {/* Provider gives us a controller (for the mic to drop text into the box) + shared attachments. */}
         <PromptInputProvider>
-          <PromptInput className="chat-composer-inner mx-auto max-w-[760px]" accept="image/*" onSubmit={(message) => ask(message.text ?? "", message.files)}>
+          <PromptInput className="chat-composer-inner mx-auto max-w-[760px]" onSubmit={(message) => ask(message.text ?? "", message.files)}>
             <PromptInputBody>
-              {/* Visible thumbnails of attached images (with remove). */}
+              {/* Visible thumbnails / chips of attached files (with remove). */}
               <ComposerAttachments />
-              <PromptInputTextarea placeholder="Ask about your notes, your paper, or attach an image…" />
+              <PromptInputTextarea placeholder="Ask about your notes, your paper, or attach a file…" />
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools>
-                {/* Attach an image → the route routes that turn to the vision model. */}
+                {/* Attach a file → an image routes the turn to the vision model; any other file
+                    (markdown, code, JSON, CSV, logs…) is read as text into the chat model. */}
                 <PromptInputActionMenu>
                   <PromptInputActionMenuTrigger />
                   <PromptInputActionMenuContent>
-                    <PromptInputActionAddAttachments label="Attach an image" />
+                    <PromptInputActionAddAttachments label="Attach a file" />
                   </PromptInputActionMenuContent>
                 </PromptInputActionMenu>
                 {/* 🎙 Voice input → on-device transcription → text dropped into the box to review/send. */}
@@ -904,14 +905,26 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
 
   if (role === "user") {
     const text = parts.filter((p: Part) => p.type === "text").map((p: Part) => p.text ?? "").join("");
-    const images = parts.filter((p: Part) => p.type === "file" && typeof p.url === "string" && String(p.mediaType ?? "").startsWith("image/"));
+    const fileParts = parts.filter((p: Part) => p.type === "file" && typeof p.url === "string");
+    const images = fileParts.filter((p: Part) => String(p.mediaType ?? "").startsWith("image/"));
+    const files = fileParts.filter((p: Part) => !String(p.mediaType ?? "").startsWith("image/"));
     return (
       <Message from="user">
         <MessageContent>
           {images.map((p: Part, i: number) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={i} src={p.url} alt={p.filename ?? "attachment"} className="chat-attached-img" />
+            <img key={`img-${i}`} src={p.url} alt={p.filename ?? "attachment"} className="chat-attached-img" />
           ))}
+          {files.length > 0 && (
+            <div className="chat-attached-files">
+              {files.map((p: Part, i: number) => (
+                <a key={`file-${i}`} href={p.url} download={p.filename ?? "file"} className="chat-attached-file" title={`${p.filename ?? "file"} — download`}>
+                  <PaperclipIcon className="size-3.5 shrink-0" />
+                  <span className="truncate">{p.filename ?? "file"}</span>
+                </a>
+              ))}
+            </div>
+          )}
           {/* Preserve line breaks — a combined-queue message puts each follow-up on its own line. */}
           <span className="whitespace-pre-wrap">{text}</span>
         </MessageContent>

@@ -1,10 +1,31 @@
 ---
 title: "macOS Desktop"
-description: "The Leash desktop app — an Electron wrapper around the web UI with a setup wizard, bundled daemons, and OS integration."
+description: "The Leash desktop app — an Electron window around the same web dashboard + shared supervisor, with a setup wizard, on-demand runtime/daemon downloads, and OS integration."
 sidebarTitle: "macOS Desktop"
 ---
 
 The desktop app wraps the Leash web UI in an Electron window (macOS only) and supervises the local services for you. It is the easiest way to run Leash on a Mac.
+
+## How it works (architecture)
+
+The desktop app is **not a separate UI**. It is an Electron shell around the *exact same* Next.js
+dashboard (`apps/web`) and the *same* supervisor (`apps/web/server-launch.mjs`) the headless setup
+uses — so there is one code path, not two.
+
+- **The Electron main process** (`apps/desktop/src/main/index.ts`) only manages lifecycle: it runs
+  the first-run wizard, downloads dependencies, spawns the supervisor, then loads
+  `http://localhost:6801` in the window. The supervisor owns per-user scoping, respawn-on-login, and
+  reaping `qvac serve` on a user switch (so no data leaks across accounts).
+- **No system Node required.** The packaged app runs the bundled Next standalone server through
+  **Electron's own binary** with `ELECTRON_RUN_AS_NODE=1` — Electron *is* the Node runtime.
+- **Stub installer.** To keep the DMG small, the **qvac runtime (~170 MB)** and the **on-demand
+  daemons** (hypha · watcher · newsroom · broker · mcp · tools-mcp · scheduler) are **not bundled** —
+  they download on first run from a GitHub release, **sha256-verified**, into
+  `<base>/Leash/_deps/`. Daemons fetch in the background after the dashboard is up (with retry/cancel
+  in the Downloads tab), so you can start chatting immediately.
+- **OS notifications.** When the proactive heartbeat surfaces a proposal, the dashboard sends a
+  `notify:show` IPC message and the main process fires a native toast; clicking it focuses the window
+  and opens `/notifications`.
 
 ## What the desktop adds over headless
 
@@ -95,6 +116,36 @@ The SDK follows the symlink transparently — no config change.
 <Warning>
   Never copy `~/.qvac` between machines with plain `rsync -a` or `cp`. macOS rsync strips xattrs, and corestore stamps a `device-file` xattr per store; losing it bricks the store with "Invalid device file, was moved unsafely". Use `rsync -aX`, or re-download models per machine (it's P2P anyway).
 </Warning>
+
+## Build & packaging compromises (if you build from source)
+
+Packaging an Electron app around a native-binding SDK forced a few deliberate workarounds. They are
+load-bearing — don't "tidy" them away:
+
+- **`install-app-deps` / `npmRebuild` are OFF** (`electron-builder.yml` → `npmRebuild: false`).
+  `@qvac/sdk` is hoisted to the **monorepo root** `node_modules` and ships `node-gyp-build`
+  **prebuilds**, not node-gyp sources. An in-place ABI rebuild would (a) find nothing to build and
+  (b) corrupt the shared copy that every Node daemon (hypha, broker, …) also imports. *Escape hatch:*
+  if you bump Electron to a version with no matching prebuilt `NODE_MODULE_VERSION`, run a one-off
+  `electron-builder install-app-deps` **inside `apps/desktop` only**.
+- **`after-pack` restores stripped `node_modules`** (`build/after-pack.cjs`). electron-builder drops
+  `node_modules` from the asar to keep it small, but the bundled Next standalone server needs its
+  deps at runtime — the hook copies them back **after** the asar is sealed.
+- **Deep ad-hoc re-sign after packing** (`scripts/release.sh`). Because post-pack steps mutate files
+  under `.app/Contents/Resources`, the signature seal breaks; the release script does
+  `codesign --remove-signature` then `codesign --force --deep --sign -` with
+  `build/entitlements.mac.plist`. Those entitlements (`allow-jit`,
+  `allow-unsigned-executable-memory`, `allow-dyld-environment-variables`) are required — the QVAC
+  engines JIT, run WASM, and preload via dyld env vars. **Notarization is not automated**
+  (`notarize: false`); a public release runs `xcrun notarytool submit` separately.
+- **`--no-sandbox` in dev only.** The dev command passes it for easier IPC debugging; the packaged
+  renderer relies on `contextIsolation: true` + `nodeIntegration: false` as its boundary (the
+  dashboard is a same-origin `localhost` page, so the Chromium sandbox adds little there).
+- **PATH augmentation for a Finder launch.** A GUI launch inherits a minimal `PATH`; the main process
+  prepends `/opt/homebrew/bin`, `/usr/local/bin`, and nvm paths so the supervisor can find
+  `node`/`npx`.
+
+Full build/release walkthrough lives in the app's own `apps/desktop/README.md`.
 
 ## Related
 

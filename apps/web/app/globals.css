@@ -1761,6 +1761,28 @@
     border: 1px solid var(--color-rule);
     border-radius: 6px;
   }
+  /* Non-image attachments in a user turn — a downloadable filename chip. */
+  .chat-attached-files {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+  .chat-attached-file {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    max-width: 260px;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--color-rule);
+    border-radius: 6px;
+    background: var(--color-cream, #f5f1e8);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-ink);
+    text-decoration: none;
+  }
+  .chat-attached-file:hover { border-color: var(--color-rule-strong); }
   .chat-mic {
     display: inline-flex;
     align-items: center;

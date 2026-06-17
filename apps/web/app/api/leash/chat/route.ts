@@ -30,6 +30,7 @@ import { loadMainAgentBase } from "../../../../lib/leash/main-agent.ts";
 import { getConstitution } from "../../../../lib/leash/constitution.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
 import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
+import { inlineFileAttachments } from "../../../../lib/leash/attachments.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
 import { beginGeneration } from "../../../../lib/leash/inflight.ts";
@@ -525,7 +526,11 @@ export async function POST(req: Request): Promise<Response> {
   // stored/displayed thread keeps them (originalMessages = `validated`).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const noReasoning = modelMessages.map((m: any) => (m.role === "assistant" && Array.isArray(m.parts) ? { ...m, parts: m.parts.filter((p: any) => p?.type !== "reasoning") } : m));
-  const modelInput = await convertToModelMessages(noReasoning);
+  // Fold NON-IMAGE file attachments (markdown, code, JSON, CSV, logs…) into the model input as
+  // text so the text-only chat model can actually read them; images are left as file parts for
+  // the vision route. Stored/displayed thread (`validated`) is untouched — it keeps the file chip.
+  const withFiles = inlineFileAttachments(noReasoning);
+  const modelInput = await convertToModelMessages(withFiles);
 
   // The Leash agent (ToolLoopAgent, agent.ts): typed call options carry this turn's
   // derived context; `prepareCall` maps them to model / activeTools / steps / tokens.

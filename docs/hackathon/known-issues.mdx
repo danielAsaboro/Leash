@@ -10,11 +10,9 @@ the other pages or in the demo claims a capability that contradicts this list.
 
 ## Does not work (yet)
 
-- **Cross-mesh vision (image delegation).** On a single device, `qwen3vl` vision works. What does
-  **not** work is borrowing a peer's GPU for an *image* turn: the SDK's `attachments` are
-  **path-only** and the path is resolved on the **provider**, which cannot read the consumer's local
-  image file. So only **text/chat** is borrowable across the P2P mesh; vision stays **local-only**.
-  Tracked in `apps/hypha/src/model-type.ts`. (Text delegation, RAG, and voice are unaffected.)
+- **On-device text-to-video (Wan 2.1).** The image and audio generators run on-device, but Wan 2.1
+  text-to-video **OOMs on the 24 GB M4** and is deferred — the spike was attempted and the gate did
+  not pass. Image generation (Stable Diffusion) is unaffected.
 
 ## Partial
 
@@ -39,8 +37,16 @@ These were broken earlier in the build and are now fixed — listed so older not
 "broken" are not mistaken for current state:
 
 - **TTS (`supertonic`)** — now works on-device (fixed 2026-06-16, `@qvac/sdk` ≥ 0.12.2).
-- **On-device vision (single device)** — works end-to-end via the image-attachment path (the
-  *cross-mesh* case above is the remaining limitation, not local vision).
+- **On-device vision (single device)** — works end-to-end via the image-attachment path.
+- **Cross-mesh vision (image delegation)** — now works: borrowing a peer's GPU for an *image* turn
+  was previously blocked because the serve's `/v1/chat/completions` accepted only **string** message
+  content, so images were dropped before the SDK `completion()` call. We extended the chat path to
+  accept OpenAI **multimodal `content`** (a `text` + `image_url` array), decode the base64 data URL
+  to bytes, and materialize a temp file on the **provider** at the `completion()` call. Upstreamed as
+  **[tetherto/qvac#2459](https://github.com/tetherto/qvac/pull/2459)** and applied in-tree via
+  `patches/@qvac+cli+0.6.0.patch`; the hypha shim forwards the image over the encrypted mesh
+  (`apps/hypha/src/chat-attachments.ts`). Only **PNG/JPEG** data URLs are accepted (the formats the
+  inference image loader reliably decodes); unsupported inputs fail fast with a 400.
 - **Repo push** — local `main` is fully pushed (`origin/main`); only the public-visibility flip
   remains.
 
@@ -48,5 +54,5 @@ These were broken earlier in the build and are now fixed — listed so older not
 
 On-device chat, embeddings, RAG (grounded + cited), STT (`parakeet`), TTS (`supertonic`), local
 vision (`qwen3vl`), image generation (Stable Diffusion), on-device LoRA (QVAC Fabric), the
-encrypted P2P **text** delegation + KV-cache reuse, the CRDT context graph, the mobile app on an
-iPhone 12 Pro Max, and the MedPsy health-record RAG workflow.
+encrypted P2P **text and vision** delegation + KV-cache reuse, the CRDT context graph, the mobile
+app on an iPhone 12 Pro Max, and the MedPsy health-record RAG workflow.
