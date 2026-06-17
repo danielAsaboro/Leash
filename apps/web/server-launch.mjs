@@ -173,6 +173,7 @@ function bootstrapScopeDir(scope) {
   }
   if (existsSync(DB_TEMPLATE) && !existsSync(scope.dbPath)) cpSync(DB_TEMPLATE, scope.dbPath);
   seedBuiltinSkills(scope);
+  seedBuiltinAgents(scope);
   seedConstitution(scope);
 }
 
@@ -218,6 +219,31 @@ function seedBuiltinSkills(scope) {
     try {
       if (!statSync(src).isDirectory() || existsSync(dst)) continue;
       cpSync(src, dst, { recursive: true });
+    } catch {
+      /* skip a bad entry rather than abort the whole bootstrap */
+    }
+  }
+}
+
+/**
+ * Seed the committed built-in AGENTS (apps/web/builtin-agents) into the user's agent store
+ * (`<dataDir>/leash-agents/<slug>.md`), parallel to seedBuiltinSkills. These are the SPECIALIST
+ * delegates (Health/Researcher/Summarizer/Coder) Leash can call. We SKIP `leash.md` — Leash is the
+ * main orchestrator (read directly via lib/leash/main-agent.ts), never a delegate of itself.
+ * Seed-if-ABSENT only, so a user editing or deleting a specialist sticks. Agents are flat `.md`
+ * files (not folders like skills), so we copy files, not directories.
+ */
+function seedBuiltinAgents(scope) {
+  if (!existsSync(BUILTIN_AGENTS_SRC)) return;
+  const agentsDst = join(scope.dataDir, "leash-agents");
+  mkdirSync(agentsDst, { recursive: true });
+  for (const file of readdirSync(BUILTIN_AGENTS_SRC)) {
+    if (file === "leash.md" || !file.endsWith(".md")) continue;
+    const src = join(BUILTIN_AGENTS_SRC, file);
+    const dst = join(agentsDst, file);
+    try {
+      if (!statSync(src).isFile() || existsSync(dst)) continue;
+      cpSync(src, dst);
     } catch {
       /* skip a bad entry rather than abort the whole bootstrap */
     }
