@@ -60,6 +60,15 @@ const BUILTIN_SKILLS_SRC =
     : existsSync(join(here, "builtin-skills"))
       ? join(here, "builtin-skills")
       : join(REPO_ROOT, "apps", "web", "builtin-skills");
+// Committed built-in agents (apps/web/builtin-agents) — Phase A ships the `leash` default-agent def here.
+// The chat route reads leash.md via lib/leash/main-agent.ts; in the packaged standalone the bundled route
+// module can't resolve the source path, so we resolve the dir HERE and inject it as LEASH_BUILTIN_AGENTS_DIR.
+const BUILTIN_AGENTS_SRC =
+  RUNTIME_SRC && existsSync(join(RUNTIME_SRC, "apps", "web", "builtin-agents"))
+    ? join(RUNTIME_SRC, "apps", "web", "builtin-agents")
+    : existsSync(join(here, "builtin-agents"))
+      ? join(here, "builtin-agents")
+      : join(REPO_ROOT, "apps", "web", "builtin-agents");
 const DEFAULT_STANDALONE = join(here, ".next", "standalone");
 
 // ── active.json + registry ────────────────────────────────────────────────────────────
@@ -278,7 +287,7 @@ async function spawnScoped() {
   console.log(`[launch] Leash → ${newUserId ?? "(bootstrap)"} on ${hostname}:${WEB_PORT} — data: ${scope.dataDir}`);
   child = spawn(cmd, cmdArgs, {
     cwd,
-    env: { ...process.env, PORT: String(WEB_PORT), HOSTNAME: hostname, NODE_ENV: nodeEnv, LEASH_INTERNAL_TOKEN: internalToken, ...userEnv(LEASH_BASE, scope) },
+    env: { ...process.env, PORT: String(WEB_PORT), HOSTNAME: hostname, NODE_ENV: nodeEnv, LEASH_INTERNAL_TOKEN: internalToken, LEASH_BUILTIN_AGENTS_DIR: BUILTIN_AGENTS_SRC, ...userEnv(LEASH_BASE, scope) },
     stdio: "inherit",
   });
   child.on("exit", () => {

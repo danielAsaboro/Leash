@@ -37,9 +37,9 @@ async function loadOverrides(): Promise<Overrides> {
 }
 
 /** The effective prompt text for a key — override ?? code default. */
-export async function getPrompt(key: PromptKey): Promise<string> {
+export async function getPrompt(key: PromptKey, fallback?: string): Promise<string> {
   const o = (await loadOverrides())[key];
-  return typeof o === "string" && o.trim() ? o : DEFAULTS[key];
+  return typeof o === "string" && o.trim() ? o : (fallback ?? DEFAULTS[key]);
 }
 
 export interface PromptView {
