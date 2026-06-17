@@ -301,7 +301,7 @@ export async function POST(req: Request): Promise<Response> {
   // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
   // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
   const conductorModel =
-    !imageTurn && !computerTurn && !health && conductorDecision.route.peerKey
+    !imageTurn && !filesTurn && !computerTurn && !health && conductorDecision.route.peerKey
       ? routedChatModel({ alias: activeModel, sensitivity: conductorDecision.sensitivity, ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), peerKey: conductorDecision.route.peerKey })
       : undefined;
 
