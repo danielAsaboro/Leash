@@ -27,6 +27,7 @@ import { loopLog } from "./loop-diagnostics.ts";
 import type { Agent } from "./agents-store.ts";
 import { mcpToolNamesForServers, connectInline } from "./mcp.ts";
 import { grantedNames } from "./agent-grants.ts";
+import { readMemoryContext, agentMemoryTools } from "./agent-memory.ts";
 
 /** Max agent tools emitted at once — each is one schema; cap keeps the active toolset under budget. */
 const AGENT_TOOLS_CAP = 8;
@@ -107,20 +108,23 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
       execute: async function* ({ task }) {
         const { tools, names } = await agentTools(agent, registry);
         const skillCtx = await preloadSkills(agent);
-        // Connect inline MCP servers for this delegate only — isolated from the parent conversation.
-        const inline = agent.mcpServers.inline.length
-          ? await connectInline(agent.mcpServers.inline)
-          : { tools: {}, close: async () => {} };
+        // Initialize inline with safe defaults before the try — guaranteed close() in finally.
+        let inline: { tools: ToolSet; close: () => Promise<void> } = { tools: {}, close: async () => {} };
         try {
-          // Merge declared tools + inline MCP tools; apply toolless-hang guard to the merged set.
-          const merged: ToolSet = { ...(names.length ? tools : {}), ...inline.tools };
+          // Connect inline MCP servers for this delegate only — isolated from the parent conversation.
+          if (agent.mcpServers.inline.length) inline = await connectInline(agent.mcpServers.inline);
+          // Compute memory context + sandboxed tools when memory: is set.
+          const memCtx = agent.memory ? await readMemoryContext(agent.slug) : "";
+          const memTools = agent.memory ? agentMemoryTools(agent.slug) : {};
+          // Merge declared tools + inline MCP tools + memory tools; apply toolless-hang guard to the merged set.
+          const merged: ToolSet = { ...(names.length ? tools : {}), ...inline.tools, ...memTools };
           const runTools = Object.keys(merged).length ? merged : KEEPALIVE_TOOLS;
           loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${Object.keys(runTools).length} tool(s), ${agent.skills.length} skill(s), ${agent.mcpServers.inline.length} inline mcp)`);
           // The subagent is a ToolLoopAgent — same primitive as the main chat agent — with an isolated context.
           // QVAC wedge rule: maxRetries 0 and NEVER an abortSignal (an aborted decode wedges the serve).
           const sub = new ToolLoopAgent({
             model: chatModel(`agent:${agent.slug}`, agent.model || undefined),
-            instructions: (agent.body || `You are the "${agent.name}" agent. Carry out the task and end with a clear, self-contained summary of your result.`) + skillCtx,
+            instructions: (agent.body || `You are the "${agent.name}" agent. Carry out the task and end with a clear, self-contained summary of your result.`) + skillCtx + memCtx,
             temperature: 0.6,
             topP: 0.95,
             maxRetries: 0,
