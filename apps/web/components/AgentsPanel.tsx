@@ -5,6 +5,7 @@ import { PlusIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
+import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
 
 /**
  * Subagents editor (client) — create / edit / enable / delete specialized assistants the
@@ -66,6 +67,15 @@ export function AgentsPanel({ agents }: { agents: Agent[] }) {
   const [draft, setDraft] = useState<Draft>(EMPTY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Visibility>("all");
+
+  // Agents have no "built-in" source — "built-in" maps to PLUGIN-provided (read-only), "custom" to USER-created.
+  const counts: Record<Visibility, number> = {
+    all: agents.length,
+    builtin: agents.filter((a) => a.source === "plugin").length,
+    custom: agents.filter((a) => a.source === "user").length,
+  };
+  const visible = agents.filter((a) => (filter === "all" ? true : filter === "builtin" ? a.source === "plugin" : a.source === "user"));
 
   const call = async (fn: () => Promise<Response>): Promise<boolean> => {
     setBusy(true);
@@ -227,6 +237,7 @@ export function AgentsPanel({ agents }: { agents: Agent[] }) {
           <span className="kicker" style={{ color: "var(--color-faint)" }}>
             one tool per enabled agent
           </span>
+          <VisibilityFilter value={filter} onChange={setFilter} builtinLabel="Plugin" customLabel="User" counts={counts} />
           <IconButton title="New subagent" color="var(--color-sage-deep)" onClick={() => { setEditing("new"); setDraft(EMPTY); }}>
             <PlusIcon size={16} />
           </IconButton>
@@ -237,9 +248,13 @@ export function AgentsPanel({ agents }: { agents: Agent[] }) {
         <p className="kicker py-6 text-center" style={{ color: "var(--color-faint)" }}>
           No subagents yet — write one and the assistant can delegate matching work to it as a callable tool.
         </p>
+      ) : visible.length === 0 && editing === null ? (
+        <p className="kicker py-6 text-center" style={{ color: "var(--color-faint)" }}>
+          No {filter === "builtin" ? "plugin" : "user"} subagents.
+        </p>
       ) : (
         <ul>
-          {agents.map((a) => {
+          {visible.map((a) => {
             const isPlugin = a.source === "plugin";
             const summary = [
               a.tools.length > 0 ? `${a.tools.length} tool${a.tools.length > 1 ? "s" : ""}` : null,

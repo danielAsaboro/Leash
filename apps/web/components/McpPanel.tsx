@@ -6,6 +6,7 @@ import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
 import { Switch } from "./Switch.tsx";
 import { McpIntegrationModal } from "./McpIntegrationModal.tsx";
+import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
 import type { McpServerStatus } from "../lib/leash/mcp.ts";
 import type { McpTransport } from "../lib/leash/mcp-config.ts";
 
@@ -31,6 +32,15 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
   const [notice, setNotice] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<McpServerStatus | null>(null);
+  const [filter, setFilter] = useState<Visibility>("all");
+
+  // "Built-in" = the pinned Mesh Tools daemon; "custom" = every other row (added here or via env).
+  const counts: Record<Visibility, number> = {
+    all: servers.length,
+    builtin: servers.filter((s) => s.builtin).length,
+    custom: servers.filter((s) => !s.builtin).length,
+  };
+  const visible = servers.filter((s) => (filter === "all" ? true : filter === "builtin" ? s.builtin : !s.builtin));
 
   const toggle = async (s: McpServerStatus) => {
     setBusyId(s.id);
@@ -74,6 +84,7 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
       <div className="flex items-center gap-3">
         <span className="kicker kicker-sage">Integrations</span>
         <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
+        <VisibilityFilter value={filter} onChange={setFilter} counts={counts} />
         <IconButton title="Add integration" color="var(--color-sage-deep)" onClick={() => setAdding(true)}>
           <PlusIcon size={16} />
         </IconButton>
@@ -91,7 +102,7 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
       )}
 
       <ul>
-        {servers.map((s) => {
+        {visible.map((s) => {
           const TIcon = TRANSPORT_ICON[s.transport];
           const readOnly = !!s.fromEnv;
           const secretCount = (s.headerNames?.length ?? 0) + (s.envNames?.length ?? 0);

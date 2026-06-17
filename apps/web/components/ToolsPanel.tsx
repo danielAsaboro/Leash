@@ -5,6 +5,7 @@ import { ShieldAlertIcon, PuzzleIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
+import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
 
 /**
  * Tool toggles (client) — flip individual assistant tools on/off, and mark tools
@@ -33,6 +34,15 @@ export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filter, setFilter] = useState<Visibility>("all");
+
+  // "Built-in" = native Leash tools; "custom" = tools sourced from a connected MCP server (`mcp`).
+  const counts: Record<Visibility, number> = {
+    all: tools.length,
+    builtin: tools.filter((t) => !t.mcp).length,
+    custom: tools.filter((t) => t.mcp).length,
+  };
+  const visible = tools.filter((t) => (filter === "all" ? true : filter === "builtin" ? !t.mcp : !!t.mcp));
 
   const put = async (body: { disabled?: string[]; askFirst?: Record<string, boolean> }) => {
     setBusy(true);
@@ -58,8 +68,13 @@ export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
           {error}
         </p>
       )}
+      <div className="mb-3 flex items-center gap-3">
+        <span className="kicker kicker-sage">Tools</span>
+        <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
+        <VisibilityFilter value={filter} onChange={setFilter} customLabel="MCP" counts={counts} />
+      </div>
       <ul>
-        {tools.map((t) => (
+        {visible.map((t) => (
           <li key={t.name} className="flex items-start gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: t.enabled ? 1 : 0.6 }}>
             <div className="mt-0.5">
               <Switch on={t.enabled} disabled={busy} onChange={() => void toggle(t.name)} label={`${t.enabled ? "Disable" : "Enable"} ${t.name}`} />

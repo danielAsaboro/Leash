@@ -5,6 +5,7 @@ import { PlusIcon, UploadIcon, PencilIcon, Trash2Icon, RotateCcwIcon } from "luc
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
+import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
 import type { Skill } from "../lib/leash/skills-store.ts";
 
 /**
@@ -137,6 +138,15 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
   // Import panel state
   const [importMode, setImportMode] = useState<ImportMode | null>(null);
   const [importInput, setImportInput] = useState("");
+
+  // Source filter — "built-in" = shipped with the app; "custom" = user-created or imported.
+  const [filter, setFilter] = useState<Visibility>("all");
+  const counts: Record<Visibility, number> = {
+    all: skills.length,
+    builtin: skills.filter((s) => s.builtin).length,
+    custom: skills.filter((s) => !s.builtin).length,
+  };
+  const visible = skills.filter((s) => (filter === "all" ? true : filter === "builtin" ? s.builtin : !s.builtin));
 
   // VS Code open-editor state: which skill is open in VS Code, or showing its path
   const [vsCodeNotice, setVsCodeNotice] = useState<{ slug: string; path: string } | null>(null);
@@ -307,6 +317,7 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
                 imports land disabled
               </span>
             )}
+            <VisibilityFilter value={filter} onChange={setFilter} counts={counts} />
             <IconButton title="Import skill (.zip / GitHub / folder)" disabled={busy} onClick={() => setImportMode((m) => (m === null ? "zip" : null))}>
               <UploadIcon size={16} />
             </IconButton>
@@ -386,9 +397,13 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
         <p className="kicker py-6 text-center" style={{ color: "var(--color-faint)" }}>
           No skills yet — write one and the assistant will follow it whenever a request matches its description.
         </p>
+      ) : visible.length === 0 && editing === null ? (
+        <p className="kicker py-6 text-center" style={{ color: "var(--color-faint)" }}>
+          No {filter === "builtin" ? "built-in" : "custom"} skills.
+        </p>
       ) : (
         <ul>
-          {skills.map((s) => (
+          {visible.map((s) => (
             <li key={s.slug} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: s.enabled ? 1 : 0.6 }}>
               <Switch on={s.enabled} disabled={busy} onChange={() => toggle(s)} label={`${s.enabled ? "Disable" : "Enable"} ${s.name}`} />
               <div className="min-w-0 flex-1">
