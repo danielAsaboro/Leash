@@ -27,21 +27,29 @@ function main() {
 
   // 3. Fallback: garbled file (no frontmatter block) returns constants.
   const tmp = mkdtempSync(join(tmpdir(), "leash-test-"));
-  const garbled = join(tmp, "leash.md");
-  writeFileSync(garbled, "no frontmatter here, just prose");
-  const garbledResult = loadMainAgentBase(garbled);
-  assert.strictEqual(garbledResult.body, DEFAULT_LEASH_SYSTEM, "garbled file → DEFAULT_LEASH_SYSTEM");
-  rmSync(tmp, { recursive: true });
+  try {
+    const garbled = join(tmp, "leash.md");
+    writeFileSync(garbled, "no frontmatter here, just prose");
+    const garbledResult = loadMainAgentBase(garbled);
+    assert.strictEqual(garbledResult.body, DEFAULT_LEASH_SYSTEM, "garbled file → DEFAULT_LEASH_SYSTEM");
+    assert.strictEqual(garbledResult.model, "", "garbled file → empty model");
+    assert.strictEqual(garbledResult.name, "Leash", "garbled file → name Leash");
+  } finally {
+    rmSync(tmp, { recursive: true });
+  }
 
   // 4. Custom path with valid frontmatter is parsed correctly.
   const tmp2 = mkdtempSync(join(tmpdir(), "leash-test-"));
-  const custom = join(tmp2, "leash.md");
-  writeFileSync(custom, "---\nname: TestAgent\nmodel: test-alias\n---\nCustom body.");
-  const customResult = loadMainAgentBase(custom);
-  assert.strictEqual(customResult.name, "TestAgent", "custom name is parsed from frontmatter");
-  assert.strictEqual(customResult.model, "test-alias", "custom model is parsed from frontmatter");
-  assert.strictEqual(customResult.body, "Custom body.", "custom body is trimmed");
-  rmSync(tmp2, { recursive: true });
+  try {
+    const custom = join(tmp2, "leash.md");
+    writeFileSync(custom, "---\nname: TestAgent\nmodel: test-alias\n---\nCustom body.");
+    const customResult = loadMainAgentBase(custom);
+    assert.strictEqual(customResult.name, "TestAgent", "custom name is parsed from frontmatter");
+    assert.strictEqual(customResult.model, "test-alias", "custom model is parsed from frontmatter");
+    assert.strictEqual(customResult.body, "Custom body.", "custom body is trimmed");
+  } finally {
+    rmSync(tmp2, { recursive: true });
+  }
 
   console.log("main-agent: PASS");
 }

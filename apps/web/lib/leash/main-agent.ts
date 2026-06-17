@@ -1,3 +1,4 @@
+// No 'server-only' guard here: this module is imported by scripts/main-agent.test.ts (tsx, outside Next.js), where 'server-only' would throw. It only ever does read-only fs access.
 // apps/web/lib/leash/main-agent.ts
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -26,7 +27,7 @@ export function loadMainAgentBase(mdPath?: string): MainAgentBase {
   try {
     const raw = readFileSync(mdPath ?? DEFAULT_LEASH_MD, "utf8");
     const parsed = splitFrontmatter(raw);
-    if (!parsed) return FALLBACK;
+    if (!parsed) return { ...FALLBACK };
     const { fields, body } = parsed;
     const trimmedBody = body.trim();
     return {
@@ -35,6 +36,6 @@ export function loadMainAgentBase(mdPath?: string): MainAgentBase {
       name: (fields["name"] ?? "").trim() || FALLBACK.name,
     };
   } catch {
-    return FALLBACK;
+    return { ...FALLBACK };
   }
 }
