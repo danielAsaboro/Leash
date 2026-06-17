@@ -65,18 +65,20 @@ export class MeshRouter {
   /** Pick a warm delegated target for the request via the tier ladder + eligibility cap. */
   route(req: ChatRouteReq): ChatRouteHit | null {
     const meshes = this.meshes();
-    // Advisory peer pin: if a pinPeerKey is set and there is a warm candidate for that peer, promote
-    // its mesh to the front so routeDelegation sees it first (highest priority). Falls back to the
-    // normal tier walk when the pin is absent or the peer is not warm for this alias.
+    // Advisory peer pin: when pinPeerKey is set, pass it into targetForAlias so each mesh returns
+    // the pinned peer directly if it is warm for this alias in that mesh (exact providerPublicKey
+    // equality — not just the lowest-inflight representative). The mesh whose pool returns the
+    // pinned target then sorts to the front of orderedMeshes so routeDelegation sees it first.
+    // Falls through to the normal tier walk when the pin is absent, unknown, or not warm anywhere.
     const orderedMeshes = req.pinPeerKey
       ? [...meshes].sort((a, b) => {
-          const aPin = a.pool.targetForAlias(req.alias)?.peerKey === req.pinPeerKey ? -1 : 0;
-          const bPin = b.pool.targetForAlias(req.alias)?.peerKey === req.pinPeerKey ? 1 : 0;
+          const aPin = a.pool.targetForAlias(req.alias, req.pinPeerKey)?.peerKey === req.pinPeerKey ? -1 : 0;
+          const bPin = b.pool.targetForAlias(req.alias, req.pinPeerKey)?.peerKey === req.pinPeerKey ? 1 : 0;
           return aPin + bPin;
         })
       : meshes;
     const candidates: MeshCandidate[] = orderedMeshes.map((m) => {
-      const w = m.pool.targetForAlias(req.alias);
+      const w = m.pool.targetForAlias(req.alias, req.pinPeerKey);
       return {
         meshId: m.meshId,
         tier: m.tier,
@@ -124,7 +126,8 @@ export class MeshRouter {
       }
     }
     // Advisory peer pin: move the pinned key to the front when it is present in the candidate list.
-    if (req.pinPeerKey && out.includes(req.pinPeerKey)) {
+    // Use the already-built seen Set (O(1)) rather than out.includes() (O(n)).
+    if (req.pinPeerKey && seen.has(req.pinPeerKey)) {
       return [req.pinPeerKey, ...out.filter((k) => k !== req.pinPeerKey)];
     }
     return out;
