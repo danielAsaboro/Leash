@@ -706,7 +706,7 @@ export function createShim(deps: ShimDeps): http.Server {
     if (forward && method === "POST" && (url.startsWith("/v1/embeddings") || url.startsWith("/v1/audio/speech"))) {
       const fwdRouter = getRouter();
       if (!fwdRouter || !fwdRouter.online()) return json(res, 503, { error: { message: "hypha: mesh offline (device not paired)", code: "mesh_offline" } });
-      let fbody: { model?: string; sensitivity?: string; meshId?: string; response_format?: string };
+      let fbody: { model?: string; sensitivity?: string; meshId?: string; peerKey?: string; response_format?: string };
       try {
         fbody = JSON.parse((await readBody(req)).toString("utf-8"));
       } catch (err) {
@@ -715,7 +715,8 @@ export function createShim(deps: ShimDeps): http.Server {
       const fwdAlias = fbody.model;
       if (!fwdAlias) return json(res, 400, { error: { message: "hypha shim: `model` (alias) is required" } });
       const fwdSensitivity = fbody.sensitivity === "shareable" ? "shareable" : "private";
-      const fwdPeers = fwdRouter.forwardTargetsForAlias({ alias: fwdAlias, sensitivity: fwdSensitivity, ...(fbody.meshId ? { pinMeshId: fbody.meshId } : {}) });
+      const fwdPeerKey = typeof fbody.peerKey === "string" ? fbody.peerKey : undefined;
+      const fwdPeers = fwdRouter.forwardTargetsForAlias({ alias: fwdAlias, sensitivity: fwdSensitivity, ...(fbody.meshId ? { pinMeshId: fbody.meshId } : {}), ...(fwdPeerKey ? { pinPeerKey: fwdPeerKey } : {}) });
       if (fwdPeers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${fwdAlias}" for forwarding`, code: "no_forward_peer" } });
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: fwdPeers.length, peer: fwdPeers[0]!.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] } });
       meshBus.record({ kind: "route", phase: "forward-route", peers: fwdPeers.length, peer: fwdPeers[0]!.slice(0, 16), alias: fwdAlias, endpoint: url.split("?")[0] });
@@ -766,6 +767,7 @@ export function createShim(deps: ShimDeps): http.Server {
       stream?: boolean;
       sensitivity?: string;
       meshId?: string;
+      peerKey?: string;
       computeBudget?: number;
       tools?: unknown;
       tool_choice?: unknown;
@@ -791,8 +793,10 @@ export function createShim(deps: ShimDeps): http.Server {
       });
     }
     // Delegation ladder (spec §6): walk meshes by tier, capped by eligibility. `sensitivity`
-    // defaults to private (fail-closed); an optional `meshId` hard-pins to one mesh.
+    // defaults to private (fail-closed); an optional `meshId` hard-pins to one mesh; an optional
+    // `peerKey` is an advisory conductor pin (falls back to tier walk if the peer is unreachable).
     const sensitivity = body.sensitivity === "shareable" ? "shareable" : "private";
+    const peerKey = typeof body.peerKey === "string" ? body.peerKey : undefined;
 
     // SP2 Option B — vision (and later embed/stt/tts) can't ride SDK delegation (attachments are
     // path-only, read on the worker) and is advertised borrowable:false. The forward transport borrows
@@ -800,7 +804,7 @@ export function createShim(deps: ShimDeps): http.Server {
     // peer that SERVES the alias (no delegated warm needed) and send the OpenAI body (image bytes
     // inline) over the forward channel; the peer runs it on its serve and streams the answer back.
     if (forward && requestHasImages(body.messages)) {
-      const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
+      const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) });
       if (peers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
       audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias } });
       meshBus.record({ kind: "route", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias });
@@ -815,7 +819,7 @@ export function createShim(deps: ShimDeps): http.Server {
         (ps) => streamForwardChat(res, forward, ps, chatArgs, inflight, audit));
     }
 
-    const warm = router.route({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}) });
+    const warm = router.route({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) });
     if (!warm) return json(res, 503, { error: { message: `hypha shim: no eligible warm peer serves "${alias}"`, code: "no_warm_peer" } });
     meshBus.record({ kind: "route", phase: "route", peer: warm.peerKey.slice(0, 16), alias, meshId: warm.meshId });
 
