@@ -26,6 +26,7 @@ import { listAgents } from "../../../../lib/leash/agents-store.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
+import { loadMainAgentBase } from "../../../../lib/leash/main-agent.ts";
 import { getConstitution } from "../../../../lib/leash/constitution.ts";
 import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
 import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
@@ -286,6 +287,10 @@ export async function POST(req: Request): Promise<Response> {
     console.error("leash: UI message validation failed, using raw history:", err);
   }
 
+  // Load the built-in agent base (leash.md): body = default system prompt, model = default alias.
+  // Synchronous; falls back to DEFAULT_LEASH_SYSTEM + "" on any failure.
+  const base = loadMainAgentBase();
+
   // Routing: image turn → vision VLM; else computer-use intent (while any computer tool is
   // enabled) → the computer driver; else medical/wellbeing → MedPsy specialist; else generalist.
   const off = await disabledTools();
@@ -305,7 +310,7 @@ export async function POST(req: Request): Promise<Response> {
   // Conductor: for the generalist chat lane (not image/computer/health) we run the Conductor to pick
   // the best available route (local vs. peer). Specialist routes keep their dedicated models — the
   // Conductor only overrides the generalist chat model selection.
-  const defaultAlias = chosenModel ?? resolvedChatAlias();
+  const defaultAlias = chosenModel ?? (base.model || resolvedChatAlias());
   // fetchRouteOptions returns [] on failure — Conductor then falls back to local (always offline-safe).
   let conductorDecision;
   try {
@@ -372,7 +377,7 @@ export async function POST(req: Request): Promise<Response> {
   // plus the skills section ("" when no skills — honest empty state).
   const lastText = lastUserText(validated);
   planTask = lastText; // the overall task each approved plan step is executed against
-  const [systemPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts(), getConstitution()]);
+  const [systemPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([getPrompt("system", base.body), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts(), getConstitution()]);
   const baseSystem = health ? systemPrompt + (await getPrompt("medpsy")) : systemPrompt;
   // The constitution (soul + goals) makes EVERY turn goal-aware, not just heartbeats. Bounded by the
   // store's per-file cap. Trimmed so an unedited/empty file contributes nothing to the prompt.
