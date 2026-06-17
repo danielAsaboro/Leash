@@ -17,12 +17,13 @@ import { computerGroup } from "./computer.ts";
 import { filesGroup } from "./files.ts";
 import { mcpAdminGroup } from "./mcp-admin.ts";
 import { schedulerGroup } from "./scheduler.ts";
+import { routerGroup } from "./router.ts";
 import type { ToolGroup, GroupTool } from "./types.ts";
 
 export type { ToolGroup, GroupTool } from "./types.ts";
 
 /** Every tool group, in display order. */
-export const TOOL_GROUPS: ToolGroup[] = [homeAssistantGroup, feedGroup, memoryGroup, tasksGroup, contextGroup, photosGroup, imageGroup, researchGroup, skillsGroup, computerGroup, filesGroup, mcpAdminGroup, schedulerGroup];
+export const TOOL_GROUPS: ToolGroup[] = [homeAssistantGroup, feedGroup, memoryGroup, tasksGroup, contextGroup, photosGroup, imageGroup, researchGroup, skillsGroup, computerGroup, filesGroup, mcpAdminGroup, schedulerGroup, routerGroup];
 
 /** Look up a group by its id (URL path segment). */
 export function groupById(id: string): ToolGroup | undefined {

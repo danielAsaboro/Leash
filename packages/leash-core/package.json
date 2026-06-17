@@ -94,6 +94,10 @@
     "./groups": {
       "types": "./dist/groups/index.d.ts",
       "default": "./dist/groups/index.js"
+    },
+    "./routing": {
+      "types": "./dist/routing/index.d.ts",
+      "default": "./dist/routing/index.js"
     }
   },
   "scripts": {

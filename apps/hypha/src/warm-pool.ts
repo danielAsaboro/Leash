@@ -38,6 +38,10 @@ export interface PeerView {
   /** Truncated (16-char) provider public key — the SAME prefix `MeshEvent.peer` carries, so a
    *  live-mesh viz can match a routing event to the exact node it lit up. Absent on a pre-viz peer. */
   peerId?: string;
+  /** Full provider public key — required for mesh-router pin matching (capabilityForProviderKey uses
+   *  exact equality on providerPublicKey). Consumers MUST use this field (not peerId) when constructing
+   *  a peer pin. Name mirrors the `self.providerKey` field in the /peers response envelope. */
+  providerKey?: string;
   computeClass: string;
   ramMB: number;
   powerState: string;
@@ -190,8 +194,12 @@ export class WarmPool {
   /**
    * A warm delegated modelId for `alias`, picking the lowest-inflight live peer. `inflight` is
    * returned too so a cross-mesh tier router can tie-break between meshes at the same tier.
+   *
+   * `preferPeerKey` (optional): when set to a full `providerPublicKey`, if a candidate whose
+   * `peerKey === preferPeerKey` exists in this pool for `alias` it is returned directly (bypassing
+   * inflight / reputation sort). Unset or no-match falls through to the normal selection unchanged.
    */
-  targetForAlias(alias: string): DelegationTarget | undefined {
+  targetForAlias(alias: string, preferPeerKey?: string): DelegationTarget | undefined {
     const inflightOf = (pk: string): number => this.lastCaps.find((c) => c.providerPublicKey === pk)?.inflight ?? 0;
     const warmCandidates = [...this.warm.values()]
       .filter((e) => e.alias === alias)
@@ -207,6 +215,12 @@ export class WarmPool {
       });
     const candidates: DelegationTarget[] = [...warmCandidates, ...paidCandidates];
     if (candidates.length === 0) return undefined;
+    // Per-peer pin: if the caller requests a specific peer and we hold it warm for this alias,
+    // return it immediately (exact providerPublicKey equality) without re-sorting.
+    if (preferPeerKey) {
+      const pinned = candidates.find((c) => c.peerKey === preferPeerKey);
+      if (pinned) return pinned;
+    }
     const rep = this.deps.reputation;
     if (rep) {
       // Reputation-weighted: free/warm peers (no session) first — the proven free path is untouched;
@@ -309,6 +323,7 @@ export class WarmPool {
           deviceId: c.deviceId,
           displayName: c.displayName,
           peerId: c.providerPublicKey!.slice(0, 16),
+          providerKey: c.providerPublicKey!,
           computeClass: c.computeClass,
           ramMB: c.ramMB,
           powerState: c.powerState,

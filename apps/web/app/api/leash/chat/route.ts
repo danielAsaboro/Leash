@@ -12,8 +12,10 @@
  */
 import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
-import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias } from "../../../../lib/leash/provider.ts";
+import { CHAT_MODEL, MEDPSY_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
+import { conduct } from "../../../../lib/leash/conductor.ts";
+import { tagsForAlias, type RouteOption } from "@mycelium/leash-core/routing";
 import { leashTools } from "../../../../lib/leash/tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
 import { skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
@@ -33,6 +35,12 @@ import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
 import { interjectRequested, clearInterject } from "../../../../lib/leash/interject-store.ts";
 import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
+import { AuditLog } from "@mycelium/shared";
+import { DATA_DIR } from "../../../../lib/leash/json-store.ts";
+import { join } from "node:path";
+
+/** Singleton AuditLog for conductor decisions (logs/conductor.jsonl relative to DATA_DIR). */
+const conductorAudit = new AuditLog("conductor", join(DATA_DIR, "..", "logs"));
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +64,15 @@ const metadataSchema = z
 const skillDataSchema = z.object({
   mode: z.enum(["explicit", "automatic"]),
   skills: z.array(z.object({ slug: z.string(), name: z.string() })).min(1),
+});
+
+const conductorDataSchema = z.object({
+  tier: z.string(),
+  alias: z.string(),
+  peerKey: z.string().optional(),
+  meshId: z.string().optional(),
+  reason: z.string(),
+  viaFastPath: z.boolean(),
 });
 
 /**
@@ -138,6 +155,62 @@ function isFilesIntent(messages: LeashUIMessage[]): boolean {
   return FILES_RE.test(lastUserText(messages));
 }
 
+/** Hypha daemon base URL (same base used by hypha.ts, economy.server.ts, etc.). */
+const HYPHA_BASE = process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11437";
+
+/**
+ * Build RouteOption[] from the live hypha daemon for the Conductor's pre-pass.
+ *
+ * - Peers come from `GET /peers` (each row has `providerKey` = full key, `models` = alias names,
+ *   `inflight`, `pricePerKiloToken?`, `meshId?`). LOCAL device is NOT in /peers — its aliases
+ *   come from `GET /health` (`warmAliases[]`).
+ * - Returns [] on ANY failure (network error, daemon down) so the route is always offline-capable.
+ */
+async function fetchRouteOptions(): Promise<RouteOption[]> {
+  try {
+    type PeerRow = { providerKey?: string; models?: string[]; inflight?: number; pricePerKiloToken?: number; meshId?: string };
+    type HealthBody = { warmAliases?: string[] };
+
+    const [peersRes, healthRes] = await Promise.all([
+      fetch(`${HYPHA_BASE}/peers`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
+      fetch(`${HYPHA_BASE}/health`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
+    ]);
+
+    const options: RouteOption[] = [];
+
+    // Local device — warmAliases from /health as tier "device", price 0
+    if (healthRes.ok) {
+      const hb = (await healthRes.json()) as HealthBody;
+      for (const alias of hb.warmAliases ?? []) {
+        options.push({ tier: "device", alias, tags: tagsForAlias(alias), pricePerKiloToken: 0, inflight: 0 });
+      }
+    }
+
+    // Peers — each row's full providerKey is the pin key the shim expects
+    if (peersRes.ok) {
+      const pb = (await peersRes.json()) as { peers?: PeerRow[] };
+      for (const row of pb.peers ?? []) {
+        if (!row.providerKey) continue;
+        for (const alias of row.models ?? []) {
+          options.push({
+            tier: "private",
+            alias,
+            tags: tagsForAlias(alias),
+            peerKey: row.providerKey,
+            ...(row.meshId ? { meshId: row.meshId } : {}),
+            pricePerKiloToken: row.pricePerKiloToken ?? 0,
+            inflight: row.inflight ?? 0,
+          });
+        }
+      }
+    }
+
+    return options;
+  } catch {
+    return [];
+  }
+}
+
 /** Step budget for computer-use turns — a GUI loop is screenshot → act → screenshot → verify. */
 const COMPUTER_STEPS = 10;
 /** Step budget for files turns — a retrieval loop is grep → read → grep → answer. */
@@ -207,7 +280,7 @@ export async function POST(req: Request): Promise<Response> {
       messages,
       tools: tools as any,
       metadataSchema,
-      dataSchemas: { skill: skillDataSchema, plan: planDataSchema },
+      dataSchemas: { skill: skillDataSchema, plan: planDataSchema, conductor: conductorDataSchema },
     })) as LeashUIMessage[];
   } catch (err) {
     console.error("leash: UI message validation failed, using raw history:", err);
@@ -229,7 +302,56 @@ export async function POST(req: Request): Promise<Response> {
   const health = !imageTurn && !filesTurn && !computerTurn && isHealthIntent(validated);
   // The model actually driving this turn (for telemetry) — chat uses the user-chosen alias, else the
   // configured default; NOT the hardcoded CHAT_MODEL (which is just the last-resort fallback).
-  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : chosenModel ?? resolvedChatAlias();
+  // Conductor: for the generalist chat lane (not image/computer/health) we run the Conductor to pick
+  // the best available route (local vs. peer). Specialist routes keep their dedicated models — the
+  // Conductor only overrides the generalist chat model selection.
+  const defaultAlias = chosenModel ?? resolvedChatAlias();
+  // fetchRouteOptions returns [] on failure — Conductor then falls back to local (always offline-safe).
+  let conductorDecision;
+  try {
+    const conductorOptions = await fetchRouteOptions();
+    conductorDecision = await conduct({ text: lastUserText(validated), isImageTurn: imageTurn, options: conductorOptions, defaultAlias });
+  } catch (err) {
+    console.error("leash[conductor]: error in fetchRouteOptions/conduct, falling back to local:", err);
+    // Fallback: local device route, private sensitivity (safe default), no fast-path.
+    conductorDecision = {
+      modality: "text" as const,
+      sensitivity: "private" as const,
+      bar: { modality: "text", minParamClass: "small" },
+      route: { tier: "device" as const, alias: defaultAlias },
+      reason: "conductor error → local fallback",
+      viaFastPath: false,
+    };
+  }
+  console.log(`leash[conductor]: route=${conductorDecision.route.tier}/${conductorDecision.route.alias} sensitivity=${conductorDecision.sensitivity} reason="${conductorDecision.reason}"`);
+  // Audit record — skip fast-path trivial turns to avoid noise; delegation events are always logged.
+  if (!conductorDecision.viaFastPath) {
+    try {
+      conductorAudit.record({
+        event: conductorDecision.route.peerKey ? "delegation" : "note",
+        modelId: conductorDecision.route.alias,
+        ...(conductorDecision.route.modelSrc ? { modelSrc: conductorDecision.route.modelSrc } : {}),
+        extra: {
+          tier: conductorDecision.route.tier,
+          peerKey: conductorDecision.route.peerKey ?? null,
+          sensitivity: conductorDecision.sensitivity,
+          bar: conductorDecision.bar,
+          reason: conductorDecision.reason,
+        },
+      });
+    } catch {
+      /* audit write must never break a turn */
+    }
+  }
+  // Vision hard-rule: image turns ALWAYS use the vision VLM regardless of the Conductor decision.
+  // Specialist routes (computer, health) keep their dedicated models.
+  const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : health ? MEDPSY_MODEL : conductorDecision.route.alias || defaultAlias;
+  // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
+  // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
+  const conductorModel =
+    !imageTurn && !filesTurn && !computerTurn && !health && conductorDecision.route.peerKey
+      ? routedChatModel({ alias: activeModel, sensitivity: conductorDecision.sensitivity, ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), peerKey: conductorDecision.route.peerKey })
+      : undefined;
 
   // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
   // job is to call `submit_plan` (approval-gated → the Plan card); on approval its `execute` runs the
@@ -370,6 +492,7 @@ export async function POST(req: Request): Promise<Response> {
             /* stream already closed */
           }
         });
+        writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath } });
         writer.write({ type: "data-skill", data: { mode: activeSkills?.mode ?? "automatic", skills: activeSkills?.skills ?? [{ slug: pipeline.slug, name: pipeline.slug }] } });
         let text: string;
         try {
@@ -416,7 +539,7 @@ export async function POST(req: Request): Promise<Response> {
   // completion server-side (bounded by the tier's maxOutputTokens) and the next turn
   // queues briefly behind it — slow beats dead. Messages are compacted for the model
   // (summary + recent tail); the full thread is still saved via `originalMessages`.
-  const agent = buildLeashAgent(enabledTools, () => interjectRequested(id));
+  const agent = buildLeashAgent(enabledTools, () => interjectRequested(id), conductorModel);
   const callOptions: LeashCallOptions = {
     route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : health ? "health" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
@@ -457,6 +580,8 @@ export async function POST(req: Request): Promise<Response> {
           /* stream already closed — the GET /elicitations fallback covers reloads */
         }
       });
+      // Conductor decision — always emitted (even fast-path) so the UI has the route context.
+      writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath } });
       if (activeSkills?.skills.length) {
         writer.write({
           type: "data-skill",

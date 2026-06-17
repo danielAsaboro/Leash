@@ -39,6 +39,9 @@ export interface ChatRouteReq {
   /** Hard pin to one mesh (never fall through). */
   pinMeshId?: string;
   maxTier?: number;
+  /** Conductor's exact peer pick (advisory). When set and the peer is reachable for `alias`, it is
+   *  preferred over the tier walk; if not reachable, routing falls back to the normal ladder. */
+  pinPeerKey?: string;
 }
 export interface ChatRouteHit {
   meshId: string;
@@ -61,8 +64,21 @@ export class MeshRouter {
 
   /** Pick a warm delegated target for the request via the tier ladder + eligibility cap. */
   route(req: ChatRouteReq): ChatRouteHit | null {
-    const candidates: MeshCandidate[] = this.meshes().map((m) => {
-      const w = m.pool.targetForAlias(req.alias);
+    const meshes = this.meshes();
+    // Advisory peer pin: when pinPeerKey is set, pass it into targetForAlias so each mesh returns
+    // the pinned peer directly if it is warm for this alias in that mesh (exact providerPublicKey
+    // equality — not just the lowest-inflight representative). The mesh whose pool returns the
+    // pinned target then sorts to the front of orderedMeshes so routeDelegation sees it first.
+    // Falls through to the normal tier walk when the pin is absent, unknown, or not warm anywhere.
+    const orderedMeshes = req.pinPeerKey
+      ? [...meshes].sort((a, b) => {
+          const aPin = a.pool.targetForAlias(req.alias, req.pinPeerKey)?.peerKey === req.pinPeerKey ? -1 : 0;
+          const bPin = b.pool.targetForAlias(req.alias, req.pinPeerKey)?.peerKey === req.pinPeerKey ? 1 : 0;
+          return aPin + bPin;
+        })
+      : meshes;
+    const candidates: MeshCandidate[] = orderedMeshes.map((m) => {
+      const w = m.pool.targetForAlias(req.alias, req.pinPeerKey);
       return {
         meshId: m.meshId,
         tier: m.tier,
@@ -98,7 +114,7 @@ export class MeshRouter {
    * meshes in tier order, honors a hard mesh pin, fails closed on privacy (a private request never
    * falls to a public mesh). The list lets the shim fail over to the next peer when one errors.
    */
-  forwardTargetsForAlias(req: { alias: string; sensitivity?: Sensitivity; pinMeshId?: string }): string[] {
+  forwardTargetsForAlias(req: { alias: string; sensitivity?: Sensitivity; pinMeshId?: string; pinPeerKey?: string }): string[] {
     const meshes = [...this.meshes()].sort((a, b) => a.tier - b.tier);
     const seen = new Set<string>();
     const out: string[] = [];
@@ -108,6 +124,11 @@ export class MeshRouter {
       for (const peerKey of m.pool.forwardTargetsForAlias(req.alias)) {
         if (!seen.has(peerKey)) { seen.add(peerKey); out.push(peerKey); }
       }
+    }
+    // Advisory peer pin: move the pinned key to the front when it is present in the candidate list.
+    // Use the already-built seen Set (O(1)) rather than out.includes() (O(n)).
+    if (req.pinPeerKey && seen.has(req.pinPeerKey)) {
+      return [req.pinPeerKey, ...out.filter((k) => k !== req.pinPeerKey)];
     }
     return out;
   }
