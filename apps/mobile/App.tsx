@@ -32,7 +32,7 @@ import {
   type ChatSummary,
   type ChatRecord,
 } from "./chats";
-import { meshVision } from "./forwardWorklet";
+import { meshForward, meshVision, abortMeshForward } from "./forwardWorklet";
 import { loadStt, startRecording, stopRecording, transcribeWav, type RecHandle } from "./voice";
 import { useFonts } from "expo-font";
 import {
@@ -57,7 +57,6 @@ import {
   cancel,
   completion,
   downloadAsset,
-  QWEN3_1_7B_INST_Q4,
   loadModel,
   type ModelProgressUpdate,
   unloadModel,
@@ -68,7 +67,7 @@ import { getSelectedChatKey, setSelectedChatKey } from "./selectedModel";
 
 import { C, F, TRACKING_LABEL } from "./theme";
 import { LeashMark } from "./LeashMark";
-import { type MeshStatus } from "./MeshSheet";
+import { pickChatProvider, selfConsumerKey, type ChatOffloadTarget } from "./meshClient";
 import { NavDrawer, type Route } from "./NavDrawer";
 import { HomeScreen } from "./HomeScreen";
 import { MeshScreen } from "./MeshScreen";
@@ -79,13 +78,19 @@ import { BrainScreen } from "./BrainScreen";
 import { EconomyScreen } from "./EconomyScreen";
 import { ServicesScreen } from "./ServicesScreen";
 import { DesktopScreen, type DesktopRoute } from "./DesktopScreen";
-import { loadMeshConfig, saveMeshConfig, isValidProviderKey, pingProvider, notifyPairing } from "./mesh";
 import { initMesh } from "./meshClient";
 import { getPrompts, DEFAULT_SYSTEM, DEFAULT_VOICE } from "./prompts";
 import { getConstitution } from "./constitution";
 import { listMemories, type Memory } from "./memories";
 import { addNotification, unreadCount } from "./notifications";
 import * as Device from "expo-device";
+import { AppState, Keyboard } from "react-native";
+import { buildDeviceTools } from "./lib/agent/tools";
+import { runNativeTurn, splitThink, partsFromText, type Part } from "./lib/agent/native-loop";
+import { logChatTurn, summarizeParts } from "./lib/agent/chat-log";
+import { activeSkillForTurn, syncSkillsFromMesh } from "./lib/agent/skills";
+import { MessageParts } from "./ai-elements/MessageParts";
+import { reconnect as meshReconnect } from "./meshClient";
 
 const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
 
@@ -133,7 +138,7 @@ const SUGGESTIONS = [
 
 type Role = "user" | "assistant";
 type Telemetry = { tokens: number; tps: number; ttftMs: number; where: "mesh" | "local"; device?: string };
-type ChatMessage = { id: string; role: Role; content: string; telemetry?: Telemetry; image?: string };
+type ChatMessage = { id: string; role: Role; content: string; telemetry?: Telemetry; image?: string; parts?: Part[] };
 
 let idSeq = 0;
 const makeId = () => `m${(idSeq += 1)}`;
@@ -200,6 +205,7 @@ export default function App(): React.JSX.Element {
   const messagesRef = useRef<ChatMessage[]>([]);
   messagesRef.current = messages;
   const cancelRef = useRef(false);
+  const agentAbortRef = useRef<AbortController | null>(null); // aborts the on-device agent loop on stop()
   const modelIdRef = useRef<string | null>(null);
 
   // Brain-composed prompt parts (loaded from prompts/constitution/memories on mount, refreshed when
@@ -208,10 +214,9 @@ export default function App(): React.JSX.Element {
   const baseSystemRef = useRef<string>(DEFAULT_SYSTEM);
   const voiceDirectiveRef = useRef<string>(DEFAULT_VOICE);
 
-  // Mesh offload — delegate inference to a provider on the private mesh.
-  const [providerKey, setProviderKey] = useState("");
-  const [meshOn, setMeshOn] = useState(false);
-  const [meshStatus, setMeshStatus] = useState<MeshStatus>("unset");
+  // Mesh offload — the phone AUTO-borrows chat compute from a provider it discovers in its joined
+  // mesh. No provider key is ever typed or stored; `offload` is the live target (null = on-device).
+  const [offload, setOffload] = useState<ChatOffloadTarget | null>(null);
   // The dashboard shell: which screen is showing + the left nav drawer.
   const [route, setRoute] = useState<Route>("chat");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -220,13 +225,11 @@ export default function App(): React.JSX.Element {
   const [delegatedId, setDelegatedId] = useState<string | null>(null);
   // Full-screen live voice call (hands-free conversation).
   const [callOpen, setCallOpen] = useState(false);
-  // The pairing web page's callback + provider name (set when paired via QR), so we can
-  // tell the page when this phone connects/disconnects.
-  const [providerCb, setProviderCb] = useState<string | undefined>(undefined);
-  const [providerName, setProviderName] = useState<string | undefined>(undefined);
-  const delegatedIdRef = useRef<string | null>(null);
+  const consumerKeyRef = useRef<string>(""); // this phone's stable mesh consumerPublicKey (forward identity)
+  const offloadRef = useRef<ChatOffloadTarget | null>(null);
+  offloadRef.current = offload;
   const meshOnRef = useRef(false);
-  meshOnRef.current = meshOn && !!delegatedId;
+  meshOnRef.current = !!delegatedId; // "borrowing" = a forward provider target is set
 
   const hasContent = input.trim().length > 0 || attachments.length > 0;
   const canSend = !!modelId && !isGenerating && hasContent;
@@ -248,7 +251,23 @@ export default function App(): React.JSX.Element {
 
   // Bring the mesh worklet up once on launch so a phone that's already a mesh member recovers its
   // membership and replicates tasks in the background (lazy init covers first use too). Fire-and-forget.
-  useEffect(() => { void initMesh().catch(() => {}); }, []);
+  useEffect(() => {
+    void initMesh()
+      .then(() => syncSkillsFromMesh()) // pull any desktop-published skills into the local selector
+      .catch(() => {});
+  }, []);
+
+  // Auto-rejoin: when the app returns to the foreground, nudge the mesh worklet to reconnect (it
+  // re-joins the swarm + re-advertises) and refresh skills. Silent and best-effort — no-op when mesh-less.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state === "active") {
+        void meshReconnect().catch(() => {});
+        void syncSkillsFromMesh().catch(() => {});
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Shared config object for all loadModel calls (mount + selectChatModel switch). Never drift.
   const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
@@ -322,17 +341,6 @@ export default function App(): React.JSX.Element {
     return () => clearTimeout(t);
   }, [modelId]);
 
-  // Restore the saved mesh pairing on first mount.
-  useEffect(() => {
-    void (async () => {
-      const cfg = await loadMeshConfig();
-      setProviderKey(cfg.providerKey);
-      setProviderCb(cfg.cb);
-      setProviderName(cfg.providerName);
-      setMeshOn(cfg.meshOn && isValidProviderKey(cfg.providerKey));
-    })();
-  }, []);
-
   // Load (and re-load, after a Brain edit) the composed system prompt parts: the System/Voice
   // prompt overrides, the constitution's soul+goals, and the enabled memories.
   const refreshBrain = useCallback(async () => {
@@ -382,105 +390,51 @@ export default function App(): React.JSX.Element {
     void saveChat(rec);
   }, [messages, isGenerating, chatId]);
 
-  // (Re)register a delegated model whenever mesh is on with a valid provider key. The
-  // delegated load is cheap (no local weights move) and `completion()` then runs on the
-  // provider; fallbackToLocal degrades to this device if the link drops.
+  // AUTO-BORROW (forward transport). Poll the joined mesh for a live provider serving a chat model and,
+  // with this phone's STABLE mesh identity, mark it as the borrow target. Inference is NOT loaded on the
+  // phone (no SDK delegate, no on-phone weights) — runCompletion sends the request over the per-pair
+  // forward transport to the provider's RESIDENT serve model (single owner, no duplicate load, no registry
+  // contention). When no provider/identity is ready, chat runs on-device. No key is ever typed/hardcoded.
   useEffect(() => {
-    if (!meshOn || !isValidProviderKey(providerKey)) {
-      delegatedIdRef.current = null;
-      setDelegatedId(null);
-      if (meshStatus !== "unset") setMeshStatus("unset");
-      return;
-    }
     let cancelled = false;
-    setMeshStatus("checking");
-    void (async () => {
-      try {
-        const id = await loadModel({
-          modelSrc: QWEN3_1_7B_INST_Q4,
-          modelType: "llm",
-          modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR },
-          delegate: { providerPublicKey: providerKey.trim(), timeout: 60_000, fallbackToLocal: true },
-          onProgress: () => {},
-        } as any);
-        if (cancelled) return;
-        delegatedIdRef.current = id;
-        setDelegatedId(id);
-        const ok = await pingProvider(providerKey);
-        if (!cancelled) setMeshStatus(ok ? "online" : "offline");
-      } catch {
-        if (!cancelled) setMeshStatus("offline");
+    const tick = async () => {
+      const target = await pickChatProvider().catch(() => null);
+      if (cancelled) return;
+      const ck = target ? await selfConsumerKey().catch(() => "") : "";
+      if (cancelled) return;
+      if (!target || !ck) {
+        if (offloadRef.current) { consumerKeyRef.current = ""; setOffload(null); setDelegatedId(null); }
+        return;
       }
-    })();
-    return () => {
-      cancelled = true;
+      consumerKeyRef.current = ck;
+      const cur = offloadRef.current;
+      if (!cur || cur.providerPublicKey !== target.providerPublicKey || cur.alias !== target.alias) {
+        setOffload(target);
+        setDelegatedId(target.providerPublicKey); // non-null marker → meshOnRef/badges reflect "borrowing"
+        console.log("[autoborrow] forward target:", target.displayName, "model=", target.alias, "consumer=", ck.slice(0, 8));
+      }
     };
+    void tick();
+    const interval = setInterval(() => void tick(), 6000);
+    return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meshOn, providerKey]);
+  }, []);
 
-  // Keep the provider status fresh while offloading.
+  // Borrow start/stop → Alerts feed (a real on-device event), only on an actual transition.
+  const lastBorrowingRef = useRef<boolean | null>(null);
   useEffect(() => {
-    if (!meshOn || !isValidProviderKey(providerKey)) return;
-    const t = setInterval(() => {
-      void pingProvider(providerKey).then((ok) => setMeshStatus(ok ? "online" : "offline"));
-    }, 20_000);
-    return () => clearInterval(t);
-  }, [meshOn, providerKey]);
-
-  // Mesh connect/disconnect → Alerts feed (a real on-device event). Tracks the last online/offline
-  // value so we only emit on an actual transition, not on every 20s re-ping.
-  const lastMeshOnlineRef = useRef<boolean | null>(null);
-  useEffect(() => {
-    if (!meshOn) {
-      lastMeshOnlineRef.current = null;
-      return;
-    }
-    const online = meshStatus === "online";
-    if ((meshStatus !== "online" && meshStatus !== "offline") || lastMeshOnlineRef.current === online) return;
-    const first = lastMeshOnlineRef.current === null;
-    lastMeshOnlineRef.current = online;
-    if (first && online) return; // don't announce the initial healthy connection
-    const name = providerName ? ` · ${providerName}` : "";
+    const borrowing = !!delegatedId;
+    if (lastBorrowingRef.current === borrowing) return;
+    const first = lastBorrowingRef.current === null;
+    lastBorrowingRef.current = borrowing;
+    if (first) return; // don't announce the initial state
+    const name = offload?.displayName ? ` · ${offload.displayName}` : "";
     void addNotification(
-      online
-        ? { title: "Mesh connected", body: `Offloading inference to your provider${name}.`, tier: "auto" }
-        : { title: "Mesh provider unreachable", body: `Your mesh provider${name} went offline; chat falls back to on-device.`, tier: "notify" },
+      borrowing
+        ? { title: "Borrowing compute", body: `Chat now runs on a mesh provider${name}.`, tier: "auto" }
+        : { title: "Back on-device", body: `No mesh provider available; chat runs on this device.`, tier: "notify" },
     );
-  }, [meshStatus, meshOn, providerName]);
-
-  // Manual key entry — no web pairing page involved, so clear any saved callback.
-  const onChangeKey = useCallback((k: string) => {
-    setProviderKey(k);
-    setProviderCb(undefined);
-    setProviderName(undefined);
-    setMeshOn(false);
-    void saveMeshConfig({ providerKey: k, meshOn: false });
-  }, []);
-
-  // Paired via QR — remember the provider key, name, and the web page's callback.
-  const onPair = useCallback((key: string, name?: string, cb?: string) => {
-    setProviderKey(key);
-    setProviderName(name);
-    setProviderCb(cb);
-    setMeshOn(true);
-    void saveMeshConfig({ providerKey: key, meshOn: true, cb, providerName: name });
-  }, []);
-
-  const onToggleMesh = useCallback(
-    (on: boolean) => {
-      setMeshOn(on);
-      void saveMeshConfig({ providerKey, meshOn: on, cb: providerCb, providerName });
-      // Reflect the connect/disconnect on the pairing web page.
-      void notifyPairing(providerCb, SELF_DEVICE, on);
-    },
-    [providerKey, providerCb, providerName],
-  );
-
-  const onPing = useCallback(() => {
-    if (!isValidProviderKey(providerKey)) return;
-    setMeshStatus("checking");
-    void pingProvider(providerKey).then((ok) => setMeshStatus(ok ? "online" : "offline"));
-  }, [providerKey]);
+  }, [delegatedId, offload]);
 
   // Failure-safe chat model switch — unloads the current model, downloads+loads the new one,
   // restores the previous on failure so the app is never left without a working chat model.
@@ -526,66 +480,175 @@ export default function App(): React.JSX.Element {
       voice?: boolean,
     ): Promise<string> => {
       cancelRef.current = false;
-      const useMesh = meshOnRef.current && !!delegatedIdRef.current;
-      const id = useMesh ? delegatedIdRef.current : modelIdRef.current;
+      const target = offloadRef.current;
+      const useMesh = !!target && !!consumerKeyRef.current;
       const where: "mesh" | "local" = useMesh ? "mesh" : "local";
-      if (!id) return "";
+      if (!useMesh && !modelIdRef.current) return "";
 
       const started = Date.now();
       let firstAt = 0;
-      let chunks = 0;
       let acc = "";
+      // Transcript logging (testing evidence): captured per turn, written in `finally`.
+      const prompt = history.length ? history[history.length - 1]!.content : "";
+      let turnParts: Part[] = [];
+      let turnTelemetry: Telemetry | undefined;
+      let turnError: string | undefined;
 
-      // Prepend the Brain-composed identity (System prompt + soul/goals + memories); on spoken turns
-      // also append the "short + no markdown" voice directive. `/no_think` keeps Qwen3 in
-      // direct-answer mode (fast; no long reasoning) on this small model.
-      const system = (voice ? baseSystemRef.current + voiceDirectiveRef.current : baseSystemRef.current) + " /no_think";
-      const fullHistory = [{ role: "system" as const, content: system }, ...history];
+      // Legacy system prompt for the MESH-borrow and VOICE paths: Brain identity (+ voice directive on
+      // spoken turns), with `/no_think` to keep the small model fast and markdown-free for TTS. The
+      // LOCAL text-chat path below runs the agent loop WITHOUT `/no_think` so reasoning is produced and
+      // shown in a collapsible block (the whole point of this screen).
+      const legacySystem = (voice ? baseSystemRef.current + voiceDirectiveRef.current : baseSystemRef.current) + " /no_think";
+      const fullHistory = [{ role: "system" as const, content: legacySystem }, ...history];
+
+      const writeDisplay = (full: string) => {
+        const display = stripThink(full);
+        onToken?.(display);
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: display } : m)));
+      };
 
       try {
-        const result = completion({ modelId: id, history: fullHistory, stream: true });
-        for await (const token of result.tokenStream) {
-          if (cancelRef.current) break;
-          if (!firstAt) firstAt = Date.now();
-          chunks += 1;
-          acc += token;
-          const display = stripThink(acc);
-          onToken?.(display);
-          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: display } : m)));
+        if (useMesh && voice) {
+          // FORWARD (voice): borrow the peer's resident serve over the per-pair forward transport, legacy
+          // fast path (plain text → TTS). Non-voice borrow goes through the agent loop below instead.
+          const messages = fullHistory.map((m) => ({ role: m.role, content: m.content }));
+          acc = await meshForward({
+            providerKey: target!.providerPublicKey,
+            consumerKey: consumerKeyRef.current,
+            model: target!.alias,
+            messages,
+            onChunk: (full) => {
+              if (cancelRef.current) return;
+              if (!firstAt) firstAt = Date.now();
+              writeDisplay(full);
+            },
+          });
+          acc = stripThink(acc);
+          const elapsed = (Date.now() - started) / 1000;
+          const tokens = Math.max(1, Math.round(acc.length / 4));
+          const tps = elapsed > 0 ? Math.round(tokens / elapsed) : 0;
+          const ttftMs = firstAt ? firstAt - started : 0;
+          const telemetry: Telemetry = { tokens, tps, ttftMs, where: "mesh", device: target!.displayName };
+          console.log(`[chat] DONE where=mesh provider=${target!.displayName} model=${target!.alias} chars=${acc.length} ~${tps} tok/s ttft ${ttftMs}ms`);
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc || (cancelRef.current ? "⊘ Stopped." : ""), telemetry } : m)));
+        } else if (voice) {
+          // LOCAL VOICE: legacy fast path — plain tokenStream + stripThink, read aloud by TTS.
+          let chunks = 0;
+          const result = completion({ modelId: modelIdRef.current!, history: fullHistory, stream: true });
+          for await (const token of result.tokenStream) {
+            if (cancelRef.current) break;
+            if (!firstAt) firstAt = Date.now();
+            chunks += 1;
+            acc += token;
+            writeDisplay(acc);
+          }
+          acc = stripThink(acc);
+          const elapsed = (Date.now() - started) / 1000;
+          let stats: any = null;
+          try { stats = await (result as any).stats; } catch {}
+          const tokens: number = stats?.tokens ?? stats?.totalTokens ?? stats?.completionTokens ?? chunks;
+          const tpsRaw: number = stats?.tokensPerSecond ?? stats?.tps ?? (elapsed > 0 ? tokens / elapsed : 0);
+          const ttftMs: number = Math.round(stats?.ttftMs ?? stats?.timeToFirstTokenMs ?? stats?.timeToFirstToken ?? (firstAt ? firstAt - started : 0));
+          const device: string | undefined = stats?.backendDevice ?? stats?.device;
+          const telemetry: Telemetry = { tokens, tps: Math.round(tpsRaw), ttftMs, where: "local", device };
+          console.log(`[chat] DONE where=local(voice) device=${device ?? "?"} tokens=${tokens} tps=${Math.round(tpsRaw)} ttft=${ttftMs}ms`);
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc || (cancelRef.current ? "⊘ Stopped." : ""), telemetry } : m)));
+        } else {
+          // CHAT AGENT LOOP — native (@qvac/sdk completion), JSC-safe. Renders a parts stream
+          // (reasoning → tool steps → answer). Local turns run on-device with tools; borrowed turns
+          // stream the peer's resident model over the forward transport (plain chat, reasoning split).
+
+          // Skill selection (lexical + on-device embeddings + RRF). When one clears the gate, inject its
+          // body into the system prompt and prepend a "Loaded skill ·" card to the rendered parts.
+          const lead: Part[] = [];
+          let agentSystem = baseSystemRef.current;
+          try {
+            const active = await activeSkillForTurn(history[history.length - 1]?.content ?? "");
+            if (active) {
+              agentSystem += active.systemAddon;
+              lead.push({ type: "data-skill", data: active.event });
+            }
+          } catch (e) {
+            console.warn("[chat] skill selection failed:", (e as Error)?.message ?? String(e));
+          }
+
+          if (useMesh) {
+            // BORROW: stream the peer's resident model over the forward transport (known-good text path),
+            // splitting <think> into a reasoning part so borrowed turns get the same reasoning panel.
+            const messages = [{ role: "system" as const, content: agentSystem }, ...history];
+            acc = await meshForward({
+              providerKey: target!.providerPublicKey,
+              consumerKey: consumerKeyRef.current,
+              model: target!.alias,
+              messages,
+              onChunk: (full) => {
+                if (cancelRef.current) return;
+                if (!firstAt) firstAt = Date.now();
+                const { reasoning, text } = splitThink(full);
+                onToken?.(text);
+                setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, parts: partsFromText(reasoning, text, lead, true), content: text } : m)));
+              },
+            });
+            const { reasoning, text } = splitThink(acc);
+            acc = text;
+            turnParts = partsFromText(reasoning, text, lead, false);
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, parts: turnParts } : m)));
+          } else {
+            // LOCAL: on-device completion with the native tool loop.
+            acc = await runNativeTurn({
+              modelId: modelIdRef.current!,
+              system: agentSystem,
+              history,
+              tools: buildDeviceTools(),
+              maxSteps: 6,
+              leadingParts: lead,
+              isCancelled: () => cancelRef.current,
+              onUpdate: (parts) => {
+                if (!firstAt) firstAt = Date.now();
+                turnParts = [...parts];
+                setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, parts: turnParts } : m)));
+              },
+            });
+          }
+
+          const elapsed = (Date.now() - started) / 1000;
+          const tokens = Math.max(1, Math.round(acc.length / 4));
+          const tps = elapsed > 0 ? Math.round(tokens / elapsed) : 0;
+          const ttftMs = firstAt ? firstAt - started : 0;
+          const telemetry: Telemetry = { tokens, tps, ttftMs, where, device: useMesh ? target!.displayName : undefined };
+          turnTelemetry = telemetry;
+          console.log(`[chat] DONE where=${where}(native) chars=${acc.length} ~${tps} tok/s ttft ${ttftMs}ms`);
+          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, telemetry, content: acc || (cancelRef.current ? "⊘ Stopped." : "") } : m)));
         }
-        acc = stripThink(acc);
-
-        const elapsed = (Date.now() - started) / 1000;
-        let stats: any = null;
-        try {
-          stats = await (result as any).stats;
-        } catch {}
-        const tokens: number = stats?.tokens ?? stats?.totalTokens ?? stats?.completionTokens ?? chunks;
-        const tpsRaw: number =
-          stats?.tokensPerSecond ?? stats?.tps ?? (elapsed > 0 ? tokens / elapsed : 0);
-        const ttftMs: number = Math.round(
-          stats?.ttftMs ?? stats?.timeToFirstTokenMs ?? stats?.timeToFirstToken ?? (firstAt ? firstAt - started : 0),
-        );
-        const device: string | undefined = stats?.backendDevice ?? stats?.device;
-        const telemetry: Telemetry = { tokens, tps: Math.round(tpsRaw), ttftMs, where, device };
-
-        setMessages((prev) =>
-          prev.map((m) =>
-            m.id === assistantId
-              ? { ...m, content: acc || (cancelRef.current ? "⏸ Stopped." : ""), telemetry }
-              : m,
-          ),
-        );
       } catch (e) {
+        turnError = (e as Error)?.message ?? String(e);
+        console.warn(`[chat] FAILED where=${where}:`, turnError);
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: `⚠ ${(e as Error)?.message ?? String(e)}` }
+              ? { ...m, content: `⚠ ${turnError}` }
               : m,
           ),
         );
       } finally {
         setIsGenerating(false);
+        // Append this turn to the on-device JSONL transcript (testing evidence). Best-effort.
+        const { reasoning, tools, skill } = summarizeParts(turnParts);
+        void logChatTurn({
+          ts: new Date().toISOString(),
+          device: SELF_DEVICE,
+          where,
+          ...(voice ? { voice: true } : {}),
+          model: useMesh ? target?.alias ?? "?" : modelIdRef.current ?? "?",
+          ...(useMesh && target ? { provider: target.displayName } : {}),
+          prompt,
+          ...(reasoning ? { reasoning } : {}),
+          answer: acc,
+          ...(tools.length ? { tools } : {}),
+          ...(skill ? { skill } : {}),
+          ...(turnTelemetry ? { telemetry: { tokens: turnTelemetry.tokens, tps: turnTelemetry.tps, ttftMs: turnTelemetry.ttftMs } } : {}),
+          ...(turnError ? { error: turnError } : {}),
+        });
       }
       return acc;
     },
@@ -626,6 +689,11 @@ export default function App(): React.JSX.Element {
 
   const stop = useCallback(() => {
     cancelRef.current = true;
+    // On-device agent loop: abort the AI SDK stream so a multi-step turn stops promptly.
+    agentAbortRef.current?.abort();
+    // Borrowed (forward) chat: drop the worklet connection so the phone unblocks now. The provider
+    // still drains its current decode (GPU-wedge rule — remote compute can't be safely hard-killed).
+    abortMeshForward();
     const id = modelIdRef.current;
     if (id) void (cancel as any)?.({ modelId: id })?.catch?.(() => {});
   }, []);
@@ -641,16 +709,30 @@ export default function App(): React.JSX.Element {
       const assistantId = makeId();
       setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
       let acc = "";
+      const target = offloadRef.current;
+      if (!target || !consumerKeyRef.current) {
+        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: "⚠ Vision needs a mesh provider — join a mesh with a provider that serves a multimodal model." } : m)));
+        setIsGenerating(false);
+        return;
+      }
       try {
-        const full = await meshVision(items.map((i) => i.dataUrl), prompt, (chunk) => {
-          acc += chunk;
-          setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)));
-        });
+        // Same forward transport + resident multimodal model as text — it handles image content too.
+        const full = await meshVision(
+          target.providerPublicKey,
+          consumerKeyRef.current,
+          target.alias,
+          items.map((i) => i.dataUrl),
+          prompt,
+          (display) => {
+            acc = display;
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: display } : m)));
+          },
+        );
         const text = full || acc;
         setMessages((prev) =>
           prev.map((m) =>
             m.id === assistantId
-              ? { ...m, content: text, telemetry: { tokens: text.length, tps: 0, ttftMs: 0, where: "mesh", device: "qwen3vl" } }
+              ? { ...m, content: text, telemetry: { tokens: Math.max(1, Math.round(text.length / 4)), tps: 0, ttftMs: 0, where: "mesh", device: target.displayName } }
               : m,
           ),
         );
@@ -728,6 +810,7 @@ export default function App(): React.JSX.Element {
   // otherwise a plain text turn.
   const handleSend = useCallback(() => {
     if (!modelId || isGenerating) return;
+    Keyboard.dismiss(); // drop the keyboard on send so the conversation fills the screen; tap the box to type again
     if (attachments.length > 0) {
       const items = attachments;
       setAttachments([]);
@@ -870,8 +953,8 @@ export default function App(): React.JSX.Element {
             </View>
             <Pressable onPress={() => setRoute("mesh")} hitSlop={8}>
               {meshOnRef.current ? (
-                <Text style={[styles.kicker, { color: meshStatus === "offline" ? C.brick : C.sageDeep }]}>
-                  ⛓ MESH{meshStatus === "online" ? " · LIVE" : meshStatus === "offline" ? " · DOWN" : ""}
+                <Text style={[styles.kicker, { color: C.sageDeep }]}>
+                  ⛓ MESH · LIVE
                 </Text>
               ) : (
                 <Text style={styles.kicker}>⌂ ON-DEVICE</Text>
@@ -1005,7 +1088,7 @@ export default function App(): React.JSX.Element {
           modelLabel={modelLabel}
           modelReady={!!modelId}
           meshOn={meshOnRef.current}
-          meshLive={meshStatus === "online"}
+          meshLive={meshOnRef.current}
           onNewChat={() => {
             newChat();
             setRoute("chat");
@@ -1021,13 +1104,6 @@ export default function App(): React.JSX.Element {
       ) : route === "mesh" ? (
         <MeshScreen
           onMenu={() => setDrawerOpen(true)}
-          providerKey={providerKey}
-          meshOn={meshOn}
-          status={meshStatus}
-          onChangeKey={onChangeKey}
-          onToggle={onToggleMesh}
-          onPair={onPair}
-          onPing={onPing}
           selfNote={`this device · consumer · ${modelLabel.toLowerCase()}`}
         />
       ) : route === "settings" ? (
@@ -1037,7 +1113,7 @@ export default function App(): React.JSX.Element {
           onGoMesh={() => setRoute("mesh")}
           onClearedConversations={() => newChat()}
           deviceName={SELF_DEVICE}
-          mesh={{ on: meshOnRef.current, providerName, providerKey, status: meshStatus }}
+          mesh={{ on: meshOnRef.current, providerName: offload?.displayName, providerKey: offload?.providerPublicKey ?? "", status: meshOnRef.current ? "online" : "unset" }}
           onResetDevice={() => {
             newChat();
             void refreshBrain();
@@ -1053,7 +1129,7 @@ export default function App(): React.JSX.Element {
         <EconomyScreen
           onMenu={() => setDrawerOpen(true)}
           onPair={() => setRoute("mesh")}
-          mesh={{ on: meshOnRef.current, providerName, providerKey, status: meshStatus }}
+          mesh={{ on: meshOnRef.current, providerName: offload?.displayName, providerKey: offload?.providerPublicKey ?? "", status: meshOnRef.current ? "online" : "unset" }}
         />
       ) : route === "services" ? (
         <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
@@ -1112,7 +1188,7 @@ function MessageBlock({
   onRegenerate: () => void;
 }) {
   const isUser = message.role === "user";
-  const isError = message.content.startsWith("⚠") || message.content.startsWith("⏸");
+  const isError = message.content.startsWith("⚠") || message.content.startsWith("⊘");
 
   // User turns: a right-aligned bubble. Assistant turns: left-aligned prose with a byline.
   if (isUser) {
@@ -1137,7 +1213,7 @@ function MessageBlock({
         <Text style={[styles.byline, styles.bylineAssistant]}>LEASH</Text>
       </View>
       {message.image ? <Image source={{ uri: message.image }} style={styles.msgImage} resizeMode="cover" /> : null}
-      {generating && !message.content ? (
+      {generating && !message.content && !message.parts?.length ? (
         <View style={styles.thinkingRow}>
           <ActivityIndicator size="small" color={C.sage} />
           <Text style={styles.thinking}>Composing…</Text>
@@ -1146,7 +1222,11 @@ function MessageBlock({
         <Text style={[styles.bodyText, styles.bodyTextError]} selectable>
           {message.content}
         </Text>
+      ) : message.parts?.length ? (
+        // Agent turns: render the parts stream (reasoning → tool steps → answer).
+        <MessageParts parts={message.parts} />
       ) : (
+        // Mesh-borrow / voice / legacy turns: plain markdown answer.
         <MarkdownText content={message.content} baseStyle={styles.bodyText} />
       )}
       {message.telemetry && (

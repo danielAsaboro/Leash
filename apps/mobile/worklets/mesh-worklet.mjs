@@ -65,6 +65,17 @@ async function viewApply(nodes, view, host) {
         }
         continue;
       }
+      // Skills replicate desktop → phone over the same CRDT (LWW by updatedAt), keyed by slug.
+      if (value?.type === "skill") {
+        const existing = await bee.get("skill:" + value.skill.slug);
+        if (!existing?.value || (value.skill.updatedAt ?? 0) >= (existing.value.updatedAt ?? 0)) await bee.put("skill:" + value.skill.slug, value.skill);
+        continue;
+      }
+      if (value?.type === "skill-delete") {
+        const existing = await bee.get("skill:" + value.slug);
+        if (!existing?.value || value.ts >= (existing.value.updatedAt ?? 0)) await bee.put("skill:" + value.slug, { slug: value.slug, deleted: true, updatedAt: value.ts });
+        continue;
+      }
     } catch (e) {
       dbg("apply: ENTRY ERROR type=" + (value && value.type) + " " + (e?.message || String(e)));
     }
@@ -87,6 +98,7 @@ let visibility = "private";     // blind-pairing into a desktop mesh is always p
 let hbTimer = null;
 let changeTimer = null;
 let lastTaskSig = "";
+let lastReconnectAt = 0; // throttle the heartbeat reconnect-watchdog (≥30s between re-join attempts)
 
 const metaPath = () => storeDir + "/mesh-meta.json";
 function readMeta() {
@@ -139,9 +151,30 @@ async function goOnline() {
   await swarm.flush().catch((e) => dbg("flush err " + (e?.message || String(e))));
   dbg("goOnline: advertise…");
   await advertise().catch((e) => dbg("advertise err " + (e?.message || String(e))));
-  hbTimer = setInterval(() => { advertise().catch((e) => dbg("hb advertise err " + (e?.message || String(e)))); }, 15_000);
+  hbTimer = setInterval(() => {
+    advertise().catch((e) => dbg("hb advertise err " + (e?.message || String(e))));
+    reconnectWatchdog().catch((e) => dbg("hb watchdog err " + (e?.message || String(e))));
+  }, 15_000);
   changeTimer = setInterval(() => { pollTasksChanged().catch((e) => dbg("poll err " + (e?.message || String(e)))); }, 1500);
   dbg("goOnline: done");
+}
+
+/** RECONNECT WATCHDOG (runs on the heartbeat tick): when we're a writable member but the swarm has
+ *  dropped to ZERO connections (backgrounded → killed sockets, network flap), the phone is silently
+ *  offline — advertises go nowhere and peers never see us. Re-join the swarm on the base discovery
+ *  key, flush, and re-advertise to recover without a full teardown. Throttled to ≥30s between
+ *  attempts so a genuinely-alone mesh (no peers up) doesn't churn the swarm every tick. */
+async function reconnectWatchdog() {
+  if (!base?.writable || !swarm) return;
+  if (swarm.connections.size !== 0) return;
+  const now = Date.now();
+  if (now - lastReconnectAt < 30_000) return;
+  lastReconnectAt = now;
+  dbg("watchdog: 0 connections — re-joining swarm");
+  swarm.join(base.discoveryKey);
+  await swarm.flush().catch((e) => dbg("watchdog flush err " + (e?.message || String(e))));
+  await advertise().catch((e) => dbg("watchdog advertise err " + (e?.message || String(e))));
+  dbg("watchdog: re-join done, connections=" + swarm.connections.size);
 }
 
 /** Recover/found path: create a fresh swarm, then go online. */
@@ -191,6 +224,14 @@ async function readCaps() {
   return caps;
 }
 
+/** Live (non-tombstoned) skills replicated from the desktop, for the phone's skill selector. */
+async function readSkills() {
+  await base.update();
+  const out2 = [];
+  for await (const { value } of base.view.createReadStream({ gte: "skill:", lt: "skill;" })) if (value && !value.deleted) out2.push(value);
+  return out2;
+}
+
 /** The derived oldest-active-member leader (smallest joinedAt among live caps; deviceId tiebreak). */
 async function leader(staleMs = 30_000) {
   const now = Date.now();
@@ -204,9 +245,27 @@ async function leader(staleMs = 30_000) {
 async function openRecovered() {
   // A previously-paired root store recovers its writable base via the local core's referrer (no key) —
   // same as the desktop Primary mesh + the known-good build.
-  base = new Autobase(store, null, { valueEncoding: "json", open: viewOpen, apply: viewApply });
-  await base.ready();
-  await bringOnline();
+  // Exponential-backoff retry: a transient open failure on a cold start (fs not ready, store still
+  // settling) must RETRY rather than give up and come up mesh-less — otherwise a reload/relaunch
+  // silently drops the phone out of the mesh until a manual re-join. ~500ms ×1.5, cap 5s, ~30s budget.
+  const t0 = Date.now();
+  let delay = 500;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      base = new Autobase(store, null, { valueEncoding: "json", open: viewOpen, apply: viewApply });
+      await base.ready();
+      await bringOnline();
+      dbg("openRecovered: ok attempt=" + attempt);
+      return;
+    } catch (e) {
+      dbg("openRecovered: attempt " + attempt + " failed: " + (e?.message || String(e)));
+      // Tear down the half-open base before retrying so we don't leak a dangling autobase/listener.
+      if (base) { try { await base.close(); } catch { /* ignore */ } base = null; }
+      if (Date.now() - t0 >= 30_000) { dbg("openRecovered: budget exhausted, giving up"); throw e; }
+      await sleep(delay);
+      delay = Math.min(Math.floor(delay * 1.5), 5_000);
+    }
+  }
 }
 
 /** Tear the current mesh down (close base + swarm + timers) and WIPE the store so a fresh join opens
@@ -316,6 +375,18 @@ async function handle(req) {
       case "tasks.list":
         // Returns tombstones too (the RN side LWW-merges them into its local cache).
         return reply({ tasks: base ? await readAllTasks() : [] });
+      case "skills.list":
+        // Skills replicated from the desktop (Stage 4) — the phone's skill selector reads these.
+        return reply({ skills: base ? await readSkills() : [] });
+      case "skills.upsert": {
+        // Desktop publisher path (also usable from the phone): append a skill record to the CRDT.
+        if (!base) throw new Error("not in a mesh yet — scan an invite first");
+        if (!base.writable) throw new Error("mesh not writable yet (still syncing)");
+        const s = req.skill || {};
+        const skill = { slug: s.slug, name: s.name ?? s.slug, description: s.description ?? "", body: s.body ?? "", examples: s.examples ?? [], whenToUse: s.whenToUse ?? "", updatedAt: s.updatedAt ?? Date.now() };
+        await base.append({ type: "skill", skill });
+        return reply({ skill });
+      }
       case "tasks.upsert": {
         if (!base) throw new Error("not in a mesh yet — scan an invite first");
         if (!base.writable) throw new Error("mesh not writable yet (still syncing)");
@@ -337,7 +408,18 @@ async function handle(req) {
       }
       case "status": {
         const deviceId = base?.local ? b4a.toString(base.local.key, "hex") : null;
-        return reply({ joined: !!base, writable: !!base?.writable, peers: swarm ? swarm.connections.size : 0, leader: base ? await leader() : null, deviceId, meshLabel, visibility });
+        const leaderId = base ? await leader() : null;
+        // Resolve the leader's advertised name + shared mesh label from the replicated cap roster, so the
+        // UI shows a real peer name (not "a peer") and the LEADER/creator's mesh name wins over our local
+        // label (every member then agrees on one shared name — BUG 3).
+        let leaderName;
+        let sharedLabel = meshLabel;
+        if (base && leaderId) {
+          const leaderCap = (await readCaps().catch(() => [])).find((c) => c.deviceId === leaderId);
+          leaderName = leaderCap?.displayName;
+          sharedLabel = leaderCap?.meshLabel ?? meshLabel;
+        }
+        return reply({ joined: !!base, writable: !!base?.writable, peers: swarm ? swarm.connections.size : 0, leader: leaderId, leaderName, deviceId, meshLabel: sharedLabel, visibility });
       }
       case "peers.list": {
         // The mesh's advertised members (capabilities), newest-seen first — for the expandable peer list.
@@ -345,6 +427,21 @@ async function handle(req) {
         const caps = await readCaps().catch(() => []);
         caps.sort((a, b) => (Date.parse(b.lastSeen || "") || 0) - (Date.parse(a.lastSeen || "") || 0));
         return reply({ peers: caps });
+      }
+      case "reconnect": {
+        // Forced immediate reconnect (RN calls this when the app returns to the foreground): tear the
+        // swarm + timers down and bring the mesh back online — re-creates the swarm, re-joins the base
+        // discovery key, and re-advertises. The base (and its store) survive, so it's much cheaper than
+        // a re-join/leave. No-op error if we were never in a mesh.
+        dbg("reconnect: cmd received");
+        if (!base) throw new Error("not in a mesh yet");
+        if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
+        if (changeTimer) { clearInterval(changeTimer); changeTimer = null; }
+        if (swarm) { dbg("reconnect: destroying swarm"); try { await swarm.destroy(); } catch (e) { dbg("reconnect: swarm destroy err", String(e)); } swarm = null; }
+        lastReconnectAt = Date.now();
+        await bringOnline(); // re-creates swarm + re-joins + re-advertises + restarts timers
+        dbg("reconnect: done writable=" + !!base?.writable);
+        return reply({ joined: !!base, writable: !!base?.writable });
       }
       default:
         throw new Error("unknown cmd: " + req.cmd);

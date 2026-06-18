@@ -10,6 +10,7 @@
     "start": "tsx src/main.ts"
   },
   "dependencies": {
+    "@mycelium/leash-core": "*",
     "@mycelium/mesh": "*",
     "@mycelium/senses": "*",
     "@mycelium/shared": "*",

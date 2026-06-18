@@ -38,9 +38,11 @@ export interface ForwardRequest {
   body: unknown;
 }
 
-/** Streamed response frames for one request id, multiplexed over the shared connection. */
+/** Streamed response frames for one request id, multiplexed over the shared connection.
+ *  `chunk.delta` (optional) carries the FULL OpenAI streaming delta for tool-aware turns (Stage 3):
+ *  legacy consumers read `data` (the text token, "" when only tool_calls); new consumers read `delta`. */
 export type ForwardFrame =
-  | { id: string; type: "chunk"; data: string }
+  | { id: string; type: "chunk"; data: string; delta?: { content?: string; tool_calls?: unknown[]; finish_reason?: string | null } }
   | { id: string; type: "done"; stats?: Record<string, unknown> }
   | { id: string; type: "error"; error: string };
 

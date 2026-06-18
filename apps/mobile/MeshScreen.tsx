@@ -2,42 +2,43 @@ import React, { useCallback, useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { C, F, TRACKING_LABEL } from "./theme";
 import { ScreenHeader } from "./ScreenHeader";
-import { MeshPanel, type MeshStatus as OffloadStatus } from "./MeshSheet";
 import { JoinMeshSheet } from "./JoinMeshSheet";
-import { Plus, MeshNodes, Phone, Incognito, LogOut, ChevronDown, ChevronRight, Cpu, Brain } from "./icons";
-import { meshStatus, peersList, leaveMesh, onTasksChanged, type MeshStatus, type MeshPeer } from "./meshClient";
+import { Plus, MeshNodes, Incognito, LogOut, ChevronDown, ChevronRight, Cpu, Brain } from "./icons";
+import { meshStatus, peersList, leaveMesh, onTasksChanged, dedupePeers, type MeshStatus, type MeshPeer } from "./meshClient";
 import { listModels, stateLabel, fmtBytes, type ModelStatus } from "./modelsInventory";
 
 /**
- * The MESH tab — your private-mesh MEMBERSHIPS first (the meshes this phone syncs with, or an empty
- * state), with a top-right "+" to join one (scan an invite QR or paste a sync key). Borrowing compute
- * from a stronger device (delegated inference) is a separate concern, tucked into a secondary row that
- * opens the existing offload panel.
+ * The MESH tab — your private-mesh MEMBERSHIPS (the meshes this phone syncs with, or an empty state),
+ * with a top-right "+" to join one (scan an invite QR or paste a sync key). Borrowing compute from a
+ * stronger device is AUTOMATIC: once you're in a mesh with a provider, chat runs on it with no setup —
+ * the COMPUTE section just reflects that live status (no provider key to type, nothing to toggle).
  */
+/** Relative "seen" label for a disconnected peer (mirrors apps/web MeshMembershipsSection.ago). */
+function ago(iso: string): string {
+  const ms = Date.now() - Date.parse(iso);
+  if (!Number.isFinite(ms)) return "—";
+  const m = Math.floor(ms / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  return `${Math.floor(m / 60)}h ago`;
+}
+
 export function MeshScreen(props: {
   onMenu: () => void;
-  providerKey: string;
-  meshOn: boolean;
-  status: OffloadStatus;
-  onChangeKey: (k: string) => void;
-  onToggle: (on: boolean) => void;
-  onPair: (key: string, name?: string, cb?: string) => void;
-  onPing: () => void;
   selfNote?: string;
 }) {
-  const { onMenu, ...offload } = props;
+  const { onMenu } = props;
   const [mesh, setMesh] = useState<MeshStatus | null>(null);
   const [peers, setPeers] = useState<MeshPeer[]>([]);
   const [models, setModels] = useState<ModelStatus[] | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
-  const [offloadOpen, setOffloadOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     const s = await meshStatus().catch(() => null);
     if (s) setMesh(s);
-    if (s?.joined) setPeers(await peersList().catch(() => []));
+    if (s?.joined) setPeers(dedupePeers(await peersList().catch(() => [])));
     else setPeers([]);
   }, []);
 
@@ -60,6 +61,36 @@ export function MeshScreen(props: {
 
   const joined = mesh?.joined;
   const isPublic = mesh?.visibility === "public";
+
+  // Split the deduped roster into LIVE (advertised within 30s) and DISCONNECTED (older / invalid
+  // lastSeen). A wipe-regenerated identity legitimately survives dedupe as its own row; if it's no
+  // longer advertising it shows under DISCONNECTED rather than masquerading as a live peer.
+  const selfId = mesh?.deviceId;
+  const isLive = (p: MeshPeer): boolean => {
+    const seen = Date.parse(p.lastSeen || "");
+    return Number.isFinite(seen) && Date.now() - seen <= 30_000;
+  };
+  const livePeers = peers.filter(isLive);
+  const stalePeers = peers.filter((p) => !isLive(p));
+
+  // One peer row, shared by both groups (live = sage dot; disconnected = faint dot + "seen …").
+  const renderPeerRow = (p: MeshPeer) => {
+    const self = !!selfId && p.deviceId === selfId;
+    const live = isLive(p);
+    return (
+      <View key={p.deviceId || p.displayName} style={styles.peerRow}>
+        <View style={[styles.peerDot, { backgroundColor: live ? C.sage : C.faint }]} />
+        <Text style={styles.peerName}>{p.displayName || (p.deviceId ? p.deviceId.slice(0, 8) : "device")}</Text>
+        {self && <Text style={styles.selfTag}>this device</Text>}
+        <View style={{ flex: 1 }} />
+        <Cpu size={12} color={C.faint} />
+        <Text style={styles.peerMeta}>
+          {p.computeClass || "device"}{p.isProvider ? " · provider" : ""}
+          {live ? "" : ` · seen ${ago(p.lastSeen)}`}
+        </Text>
+      </View>
+    );
+  };
 
   const onLeave = useCallback(() => {
     Alert.alert(
@@ -103,7 +134,7 @@ export function MeshScreen(props: {
                 <Text style={styles.meshName}>{mesh!.meshLabel || (isPublic ? "Public mesh" : "Private mesh")}</Text>
                 <Text style={styles.meshMeta}>
                   {isPublic ? "Public" : "Private"} · {mesh!.peers} peer{mesh!.peers === 1 ? "" : "s"}
-                  {mesh!.leader ? (mesh!.leader === mesh!.deviceId ? " · leader: you" : " · leader: a peer") : ""}
+                  {mesh!.leader ? (mesh!.leader === mesh!.deviceId ? " · leader: you" : ` · leader: ${mesh!.leaderName || "a peer"}`) : ""}
                 </Text>
               </View>
               <View style={styles.statusWrap}>
@@ -119,21 +150,15 @@ export function MeshScreen(props: {
                 {peers.length === 0 ? (
                   <Text style={styles.detailEmpty}>No peers seen yet — they appear here once they advertise.</Text>
                 ) : (
-                  peers.map((p) => {
-                    const self = !!mesh!.deviceId && p.deviceId === mesh!.deviceId;
-                    const seen = Date.parse(p.lastSeen || "");
-                    const live = Number.isFinite(seen) && Date.now() - seen <= 30_000;
-                    return (
-                      <View key={p.deviceId || p.displayName} style={styles.peerRow}>
-                        <View style={[styles.peerDot, { backgroundColor: live ? C.sage : C.faint }]} />
-                        <Text style={styles.peerName}>{p.displayName || (p.deviceId ? p.deviceId.slice(0, 8) : "device")}</Text>
-                        {self && <Text style={styles.selfTag}>this device</Text>}
-                        <View style={{ flex: 1 }} />
-                        <Cpu size={12} color={C.faint} />
-                        <Text style={styles.peerMeta}>{p.computeClass || "device"}{p.isProvider ? " · provider" : ""}</Text>
-                      </View>
-                    );
-                  })
+                  <>
+                    {livePeers.map(renderPeerRow)}
+                    {stalePeers.length > 0 && (
+                      <>
+                        <Text style={styles.groupLabel}>DISCONNECTED ({stalePeers.length})</Text>
+                        {stalePeers.map(renderPeerRow)}
+                      </>
+                    )}
+                  </>
                 )}
 
                 <Text style={[styles.detailLabel, { marginTop: 14 }]}>MODELS ON THIS PHONE</Text>
@@ -171,27 +196,9 @@ export function MeshScreen(props: {
           </View>
         )}
 
-        <Text style={[styles.sectionLabel, { marginTop: 30 }]}>COMPUTE</Text>
-        <Pressable onPress={() => setOffloadOpen(true)} style={styles.row}>
-          <View style={styles.rowTile}>
-            <Phone size={17} color={C.sageDeep} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>Borrow a brain</Text>
-            <Text style={styles.rowSub}>{props.meshOn ? "Chat runs on a provider device" : "Run chat on a stronger device"}</Text>
-          </View>
-          <Text style={styles.chev}>›</Text>
-        </Pressable>
       </ScrollView>
 
       {joinOpen && <JoinMeshSheet onClose={() => setJoinOpen(false)} onJoined={() => { setJoinOpen(false); void refresh(); }} />}
-      {offloadOpen && (
-        <View style={StyleSheet.absoluteFill}>
-          <View style={{ flex: 1, backgroundColor: C.cream }}>
-            <MeshPanel {...offload} onClose={() => setOffloadOpen(false)} />
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -212,6 +219,7 @@ const styles = StyleSheet.create({
 
   meshDetail: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: C.rule, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
   detailLabel: { fontFamily: F.monoMed, fontSize: 9, color: C.faint, letterSpacing: TRACKING_LABEL, marginBottom: 8 },
+  groupLabel: { fontFamily: F.monoMed, fontSize: 8.5, color: C.faint, letterSpacing: TRACKING_LABEL, marginTop: 10, marginBottom: 6, opacity: 0.8 },
   detailEmpty: { fontFamily: F.body, fontSize: 13, color: C.muted, fontStyle: "italic" },
   peerRow: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 5 },
   peerDot: { width: 7, height: 7, borderRadius: 4 },
@@ -233,4 +241,5 @@ const styles = StyleSheet.create({
   rowTitle: { fontFamily: F.bodySemi, fontSize: 16, color: C.ink },
   rowSub: { fontFamily: F.body, fontSize: 13, color: C.muted, marginTop: 2 },
   chev: { fontFamily: F.body, fontSize: 24, color: C.faint },
+  borrowDot: { width: 9, height: 9, borderRadius: 5 },
 });

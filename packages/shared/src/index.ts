@@ -227,6 +227,12 @@ export interface DeviceCapability {
    * (only counts as leader if no dated cap is live).
    */
   joinedAt?: number;
+  /**
+   * Human-readable mesh name, advertised in this device's cap so every member agrees on one
+   * shared label (the leader/creator's name wins over a member's local label). Absent → members
+   * fall back to their own local label. Distinct from `meshId` (the opaque autobase/cell id).
+   */
+  meshLabel?: string;
   lastSeen: string; // ISO timestamp
 }
 

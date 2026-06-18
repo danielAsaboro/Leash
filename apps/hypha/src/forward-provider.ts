@@ -23,7 +23,7 @@ export interface ForwardProviderDeps {
 }
 
 interface SseDelta {
-  choices?: Array<{ delta?: { content?: string } }>;
+  choices?: Array<{ delta?: { content?: string; tool_calls?: unknown[] }; finish_reason?: string | null }>;
   error?: string | { message?: string };
 }
 
@@ -100,8 +100,26 @@ async function streamSse(req: ForwardRequest, body: ReadableStream<Uint8Array>, 
         send({ id: req.id, type: "error", error: `forward-provider: ${message}` });
         return;
       }
-      const token = frame.choices?.[0]?.delta?.content;
-      if (typeof token === "string" && token.length > 0) { tokens++; send({ id: req.id, type: "chunk", data: token }); }
+      const choice = frame.choices?.[0];
+      const token = choice?.delta?.content;
+      const toolCalls = choice?.delta?.tool_calls;
+      const finishReason = choice?.finish_reason;
+      const hasText = typeof token === "string" && token.length > 0;
+      const hasStructured = (Array.isArray(toolCalls) && toolCalls.length > 0) || (finishReason !== undefined && finishReason !== null);
+      if (hasStructured) {
+        // Tool-aware turn (Stage 3): forward the FULL OpenAI delta. `data` still carries the text token
+        // (empty string when this delta only has tool_calls) so legacy consumers reading `data` are unaffected.
+        if (hasText) tokens++;
+        const delta: { content?: string; tool_calls?: unknown[]; finish_reason?: string | null } = {};
+        if (hasText) delta.content = token;
+        if (Array.isArray(toolCalls) && toolCalls.length > 0) delta.tool_calls = toolCalls;
+        if (finishReason !== undefined && finishReason !== null) delta.finish_reason = finishReason;
+        send({ id: req.id, type: "chunk", data: hasText ? token! : "", delta });
+      } else if (hasText) {
+        // Plain-text token — unchanged legacy path.
+        tokens++;
+        send({ id: req.id, type: "chunk", data: token! });
+      }
     }
   }
   send({ id: req.id, type: "done", stats: { tokens, usage: billableUsage(req.endpoint, reqBody, { tokens }) } });

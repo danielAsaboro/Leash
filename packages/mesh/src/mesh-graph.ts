@@ -44,6 +44,18 @@ export interface MeshTask {
   deleted?: boolean; // tombstone
 }
 
+/** A skill replicated over the mesh (published by the desktop; consumed by the phone selector). */
+export interface MeshSkill {
+  slug: string;
+  name: string;
+  description: string;
+  body: string;
+  examples?: string[];
+  whenToUse?: string;
+  updatedAt?: number; // LWW key (epoch ms)
+  deleted?: boolean; // tombstone
+}
+
 type Entry =
   | { type: "node"; node: GraphNode }
   | { type: "add-writer"; key: string }
@@ -55,7 +67,9 @@ type Entry =
   | { type: "adapter"; meta: AdapterMeta }
   | { type: "plugin"; meta: MeshPluginMeta }
   | { type: "task"; task: MeshTask }
-  | { type: "task-delete"; id: string; ts: number };
+  | { type: "task-delete"; id: string; ts: number }
+  | { type: "skill"; skill: MeshSkill }
+  | { type: "skill-delete"; slug: string; ts: number };
 
 /**
  * The TINY pointer a published LoRA adapter rides on the CRDT. The adapter BYTES live
@@ -304,6 +318,22 @@ async function viewApply(nodes: Array<{ value: Entry }>, view: unknown, host: { 
       }
       continue;
     }
+    if (value?.type === "skill") {
+      // Skills replicate desktop → other members (LWW by updatedAt), keyed skill:<slug>. The phone's
+      // skill selector reads these to gain the desktop's skill set.
+      const existing = (await bee.get("skill:" + value.skill.slug)) as { value?: MeshSkill } | null;
+      if (!existing?.value || (value.skill.updatedAt ?? 0) >= (existing.value.updatedAt ?? 0)) {
+        await bee.put("skill:" + value.skill.slug, value.skill);
+      }
+      continue;
+    }
+    if (value?.type === "skill-delete") {
+      const existing = (await bee.get("skill:" + value.slug)) as { value?: MeshSkill } | null;
+      if (!existing?.value || value.ts >= (existing.value.updatedAt ?? 0)) {
+        await bee.put("skill:" + value.slug, { slug: value.slug, name: "", description: "", body: "", deleted: true, updatedAt: value.ts });
+      }
+      continue;
+    }
   }
 }
 
@@ -510,6 +540,29 @@ export class MeshGraph {
   async deleteTask(id: string, ts: number): Promise<void> {
     if (!this.base.writable) throw new Error("mesh not writable on this device — cannot delete a task");
     await this.base.append({ type: "task-delete", id, ts });
+  }
+
+  /** Publish/upsert a skill into the mesh (LWW by updatedAt) — the desktop → phone skill sync. */
+  async publishSkill(skill: MeshSkill): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot publish a skill");
+    await this.base.append({ type: "skill", skill: { ...skill, updatedAt: skill.updatedAt ?? Date.now() } });
+  }
+
+  /** Tombstone a skill (LWW by ts). Requires a writable mesh. */
+  async deleteSkill(slug: string, ts: number): Promise<void> {
+    if (!this.base.writable) throw new Error("mesh not writable on this device — cannot delete a skill");
+    await this.base.append({ type: "skill-delete", slug, ts });
+  }
+
+  /** Non-deleted skills published to the mesh. */
+  async skills(): Promise<MeshSkill[]> {
+    await this.base.update();
+    const out: MeshSkill[] = [];
+    for await (const { value } of this.base.view.createReadStream({ gte: "skill:", lt: "skill;" })) {
+      const s = value as MeshSkill;
+      if (!s.deleted) out.push(s);
+    }
+    return out;
   }
 
   /** Non-deleted tasks, newest first. */

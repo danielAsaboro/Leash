@@ -467,7 +467,7 @@ async function runDaemon(): Promise<void> {
   const bringMeshOnline = async (meshId: string, g: MeshGraph, meta: MeshRecord): Promise<MeshRuntime> => {
     // Leader seniority: stamp the first-online epoch once, persist it, and advertise it every heartbeat.
     if (typeof meta.joinedAt !== "number") meta.joinedAt = Date.now();
-    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, joinedAt: meta.joinedAt, ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
+    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, joinedAt: meta.joinedAt, ...(meta.label ? { meshLabel: meta.label } : {}), ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
     runtimes.set(meshId, m);
     meshMeta.set(meshId, meta);
     saveMeshRecords(); // persist joinedAt (and the membership) on every online path

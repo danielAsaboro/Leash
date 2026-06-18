@@ -13,6 +13,7 @@
  */
 import { AuditLog, makeCapability } from "@mycelium/shared";
 import type { DeviceCapability, DeviceIdentityProof } from "@mycelium/shared";
+import { listSkills } from "@mycelium/leash-core/skills-store";
 import { unionAllowedConsumers } from "@mycelium/mesh";
 import type { MeshGraph } from "@mycelium/mesh";
 import { WarmPool, type ReputationRanker } from "./warm-pool.ts";
@@ -60,6 +61,9 @@ export interface StartMeshServicesDeps {
   /** Epoch ms this device first brought this mesh online — its leader seniority (MeshGraph.leader),
    *  persisted per mesh and re-sent in every heartbeat cap. Absent → no seniority advertised. */
   joinedAt?: number;
+  /** Human-readable mesh name advertised in this device's cap so all members agree on one shared
+   *  label (the leader/creator's name wins on the consumer side). Absent → not advertised. */
+  meshLabel?: string;
 }
 
 /**
@@ -110,6 +114,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
       roles: ["compute-provider", "compute-consumer"],
       shareModels: deps.shareModels ? deps.shareModels() : true,
       ...(deps.joinedAt !== undefined ? { joinedAt: deps.joinedAt } : {}),
+      ...(deps.meshLabel ? { meshLabel: deps.meshLabel } : {}),
       ...(payouts[0] ? { settlement: payouts[0] } : {}),
       ...(payouts.length > 0 ? { settlements: payouts } : {}),
       ...(identityProof ? { identityProof } : {}),
@@ -133,7 +138,32 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
   };
   await advertise();
 
-  const hbTimer = setInterval(() => void advertise(), HEARTBEAT_MS);
+  // Publish this device's ENABLED skills into the mesh CRDT so phone members gain the desktop's skill
+  // set (Stage 4). Diff-based: only (re)publishes a skill that's new or whose body/description changed,
+  // so the heartbeat doesn't bloat the autobase. No-op until the mesh is writable (publishSkill throws,
+  // caught) and when no skills are enabled locally.
+  const publishSkills = async (): Promise<void> => {
+    try {
+      const local = (await listSkills()).filter((s) => s.enabled);
+      if (local.length === 0) return;
+      const remote = new Map((await graph.skills()).map((s) => [s.slug, s]));
+      for (const s of local) {
+        const cur = remote.get(s.slug);
+        if (cur && cur.body === s.body && cur.description === s.description) continue;
+        await graph
+          .publishSkill({ slug: s.slug, name: s.name, description: s.description, body: s.body, examples: s.examples, whenToUse: s.whenToUse })
+          .catch(() => {});
+      }
+    } catch (e) {
+      console.error("⚠️ publishSkills failed:", e);
+    }
+  };
+  void publishSkills();
+
+  const hbTimer = setInterval(() => {
+    void advertise();
+    void publishSkills();
+  }, HEARTBEAT_MS);
   if (typeof hbTimer.unref === "function") hbTimer.unref();
   const fwTimer = setInterval(() => void reconcileFirewall(), HEARTBEAT_MS);
   if (typeof fwTimer.unref === "function") fwTimer.unref();

@@ -22,10 +22,103 @@ export type MeshTask = {
   deleted?: boolean;
 };
 
-export type MeshStatus = { joined: boolean; writable: boolean; peers: number; leader: string | null; deviceId: string | null; meshLabel?: string; visibility?: "private" | "public" };
+export type MeshStatus = { joined: boolean; writable: boolean; peers: number; leader: string | null; leaderName?: string; deviceId: string | null; meshLabel?: string; visibility?: "private" | "public" };
 
-/** One advertised mesh member (from the worklet's capability records). */
-export type MeshPeer = { deviceId: string; displayName: string; computeClass: string; isProvider: boolean; joinedAt: number; lastSeen: string };
+/** A model a provider advertises into the mesh (alias + the delegable source). */
+export type MeshModel = { alias: string; modelSrc: string; modelType?: string; borrowable?: boolean; projectionModelSrc?: string };
+
+/** One advertised mesh member (the worklet returns the FULL capability record; provider
+ *  members also carry providerPublicKey + the models they serve, so a consumer can borrow
+ *  compute from them automatically — no hardcoded key). */
+export type MeshPeer = {
+  deviceId: string;
+  displayName: string;
+  computeClass: string;
+  isProvider: boolean;
+  joinedAt: number;
+  lastSeen: string;
+  providerPublicKey?: string;
+  consumerPublicKey?: string;
+  meshId?: string;
+  models?: MeshModel[];
+  availableModels?: string[];
+  inflight?: number;
+};
+
+/**
+ * Collapse ghost duplicates the same way web/desktop do (packages/mesh `supersededDeviceIds`): a
+ * device's `deviceId` is its mesh WRITER key, which changes on every re-join/reinstall, but its
+ * `consumerPublicKey`/`providerPublicKey` (stable identity) does not. So for each (stable identity,
+ * mesh) keep only the most-recently-seen writer key — every physical device shows up ONCE. Peers
+ * without a stable identity are passed through untouched.
+ *
+ * CORRECT BY DESIGN: this collapses same-identity GHOSTS (a re-join that minted a fresh writer key
+ * under the SAME stable identity). A device that fully wiped + REGENERATED its stable identity is a
+ * legitimately different identity and survives as its OWN row — that's not a dup, it's a genuinely
+ * distinct (reset) device. Do not "fix" that by collapsing on displayName; it would hide real peers.
+ */
+export function dedupePeers(peers: MeshPeer[]): MeshPeer[] {
+  const newestByIdentity = new Map<string, MeshPeer>();
+  const passthrough: MeshPeer[] = [];
+  for (const p of peers) {
+    const identity = p.consumerPublicKey || p.providerPublicKey;
+    if (!identity) { passthrough.push(p); continue; }
+    const key = `${identity}::${p.meshId ?? ""}`;
+    const cur = newestByIdentity.get(key);
+    if (!cur || Date.parse(p.lastSeen || "") > Date.parse(cur.lastSeen || "")) newestByIdentity.set(key, p);
+  }
+  return [...newestByIdentity.values(), ...passthrough];
+}
+
+/** A resolved auto-offload target: which peer to borrow chat compute from, and the model to run.
+ *  `alias` is the provider's serve model id (what the forward body's `model` field must be). */
+export type ChatOffloadTarget = { providerPublicKey: string; modelSrc: string; alias: string; displayName: string; deviceId: string };
+
+/**
+ * Pick a live provider in the mesh to borrow CHAT compute from — the automatic "borrow a brain".
+ * Mirrors the desktop warm-pool's selection (live + borrowable + lowest inflight), purely from the
+ * replicated capability roster. Returns null when no provider is advertising a borrowable chat model
+ * (→ chat runs on-device). No hardcoded keys or model ids.
+ */
+export async function pickChatProvider(staleMs = 45_000): Promise<ChatOffloadTarget | null> {
+  const peers = await peersList().catch(() => [] as MeshPeer[]);
+  const now = Date.now();
+  // Diagnostic: how many provider peers the phone currently holds (terse).
+  console.log("[autoborrow] provider peers:", peers.filter((p) => p.isProvider).length);
+  let best: ChatOffloadTarget | null = null;
+  let bestInflight = Infinity;
+  for (const p of peers) {
+    if (!p.isProvider || !p.providerPublicKey) continue;
+    if (now - (Date.parse(p.lastSeen || "") || 0) > staleMs) continue;
+    const chat = (p.models ?? []).find(
+      (m) => m.borrowable !== false && !!m.modelSrc && (m.alias === "chat" || m.modelType === "chat"),
+    );
+    if (!chat) continue;
+    const inflight = p.inflight ?? 0;
+    if (inflight < bestInflight) {
+      bestInflight = inflight;
+      best = { providerPublicKey: p.providerPublicKey, modelSrc: chat.modelSrc, alias: chat.alias, displayName: p.displayName, deviceId: p.deviceId };
+    }
+  }
+  return best;
+}
+
+/**
+ * This phone's STABLE mesh identity (`consumerPublicKey`) — the key the provider's forward server
+ * allow-lists and the consumer half of the per-pair forward topic. Derived from the roster: the self
+ * cap is the one whose writer `deviceId` matches `status.deviceId`. Returns "" if not yet known.
+ */
+export async function selfConsumerKey(): Promise<string> {
+  try {
+    const status = await meshStatus();
+    if (!status.deviceId) return "";
+    const peers = await peersList();
+    const self = peers.find((p) => p.deviceId === status.deviceId);
+    return self?.consumerPublicKey ?? "";
+  } catch {
+    return "";
+  }
+}
 
 type Pending = { resolve: (v: any) => void; reject: (e: Error) => void };
 
@@ -148,9 +241,35 @@ export async function deleteTask(id: string, ts: number = Date.now()): Promise<v
   await call("tasks.delete", { id, ts });
 }
 
+/** A skill replicated over the mesh CRDT (published by the desktop; consumed by the phone selector). */
+export type MeshSkill = { slug: string; name: string; description: string; body: string; examples?: string[]; whenToUse?: string; updatedAt?: number };
+
+/** Skills the desktop has published into the mesh (Stage 4). Empty when not joined / none published. */
+export async function listMeshSkills(): Promise<MeshSkill[]> {
+  await initMesh();
+  return ((await call("skills.list")).skills ?? []) as MeshSkill[];
+}
+
+/** Publish a skill into the mesh CRDT (the desktop publisher path; also callable from the phone). */
+export async function upsertMeshSkill(skill: MeshSkill): Promise<MeshSkill> {
+  await initMesh();
+  return (await call("skills.upsert", { skill: { ...skill, updatedAt: skill.updatedAt ?? Date.now() } })).skill as MeshSkill;
+}
+
 export async function meshStatus(): Promise<MeshStatus> {
   await initMesh();
   return (await call("status")) as MeshStatus;
+}
+
+/**
+ * Force an immediate mesh reconnect — re-creates the worklet's swarm, re-joins the base discovery
+ * key, and re-advertises. App.tsx calls this from an AppState listener when the app returns to the
+ * foreground (backgrounding kills the P2P sockets, so the phone silently goes offline otherwise).
+ * No-op-rejects if not in a mesh yet. ~30s timeout (swarm.flush can be slow on a cold network).
+ */
+export async function reconnect(): Promise<{ joined: boolean; writable: boolean }> {
+  await initMesh();
+  return (await call("reconnect", {}, 30_000)) as { joined: boolean; writable: boolean };
 }
 
 /** Subscribe to remote task changes (a peer edited/deleted a task and it replicated in). */

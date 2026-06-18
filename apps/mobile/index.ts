@@ -1,3 +1,4 @@
+import "./polyfills"; // MUST be first — installs ReadableStream/structuredClone for the AI SDK on JSC.
 import { registerRootComponent } from "expo";
 import React from "react";
 import { ScrollView, Text, View } from "react-native";

@@ -783,15 +783,11 @@ export function createShim(deps: ShimDeps): http.Server {
     if (!alias || !Array.isArray(body.messages)) {
       return json(res, 400, { error: { message: "hypha shim: `model` (alias) and `messages` are required" } });
     }
-    if (body.tools !== undefined || body.tool_choice !== undefined || body.parallel_tool_calls !== undefined) {
-      return json(res, 400, {
-        error: {
-          message:
-            "hypha shim: tool-calling is not supported on /v1/chat/completions. Point Leash at the local qvac serve or broker for tool/skill/MCP turns; Hypha is delegated plain-chat only.",
-          code: "tools_unsupported",
-        },
-      });
-    }
+    const hasTools = body.tools !== undefined || body.tool_choice !== undefined || body.parallel_tool_calls !== undefined;
+    // NOTE: the tool-rejection below is deferred. Tools CAN ride the FORWARD path (a faithful OpenAI
+    // relay to a peer's local serve, which streams tool_calls deltas back). They cannot ride the SDK
+    // delegation path (plain text/vision only), so we re-check `hasTools` just before falling through
+    // to that path and reject there. See the guarded `tools_unsupported` 400 after the forward block.
     // Delegation ladder (spec §6): walk meshes by tier, capped by eligibility. `sensitivity`
     // defaults to private (fail-closed); an optional `meshId` hard-pins to one mesh; an optional
     // `peerKey` is an advisory conductor pin (falls back to tier walk if the peer is unreachable).
@@ -803,22 +799,49 @@ export function createShim(deps: ShimDeps): http.Server {
     // it from a peer's LOCAL serve instead: when the request carries images and forward is on, pick a
     // peer that SERVES the alias (no delegated warm needed) and send the OpenAI body (image bytes
     // inline) over the forward channel; the peer runs it on its serve and streams the answer back.
-    if (forward && requestHasImages(body.messages)) {
+    // Forward path — borrow inference from a peer's LOCAL serve over the forward transport. Vision MUST
+    // ride this (images can't go through SDK delegation). Plain TEXT now rides it too when a forward peer
+    // serves the alias, so the provider answers from its already-resident serve model — the serve is the
+    // SINGLE owner of the model + registry corestore (no duplicate in-hypha load, no registry fd-lock
+    // contention). Falls through to SDK delegation only when no forward peer serves the alias.
+    if (forward) {
+      const hasImages = requestHasImages(body.messages);
       const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) });
-      if (peers.length === 0) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
-      audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias } });
-      meshBus.record({ kind: "route", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias });
-      const chatArgs = {
-        id: `chatcmpl-${randomUUID()}`,
-        alias,
-        created: Math.floor(Date.now() / 1000),
-        stream: body.stream !== false,
-        body: { model: alias, messages: body.messages },
-      };
-      return forwardWithOptionalSettlement(res, forwardSettleDeps(), router, alias, "/v1/chat/completions", body as Record<string, unknown>, peers,
-        (ps) => streamForwardChat(res, forward, ps, chatArgs, inflight, audit));
+      if (peers.length > 0) {
+        audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias, images: hasImages } });
+        meshBus.record({ kind: "route", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias });
+        // Faithful OpenAI relay: pass tool-calling fields through to the peer's serve when present
+        // (Stage 3 tool-aware borrow). The forward provider proxies them to its local serve verbatim.
+        const forwardBody: Record<string, unknown> = { model: alias, messages: body.messages };
+        if (body.tools !== undefined) forwardBody.tools = body.tools;
+        if (body.tool_choice !== undefined) forwardBody.tool_choice = body.tool_choice;
+        if (body.parallel_tool_calls !== undefined) forwardBody.parallel_tool_calls = body.parallel_tool_calls;
+        const chatArgs = {
+          id: `chatcmpl-${randomUUID()}`,
+          alias,
+          created: Math.floor(Date.now() / 1000),
+          stream: body.stream !== false,
+          body: forwardBody,
+        };
+        return forwardWithOptionalSettlement(res, forwardSettleDeps(), router, alias, "/v1/chat/completions", body as Record<string, unknown>, peers,
+          (ps) => streamForwardChat(res, forward, ps, chatArgs, inflight, audit));
+      }
+      // No forward peer serves this alias: vision can't fall back to SDK delegation (images aren't delegable);
+      // text falls through to the delegate path below.
+      if (hasImages) return json(res, 503, { error: { message: `hypha shim: no peer serves "${alias}" for image forwarding`, code: "no_forward_peer" } });
     }
 
+    // Falling through to SDK delegation (plain text/vision only). Tool-calling can't ride this path —
+    // attachments/tools are not delegable — so reject here, AFTER the forward path had its chance to relay them.
+    if (hasTools) {
+      return json(res, 400, {
+        error: {
+          message:
+            "hypha shim: tool-calling is not supported on the SDK-delegated /v1/chat/completions path. Point Leash at the local qvac serve or broker for tool/skill/MCP turns, or ensure a forward peer serves this alias (forward relays tools faithfully); SDK delegation is plain-chat only.",
+          code: "tools_unsupported",
+        },
+      });
+    }
     const warm = router.route({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) });
     if (!warm) return json(res, 503, { error: { message: `hypha shim: no eligible warm peer serves "${alias}"`, code: "no_warm_peer" } });
     meshBus.record({ kind: "route", phase: "route", peer: warm.peerKey.slice(0, 16), alias, meshId: warm.meshId });
