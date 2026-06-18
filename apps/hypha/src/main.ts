@@ -641,16 +641,21 @@ async function runDaemon(): Promise<void> {
    * writable (Autobase(store, ownKey) ≡ Autobase(store, null)). One-shot per mesh.
    */
   /**
-   * Reopen bootstrapKey: every persisted mesh re-binds to its recorded autobase key so a restart
-   * recovers the SAME base (a NAMED-namespace base is re-founded fresh by `Autobase(ns, null)` — it
-   * does NOT recover via referrer like the default/primary namespace, so the key is mandatory).
+   * Reopen bootstrapKey for a JOINED mesh: re-bind to the founder's recorded autobase key so a restart
+   * recovers the same base. A CREATOR mesh recovers its OWN namespace base via `Autobase(ns, null)`
+   * (verified writable + same-base across restarts on autobase 7.28.1 — see spike/autobase-recover-repro.mjs),
+   * so it must NOT pass a recorded key: doing so opens its own base as a foreign reader/member → stuck
+   * `writable:false`. (This was the mesh-advertise "Not writable" bug — a creator with a stale recorded
+   * key.) Invites still use the LIVE `graph.autobaseKey`, so peers are unaffected.
    */
   const reopenBootstrap = (rec: MeshRecord): Buffer | undefined =>
-    rec.bootstrapKey ? Buffer.from(rec.bootstrapKey, "hex") : undefined;
+    rec.creator || !rec.bootstrapKey ? undefined : Buffer.from(rec.bootstrapKey, "hex");
 
   const backfillBootstrapKey = (m: MeshRuntime): void => {
     const meta = meshMeta.get(m.meshId);
-    if (!meta || meta.bootstrapKey || meta.visibility === "public") return;
+    // Never record a key for a mesh we CREATED: it recovers via null (above), and a recorded key only
+    // risks drifting out of sync with the namespace base → foreign open → not writable.
+    if (!meta || meta.creator || meta.bootstrapKey || meta.visibility === "public") return;
     meta.bootstrapKey = m.graph.autobaseKey;
     meshMeta.set(m.meshId, meta);
     saveMeshRecords();
