@@ -289,10 +289,12 @@ async function streamForwardChat(
           }
           if (!clientOpen) {
             // Client gone mid-stream — cancel the provider's forwarded decode (it aborts its local
-            // serve fetch → cancel-bridge) instead of draining, then release this generator.
+            // serve fetch → cancel-bridge) instead of draining, then release this generator. Return the
+            // PARTIAL usage so a metered session settles the tokens the provider actually produced
+            // (fair billing on cancel), not the full quote and not zero.
             forward.cancel(peerKey, args.id);
             await gen.return(undefined).catch(() => undefined);
-            return;
+            return { unit: "token", count: tokens };
           }
           next = await gen.next();
         }
