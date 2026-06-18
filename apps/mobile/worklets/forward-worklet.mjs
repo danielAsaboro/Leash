@@ -35,8 +35,9 @@ function topicForPair(providerKey, consumerKey) {
   return createHash("sha256").update(`${TOPIC_PREFIX}:${providerKey}:${consumerKey}`).digest();
 }
 
-// The single in-flight request's teardown — so an `{ abort: true }` from RN can drop the swarm
-// connection (frees the phone immediately). The provider still drains its current decode (wedge rule).
+// The single in-flight request's teardown — an `{ abort: true }` from RN cancels the provider's decode
+// (sends a forward-control `{ id, cancel: true }` so the provider aborts its local serve fetch) and then
+// drops the swarm connection, freeing the phone immediately. Safe on SDK 0.13.1.
 let active = null;
 
 let inbuf = "";
@@ -113,6 +114,12 @@ function onRequest(req) {
         else if (f.type === "error") finish({ id, type: "error", error: f.error });
       }
     });
+    // Once connected, an RN abort cancels the provider's decode (forward-control `{ id, cancel: true }`)
+    // before dropping the connection — the provider aborts its local serve fetch instead of draining.
+    active = () => {
+      try { conn.write(b4a.from(JSON.stringify({ id, cancel: true }) + "\n")); } catch { /* peer gone */ }
+      finish({ id, type: "done", stats: { aborted: true } });
+    };
     // The forward-control.ts ForwardRequest shape: { id, endpoint, body }.
     conn.write(b4a.from(JSON.stringify({ id, endpoint: req.endpoint || "/v1/chat/completions", body: req.body }) + "\n"));
   });

@@ -287,6 +287,13 @@ async function streamForwardChat(
             if (!committed && clientOpen) writeHead();
             if (clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: next.value }, null));
           }
+          if (!clientOpen) {
+            // Client gone mid-stream — cancel the provider's forwarded decode (it aborts its local
+            // serve fetch → cancel-bridge) instead of draining, then release this generator.
+            forward.cancel(peerKey, args.id);
+            await gen.return(undefined).catch(() => undefined);
+            return;
+          }
           next = await gen.next();
         }
         const usage = (next.value as { usage?: ForwardUsage } | undefined)?.usage;
