@@ -16,7 +16,7 @@
     "@ai-sdk/openai-compatible": "^2.0.48",
     "@ai-sdk/react": "^3.0.198",
     "@mycelium/db": "*",
-    "@qvac/ai-sdk-provider": "^0.2.0",
+    "@qvac/ai-sdk-provider": "^0.2.2",
     "@radix-ui/react-use-controllable-state": "^1.2.3",
     "@rive-app/react-webgl2": "^4.29.1",
     "@streamdown/cjk": "^1.0.3",

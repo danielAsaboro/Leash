@@ -98,6 +98,7 @@
     "telegram:test": "tsx apps/leash-telegram/src/selftest.ts"
   },
   "dependencies": {
+    "@qvac/ai-sdk-provider": "^0.2.2",
     "@qvac/sdk": "^0.13.5",
     "@semanticio/wdk-wallet-evm-x402-facilitator": "^1.0.0-beta.2",
     "@solana/spl-token": "^0.4.14",
