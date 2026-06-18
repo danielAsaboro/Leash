@@ -2,10 +2,13 @@
  * qvac-serve process supervision (server-only) — stateless re-discovery, never a held
  * child handle.
  *
- *   · start: spawn DETACHED+unref `npx @qvac/cli serve openai --port <port>` with
- *     cwd = the mycelium root — LOAD-BEARING: the CLI find-ups `qvac.config.*` (the `.mjs` wrapper)
- *     from cwd. Pid recorded in `data/leash-serve.json`; output appended to
- *     `data/leash-serve.log`.
+ *   · start: spawn DETACHED+unref the repo's LOCAL, vision-patched `@qvac/cli` (resolved via
+ *     `createRequire` → `dist/index.js`) with this process's Node — `node <cli> serve openai
+ *     --port <port>`. NOT unpinned `npx`: npx-latest fetches an UNPATCHED cli that silently drops
+ *     `image_url` content → cross-mesh vision borrow replies "I can't see images". cwd = the
+ *     mycelium root — LOAD-BEARING: the CLI find-ups `qvac.config.*` (the `.mjs` wrapper) from cwd.
+ *     With the direct `node` spawn the spawned pid IS the listener. Pid recorded in
+ *     `data/leash-serve.json`; output appended to `data/leash-serve.log`.
  *   · status: pidfile probe + `lsof` listener probe + HTTP `/v1/models` probe. The
  *     serve doesn't open its port until preload completes, so:
  *       port answers → READY · pid alive, port closed → STARTING ·
@@ -43,6 +46,30 @@ const SERVE_SHIM = `import { pathToFileURL } from "node:url";
 try { Object.defineProperty(process, "defaultApp", { value: true, configurable: true }); } catch {}
 await import(pathToFileURL(process.env.LEASH_QVAC_CLI).href);
 `;
+
+/**
+ * Resolve the repo's LOCAL @qvac/cli entry (`dist/index.js`). This is the version pinned in
+ * package.json (`^0.6.0`) and patched by patch-package's postinstall (OpenAI `image_url` content
+ * → SDK `attachments`) — the SAME version+patch the packaged app ships, so cross-mesh VISION
+ * borrow works. `exports` is the bare `"./dist/index.js"`, so `require.resolve("@qvac/cli")`
+ * returns the entry directly (and `@qvac/cli/package.json` is NOT exported — don't resolve that).
+ * Returns null if resolution fails (→ caller falls back to a PINNED npx).
+ *
+ * `createRequire` is obtained via `process.getBuiltinModule` — NOT `import { createRequire } from
+ * "node:module"`. The static import makes Next's webpack instrument the returned require and try to
+ * statically bundle the `.resolve("@qvac/cli")` literal, which drags @qvac/sdk's dynamic
+ * `dist/server/worker.js` path into the build (module-not-found) and traces @qvac/cli's native
+ * prebuilds into `.next/standalone`. `getBuiltinModule` is opaque to webpack, so @qvac/cli stays
+ * fully out of the bundle and this resolves natively at runtime (Node ≥ 22.3 / we're on 24).
+ */
+function localCliEntry(): string | null {
+  try {
+    const { createRequire } = process.getBuiltinModule("node:module");
+    return createRequire(import.meta.url).resolve("@qvac/cli");
+  } catch {
+    return null;
+  }
+}
 
 export type ServeState = "stopped" | "starting" | "ready" | "unhealthy";
 
@@ -91,8 +118,9 @@ export async function serveStatus(): Promise<ServeStatus> {
 
   if (live.up) {
     const pid = listener ?? rec?.pid ?? null;
-    // "ours" if the listener IS our recorded pid, or our recorded npx wrapper is
-    // still alive (the listener is its child — `npx @qvac/cli` wraps the real process).
+    // "ours" if the listener IS our recorded pid (the common case: direct `node <cli>` and the
+    // packaged shim both make the spawned pid the listener), or our recorded pid is still alive
+    // and the listener is its child (the npx-fallback path, where `npx` wraps the real process).
     const ours = rec?.pid != null && (rec.pid === pid || pidAlive(rec.pid));
     return { state: "ready", pid, ours, ready: live.ready, port: PORT, inflight };
   }
@@ -117,7 +145,8 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
   const log = openSync(LOGFILE, "a");
   try {
     // Packaged desktop: run the BUNDLED qvac CLI with Electron's own Node (LEASH_QVAC_CLI +
-    // LEASH_NODE_BIN set by the shell) — no system Node, no `npx` download. Dev: fall back to npx.
+    // LEASH_NODE_BIN set by the shell) — no system Node, no `npx` download. Dev: run the repo's
+    // LOCAL patched @qvac/cli directly with `node` (PINNED npx only as a last-resort fallback).
     const bundledCli = process.env["LEASH_QVAC_CLI"];
     const nodeBin = process.env["LEASH_NODE_BIN"] ?? process.execPath;
     let cmd: string;
@@ -130,8 +159,23 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
       cmd = nodeBin;
       args = [shim, "serve", "openai", "--port", String(PORT)];
     } else {
-      cmd = "npx";
-      args = ["@qvac/cli", "serve", "openai", "--port", String(PORT)];
+      // Dev: run the repo's LOCAL, vision-patched @qvac/cli with this process's Node — the same
+      // version (^0.6.0) + patch the packaged app ships, so cross-mesh VISION (image_url →
+      // attachments) works. The spawned pid IS the listener (no npx wrapper).
+      const cliEntry = localCliEntry();
+      if (cliEntry) {
+        cmd = process.execPath;
+        args = [cliEntry, "serve", "openai", "--port", String(PORT)];
+      } else {
+        // Fallback only: PINNED npx (never unpinned — npx-latest fetches an UNPATCHED cli that
+        // silently drops images → "I can't see images"). Vision needs the patched local install.
+        console.warn(
+          "[serve-control] local @qvac/cli unresolvable; falling back to `npx @qvac/cli@0.6.0`. " +
+            "Cross-mesh VISION needs the repo's patched local install — run `npm install`.",
+        );
+        cmd = "npx";
+        args = ["@qvac/cli@0.6.0", "serve", "openai", "--port", String(PORT)];
+      }
     }
     const child = spawn(cmd, args, {
       cwd: ROOT, // load-bearing: the CLI resolves qvac.config.* (the .mjs wrapper) upward from cwd

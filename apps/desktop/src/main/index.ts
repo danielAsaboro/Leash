@@ -127,7 +127,7 @@ function startSupervisor(): void {
 
 /** Download the qvac runtime into the base dir if it isn't there yet (packaged stub installer). */
 async function ensureDeps(): Promise<void> {
-  if (is.dev) return // dev runs the serve via repo `npx @qvac/cli`
+  if (is.dev) return // dev runs the serve via the repo's LOCAL patched @qvac/cli (see serve-control.ts)
   const cfg = readInstall()
   if (!cfg) return
   runtimeCliPath = await ensureRuntime(leashBaseFor(cfg.base), (p) => {

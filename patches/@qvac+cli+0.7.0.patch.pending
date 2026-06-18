@@ -1,0 +1,96 @@
+diff --git a/node_modules/@qvac/cli/dist/serve/routes/chat.js b/node_modules/@qvac/cli/dist/serve/routes/chat.js
+index 3bf4664..aadf637 100644
+--- a/node_modules/@qvac/cli/dist/serve/routes/chat.js
++++ b/node_modules/@qvac/cli/dist/serve/routes/chat.js
+@@ -79,7 +79,8 @@ async function runBlocking(req, reply, p) {
+         stream: false,
+         ...(p.tools !== undefined ? { tools: p.tools } : {}),
+         ...(p.generationParams !== undefined ? { generationParams: p.generationParams } : {}),
+-        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {})
++        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {}),
++        ...(p.kvCache !== undefined ? { kvCache: p.kvCache } : {}) // [leash fork] kv_cache passthrough
+     });
+     req.bindCancel(result.requestId);
+     const { text, toolCalls, completionTokens, finishReason } = await drainCompletion(result);
+@@ -112,7 +113,8 @@ async function runStreaming(req, reply, p) {
+         stream: true,
+         ...(p.tools !== undefined ? { tools: p.tools } : {}),
+         ...(p.generationParams !== undefined ? { generationParams: p.generationParams } : {}),
+-        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {})
++        ...(p.responseFormat !== undefined ? { responseFormat: p.responseFormat } : {}),
++        ...(p.kvCache !== undefined ? { kvCache: p.kvCache } : {}) // [leash fork] kv_cache passthrough
+     });
+     req.bindCancel(result.requestId);
+     initSSE(reply);
+diff --git a/node_modules/@qvac/cli/dist/serve/schemas/chat.js b/node_modules/@qvac/cli/dist/serve/schemas/chat.js
+index 5e3000d..ae1a42d 100644
+--- a/node_modules/@qvac/cli/dist/serve/schemas/chat.js
++++ b/node_modules/@qvac/cli/dist/serve/schemas/chat.js
+@@ -1,5 +1,28 @@
+ import { z } from 'zod';
++import { writeFileSync, mkdirSync } from 'node:fs';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
+ import { chatMessage, responseFormat, toolDef, openaiToolsToSdk, extractGenerationParams, extractResponseFormat } from './common.js';
++// [leash fork] decode an OpenAI image data-URL → temp file path for native completion attachments.
++// Only PNG/JPEG (what stb_image decodes); skip others (e.g. webp) so the turn degrades to
++// text-only instead of aborting the completion mid-stream.
++const LEASH_SUPPORTED_IMAGE = { 'image/png': 'png', 'image/jpeg': 'jpg' };
++function leashImageToTempPath(url) {
++    try {
++        const m = /^data:(image\/[a-z0-9.+-]+);base64,(.*)$/is.exec(url || '');
++        if (!m) return null;
++        const ext = LEASH_SUPPORTED_IMAGE[m[1].toLowerCase()];
++        if (!ext) return null;
++        const dir = join(tmpdir(), 'qvac-vision');
++        mkdirSync(dir, { recursive: true });
++        const f = join(dir, `img-${Date.now()}-${Math.floor(Math.random() * 1e9).toString(36)}.${ext}`);
++        writeFileSync(f, Buffer.from(m[2], 'base64'));
++        return f;
++    }
++    catch {
++        return null;
++    }
++}
+ export const chatCompletionsBody = z.object({
+     model: z.string().min(1),
+     messages: z.array(chatMessage),
+@@ -37,6 +60,27 @@ export function openaiMessagesToHistory(messages) {
+         if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
+             return { role: 'assistant', content: synthesizeToolCallContent(msg.tool_calls) };
+         }
++        // [leash fork] multimodal: array content → text + image attachments (native completion does the vision).
++        if (Array.isArray(msg.content)) {
++            let text = '';
++            const attachments = [];
++            for (const part of msg.content) {
++                if (!part || typeof part !== 'object')
++                    continue;
++                if ((part.type === 'text' || part.type === 'input_text') && typeof part.text === 'string') {
++                    text += part.text;
++                }
++                else if (part.type === 'image_url' || part.type === 'input_image' || part.type === 'image') {
++                    const url = typeof part.image_url === 'string' ? part.image_url
++                        : (part.image_url && part.image_url.url) || part.image || '';
++                    const p = leashImageToTempPath(url);
++                    if (p) attachments.push({ path: p });
++                }
++            }
++            const out = { role: msg.role, content: text };
++            if (attachments.length) out.attachments = attachments;
++            return out;
++        }
+         return { role: msg.role, content: contentToString(msg.content) };
+     });
+ }
+@@ -60,6 +104,9 @@ export function toSdkChatArgs(body) {
+         tools: openaiToolsToSdk(body.tools),
+         generationParams: extractGenerationParams(body, 'max_completion_tokens'),
+         responseFormat: responseFmt,
+-        stream: Boolean(body.stream)
++        stream: Boolean(body.stream),
++        // [leash fork] opt-in KV-cache session key — passthrough body field `kv_cache`
++        // (string). The web chat route sends it for toolless turns (LEASH_KV_CACHE=1).
++        kvCache: typeof body.kv_cache === 'string' && body.kv_cache ? body.kv_cache : undefined
+     };
+ }

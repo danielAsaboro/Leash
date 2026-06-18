@@ -203,6 +203,11 @@ const DEFS: ServiceDef[] = [
     procMatch: "apps/hypha/src/main.ts",
     readyProbe: true,
     dataDir: join(ROOT, "data", "hypha"),
+    // Enable the P2P forward transport so non-text modalities (vision/image, embeddings, STT/TTS)
+    // can be borrowed cross-mesh — the SDK delegate path only carries text completion(), so vision
+    // is proxied to the local serve over HYPHA_FORWARD (tetherto/qvac#2459). METERED off = free
+    // forward for private-mesh peers. Parent process.env still wins if explicitly set.
+    env: { HYPHA_FORWARD: "1", HYPHA_FORWARD_METERED: "0" },
     blurb: `Delegated-compute daemon (:${HYPHA_PORT}) — joins the encrypted mesh, serves paired peers, pre-warms their models, and is the broker's overflow path. Pair peers via \`npm run hypha invite\` / \`npm run hypha pair <code>\`.`,
     freshness: async () => {
       try {

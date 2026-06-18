@@ -5,7 +5,7 @@ import { ScreenHeader } from "./ScreenHeader";
 import { Card, Row, StateBadge } from "./Card";
 import { DesktopNote } from "./DesktopNote";
 import { Database } from "./icons";
-import { type MeshStatus } from "./MeshSheet";
+import { type OffloadStatus } from "./mesh";
 
 /**
  * ECONOMY — the phone is a pure mesh consumer: no on-device ledger, wallet, or chain RPC. The page
@@ -24,7 +24,7 @@ export function EconomyScreen({
 }: {
   onMenu: () => void;
   onPair: () => void;
-  mesh: { on: boolean; providerName?: string; providerKey: string; status: MeshStatus };
+  mesh: { on: boolean; providerName?: string; providerKey: string; status: OffloadStatus };
 }) {
   const ok = mesh.on ? (mesh.status === "online" ? true : mesh.status === "offline" ? false : null) : null;
   const stateLabel = !mesh.on

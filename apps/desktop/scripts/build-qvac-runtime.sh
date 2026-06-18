@@ -33,7 +33,17 @@ JSON
 # Apply the leash @qvac/cli vision patch (OpenAI `image_url` content → SDK `attachments`) so the
 # PACKAGED serve does multimodal vision (screenshot description, image-in-chat). In dev this lands via
 # patch-package's postinstall; the runtime is a SEPARATE install patch-package never sees, so apply it
-# here against the bundled cli. Version-matched to @qvac/cli 0.6.0; --forward no-ops if already applied.
+# here against the bundled cli. Version-matched to @qvac/cli $CLI_VER; --forward no-ops if already applied.
+#
+# NOTE on the 0.7.0 patch: a re-derived, validated patch for @qvac/cli 0.7.0 is staged at
+#   patches/@qvac+cli+0.7.0.patch.pending
+# It is deliberately NOT a live `.patch`: patch-package 8.x groups every patch file by package NAME
+# (not version), so two `@qvac+cli+*.patch` files become a SEQUENCE it tries to apply together —
+# the 0.7.0 patch then fails on the already-0.6.0-patched tree and breaks `npm install`. To ADOPT
+# 0.7.0 (a deliberate, separate step): bump the repo pin to ^0.7.0, set CLI_VER/QVAC_CLI_VERSION=0.7.0,
+# then `git mv patches/@qvac+cli+0.7.0.patch.pending patches/@qvac+cli+0.7.0.patch` AND
+# `git rm patches/@qvac+cli+0.6.0.patch` (only the installed version's patch may live in patches/),
+# then foreground `npm install`.
 repo="$(cd "$here/../.." && pwd)"
 cli_patch="$repo/patches/@qvac+cli+$CLI_VER.patch"
 if [ -f "$cli_patch" ] && [ -d "$out/node_modules/@qvac/cli" ]; then

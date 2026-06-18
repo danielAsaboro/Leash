@@ -56,8 +56,17 @@ export const FORGOTTEN_FILE = join(HYPHA_DATA_DIR, "forgotten.json");
 export const UNPAIR_ACK_FILE = join(HYPHA_DATA_DIR, "unpair-ack.json");
 /** Audit JSONL dir (evidence bundle). */
 export const LOG_DIR = join(here, "..", "logs");
-/** Serve alias config DATA (machine-neutral `~/` paths; `qvac.config.mjs` wraps it for the CLI/SDK). */
-export const QVAC_CONFIG_FILE = join(REPO_ROOT, "qvac.config.base.json");
+/**
+ * Serve alias config DATA (machine-neutral `~/` paths; `qvac.config.mjs` wraps it for the CLI/SDK).
+ * When the host (e.g. the Leash desktop app) scopes the serve to a per-user config via
+ * `QVAC_CONFIG_PATH=<dir>/qvac.config.mjs`, hypha's catalog MUST read the SAME config's base JSON —
+ * otherwise hypha advertises the repo's models while the serve serves the user's, so delegated/forward
+ * loads target a model the serve doesn't have (registry-miss lock contention; forward model-not-found).
+ * Falls back to the repo config when unscoped.
+ */
+export const QVAC_CONFIG_FILE = process.env["QVAC_CONFIG_PATH"]
+  ? join(dirname(process.env["QVAC_CONFIG_PATH"]!.replace(/^file:\/\//, "")), "qvac.config.base.json")
+  : join(REPO_ROOT, "qvac.config.base.json");
 /** Cached `@qvac/ai-sdk-provider` allModels dump (name → registryPath/cacheFile). */
 export const CATALOG_FILE = join(DATA_DIR, "leash-models-catalog.json");
 

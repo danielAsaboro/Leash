@@ -11,7 +11,7 @@ import { clearTasks } from "./tasks";
 import { clearNotes } from "./notes";
 import { clearAll as clearNotifications } from "./notifications";
 import { KNOWN_SECRETS, listSecretStatus, setSecret, deleteSecret, type SecretStatus } from "./secrets";
-import { type MeshStatus } from "./MeshSheet";
+import { type OffloadStatus } from "./mesh";
 import appJson from "./app.json";
 
 /**
@@ -56,7 +56,7 @@ export function SettingsScreen({
   onGoMesh: () => void;
   onClearedConversations: () => void;
   deviceName: string;
-  mesh: { on: boolean; providerName?: string; providerKey: string; status: MeshStatus };
+  mesh: { on: boolean; providerName?: string; providerKey: string; status: OffloadStatus };
   onResetDevice: () => void;
 }) {
   const [tab, setTab] = useState<Tab>("account");
