@@ -116,9 +116,12 @@ function onRequest(req) {
     });
     // Once connected, an RN abort cancels the provider's decode (forward-control `{ id, cancel: true }`)
     // before dropping the connection — the provider aborts its local serve fetch instead of draining.
+    // Let the cancel frame FLUSH before tearing down the swarm: writing then immediately destroying
+    // loses the frame (the peer sees only a connection reset). A short grace flushes it; the provider's
+    // own conn-close handler is the backstop if even that races.
     active = () => {
       try { conn.write(b4a.from(JSON.stringify({ id, cancel: true }) + "\n")); } catch { /* peer gone */ }
-      finish({ id, type: "done", stats: { aborted: true } });
+      setTimeout(() => finish({ id, type: "done", stats: { aborted: true } }), 250);
     };
     // The forward-control.ts ForwardRequest shape: { id, endpoint, body }.
     conn.write(b4a.from(JSON.stringify({ id, endpoint: req.endpoint || "/v1/chat/completions", body: req.body }) + "\n"));
