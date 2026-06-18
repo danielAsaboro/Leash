@@ -11,7 +11,7 @@ npm run broker   # listens on :11436 → forwards to serve :11435
 
 ## Why it exists
 
-The serve's `llm-llamacpp` addon serializes inference per model context and **rejects** concurrent same-alias requests rather than queuing them — a second request to a busy alias comes back as `500 "Cannot set new job…"`.
+The SDK's in-process request registry **queues** concurrent same-alias requests (FIFO, default `maxConcurrentPerModel: 1`, `maxQueueDepthPerModel: 64`) instead of the old `500 "Cannot set new job…"` rejection. Each OS process has its own registry, so the broker still serializes **cross-process** — a separate web-chat process and a compaction child each maintain independent queues and cannot coordinate without the broker.
 
 <Warning>
   Every serve client is a **separate OS process** — the web chat route, the compaction / dream / research children, the watcher. An in-process mutex can't coordinate them. The broker is the only place that can.
@@ -24,8 +24,8 @@ The serve's `llm-llamacpp` addon serializes inference per model context and **re
   <Card title="Different aliases run parallel" icon="layer-group">
     Serialization is **per alias**, so `qwen3-4b` and an embeddings model decode at the same time — they don't share a context.
   </Card>
-  <Card title="Wedge-safe drain" icon="shield-halved">
-    On client disconnect the broker **never** aborts the upstream serve — it drains the decode to completion, then frees the slot.
+  <Card title="Cancel on disconnect" icon="shield-halved">
+    On client disconnect the broker **aborts the upstream fetch**, which triggers the serve's cancel-bridge (`cancel({ requestId })`) — freeing the GPU mid-decode. Only bytes already in flight are drained; the full decode no longer runs to completion.
   </Card>
   <Card title="No upstream timeout" icon="hourglass">
     `bodyTimeout: 0` — the broker never body-times-out a slow decode.
@@ -41,21 +41,21 @@ The serve's `llm-llamacpp` addon serializes inference per model context and **re
   <Step title="Acquire the alias slot">
     If the alias is idle, the request goes straight through. If busy, it waits in that alias's queue, ordered by priority + aging (see [Priority & aging](/agents/queue-priority)).
   </Step>
-  <Step title="Forward with no abort signal">
-    The upstream `fetch` is **deliberately not** tied to the client. If the client disconnects mid-decode, the serve is never aborted.
+  <Step title="Forward with abort signal">
+    The upstream `fetch` is tied to a per-request `AbortController`. If the client disconnects mid-decode, the broker aborts the fetch — the serve's cancel-bridge fires `cancel({ requestId })` and the GPU is freed. The same abort is forwarded to the hypha overflow path.
   </Step>
-  <Step title="Stream or drain">
-    While the client is connected, upstream bytes stream straight through (respecting backpressure). If the client has gone, the broker keeps reading to **drain** the serve to completion so the next queued request isn't blocked.
+  <Step title="Stream (or drain in-flight bytes)">
+    While the client is connected, upstream bytes stream straight through (respecting backpressure). If the client disconnects, the broker aborts the upstream — only bytes already buffered in flight are drained; the decode itself is cancelled at the serve.
   </Step>
   <Step title="Release the slot">
     On completion (or upstream error → `502`), the slot is released and the next waiter — picked by aged priority — is woken.
   </Step>
 </Steps>
 
-## The wedge rule
+## Cancel on disconnect
 
 <Note>
-  Aborting a llama.cpp decode mid-flight can wedge the GPU. The broker's governing invariant: **never abort the serve on client disconnect.** If a client gives up *while still queued*, the broker simply frees the slot without bothering the serve — no decode is burned on an abandoned request. But once a decode has started, it always runs to completion.
+  Since `@qvac/sdk@0.13.1`, mid-decode cancellation is safe — aborting a llama.cpp decode no longer wedges the GPU. The broker's governing principle: **abort the serve on client disconnect** so the GPU is freed immediately. The serve ships a cancel-bridge: each completion is armed with `req.bindCancel(result.requestId)`; on `req.once('close')` it fires `cancel({ requestId })`. If a client gives up *while still queued*, the broker simply frees the slot without starting a decode — no tokens are burned on an abandoned request.
 </Note>
 
 ## Scheduling lineage
@@ -91,6 +91,6 @@ The broker is **non-preemptive priority scheduling**: the serve is a non-preempt
     The full port map: web, serve, broker, hypha.
   </Card>
   <Card title="Debugging" icon="bug" href="/help/debugging">
-    Diagnosing wedges and queue stalls.
+    Diagnosing queue stalls and cancel latency.
   </Card>
 </CardGroup>

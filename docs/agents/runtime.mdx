@@ -20,7 +20,7 @@ Before each call, `prepareCall` translates the validated call options into the s
 | `maxOutputTokens` | `maxOutputTokens` | Token ceiling (null on vision) |
 
 <Warning>
-`prepareCall` must spread the incoming `...settings` in its return — that carries the call's prompt/messages forward. Returning only the overrides drops the messages and the SDK throws "prompt or messages must be defined" (caught live 2026-06-07). There is also **no `abortSignal`** anywhere: the qvac serve wedges on client aborts, so a turn always runs to completion.
+`prepareCall` must spread the incoming `...settings` in its return — that carries the call's prompt/messages forward. Returning only the overrides drops the messages and the SDK throws "prompt or messages must be defined" (caught live 2026-06-07). The **web chat route** now passes the client's `abortSignal` to `agent.stream` — when the user hits Stop or disconnects, the fetch aborts, the serve's cancel-bridge fires `cancel({ requestId })`, and the GPU is freed mid-decode (partial answer still persists via `onFinish`). Background callers (heartbeat, subagent runner) do not wire a user abort signal; they are bounded by step budget and `max_tokens` instead.
 </Warning>
 
 ## The step loop
