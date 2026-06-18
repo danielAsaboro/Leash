@@ -207,6 +207,7 @@ export default function App(): React.JSX.Element {
   const cancelRef = useRef(false);
   const agentAbortRef = useRef<AbortController | null>(null); // aborts the on-device agent loop on stop()
   const modelIdRef = useRef<string | null>(null);
+  const activeRequestIdRef = useRef<string | null>(null); // the active single-shot completion's requestId (for targeted cancel)
 
   // Brain-composed prompt parts (loaded from prompts/constitution/memories on mount, refreshed when
   // the Brain screen edits them). Held in refs so runCompletion — whose deps are empty — reads the
@@ -480,6 +481,7 @@ export default function App(): React.JSX.Element {
       voice?: boolean,
     ): Promise<string> => {
       cancelRef.current = false;
+      activeRequestIdRef.current = null;
       const target = offloadRef.current;
       const useMesh = !!target && !!consumerKeyRef.current;
       const where: "mesh" | "local" = useMesh ? "mesh" : "local";
@@ -535,6 +537,7 @@ export default function App(): React.JSX.Element {
           // LOCAL VOICE: legacy fast path — plain tokenStream + stripThink, read aloud by TTS.
           let chunks = 0;
           const result = completion({ modelId: modelIdRef.current!, history: fullHistory, stream: true });
+          activeRequestIdRef.current = (result as { requestId?: string }).requestId ?? null;
           for await (const token of result.tokenStream) {
             if (cancelRef.current) break;
             if (!firstAt) firstAt = Date.now();
@@ -694,8 +697,12 @@ export default function App(): React.JSX.Element {
     // Borrowed (forward) chat: drop the worklet connection so the phone unblocks now. The provider
     // still drains its current decode (GPU-wedge rule — remote compute can't be safely hard-killed).
     abortMeshForward();
+    // Prefer a targeted cancel of the active single-shot turn's requestId (safe on 0.13.1);
+    // fall back to the broad per-model cancel for the multi-step native loop (no single requestId).
+    const rid = activeRequestIdRef.current;
     const id = modelIdRef.current;
-    if (id) void (cancel as any)?.({ modelId: id })?.catch?.(() => {});
+    if (rid) void (cancel as any)?.({ requestId: rid })?.catch?.(() => {});
+    else if (id) void (cancel as any)?.({ modelId: id })?.catch?.(() => {});
   }, []);
 
   // ── Image(s) → vision over the mesh ──────────────────────────────────
