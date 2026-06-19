@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { activateAndGo } from "../lib/auth-handshake.ts";
+import { appAlert, appConfirm } from "../lib/prompt.ts";
 import type { StorageUsage } from "../lib/leash/storage.ts";
 
 function fmt(bytes: number): string {
@@ -21,7 +22,7 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const clear = async (category: string, label: string, bytes: number) => {
-    if (!window.confirm(`Clear ${label} (${fmt(bytes)})? This permanently deletes it from this device.`)) return;
+    if (!(await appConfirm(`Clear ${label} (${fmt(bytes)})? This permanently deletes it from this device.`, { confirmLabel: "Clear", destructive: true }))) return;
     setBusy(true);
     try {
       await fetchWithTimeout("/api/leash/data/clear", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ category }) });
@@ -32,13 +33,13 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
   };
 
   const factoryReset = async () => {
-    if (!window.confirm("FACTORY RESET? Permanently deletes EVERY account, all data and all downloaded models on this device, returning the app to first-run setup.")) return;
-    if (!window.confirm("This wipes everything for every user. Are you absolutely sure?")) return;
+    if (!(await appConfirm("FACTORY RESET? Permanently deletes EVERY account, all data and all downloaded models on this device, returning the app to first-run setup.", { confirmLabel: "Factory reset", destructive: true }))) return;
+    if (!(await appConfirm("This wipes everything for every user. Are you absolutely sure?", { confirmLabel: "Wipe everything", destructive: true }))) return;
     setBusy(true);
     try {
       const r = await fetchWithTimeout("/api/leash/data/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "factory" }) });
       if (!r.ok) {
-        window.alert((await r.json().catch(() => ({})))?.error ?? "Reset failed.");
+        await appAlert((await r.json().catch(() => ({})))?.error ?? "Reset failed.", { tone: "error" });
         setBusy(false);
         return;
       }

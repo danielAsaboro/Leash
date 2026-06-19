@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import type { SecretStatus } from "../lib/leash/vault.ts";
 
 /**
@@ -36,7 +37,7 @@ export function SecretsCard({ secrets }: { secrets: SecretStatus[] }) {
   };
 
   const clear = async (name: string) => {
-    if (!confirm("Clear this secret from the vault?")) return;
+    if (!(await appConfirm("Clear this secret from the vault?", { confirmLabel: "Clear", destructive: true }))) return;
     setBusy(name);
     setError(null);
     try {

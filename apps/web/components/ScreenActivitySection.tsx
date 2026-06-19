@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { ActivityPage } from "../lib/leash/memory-admin.ts";
 
@@ -22,7 +23,7 @@ export function ScreenActivitySection({ activity, offset, pageSize = 50 }: { act
   const [error, setError] = useState<string | null>(null);
 
   const forget = async (ts: string) => {
-    if (!confirm("Forget this activity record? The assistant will no longer recall it.")) return;
+    if (!(await appConfirm("Forget this activity record? The assistant will no longer recall it.", { confirmLabel: "Forget", destructive: true }))) return;
     setBusy(true);
     setError(null);
     try {

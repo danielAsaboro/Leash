@@ -25,6 +25,7 @@ import { toolMeta, toolName, ToolCard, collectSources } from "./leash-tools.tsx"
 import { PlanCard } from "./PlanCard.tsx";
 import { SkillEventCard } from "./SkillEventCard.tsx";
 import { kindOf } from "../lib/leash/model-rows.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import type { PlanData } from "@/lib/leash/types";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
@@ -584,7 +585,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   // Destructive — guarded by a confirm and only offered when idle.
   const restoreTo = async (index: number) => {
     if (busy) return;
-    if (!window.confirm("Restore to here? This permanently deletes this turn and everything after it.")) return;
+    if (!(await appConfirm("Restore to here? This permanently deletes this turn and everything after it.", { confirmLabel: "Restore", destructive: true }))) return;
     setMessages(messages.slice(0, index));
     try {
       await fetch(`/api/leash/chats/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keep: index }) });

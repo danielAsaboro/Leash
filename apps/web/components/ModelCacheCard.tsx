@@ -7,6 +7,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appAlert, appConfirm } from "../lib/prompt.ts";
 import type { StorageUsage } from "../lib/leash/storage.ts";
 import { paginate, sumSelectedBytes } from "../lib/leash/storage-paging.ts";
 
@@ -43,7 +44,7 @@ export function ModelCacheCard({ files, totalBytes }: { files: StorageUsage["mod
     });
 
   const deleteFiles = async (targets: string[], confirmMsg: string) => {
-    if (targets.length === 0 || !window.confirm(confirmMsg)) return;
+    if (targets.length === 0 || !(await appConfirm(confirmMsg, { confirmLabel: "Delete", destructive: true }))) return;
     setBusy(true);
     const failed: string[] = [];
     try {
@@ -52,7 +53,7 @@ export function ModelCacheCard({ files, totalBytes }: { files: StorageUsage["mod
         if (!r.ok) failed.push(file);
       }
       setSel(new Set());
-      if (failed.length) window.alert(`Failed to delete: ${failed.join(", ")}`);
+      if (failed.length) await appAlert(`Failed to delete: ${failed.join(", ")}`, { tone: "error" });
       router.refresh();
     } finally {
       setBusy(false);

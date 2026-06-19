@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, PencilIcon, Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
@@ -141,8 +142,8 @@ export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent:
   const toggle = (a: Agent) =>
     void call(() => fetchWithTimeout(`/api/leash/agents/${a.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !a.enabled }) }));
 
-  const del = (a: Agent) => {
-    if (!confirm(`Delete the subagent "${a.name}"?`)) return;
+  const del = async (a: Agent) => {
+    if (!(await appConfirm(`Delete the subagent "${a.name}"?`, { confirmLabel: "Delete", destructive: true }))) return;
     void call(() => fetchWithTimeout(`/api/leash/agents/${a.slug}`, { method: "DELETE" }));
   };
 
@@ -317,7 +318,7 @@ export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent:
                     <IconButton title={`Edit ${a.name}`} disabled={busy} onClick={() => startEdit(a)}>
                       <PencilIcon size={15} />
                     </IconButton>
-                    <IconButton title={`Delete ${a.name}`} danger disabled={busy} onClick={() => del(a)}>
+                    <IconButton title={`Delete ${a.name}`} danger disabled={busy} onClick={() => void del(a)}>
                       <Trash2Icon size={15} />
                     </IconButton>
                   </>

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, Trash2Icon, ChevronRightIcon, ChevronDownIcon, AlertTriangleIcon, TerminalIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
 
@@ -226,8 +227,8 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
   const toggle = (p: PluginEntry) =>
     void call(() => fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(p.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !p.enabled }) }));
 
-  const del = (p: PluginEntry) => {
-    if (!confirm(`Uninstall the plugin "${p.name}"? Its skills, MCP servers, and agents are removed.`)) return;
+  const del = async (p: PluginEntry) => {
+    if (!(await appConfirm(`Uninstall the plugin "${p.name}"? Its skills, MCP servers, and agents are removed.`, { confirmLabel: "Uninstall", destructive: true }))) return;
     void call(() => fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(p.id)}`, { method: "DELETE" }));
   };
 
@@ -469,7 +470,7 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
                   >
                     {open ? <ChevronDownIcon size={14} /> : <ChevronRightIcon size={14} />} Review
                   </button>
-                  <IconButton title={`Uninstall ${p.name}`} danger disabled={busy} onClick={() => del(p)}>
+                  <IconButton title={`Uninstall ${p.name}`} danger disabled={busy} onClick={() => void del(p)}>
                     <Trash2Icon size={15} />
                   </IconButton>
                 </div>

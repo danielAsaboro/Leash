@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, Trash2Icon, GlobeIcon, RadioIcon, TerminalIcon, LockIcon, ShieldCheckIcon, BlocksIcon, PencilIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import { Switch } from "./Switch.tsx";
 import { McpIntegrationModal } from "./McpIntegrationModal.tsx";
@@ -60,7 +61,7 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
   };
 
   const remove = async (s: McpServerStatus) => {
-    if (!confirm(`Remove the MCP server "${s.name}"?`)) return;
+    if (!(await appConfirm(`Remove the MCP server "${s.name}"?`, { confirmLabel: "Remove", destructive: true }))) return;
     setBusyId(s.id);
     setError(null);
     try {

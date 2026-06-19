@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlayIcon, SquareIcon, RotateCcwIcon, RefreshCwIcon, OctagonXIcon, EraserIcon, BoxesIcon, Loader2Icon, ScrollTextIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { ServiceStatus } from "../lib/leash/services.ts";
 
@@ -39,10 +40,10 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
 
   const act = async (action: "start" | "stop" | "restart" | "force-stop" | "force-restart" | "reset") => {
     const danger = service.name === "qvac-serve" && action !== "start";
-    if (danger && !confirm(`${action === "stop" ? "Stop" : "Restart"} the model serve? Make sure no generation is running.`)) return;
-    if (action === "stop" && service.name !== "qvac-serve" && !confirm(`Stop ${service.label}?`)) return;
-    if ((action === "force-stop" || action === "force-restart") && !confirm(`Force ${action === "force-stop" ? "stop" : "restart"} ${service.label}? This kills every copy of it — including any started in a terminal or left orphaned — and ${action === "force-restart" ? "starts a fresh one." : "leaves it stopped."}`)) return;
-    if (action === "reset" && !confirm(`Wipe this device's mesh identity and ALL pairings, then restart fresh? Other devices keep their state; you'll need to re-pair.`)) return;
+    if (danger && !(await appConfirm(`${action === "stop" ? "Stop" : "Restart"} the model serve? Make sure no generation is running.`, { confirmLabel: action === "stop" ? "Stop" : "Restart", destructive: true }))) return;
+    if (action === "stop" && service.name !== "qvac-serve" && !(await appConfirm(`Stop ${service.label}?`, { confirmLabel: "Stop", destructive: true }))) return;
+    if ((action === "force-stop" || action === "force-restart") && !(await appConfirm(`Force ${action === "force-stop" ? "stop" : "restart"} ${service.label}? This kills every copy of it — including any started in a terminal or left orphaned — and ${action === "force-restart" ? "starts a fresh one." : "leaves it stopped."}`, { confirmLabel: action === "force-stop" ? "Force stop" : "Force restart", destructive: true }))) return;
+    if (action === "reset" && !(await appConfirm(`Wipe this device's mesh identity and ALL pairings, then restart fresh? Other devices keep their state; you'll need to re-pair.`, { confirmLabel: "Reset mesh", destructive: true }))) return;
     setBusy(true);
     setPending(action);
     setError(null);

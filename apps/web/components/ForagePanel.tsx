@@ -22,7 +22,7 @@ export function ForagePanel({ result }: { result: ForageResult }) {
     act(r.name, () => fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: r.name }) }, TIMEOUT.heavy), `Downloading ${r.name}… track it on the Models tab.`);
 
   const addToConfig = async (r: Recommendation) => {
-    const alias = await appPrompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24));
+    const alias = await appPrompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24), { inputLabel: "Config alias" });
     if (!alias) return;
     void act(r.name, () => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }), `Added ${r.name} to config — restart the serve (Services) to load it.`);
   };

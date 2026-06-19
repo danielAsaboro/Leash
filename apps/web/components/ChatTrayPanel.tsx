@@ -83,7 +83,7 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
   const rename = async (id: string, current: string, e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    const title = await appPrompt("Rename conversation", current);
+    const title = await appPrompt("Rename conversation", current, { inputLabel: "Conversation title" });
     if (title == null || !title.trim()) return;
     await call(() => fetchWithTimeout(`/api/leash/chats/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }));
   };

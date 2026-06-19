@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
-import { appPrompt } from "../lib/prompt.ts";
+import { appConfirm, appPrompt } from "../lib/prompt.ts";
 import type { ModelsInventory, CatalogModel } from "../lib/leash/models.ts";
 import type { FitEstimate } from "../lib/leash/hwfit.ts";
 import { buildModelRows, modelState, type ModelKind, type ModelCategory, type ModelState, type TaggedRow } from "../lib/leash/model-rows.ts";
@@ -207,7 +207,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
   }, [active, router]);
 
   const call = async (fn: () => Promise<Response>, confirmMsg?: string): Promise<void> => {
-    if (confirmMsg && !confirm(confirmMsg)) return;
+    if (confirmMsg && !(await appConfirm(confirmMsg, { confirmLabel: "Continue", destructive: true }))) return;
     setBusy(true);
     setError(null);
     setNotice(null);
@@ -422,7 +422,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
                 disabled={busy || !canAdd}
                 onClick={() => {
                   void (async () => {
-                    const alias = await appPrompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24));
+                    const alias = await appPrompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24), { inputLabel: "Config alias" });
                     if (!alias) return;
                     await call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }));
                   })();

@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import type { ScheduleEntry, CronScheduleState, CronRun, JobScript } from "../lib/leash/schedules-store.ts";
 
 /**
@@ -78,8 +79,8 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
   const toggle = (e: ScheduleEntry) =>
     void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !e.enabled }) }));
 
-  const del = (e: ScheduleEntry) => {
-    if (!confirm(`Delete the schedule "${e.name}"?`)) return;
+  const del = async (e: ScheduleEntry) => {
+    if (!(await appConfirm(`Delete the schedule "${e.name}"?`, { confirmLabel: "Delete", destructive: true }))) return;
     void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "DELETE" }));
   };
 
@@ -183,7 +184,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
                   last {fmtTime(st.lastRun)}
                   {st.lastRun ? (st.lastOk ? " ✓" : " ✗") : ""} · next {fmtTime(st.nextRun)}
                 </span>
-                <button type="button" onClick={() => del(e)} disabled={busy} aria-label={`Delete ${e.name}`} className="px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
+                <button type="button" onClick={() => void del(e)} disabled={busy} aria-label={`Delete ${e.name}`} className="px-2 transition-opacity hover:opacity-60" style={{ color: "var(--color-faint)" }}>
                   ×
                 </button>
               </li>

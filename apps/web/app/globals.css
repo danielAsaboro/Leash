@@ -103,6 +103,48 @@
     color: var(--color-sage-deep);
   }
 
+  .app-dialog {
+    border-radius: 6px;
+    border-color: var(--color-rule-strong);
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    box-shadow: 0 24px 80px -46px rgba(25, 23, 18, 0.65), 0 0 0 1px rgba(25, 23, 18, 0.03);
+  }
+  .app-dialog [data-slot="dialog-title"] {
+    font-family: var(--font-display);
+    font-size: 1.35rem;
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.05;
+    color: var(--color-ink);
+  }
+  .app-dialog [data-slot="dialog-description"] {
+    font-family: var(--font-body);
+    font-size: 0.96rem;
+    line-height: 1.48;
+    color: var(--color-ink-soft);
+  }
+  .app-dialog-form {
+    display: grid;
+    gap: 0.8rem;
+  }
+  .app-dialog-label {
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-label);
+    font-size: 0.68rem;
+    color: var(--color-muted);
+  }
+  .app-dialog-input {
+    border-radius: 4px;
+    border-color: var(--color-rule-strong);
+    background: var(--color-cream);
+    color: var(--color-ink);
+    font-family: var(--font-body);
+    font-size: 0.98rem;
+  }
+
   /* Hairlines. The broadsheet lives and dies by its rules. */
   .rule {
     border-color: var(--color-rule);

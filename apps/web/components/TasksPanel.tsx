@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlusIcon, CheckCheckIcon, RotateCcwIcon, Trash2Icon, XIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { LeashTask, TaskStatus, TaskPriority, TaskSource } from "../lib/leash/tasks-store.ts";
 
@@ -182,9 +183,9 @@ export function TasksPanel({
   const bulkStatus = (status: TaskStatus, label: string) =>
     void bulk(label, (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status }) }));
 
-  const bulkDelete = () => {
+  const bulkDelete = async () => {
     const n = listedSelected.length;
-    if (!confirm(`Delete ${n} selected task${n === 1 ? "" : "s"}? This can't be undone.`)) return;
+    if (!(await appConfirm(`Delete ${n} selected task${n === 1 ? "" : "s"}? This can't be undone.`, { confirmLabel: "Delete", destructive: true }))) return;
     void bulk("deleted", (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
   };
 
@@ -230,8 +231,8 @@ export function TasksPanel({
   const patch = (id: string, body: Record<string, unknown>) =>
     call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
 
-  const del = (id: string) => {
-    if (!confirm("Delete this task?")) return;
+  const del = async (id: string) => {
+    if (!(await appConfirm("Delete this task?", { confirmLabel: "Delete", destructive: true }))) return;
     void call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
   };
 
@@ -284,7 +285,7 @@ export function TasksPanel({
           <IconButton title="Mark open" disabled={busy} onClick={() => bulkStatus("open", "marked open")}>
             <RotateCcwIcon size={15} />
           </IconButton>
-          <IconButton title="Delete selected" danger disabled={busy} onClick={bulkDelete}>
+          <IconButton title="Delete selected" danger disabled={busy} onClick={() => void bulkDelete()}>
             <Trash2Icon size={15} />
           </IconButton>
           <span className="h-4 w-px" style={{ background: "var(--color-rule-strong)" }} />
@@ -439,7 +440,7 @@ export function TasksPanel({
                 ))}
               </select>
 
-              <IconButton title="Delete task" danger disabled={busy} onClick={() => del(t.id)}>
+              <IconButton title="Delete task" danger disabled={busy} onClick={() => void del(t.id)}>
                 <Trash2Icon size={15} />
               </IconButton>
             </li>

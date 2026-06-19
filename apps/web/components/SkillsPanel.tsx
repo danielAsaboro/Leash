@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlusIcon, UploadIcon, PencilIcon, Trash2Icon, RotateCcwIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
@@ -73,7 +74,7 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
   };
 
   const del = async (f: string) => {
-    if (!confirm(`Delete the attachment "${f}"?`)) return;
+    if (!(await appConfirm(`Delete the attachment "${f}"?`, { confirmLabel: "Delete", destructive: true }))) return;
     try {
       const res = await fetchWithTimeout(fileUrl(slug, f), { method: "DELETE" });
       if (!res.ok) return onError(`Delete failed (${res.status}).`);
@@ -219,8 +220,8 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
   const toggle = (s: Skill) =>
     void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }));
 
-  const del = (s: Skill) => {
-    if (!confirm(`Delete the skill "${s.name}"?`)) return;
+  const del = async (s: Skill) => {
+    if (!(await appConfirm(`Delete the skill "${s.name}"?`, { confirmLabel: "Delete", destructive: true }))) return;
     void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "DELETE" }));
   };
 
@@ -429,7 +430,7 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
                   <IconButton title={`Edit ${s.name}`} disabled={busy} onClick={() => void openEditor(s)}>
                     <PencilIcon size={15} />
                   </IconButton>
-                  <IconButton title={`Delete ${s.name}`} danger disabled={busy} onClick={() => del(s)}>
+                  <IconButton title={`Delete ${s.name}`} danger disabled={busy} onClick={() => void del(s)}>
                     <Trash2Icon size={15} />
                   </IconButton>
                 </>

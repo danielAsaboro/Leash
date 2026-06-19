@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { PencilIcon, Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
-import { appPrompt } from "../lib/prompt.ts";
+import { appConfirm, appPrompt } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { LeashMemory, MemoryType } from "../lib/leash/memories-store.ts";
 
@@ -57,13 +57,13 @@ export function MemoriesSection({ memories }: { memories: LeashMemory[] }) {
     void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }));
 
   const edit = async (m: LeashMemory) => {
-    const text = await appPrompt("Edit memory", m.text);
+    const text = await appPrompt("Edit memory", m.text, { inputLabel: "Memory text" });
     if (text == null || !text.trim()) return;
     void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }));
   };
 
-  const forget = (m: LeashMemory) => {
-    if (!confirm("Forget this memory? The assistant will no longer know it.")) return;
+  const forget = async (m: LeashMemory) => {
+    if (!(await appConfirm("Forget this memory? The assistant will no longer know it.", { confirmLabel: "Forget", destructive: true }))) return;
     void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "DELETE" }));
   };
 

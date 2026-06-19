@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 import type { NoteView } from "../lib/leash/memory-admin.ts";
 
@@ -22,7 +23,7 @@ export function NotesSection({ notes }: { notes: NoteView[] }) {
   const [error, setError] = useState<string | null>(null);
 
   const forget = async (file: string) => {
-    if (!confirm(`Delete the note "${file}"? The assistant will no longer recall it.`)) return;
+    if (!(await appConfirm(`Delete the note "${file}"? The assistant will no longer recall it.`, { confirmLabel: "Delete", destructive: true }))) return;
     setBusy(true);
     setError(null);
     try {

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { UnplugIcon, RotateCcwIcon, EraserIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
 
 /**
@@ -27,7 +28,7 @@ export function ForgetPeerButton({ deviceKey, name }: { deviceKey: string; name:
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const run = async () => {
-    if (!confirm(`Disconnect ${name}? It will be removed from this mesh and can no longer borrow or lend compute until you pair again.`)) return;
+    if (!(await appConfirm(`Disconnect ${name}? It will be removed from this mesh and can no longer borrow or lend compute until you pair again.`, { confirmLabel: "Disconnect", destructive: true }))) return;
     setBusy(true);
     setErr(await post("forget", { deviceKey }));
     setBusy(false);

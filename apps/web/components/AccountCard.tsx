@@ -7,6 +7,7 @@
 import { useState } from "react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { activateAndGo } from "../lib/auth-handshake.ts";
+import { appAlert, appConfirm } from "../lib/prompt.ts";
 
 async function signOut(): Promise<void> {
   await fetch("/api/leash/auth/logout", { method: "POST" });
@@ -73,9 +74,10 @@ export function AccountCard({ username, userId }: { username: string; userId: st
 
   const resetAccount = async () => {
     if (
-      !window.confirm(
+      !(await appConfirm(
         "Reset THIS account? Permanently deletes your data, database, model cache and settings, then signs you out. Other accounts are untouched.",
-      )
+        { confirmLabel: "Reset account", destructive: true },
+      ))
     )
       return;
     setBusy(true);
@@ -86,7 +88,7 @@ export function AccountCard({ username, userId }: { username: string; userId: st
         body: JSON.stringify({ scope: "user" }),
       });
       if (!r.ok) {
-        window.alert((await r.json().catch(() => ({})))?.error ?? "Reset failed.");
+        await appAlert((await r.json().catch(() => ({})))?.error ?? "Reset failed.", { tone: "error" });
         setBusy(false);
         return;
       }

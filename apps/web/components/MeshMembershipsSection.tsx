@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, LogOutIcon, PlusIcon, TicketIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
+import { appConfirm } from "../lib/prompt.ts";
 import type { MeshMembership, BorrowCounters } from "../lib/leash/hypha.ts";
 import { meshEntryAction, type MeshIntent, type MeshVisibility } from "../lib/leash/mesh-entry.ts";
 import { ForgetPeerButton, ClearStaleButton, RestorePeerButton } from "./MeshPeerActions.tsx";
@@ -201,14 +202,14 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       setJoinOpen(false);
     });
 
-  const deleteMesh = (meshId: string, label: string): void => {
-    if (!confirm(`Delete the mesh "${label}"? This device stops serving it and drops the membership. This can't be undone.`)) return;
+  const deleteMesh = async (meshId: string, label: string): Promise<void> => {
+    if (!(await appConfirm(`Delete the mesh "${label}"? This device stops serving it and drops the membership. This can't be undone.`, { confirmLabel: "Delete", destructive: true }))) return;
     void run(() => meshPost("delete", { meshId }));
   };
   // Leave a mesh this device JOINED (didn't create) — public cells or someone else's private mesh. The
   // mesh lives on for its other members; the creator-gated delete is the founder's destructive path.
-  const leaveMesh = (meshId: string, label: string): void => {
-    if (!confirm(`Leave the mesh "${label}"? This device drops its membership; the mesh lives on for its other members.`)) return;
+  const leaveMesh = async (meshId: string, label: string): Promise<void> => {
+    if (!(await appConfirm(`Leave the mesh "${label}"? This device drops its membership; the mesh lives on for its other members.`, { confirmLabel: "Leave", destructive: true }))) return;
     void run(() => meshPost("leave", { meshId }));
   };
 
@@ -554,11 +555,11 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                     <TicketIcon size={15} aria-hidden />
                   </IconButton>
                   {m.creator ? (
-                    <IconButton title={`Delete "${m.label}" — you created this mesh`} danger disabled={busy} onClick={() => deleteMesh(m.meshId, m.label)}>
+                    <IconButton title={`Delete "${m.label}" — you created this mesh`} danger disabled={busy} onClick={() => void deleteMesh(m.meshId, m.label)}>
                       <Trash2Icon size={15} aria-hidden />
                     </IconButton>
                   ) : m.meshId !== "primary" ? (
-                    <IconButton title={`Leave "${m.label}" — drop this device's membership`} danger disabled={busy} onClick={() => leaveMesh(m.meshId, m.label)}>
+                    <IconButton title={`Leave "${m.label}" — drop this device's membership`} danger disabled={busy} onClick={() => void leaveMesh(m.meshId, m.label)}>
                       <LogOutIcon size={15} aria-hidden />
                     </IconButton>
                   ) : null}
