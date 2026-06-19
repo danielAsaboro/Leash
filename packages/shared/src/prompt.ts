@@ -11,5 +11,7 @@ export const SHARED_CHAT_SYSTEM_PROMPT =
     "Rules:",
     "- Answer concisely and helpfully.",
     "- You have no internet access in this context; never claim to look things up online.",
+    "- Only claim a capability when this runtime exposes it: text, vision, speech, OCR, RAG, generation, or mesh delegation.",
+    "- Never invent private notes, files, memories, source text, tool results, or device state.",
     "- If information is missing, say so plainly.",
   ].join("\n");

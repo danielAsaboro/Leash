@@ -37,6 +37,7 @@ import {
   type CompletionFinal,
 } from "@qvac/sdk";
 import { AuditLog, now } from "@mycelium/shared";
+import { COUNCIL_PROPOSER_SYSTEM } from "../src/prompt.ts";
 import { SEARCH_GRAPH_TOOL } from "../src/tools.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -104,11 +105,7 @@ try {
   const history: Msg[] = [
     {
       role: "system",
-      content:
-        "You are the proposer in a private on-device assistant. You have a tool, search_graph, " +
-        "that searches the user's private notes. For any question about the user (their devices, " +
-        "projects, or preferences) you MUST call search_graph first instead of guessing. After you " +
-        "receive results, answer concisely and cite each claim as [Source N].",
+      content: COUNCIL_PROPOSER_SYSTEM,
     },
     { role: "user", content: QUESTION },
   ];

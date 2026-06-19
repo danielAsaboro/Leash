@@ -30,6 +30,7 @@ async function main() {
     assert.strictEqual(a!.model, exp.model, `${slug} model`);
     assert.strictEqual(a!.builtin, true, `${slug} builtin`);
     assert.ok(a!.description.length > 10, `${slug} has a description (drives delegation)`);
+    assert.match(a!.body, /^@builtin-prompt:/, `${slug} body points at central prompt.ts text`);
   }
   rmSync(dir, { recursive: true });
   console.log("specialist-agents: PASS");

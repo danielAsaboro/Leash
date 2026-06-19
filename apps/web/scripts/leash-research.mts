@@ -23,6 +23,14 @@ import { z } from "zod";
 import { createQvac } from "@qvac/ai-sdk-provider";
 import { Agent, fetch as undiciFetch } from "undici";
 import { webSearch, fetchReadable, type SearchResult } from "../lib/leash/search.ts";
+import {
+  buildResearchExtractPrompt,
+  buildResearchFinalReportPrompt,
+  buildResearchPlanPrompt,
+  buildResearchQueriesPrompt,
+  buildResearchStopCheckPrompt,
+  buildResearchUpdatePrompt,
+} from "../lib/leash/prompt.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, "..", "..", "..");
@@ -217,11 +225,7 @@ async function main(): Promise<void> {
   save();
 
   // 1) Plan
-  const plan = await llm(
-    `You are a research strategist. Break this question into a short plan.\nQuestion: ${question}\n` +
-      `Return ONLY a JSON array of 3-5 focused sub-questions to investigate. Example: ["...","..."]`,
-    600,
-  );
+  const plan = await llm(buildResearchPlanPrompt(question), 600);
   let subQuestions = extractJsonArray(plan);
   if (subQuestions.length === 0) subQuestions = [question];
 
@@ -233,12 +237,7 @@ async function main(): Promise<void> {
     save({ state: "searching", round });
     const roundInstr =
       round === 1 ? "Cover the breadth of the plan." : "Focus on gaps and unanswered angles in the report so far.";
-    const queryText = await llm(
-      `Original question: ${question}\nSub-questions: ${JSON.stringify(subQuestions)}\n` +
-        `What we know so far:\n${report.slice(0, 3000) || "(nothing yet)"}\n\nRound ${round}. ${roundInstr}\n` +
-        `Generate ${QUERIES_PER_ROUND} focused web-search queries. Return ONLY a JSON array of strings.`,
-      400,
-    );
+    const queryText = await llm(buildResearchQueriesPrompt({ question, subQuestions, report, round, queriesPerRound: QUERIES_PER_ROUND, roundInstruction: roundInstr }), 400);
     const queries = extractJsonArray(queryText).slice(0, QUERIES_PER_ROUND);
     if (queries.length === 0) queries.push(question);
     save({ queries });
@@ -269,34 +268,20 @@ async function main(): Promise<void> {
     for (const r of roundResults.slice(0, PAGES_PER_ROUND)) {
       const content = await fetchReadable(r.url, 12_000);
       if (!content) continue;
-      const extract = await llm(
-        `From the webpage below, extract the facts relevant to: "${question}".\n` +
-          `Be concise — bullet the concrete facts/numbers/claims, ignore navigation and ads. If nothing relevant, reply "NONE".\n\n` +
-          `URL: ${r.url}\nTitle: ${r.title}\n\n${content}`,
-        500,
-      );
+      const extract = await llm(buildResearchExtractPrompt({ question, url: r.url, title: r.title, content }), 500);
       if (extract && !/^none\b/i.test(extract)) findings.push(`Source: ${r.title} (${r.url})\n${extract}`);
     }
 
     // 5) Synthesize into the evolving report
     save({ state: "synthesizing" });
     if (findings.length > 0) {
-      report = await llm(
-        `Update the evolving research report.\nQuestion: ${question}\n\nCurrent report:\n${report || "(empty)"}\n\n` +
-          `New findings this round:\n${findings.join("\n\n")}\n\n` +
-          `Integrate the findings into an updated, well-organized report. Keep source URLs as inline citations. Write only the report.`,
-        1600,
-      );
+      report = await llm(buildResearchUpdatePrompt({ question, report, findings }), 1600);
       save();
     }
 
     // 6) Stop-check (skip on the last round)
     if (round < MAX_ROUNDS && report) {
-      const stop = await llm(
-        `Is this research report comprehensive enough to answer the question?\nQuestion: ${question}\n\nReport:\n${report.slice(0, 4000)}\n\n` +
-          `Reply with ONLY "YES" or "NO" and a one-sentence reason.`,
-        120,
-      );
+      const stop = await llm(buildResearchStopCheckPrompt({ question, report }), 120);
       if (/^\s*yes\b/i.test(stop)) {
         save({ note: stop.trim().slice(0, 200) });
         break;
@@ -308,13 +293,7 @@ async function main(): Promise<void> {
   save({ state: "synthesizing" });
   const sourcesList = [...allSources.values()].map((s) => `- [${s.title || s.url}](${s.url})`).join("\n");
   const final = report
-    ? await llm(
-        `Write a thorough, well-structured research report answering this question.\nQuestion: ${question}\n\n` +
-          `Evidence and analysis gathered:\n${report}\n\n` +
-          `Requirements: use ## / ### headings, multiple detailed paragraphs, an executive summary at the top, ` +
-          `inline [text](url) citations, note where sources agree/disagree, and a conclusion that directly answers the question.`,
-        2200,
-      )
+    ? await llm(buildResearchFinalReportPrompt({ question, report }), 2200)
     : `# ${question}\n\n_No web evidence could be gathered (the search provider may be rate-limiting, or you are offline). Try again, or set LEASH_SEARXNG_URL to a SearXNG instance._`;
 
   const md = `# ${question}\n\n${final}\n\n---\n\n## Sources\n\n${sourcesList || "_none_"}\n`;
