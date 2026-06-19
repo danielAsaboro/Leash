@@ -522,7 +522,12 @@ export async function POST(req: Request): Promise<Response> {
       });
     } else {
       conductorEffortTier = imageTurn ? null : await classifyEffort(lastUserText(validated));
-      if (conductorEffortTier === "quick" && !imageTurn) {
+      const guardedBar = barFromGuardedTurn({
+        tier: conductorEffortTier ?? "standard",
+        isImageTurn: imageTurn,
+        text: lastUserText(validated),
+      });
+      if (conductorEffortTier === "quick" && !imageTurn && guardedBar.specialist !== "health") {
         const local = pickLocalGeneral(conductorOptions, defaultAlias);
         conductorDecision = {
           modality: "text",
@@ -533,13 +538,8 @@ export async function POST(req: Request): Promise<Response> {
           viaFastPath: true,
         };
       } else {
-        const bar = barFromGuardedTurn({
-          tier: conductorEffortTier ?? "standard",
-          isImageTurn: imageTurn,
-          text: lastUserText(validated),
-        });
         conductorDecision = rankConductorRoute({
-          bar,
+          bar: guardedBar,
           sensitivity: "private",
           options: conductorOptions,
         });

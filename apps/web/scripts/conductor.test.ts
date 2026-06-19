@@ -7,8 +7,10 @@ import {
   buildConductorInventorySystemSection,
   buildConductorPrompt,
   buildConfiguredModelInventory,
+  barFromGuardedTurn,
   capabilityBarFromConductorRoute,
   deterministicRouteNeed,
+  isHealthIntent,
   parseConductorDecision,
   pickInventoryRouteAlias,
   publicMeshRouteBlocked,
@@ -80,6 +82,27 @@ assert.equal(
   pickInventoryRouteAlias({ inventory, conductorAlias: "classifier", selectedModel: null, need: notesNeed }),
   "general",
   "route-required prompts pick the live default chat model, not the conductor",
+);
+
+const healthInventory = buildConfiguredModelInventory({
+  config,
+  catalog,
+  live: { up: true, ready: ["general", "medpsy", "classifier"] },
+});
+const healthNeed = deterministicRouteNeed("I have chest pain and shortness of breath");
+assert.equal(isHealthIntent("Can I take this medication with my allergy?"), true, "medication/allergy is health intent");
+assert.equal(healthNeed.required, true, "health prompts require full agent routing");
+assert.equal(healthNeed.needsHealth, true, "health prompts carry a health flag");
+assert.equal(healthNeed.needsMemory, true, "health prompts stay private/context-capable");
+assert.equal(
+  pickInventoryRouteAlias({ inventory: healthInventory, conductorAlias: "classifier", selectedModel: null, need: healthNeed }),
+  "medpsy",
+  "health prompts prefer the health specialist alias over the default general model",
+);
+assert.deepEqual(
+  barFromGuardedTurn({ tier: "quick", isImageTurn: false, text: "fever and rash" }),
+  { modality: "text", minParamClass: "small", specialist: "health" },
+  "health intent still builds a health bar even if effort is quick",
 );
 
 const validAnswer = parseConductorDecision('{"action":"answer","answer":"Hi."}', inventory);

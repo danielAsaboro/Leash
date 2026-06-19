@@ -14,6 +14,9 @@ export const COMPUTER_TOOL_NAMES: ReadonlySet<string> = new Set(["screenshot", "
 /** The Files group's tool — the `files` route narrows the turn to exactly this. */
 export const BASH_TOOL_NAMES: ReadonlySet<string> = new Set(["bash"]);
 
+/** The Health route's read-only tools: private records/memory/current context, no actions or web. */
+export const HEALTH_TOOL_NAMES: ReadonlySet<string> = new Set(["search_graph", "recall", "active_context", "activity_recent"]);
+
 /** The MCP-admin group's tools — kept OUT of the always-on chat lane (skill-gated via the
  *  `mcp-installer` skill), so MCP management costs 0 schema slots until that skill activates. */
 export const MCP_ADMIN_TOOL_NAMES: ReadonlySet<string> = new Set(["install_mcp_repo", "upsert_mcp_server"]);

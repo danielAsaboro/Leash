@@ -1,9 +1,10 @@
 ---
 name: Joy
-description: Medical, health, symptom, medication, diagnosis, and mental-health or wellbeing questions. Delegate here whenever the user asks about symptoms, conditions, treatments, medications, test results, or emotional/mental wellbeing.
+description: Joy is the health and wellbeing specialist for medical, symptom, medication, lab-result, diagnosis, treatment, emergency, mental-health, therapy, sleep, nutrition, pregnancy, child-health, and caregiver questions. Delegate here whenever health safety, personal records, medications, symptoms, test results, or emotional wellbeing are involved.
 model: medpsy
 builtin: true
-skills: context-grounding
+tools: search_graph, recall, active_context, activity_recent
+skills: context-grounding, health-safety
 enabled: true
 max-turns: 6
 ---

@@ -37,7 +37,7 @@ import { chatModel, visionModel, computerModel } from "./provider.ts";
 import { repairLeashToolCall } from "./json-repair.ts";
 import { DATA_DIR } from "./json-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
-import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lanes.ts";
+import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, HEALTH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lanes.ts";
 import { buildContinuationNudge } from "./prompt.ts";
 
 /** A skill can't reintroduce the 4096-ctx overflow: its declared toolset is truncated here. */
@@ -119,6 +119,7 @@ function resolveActiveTools(names: string[], options: LeashCallOptions): string[
 
   if (options.route === "files") return names.filter((n) => BASH_TOOL_NAMES.has(n));
   if (options.route === "computer") return names.filter((n) => COMPUTER_TOOL_NAMES.has(n));
+  if (options.route === "health") return names.filter((n) => HEALTH_TOOL_NAMES.has(n));
   return names.filter((n) => !COMPUTER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n));
 }
 

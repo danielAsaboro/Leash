@@ -159,10 +159,10 @@ function buildAgent(slug: string, source: "user" | "plugin", pluginId: string, f
     description: fields["description"]?.trim() ?? "",
     body,
     model: fields["model"]?.trim() ?? "",
-    tools: parseToolList(fields["tools"] ?? fields["allowed-tools"]),
-    disallowedTools: parseToolList(fields["disallowed-tools"] ?? fields["disallowedtools"]),
+    tools: parseToolList(fields["tools"]),
+    disallowedTools: parseToolList(fields["disallowed-tools"]),
     skills: parseSkillList(fields["skills"]),
-    maxTurns: parseMaxTurns(fields["max-turns"] ?? fields["maxturns"]),
+    maxTurns: parseMaxTurns(fields["max-turns"]),
     // User: enabled unless explicitly false. Plugin: the surfacer overrides with the plugin row's bit.
     enabled: fields["enabled"] !== "false",
     builtin: fields["builtin"] === "true",

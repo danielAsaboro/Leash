@@ -72,6 +72,7 @@ export interface DeterministicRouteNeed {
   needsVision: boolean;
   needsMemory: boolean;
   needsFiles: boolean;
+  needsHealth: boolean;
 }
 
 function availableInventory(inventory: ConfiguredModelSpec[]): ConfiguredModelSpec[] {
@@ -250,6 +251,12 @@ const FILES_MEMORY_RE =
 const ACTION_RE = /\b(?:write|edit|create|delete|save|download|install|run|execute|open|click|browse|research|look up|check|send|schedule|remind|remember|recall)\b/i;
 const CURRENT_RE = /\b(?:latest|current|today|yesterday|tomorrow|now|news|weather|price|stock|score|schedule|exchange rate|verify|fact.?check)\b/i;
 const CODE_RE = /\b(?:debug|fix|implement|refactor|test|compile|typescript|javascript|python|repo|codebase|stack trace|error log)\b/i;
+const HEALTH_RE =
+  /\b(?:health|medical|medicine|medication|meds?|drug|prescription|rx|dose|dosage|symptoms?|diagnos(?:e|is|tic)?|treat(?:ment)?|therapy|therapist|anxiety|depress(?:ed|ion)?|suicid(?:al|e)|self[- ]?harm|overdose|panic attack|blood pressure|blood sugar|glucose|clinical|patient|doctor|clinician|nurse|urgent care|emergency|er|chest pain|short(?:ness)? of breath|trouble breathing|stroke|seizure|anaphylaxis|allerg(?:y|ic|ies)|lab results?|test results?|rash|fever|cough|nausea|vomit(?:ing)?|diarrhea|headache|migraine|dizzy|faint(?:ing)?|infection|injur(?:y|ed)|pain|pregnan(?:t|cy)|postpartum|child health|pediatric|sleep|nutrition)\b/i;
+
+export function isHealthIntent(text: string): boolean {
+  return HEALTH_RE.test((text ?? "").trim());
+}
 
 export function deterministicRouteNeed(text: string): DeterministicRouteNeed {
   const q = (text ?? "").trim();
@@ -257,9 +264,10 @@ export function deterministicRouteNeed(text: string): DeterministicRouteNeed {
   const action = ACTION_RE.test(q);
   const current = CURRENT_RE.test(q);
   const code = CODE_RE.test(q);
-  const required = filesMemory || action || current || code;
+  const health = isHealthIntent(q);
+  const required = filesMemory || action || current || code || health;
   const needsFiles = /\b(?:files?|docs?|documents?|folders?|director(?:y|ies)|repos?|code(?:base)?|workspace)\b/i.test(q);
-  const needsMemory = filesMemory || /\b(?:notes?|memory|memories|remember|recall|journal|preference|my)\b/i.test(q);
+  const needsMemory = filesMemory || health || /\b(?:notes?|memory|memories|remember|recall|journal|preference|my)\b/i.test(q);
   return {
     required,
     reason: filesMemory
@@ -270,11 +278,14 @@ export function deterministicRouteNeed(text: string): DeterministicRouteNeed {
           ? "deterministic guard: current-data request needs verification"
           : code
             ? "deterministic guard: code/debug request needs the full agent"
-            : "direct answer allowed",
+            : health
+              ? "deterministic guard: health/safety request needs the health capability"
+              : "direct answer allowed",
     needsTools: required,
     needsVision: false,
     needsMemory,
     needsFiles,
+    needsHealth: health,
   };
 }
 
@@ -288,13 +299,14 @@ function availableForRoute(row: ConfiguredModelSpec, conductorAlias: string): bo
 function routeScore(row: ConfiguredModelSpec, need: DeterministicRouteNeed): number {
   const tags = tagsForAlias(row.alias);
   let score = 0;
+  if (need.needsHealth && tags.specialist === "health") score += 2000;
   if (row.isDefault) score += 1000;
   if (row.tools === true) score += 200;
   if (row.toolsMode) score += 100;
   if (row.endpointCategory === "chat") score += 80;
   if (need.needsVision && (row.endpointCategory === "vision" || tags.modality === "vision")) score += 500;
   if (!need.needsVision && tags.modality === "text") score += 50;
-  if (tags.specialist === "general") score += 20;
+  if (!need.needsHealth && tags.specialist === "general") score += 20;
   return score;
 }
 
@@ -405,11 +417,9 @@ export interface ConductorRouteDecision {
   viaFastPath: boolean;
 }
 
-const HEALTH_RE = /\b(symptom|diagnos|therapy|anxiety|depress|medication|dosage|blood pressure|clinical|patient)\b/i;
-
 export function barFromGuardedTurn(input: { tier: EffortTier; isImageTurn: boolean; text: string }): CapabilityBar {
   if (input.isImageTurn) return { modality: "vision", minParamClass: "small", specialist: "vision" };
-  if (HEALTH_RE.test(input.text)) return { modality: "text", minParamClass: "small", specialist: "health" };
+  if (isHealthIntent(input.text)) return { modality: "text", minParamClass: "small", specialist: "health" };
   return { modality: "text", minParamClass: input.tier === "deep" ? "mid" : "small" };
 }
 
