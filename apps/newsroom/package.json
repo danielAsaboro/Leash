@@ -14,7 +14,7 @@
     "@mycelium/mind": "*",
     "@mycelium/senses": "*",
     "@mycelium/shared": "*",
-    "@qvac/sdk": "^0.13.0",
+    "@qvac/sdk": "^0.13.5",
     "jsonrepair": "^3.14.0"
   }
 }

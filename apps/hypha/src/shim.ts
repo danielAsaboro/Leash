@@ -9,9 +9,12 @@
  *   POST /pair/mode {on}        · GET /pair/state · POST /pair/start {deviceKey}
  *   POST /pair/submit-pin {pin} · POST /pair/cancel
  *
- * Wedge discipline: a delegated decode is NEVER cancelled on client disconnect — drain it.
- * Mid-stream failures are surfaced (an SSE error frame), never silent-caught. The warm pool
- * is read through a getter because the mesh comes online lazily (only once paired).
+ * Cancel discipline: on client disconnect / TTFB-timeout / auth-stop a delegated decode is
+ * cancelled via `cancel({ requestId })` (safe on SDK 0.13.1 — see spike/abort-safety-inproc.ts),
+ * which stops the provider's decode and frees its slot. Draining the remaining tokens is the
+ * FALLBACK only when no requestId is available. Mid-stream failures are surfaced (an SSE error
+ * frame), never silent-caught. The warm pool is read through a getter because the mesh comes
+ * online lazily (only once paired).
  */
 import http from "node:http";
 import { randomUUID, createHash } from "node:crypto";
@@ -20,7 +23,7 @@ import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
 import { zipSync, type Zippable } from "fflate";
 import type { AuditLog, SessionSettlementReceipt } from "@mycelium/shared";
-import { completion, unloadModel } from "@qvac/sdk";
+import { completion, unloadModel, cancel } from "@qvac/sdk";
 import type { CompletionFinal } from "@qvac/sdk";
 import { loadDelegated } from "@mycelium/mesh";
 import type { MeshGraph, MeshTask } from "@mycelium/mesh";
@@ -283,6 +286,15 @@ async function streamForwardChat(
           if (args.stream) {
             if (!committed && clientOpen) writeHead();
             if (clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: next.value }, null));
+          }
+          if (!clientOpen) {
+            // Client gone mid-stream — cancel the provider's forwarded decode (it aborts its local
+            // serve fetch → cancel-bridge) instead of draining, then release this generator. Return the
+            // PARTIAL usage so a metered session settles the tokens the provider actually produced
+            // (fair billing on cancel), not the full quote and not zero.
+            forward.cancel(peerKey, args.id);
+            await gen.return(undefined).catch(() => undefined);
+            return { unit: "token", count: tokens };
           }
           next = await gen.next();
         }
@@ -1050,7 +1062,9 @@ export function createShim(deps: ShimDeps): http.Server {
           ]);
           clearTimeout(ttfbTimer);
           if (first === "ttfb-timeout") {
-            void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain */ } })().catch(() => {});
+            // Cancel the dead delegated decode (frees the provider slot); drain only if no requestId.
+            if (run.requestId) void cancel({ requestId: run.requestId }).catch(() => {});
+            else void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain fallback */ } })().catch(() => {});
             void run.final.catch(() => {});
             throw new Error(`hypha shim: no first token within ${HYPHA_TTFB_MS}ms from metered peer serving "${alias}"`);
           }
@@ -1058,11 +1072,13 @@ export function createShim(deps: ShimDeps): http.Server {
             // `produced` = tokens already consumed = the index of `tok`. Authorize before crossing the cap.
             if (!(await ensureAuthorizedFor(produced))) { authStopped = true; break; }
             onToken(tok);
-            if (!clientOpen) break; // client gone — stop paying for more (we'll drain below; wedge rule)
+            if (!clientOpen) break; // client gone — stop paying for more (we'll cancel below)
           }
           if (authStopped || !clientOpen) {
-            // Stop reading but NEVER abort the provider's decode — drain it in the background.
-            void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain */ } })().catch(() => {});
+            // Stop paying / free the provider's slot: cancel the decode (safe on 0.13.1).
+            // Drain only as a fallback when no requestId is available.
+            if (run.requestId) void cancel({ requestId: run.requestId }).catch(() => {});
+            else void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain fallback */ } })().catch(() => {});
           }
           await run.final.catch(() => undefined);
           if (clientOpen && stream) {
@@ -1144,13 +1160,13 @@ export function createShim(deps: ShimDeps): http.Server {
       ]);
       clearTimeout(ttfbTimer);
       if (first === "ttfb-timeout") {
-        // Drop the warm entry (the 5s reconcile tick re-warms fresh) but do NOT cancel the
-        // run — wedge discipline: abandon it draining in the background, exactly like a
-        // client disconnect.
+        // Drop the warm entry (the 5s reconcile tick re-warms fresh) and CANCEL the dead decode
+        // (safe on 0.13.1) so the provider frees its slot; drain only if no requestId is available.
         if (!sessionGrant && warm.modelId) router.dropWarm(warm.modelId);
-        void (async () => {
+        if (run.requestId) void cancel({ requestId: run.requestId }).catch(() => {});
+        else void (async () => {
           for (let n = await rest.next(); !n.done; n = await rest.next()) {
-            /* drain abandoned run */
+            /* drain fallback */
           }
         })().catch(() => {});
         void run.final.catch(() => {}); // abandoned — never let it become an unhandled rejection
@@ -1193,7 +1209,9 @@ export function createShim(deps: ShimDeps): http.Server {
           tokenCount++;
           text += token;
           if (clientOpen) res.write(sseChunk(id, alias, created, { content: token }, null));
+          else break; // client gone — cancel the decode below instead of draining
         }
+        if (!clientOpen && run.requestId) void cancel({ requestId: run.requestId }).catch(() => {});
         if (clientOpen) {
           res.write(sseChunk(id, alias, created, {}, "stop"));
           res.write("data: [DONE]\n\n");

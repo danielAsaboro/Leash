@@ -52,7 +52,7 @@ The decision happens **before** taking a local slot — the whole point is to no
   </Card>
 </CardGroup>
 
-If a peer can't serve before the first byte, the broker **falls through** to local (never drops). If it breaks after bytes were sent, the response ends truthfully (it can't re-route mid-stream). The same wedge rule holds throughout: if the client leaves, keep draining the shim.
+If a peer can't serve before the first byte, the broker **falls through** to local (never drops). If it breaks after bytes were sent, the response ends truthfully (it can't re-route mid-stream). Cancel-on-disconnect applies throughout: if the client leaves, the broker aborts the upstream (local or shim), draining only bytes already in flight.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ If a peer can't serve before the first byte, the broker **falls through** to loc
 
 <CardGroup cols={2}>
   <Card title="The broker" icon="diagram-project" href="/agents/queue">
-    Per-alias serialization and the wedge rule.
+    Per-alias serialization and cancel on disconnect.
   </Card>
   <Card title="Delegation" icon="share-nodes" href="/agents/delegation">
     Delegated compute over the mesh.

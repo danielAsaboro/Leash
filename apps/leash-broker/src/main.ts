@@ -3,18 +3,18 @@
  *
  *   npm run broker            (from repo root; or started from /services)
  *
- * The serve's llm-llamacpp addon serializes inference per model context and REJECTS
- * concurrent same-alias requests (`Cannot set new job…` → 500) rather than queuing them
- * (per QVAC's HTTP-server integration doc). Every serve client (web chat route, the
- * compaction/dream/research children, the watcher) is a separate OS process, so an
- * in-process mutex can't coordinate them. This standalone reverse proxy is the single
- * chokepoint that does:
+ * The serve's llm-llamacpp addon serializes inference per model context (one decode per
+ * model at a time). The SDK request-registry now QUEUES concurrent same-model requests
+ * in-process (FIFO) instead of the old `Cannot set new job…` → 500, but every serve client
+ * (web chat route, the compaction/dream/research children, the watcher) is a separate OS
+ * process — so cross-process ordering still needs this proxy. The standalone chokepoint does:
  *
  *   · per-ALIAS serialization (concurrency 1 per model; different aliases run parallel)
  *   · cross-alias PRIORITY with AGING (interactive > inline > background; a starved
  *     background request's effective priority rises with wait time)
- *   · WEDGE-SAFETY, centralized — on client disconnect it NEVER aborts the upstream
- *     serve (the GPU-wedge rule); it drains the serve to completion, then frees the slot
+ *   · CANCEL-ON-DISCONNECT, centralized — on client disconnect it aborts the upstream
+ *     fetch, so the serve's cancel-bridge cancels the decode and frees the slot (safe on
+ *     0.13.1); the read loop drains only bytes already in flight, never the whole decode
  *   · NO upstream timeout — the broker is what lets long decodes survive
  *
  * Non-preemptive priority scheduling (the serve is a non-preemptible black box), modeled
@@ -180,7 +180,8 @@ async function overflowReason(alias: string): Promise<"shed" | "availabilityRout
  *   · "served"      — relayed a 200 to completion
  *   · "fallthrough" — peer couldn't serve before any byte → caller serves locally (never drop)
  *   · "midstream"   — broke after bytes were sent → ended truthfully (can't re-route)
- * Wedge rule holds: if the client leaves, keep draining the shim — never abort the decode.
+ * On client disconnect the upstream fetch is aborted (via `signal`), so hypha's shim cancels
+ * its delegated decode rather than draining it — safe on 0.13.1.
  */
 async function forwardToHypha(
   url: string,
@@ -188,10 +189,11 @@ async function forwardToHypha(
   fwd: Record<string, string>,
   res: http.ServerResponse,
   isOpen: () => boolean,
+  signal: AbortSignal,
 ): Promise<"served" | "fallthrough" | "midstream"> {
   let headSent = false;
   try {
-    const up = await undiciFetch(`${HYPHA_URL}${url}`, { method: "POST", headers: fwd, body, dispatcher });
+    const up = await undiciFetch(`${HYPHA_URL}${url}`, { method: "POST", headers: fwd, body, dispatcher, signal });
     if (!up.ok) {
       try {
         await up.body?.cancel();
@@ -259,8 +261,13 @@ const server = http.createServer(async (req, res) => {
   const priority = String(req.headers["x-leash-priority"] ?? defaultPriority(url));
 
   let clientOpen = true;
+  // Abort the upstream serve fetch when the client leaves: the serve's cancel-bridge turns the
+  // dropped connection into cancel({ requestId }), stopping the decode and freeing the slot
+  // (safe on SDK 0.13.1). Fires on normal end too — harmless once the body is fully read.
+  const clientGone = new AbortController();
   res.on("close", () => {
     clientOpen = false;
+    clientGone.abort();
   });
 
   // Forward headers verbatim minus hop-by-hop / length (undici recomputes).
@@ -275,7 +282,7 @@ const server = http.createServer(async (req, res) => {
   if (OVERFLOW_ENABLED && alias && method === "POST" && url.includes("/chat/completions")) {
     const reason = await overflowReason(alias);
     if (reason) {
-      const outcome = await forwardToHypha(url, body, fwd, res, () => clientOpen);
+      const outcome = await forwardToHypha(url, body, fwd, res, () => clientOpen, clientGone.signal);
       if (outcome === "served") {
         if (reason === "shed") shed++;
         else availabilityRouted++;
@@ -305,8 +312,10 @@ const server = http.createServer(async (req, res) => {
       headers: fwd,
       ...(method === "GET" || method === "HEAD" ? {} : { body }),
       dispatcher,
-      // DELIBERATELY no abort signal tied to the client — never abort the serve
-      // mid-decode (GPU-wedge rule). If the client leaves, we drain upstream below.
+      // Abort the serve fetch when the client leaves → the serve cancel-bridge cancels the
+      // decode and frees the slot (safe on 0.13.1). The read loop below is the fallback for
+      // bytes already in flight before the abort lands.
+      signal: clientGone.signal,
     });
 
     const outHeaders: Record<string, string> = {};
@@ -317,9 +326,9 @@ const server = http.createServer(async (req, res) => {
     if (clientOpen) res.writeHead(upstream.status, outHeaders);
 
     if (upstream.body) {
-      // Stream upstream → client. If the client has gone, keep reading to DRAIN the
-      // serve to completion (so the next queued request isn't blocked / the serve isn't
-      // left mid-job) — but never abort it.
+      // Stream upstream → client. If the client left, the upstream fetch is being aborted
+      // (clientGone) so this read loop ends with an abort error (caught below) and the serve
+      // cancels — we no longer drain the whole decode.
       const reader = upstream.body.getReader();
       for (;;) {
         const { done, value } = await reader.read();
@@ -349,7 +358,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, "127.0.0.1", () => {
-  console.log(`🪢 leash-broker on :${PORT} → ${UPSTREAM} (per-alias serialize · priority+aging · wedge-safe drain)`);
+  console.log(`🪢 leash-broker on :${PORT} → ${UPSTREAM} (per-alias serialize · priority+aging · cancel-on-disconnect)`);
 });
 
 const quit = (): void => {

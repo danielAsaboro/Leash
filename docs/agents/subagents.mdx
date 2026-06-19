@@ -89,7 +89,7 @@ These are the non-obvious constraints — learned the hard way — that make a s
 **2 · The serve model must have tools enabled.** If the served chat model isn't configured with `tools:true / toolsMode:"dynamic"`, the model will *talk about* delegating and calling tools but emit **zero** actual tool calls (it even hallucinates "I queried the agent"). Tool-calling and delegation simply won't fire. Configure the model in [Models](/models/overview); dashboard-added chat models now default to this.
 </Warning>
 
-There's also no `abortSignal` anywhere in the runner, and `maxRetries: 0` — aborting a decode mid-flight wedges the qvac serve, so subagents are bounded by `max-turns` and `max_tokens`, never by a client abort.
+There's also no `abortSignal` anywhere in the runner, and `maxRetries: 0` — subagents are bounded by `max-turns` and `max_tokens`, not by a client abort. Note: this is a design choice, not a safety constraint. Mid-decode cancel is safe on `@qvac/sdk@0.13.1`; subagents simply aren't user-cancellable mid-run by design — a delegated specialist runs to its natural completion (or step budget) so the parent receives a coherent result.
 
 ## Create one (try it)
 

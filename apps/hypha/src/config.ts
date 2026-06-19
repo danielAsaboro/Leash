@@ -82,8 +82,9 @@ export const LOCAL_SERVE_URL = (process.env["HYPHA_SERVE_URL"] ?? "http://127.0.
 // ── SP2 Option B — P2P request-forward transport (opt-in; OFF = proven delegation-only core) ──────
 /** Enable forwarding non-delegable modalities (vision today; embeddings/STT/TTS in B2) to a peer's
  *  LOCAL serve over a P2P channel — the consumer's media rides inline in the request body, the
- *  provider runs it on its own serve and streams back. OFF = vision stays local-only. */
-export const HYPHA_FORWARD = (process.env["HYPHA_FORWARD"] ?? "0") === "1";
+ *  provider runs it on its own serve and streams back. ON by default (a core mesh capability);
+ *  set HYPHA_FORWARD=0 to opt out (vision stays local-only). */
+export const HYPHA_FORWARD = (process.env["HYPHA_FORWARD"] ?? "1") !== "0";
 /** B4: meter the forward path. When ON and the chosen peer advertises a paid (plasma+upto) rail, a forward
  *  request opens an x402 paid session and settles per-modality natural units (forwardBillingTokens). A peer
  *  with no paid rail is still borrowed for free. Default ON since the live paid-borrow test went green

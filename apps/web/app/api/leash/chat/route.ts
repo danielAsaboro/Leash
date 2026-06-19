@@ -241,8 +241,9 @@ export async function POST(req: Request): Promise<Response> {
   const planStream: { writer?: { write: (part: unknown) => void } } = {};
   let planTask = "";
   // The plan pipeline halts BETWEEN steps when the client stopped (`req.signal`) OR a follow-up is
-  // waiting to interject — never by aborting a decode (that wedges the qvac loop); it only gates
-  // whether the NEXT step launches.
+  // waiting to interject — this gate decides whether the NEXT step launches. An in-flight decode is
+  // now also cancelled on `req.signal` via the agent's abortSignal (safe on 0.13.1); interject still
+  // halts cleanly between steps rather than mid-decode so the queued follow-up runs on a clean turn.
   const planTool = buildPlanTool({ registry: baseTools, getTask: () => planTask, getWriter: () => planStream.writer, getAbort: () => req.signal.aborted || interjectRequested(id), planId });
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
@@ -534,13 +535,15 @@ export async function POST(req: Request): Promise<Response> {
 
   // The Leash agent (ToolLoopAgent, agent.ts): typed call options carry this turn's
   // derived context; `prepareCall` maps them to model / activeTools / steps / tokens.
-  // DELIBERATELY no per-call `abortSignal` — the qvac serve WEDGES its LLM decode loop
-  // if the client disconnects mid-generation (verified 2026-06-05: one aborted request
-  // → every later generation hangs at zero tokens until the serve restarts; upstream
-  // SDK bug). So on a voice barge-in / stop, the abandoned generation runs to
-  // completion server-side (bounded by the tier's maxOutputTokens) and the next turn
-  // queues briefly behind it — slow beats dead. Messages are compacted for the model
-  // (summary + recent tail); the full thread is still saved via `originalMessages`.
+  // CANCEL-ON-DISCONNECT: we pass the client request's `abortSignal` (`req.signal`).
+  // On Stop / client disconnect the AI SDK aborts the fetch to the qvac serve, whose
+  // cancel-bridge (`@qvac/cli` `bindClientDisconnectCancel`, armed by `req.bindCancel`
+  // on every completion) fires `cancel({ requestId })` — the decode stops and the GPU
+  // frees immediately. This was historically withheld (verified 2026-06-05: one aborted
+  // request wedged every later generation) because the 0.11-era engine wedged on a
+  // mid-decode cancel; SDK 0.13.1 cancels safely (spike/abort-safety-inproc.ts), so it
+  // is now re-enabled. The partial answer still persists: `createUIMessageStream`'s
+  // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
   const agent = buildLeashAgent(enabledTools, () => interjectRequested(id), conductorModel);
   const callOptions: LeashCallOptions = {
     route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : "chat",
@@ -556,18 +559,19 @@ export async function POST(req: Request): Promise<Response> {
     ...(chosenModel ? { model: chosenModel } : {}),
     system,
   };
-  const result = await agent.stream({ messages: modelInput, options: callOptions });
+  const result = await agent.stream({ messages: modelInput, options: callOptions, abortSignal: req.signal });
 
-  // Persist even if the client disconnects mid-stream (and keep the serve connection open until the
-  // generation completes — see the no-abortSignal note above). `then(release, release)` is the one
-  // signal that ALWAYS fires once the serve is done decoding (success, error, or abandoned client).
+  // Drive the stream server-side so persistence still runs if the client stops reading mid-token.
+  // `then(release, release)` ALWAYS fires once the run settles — success, error, or abort (on Stop,
+  // consumeStream rejects with the abort error, which `release` handles). The decode itself is
+  // stopped by the serve's cancel-bridge (see the cancel-on-disconnect note above), not drained.
   void result.consumeStream().then(release, release);
 
   // Wrap the model stream so out-of-band MCP elicitation events (server→user forms, see
   // elicitations.ts) ride this same SSE response as TRANSIENT data parts — they reach
-  // `useChat`'s onData but are never persisted into the message. Wedge invariants are
-  // unchanged: same no-abortSignal streamText above, same consumeStream→release, and
-  // `originalMessages` keeps the same message-id reuse as before.
+  // `useChat`'s onData but are never persisted into the message. On abort the same
+  // consumeStream→release path runs and onFinish still persists the partial via
+  // `originalMessages` message-id reuse.
   let unsubscribe: (() => void) | undefined;
   const stream = createUIMessageStream<LeashUIMessage>({
     originalMessages: validated,

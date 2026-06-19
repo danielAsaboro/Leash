@@ -47,7 +47,7 @@ The persisted `data-plan` part carries a plan status and per-step statuses.
 Each step runs as one bounded sub-task (`PLAN_STEP_BUDGET` = 3 tool→report rounds) over the **executable** tool subset — non-disabled, non-approval-gated, and excluding `run_skill` / `submit_plan` (a non-streaming step can't pause on an approval card and plan steps don't re-plan). The step's system prompt states the overall task, the current step, and the **results from earlier steps**, then: "Do ONLY this step now."
 
 <Warning>
-  **Wedge rule.** No `abortSignal`, `maxRetries: 0` (a retry re-pays a hung decode). A `generateText` mid-decode can't be aborted — so cancellation is checked **between** steps: if the user stopped the turn, the remaining steps are marked `skipped` and the plan returns. That is what makes Stop actually stop a multi-step plan. A failed step marks the rest `skipped` and stops the plan.
+  **Step cancellation.** `maxRetries: 0` (a retry re-pays a decode that may still be in flight). Mid-decode cancel is safe on `@qvac/sdk@0.13.1` — an in-flight `generateText` is cancelled via `cancel({ requestId })` when Stop fires AND the serve is freed. Remaining steps are then marked `skipped` and the plan returns. Cancellation is still checked **between** steps for the plan-mode orchestration path. A failed step also marks the rest `skipped` and stops the plan.
 </Warning>
 
 ## Why it reuses what's already proven

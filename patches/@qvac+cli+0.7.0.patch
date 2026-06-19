@@ -1,8 +1,8 @@
 diff --git a/node_modules/@qvac/cli/dist/serve/routes/chat.js b/node_modules/@qvac/cli/dist/serve/routes/chat.js
-index fe35bbb..b3c161a 100644
+index 3bf4664..aadf637 100644
 --- a/node_modules/@qvac/cli/dist/serve/routes/chat.js
 +++ b/node_modules/@qvac/cli/dist/serve/routes/chat.js
-@@ -84,7 +84,8 @@ async function runBlocking(req, reply, p) {
+@@ -79,7 +79,8 @@ async function runBlocking(req, reply, p) {
          stream: false,
          ...(p.tools !== undefined ? { tools: p.tools } : {}),
          ...(p.generationParams !== undefined ? { generationParams: p.generationParams } : {}),
@@ -11,8 +11,8 @@ index fe35bbb..b3c161a 100644
 +        ...(p.kvCache !== undefined ? { kvCache: p.kvCache } : {}) // [leash fork] kv_cache passthrough
      });
      req.bindCancel(result.requestId);
-     const text = await result.text;
-@@ -121,7 +122,8 @@ async function runStreaming(req, reply, p) {
+     const { text, toolCalls, completionTokens, finishReason } = await drainCompletion(result);
+@@ -112,7 +113,8 @@ async function runStreaming(req, reply, p) {
          stream: true,
          ...(p.tools !== undefined ? { tools: p.tools } : {}),
          ...(p.generationParams !== undefined ? { generationParams: p.generationParams } : {}),
@@ -23,7 +23,7 @@ index fe35bbb..b3c161a 100644
      req.bindCancel(result.requestId);
      initSSE(reply);
 diff --git a/node_modules/@qvac/cli/dist/serve/schemas/chat.js b/node_modules/@qvac/cli/dist/serve/schemas/chat.js
-index 45e0693..7c2492d 100644
+index 5e3000d..ae1a42d 100644
 --- a/node_modules/@qvac/cli/dist/serve/schemas/chat.js
 +++ b/node_modules/@qvac/cli/dist/serve/schemas/chat.js
 @@ -1,5 +1,28 @@
@@ -55,7 +55,7 @@ index 45e0693..7c2492d 100644
  export const chatCompletionsBody = z.object({
      model: z.string().min(1),
      messages: z.array(chatMessage),
-@@ -26,6 +49,27 @@ export function openaiMessagesToHistory(messages) {
+@@ -37,6 +60,27 @@ export function openaiMessagesToHistory(messages) {
          if (msg.role === 'assistant' && msg.tool_calls && msg.tool_calls.length > 0) {
              return { role: 'assistant', content: synthesizeToolCallContent(msg.tool_calls) };
          }
@@ -80,10 +80,10 @@ index 45e0693..7c2492d 100644
 +            if (attachments.length) out.attachments = attachments;
 +            return out;
 +        }
-         return {
-             role: msg.role,
-             content: typeof msg.content === 'string' ? msg.content : (msg.content ?? '').toString()
-@@ -52,6 +96,9 @@ export function toSdkChatArgs(body) {
+         return { role: msg.role, content: contentToString(msg.content) };
+     });
+ }
+@@ -60,6 +104,9 @@ export function toSdkChatArgs(body) {
          tools: openaiToolsToSdk(body.tools),
          generationParams: extractGenerationParams(body, 'max_completion_tokens'),
          responseFormat: responseFmt,
@@ -94,16 +94,3 @@ index 45e0693..7c2492d 100644
 +        kvCache: typeof body.kv_cache === 'string' && body.kv_cache ? body.kv_cache : undefined
      };
  }
-diff --git a/node_modules/@qvac/cli/dist/serve/schemas/common.js b/node_modules/@qvac/cli/dist/serve/schemas/common.js
-index 1286edb..aa7ebb5 100644
---- a/node_modules/@qvac/cli/dist/serve/schemas/common.js
-+++ b/node_modules/@qvac/cli/dist/serve/schemas/common.js
-@@ -34,7 +34,7 @@ export const toolDef = z.object({
- }).passthrough();
- export const chatMessage = z.object({
-     role: z.string(),
--    content: z.union([z.string(), z.null()]).optional(),
-+    content: z.union([z.string(), z.null(), z.array(z.any())]).optional(),
-     tool_calls: z.array(z.object({
-         id: z.string(),
-         type: z.string(),

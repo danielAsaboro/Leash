@@ -28,9 +28,9 @@ interface SseDelta {
 }
 
 /** Build the forward handler that proxies to the local serve and streams frames back. */
-export function createForwardProvider(deps: ForwardProviderDeps): (req: ForwardRequest, send: (frame: ForwardFrame) => void) => Promise<void> {
+export function createForwardProvider(deps: ForwardProviderDeps): (req: ForwardRequest, send: (frame: ForwardFrame) => void, signal: AbortSignal) => Promise<void> {
   const serveUrl = (deps.serveUrl ?? LOCAL_SERVE_URL).replace(/\/+$/, "");
-  return async (req, send) => {
+  return async (req, send, signal) => {
     const url = serveUrl + req.endpoint;
     const isChat = req.endpoint.includes("/chat/completions");
     const isTranscription = req.endpoint.includes("/audio/transcriptions");
@@ -48,12 +48,13 @@ export function createForwardProvider(deps: ForwardProviderDeps): (req: ForwardR
         for (const k of ["response_format", "language", "prompt", "temperature"]) {
           if (inBody[k] !== undefined) form.append(k, String(inBody[k]));
         }
-        res = await fetch(url, { method: "POST", body: form }); // fetch sets the multipart content-type + boundary
+        res = await fetch(url, { method: "POST", body: form, signal }); // fetch sets the multipart content-type + boundary
       } else {
         // Chat streams as SSE (a long vision decode reaches the consumer incrementally); embeddings/speech
         // return a single JSON or binary body. Serve bodies are passthrough, so consumer fields ride along.
+        // `signal` aborts this fetch on consumer cancel → the serve's cancel-bridge stops the decode.
         const payload = isChat ? { ...inBody, stream: true } : inBody;
-        res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) });
+        res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload), signal });
       }
     } catch (e) {
       send({ id: req.id, type: "error", error: `forward-provider: local serve unreachable at ${url}: ${e instanceof Error ? e.message : String(e)}` });

@@ -9,8 +9,13 @@
  * module-level.
  *
  * INVARIANTS preserved from the hand-rolled route (do not regress):
- *   · NO abortSignal anywhere — `ToolLoopAgentSettings` omits it structurally and the
- *     route never passes one per-call (the qvac serve wedges on client aborts).
+ *   · Cancel-on-disconnect — the route passes a per-call `abortSignal` (tied to the client
+ *     request) to `agent.stream`. The AI SDK aborts the fetch to the qvac serve, whose
+ *     cancel-bridge (`@qvac/cli` `bindClientDisconnectCancel`, armed via `req.bindCancel`)
+ *     fires `cancel({ requestId })` so the decode stops and the GPU frees immediately.
+ *     This was previously withheld because the 0.11-era engine WEDGED on a mid-decode
+ *     cancel; SDK 0.13.1 cancels safely (verified — see spike/abort-safety-inproc.ts), so
+ *     it is now re-enabled. Drain remains the fallback only where no signal is available.
  *   · Toolless-hang guard: every text route keeps ≥1 active tool (qwen3-4b with
  *     `tools:true, toolsMode:"dynamic"` hangs at zero tokens on a toolless request).
  *     Only the `vision` route deactivates tools — qwen3vl is not tools-enabled.

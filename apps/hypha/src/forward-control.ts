@@ -46,6 +46,13 @@ export type ForwardFrame =
   | { id: string; type: "done"; stats?: Record<string, unknown> }
   | { id: string; type: "error"; error: string };
 
+/** Consumer→provider control line: cancel an in-flight forward by id. The provider aborts the local
+ *  serve fetch for that id, whose cancel-bridge then cancels the decode and frees the slot. */
+export interface ForwardCancel {
+  id: string;
+  cancel: true;
+}
+
 // Connect/timeout budgets. Only the first connect gambles on a cold holepunch (retried with a fresh
 // lookup). Once warm, a forwarded request's FIRST frame can still be slow — the provider loads/decodes
 // media + produces the first token — so that budget is generous; the inter-frame budget (steady token
@@ -63,7 +70,7 @@ function topicForPair(providerPublicKey: string, consumerPublicKey: string): Buf
   return createHash("sha256").update(`${TOPIC_PREFIX}:${providerPublicKey}:${consumerPublicKey}`).digest();
 }
 
-function encodeLine(value: ForwardRequest | ForwardFrame): string {
+function encodeLine(value: ForwardRequest | ForwardFrame | ForwardCancel): string {
   return JSON.stringify(value) + "\n";
 }
 
@@ -75,8 +82,10 @@ function parseLines(buffer: string): { rest: string; lines: string[] } {
 
 // ── server ───────────────────────────────────────────────────────────────────────────────────────
 
-/** Streams the answer for one forwarded request by calling `send` with chunk/done/error frames. */
-export type ForwardHandler = (req: ForwardRequest, send: (frame: ForwardFrame) => void) => Promise<void>;
+/** Streams the answer for one forwarded request by calling `send` with chunk/done/error frames.
+ *  `signal` fires when the consumer cancels (or its connection drops) — the handler must abort its
+ *  local serve fetch so the decode stops. */
+export type ForwardHandler = (req: ForwardRequest, send: (frame: ForwardFrame) => void, signal: AbortSignal) => Promise<void>;
 
 export interface ForwardControlServerDeps {
   seed: string;
@@ -129,34 +138,55 @@ export class ForwardControlServer {
   private handleConnection(conn: PeerStream, info?: PeerInfoLike): void {
     const remote = info?.publicKey?.toString("hex").slice(0, 16) ?? "unknown";
     this.deps.audit.record({ event: "note", extra: { role: "forward", phase: "server-conn-open", remote } });
+    // In-flight forwards on THIS connection → their AbortController, so a consumer cancel line (or a
+    // dropped connection) aborts the matching local-serve fetch and stops the decode.
+    const inflight = new Map<string, AbortController>();
     let buffer = "";
     conn.on("error", (err) => this.deps.audit.record({ event: "note", extra: { role: "forward", phase: "server-conn-error", remote, error: err instanceof Error ? err.message : String(err) } }));
-    conn.on("close", () => this.deps.audit.record({ event: "note", extra: { role: "forward", phase: "server-conn-close", remote } }));
+    conn.on("close", () => {
+      for (const ac of inflight.values()) ac.abort();
+      inflight.clear();
+      this.deps.audit.record({ event: "note", extra: { role: "forward", phase: "server-conn-close", remote } });
+    });
     conn.on("data", (chunk) => {
       buffer += chunk.toString("utf8");
       const parsed = parseLines(buffer);
       buffer = parsed.rest;
-      for (const line of parsed.lines) void this.dispatch(conn, line);
+      for (const line of parsed.lines) void this.dispatch(conn, line, inflight);
     });
   }
 
-  /** Parse one request line and stream its answer back. Each frame is tagged with the request id, so
-   *  many in-flight forwards multiplex over the one connection. */
-  private async dispatch(conn: PeerStream, line: string): Promise<void> {
-    let req: ForwardRequest;
+  /** Parse one request (or cancel) line and stream its answer back. Each frame is tagged with the
+   *  request id, so many in-flight forwards multiplex over the one connection. */
+  private async dispatch(conn: PeerStream, line: string, inflight: Map<string, AbortController>): Promise<void> {
+    let msg: ForwardRequest | ForwardCancel;
     try {
-      req = JSON.parse(line) as ForwardRequest;
+      msg = JSON.parse(line) as ForwardRequest | ForwardCancel;
     } catch {
       return; // unparseable frame — there is no id to reply to.
     }
+    // Consumer cancel: abort the in-flight request's signal so the handler stops its local decode.
+    if ((msg as ForwardCancel).cancel === true && typeof msg.id === "string") {
+      const ac = inflight.get(msg.id);
+      if (ac) {
+        ac.abort();
+        this.deps.audit.record({ event: "note", extra: { role: "forward", phase: "server-cancel", id: msg.id } });
+      }
+      return;
+    }
+    const req = msg as ForwardRequest;
     const send = (frame: ForwardFrame): void => {
       try { conn.write(encodeLine(frame)); } catch { /* peer gone mid-stream — best effort */ }
     };
     this.deps.audit.record({ event: "note", extra: { role: "forward", phase: "server-recv", id: req.id, endpoint: req.endpoint } });
+    const ac = new AbortController();
+    inflight.set(req.id, ac);
     try {
-      await this.deps.handler(req, send);
+      await this.deps.handler(req, send, ac.signal);
     } catch (err) {
       send({ id: req.id, type: "error", error: err instanceof Error ? err.message : String(err) });
+    } finally {
+      inflight.delete(req.id);
     }
   }
 }
@@ -429,6 +459,18 @@ export class ForwardControlClient {
     } finally {
       pc.pending.delete(req.id);
     }
+  }
+
+  /** Cancel an in-flight forwarded request on `providerKey` (best-effort control line). The provider
+   *  aborts its local serve fetch for `id`, whose cancel-bridge then cancels the decode and frees the
+   *  slot. No-op if there's no live connection (the provider already saw the drop). */
+  cancel(providerKey: string, id: string): void {
+    const pc = this.conns.get(providerKey);
+    if (!pc?.conn) return;
+    try {
+      pc.conn.write(encodeLine({ id, cancel: true }));
+      this.audit?.record({ event: "note", extra: { role: "forward", phase: "client-cancel", provider: providerKey.slice(0, 16), id } });
+    } catch { /* peer gone — best effort */ }
   }
 
   /** Pre-connect to a provider in the background so the cold holepunch is absorbed before a borrow. */
