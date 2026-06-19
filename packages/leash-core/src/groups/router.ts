@@ -1,7 +1,7 @@
 /**
  * Router tool-group — capability discovery + deterministic ranking for the Conductor.
- * Sources live mesh data from hypha's GET /peers (the warm-pool view). PRIVATE MESH only
- * this round; list_public_mesh_models is the extension seam (not implemented).
+ * Sources live mesh data from hypha's GET /peers (the warm-pool view). Mesh visibility metadata
+ * maps peer routes to private/public tiers; missing visibility fails closed to private.
  *
  * REAL /peers shape (confirmed from apps/hypha/src/warm-pool.ts + mesh-router.ts):
  *   Response:  { peers: PeerView[], self: { providerKey, wallet }, leader, ...meshInfo }
@@ -9,7 +9,7 @@
  *               inflight, models: string[], modelInfo?, warmModels, live, warm,
  *               lastSeen, pricePerKiloToken?, reputationScore?, effectiveCost?,
  *               shareModels?, settlement?, settlements? }
- *   + added by mesh-router.peers():  meshId, meshLabel
+ *   + added by mesh-router.peers():  meshId, meshLabel, visibility, tier
  *
  * Deviations from the brief's assumed PeerRow:
  *   - NO isLocal flag — the local device is represented in the top-level `self` key, not
@@ -64,6 +64,8 @@ interface PeerRow {
   /** Added by MeshRouter.peers() — the autobase mesh id this peer belongs to. */
   meshId: string;
   meshLabel: string;
+  visibility?: "private" | "public";
+  tier?: number;
 }
 
 /**
@@ -117,8 +119,9 @@ async function fetchHealth(): Promise<HealthResponse | null> {
  * least the RouteOption is still usable for display/ranking. */
 function rowToOptions(row: PeerRow): RouteOption[] {
   const peerKey = row.providerKey ?? row.peerId ?? row.deviceId.slice(0, 16);
+  const tier = row.visibility === "public" ? "public" : "private";
   return row.models.map((alias) => ({
-    tier: "private" as const,
+    tier,
     alias,
     tags: tagsForAlias(alias),
     peerKey,
@@ -178,23 +181,23 @@ export const routerGroup: ToolGroup = {
       inputSchema: {},
       handler: async () => {
         const data = await fetchPeers();
-        if (!data) return { text: "No private-mesh peers reachable (hypha offline). All routing stays local.", sources: NO_SOURCES };
+        if (!data) return { text: "No mesh peers reachable (hypha offline). All routing stays local.", sources: NO_SOURCES };
         const peers = data.peers ?? [];
-        if (peers.length === 0) return { text: "No private-mesh peers reachable. All routing stays local.", sources: NO_SOURCES };
+        if (peers.length === 0) return { text: "No mesh peers reachable. All routing stays local.", sources: NO_SOURCES };
         const opts = peers.flatMap((p) => rowToOptions(p));
         if (opts.length === 0) return { text: "Mesh peers visible but none serves any models.", sources: NO_SOURCES };
         const lines = opts.map(
           (o) =>
             `${o.alias} [${o.tags.modality}/${o.tags.paramClass}/${o.tags.specialist}] @${o.peerKey?.slice(0, 8)} · ${o.pricePerKiloToken}µ/ktok · inflight ${o.inflight}`,
         );
-        return { text: `Private-mesh models (${opts.length}):\n${lines.join("\n")}`, sources: NO_SOURCES };
+        return { text: `Mesh models (${opts.length}):\n${lines.join("\n")}`, sources: NO_SOURCES };
       },
     }),
 
     defineTool({
       name: "rank_routes",
       description:
-        "Given a capability bar (modality, minimum size, optional specialist) and sensitivity, return the ranked routes (best first) across this device + private-mesh peers. Sensitive turns are hard-gated away from the public tier before cost is considered.",
+        "Given a capability bar (modality, minimum size, optional specialist) and sensitivity, return the ranked routes (best first) across this device, private mesh peers, and public mesh peers. Sensitive turns are hard-gated away from the public tier before cost is considered.",
       inputSchema: {
         modality: z.enum(["text", "vision", "audio"]).describe("Required modality for the turn."),
         minParamClass: z.enum(["tiny", "small", "mid", "large"]).describe("Smallest model size that can do the turn well."),
@@ -222,9 +225,9 @@ export const routerGroup: ToolGroup = {
 
         if (ranked.length === 0) {
           return {
-            text: "ROUTE: local-fallback (no route cleared the bar)",
+            text: "ROUTE: none (no device, private mesh, or allowed public mesh route cleared the bar)",
             sources: NO_SOURCES,
-            route: { tier: "device", alias: "", peerKey: null },
+            route: null,
           };
         }
         const top = ranked[0]!;

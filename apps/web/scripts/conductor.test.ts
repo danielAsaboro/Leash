@@ -1,26 +1,177 @@
-// apps/web/scripts/conductor.test.ts
 /**
- * tsx assertion script (repo idiom). Verifies the Conductor's DETERMINISTIC paths only
- * (no live model): the fast-path picks the cheapest local general route for a greeting,
- * and barFromFallback maps effort+intent to a bar. Run: npx tsx apps/web/scripts/conductor.test.ts
+ * Pure assertion tests for the conductor core. No live QVAC serve required.
+ * Run: npx tsx apps/web/scripts/conductor.test.ts
  */
-import assert from "node:assert";
-import { barFromFallback, pickLocalGeneral } from "../lib/leash/conductor-utils.ts";
+import assert from "node:assert/strict";
+import {
+  buildConductorInventorySystemSection,
+  buildConductorPrompt,
+  buildConfiguredModelInventory,
+  capabilityBarFromConductorRoute,
+  deterministicRouteNeed,
+  parseConductorDecision,
+  pickInventoryRouteAlias,
+  publicMeshRouteBlocked,
+  type RouterCatalogModel,
+  type RouterQvacConfig,
+} from "../lib/leash/conductor-core.ts";
 import type { RouteOption } from "@mycelium/leash-core/routing";
 
-const local4b: RouteOption = { tier: "device", alias: "qwen3-4b", tags: { modality: "text", paramClass: "small", specialist: "general" }, pricePerKiloToken: 0, inflight: 0 };
+const catalog: RouterCatalogModel[] = [
+  { name: "TEXT_SMALL", endpointCategory: "chat", params: "4B" },
+  { name: "VISION_SMALL", endpointCategory: "chat", params: "2B" },
+  { name: "EMBED", endpointCategory: "embedding", params: "1B" },
+];
 
-function main() {
-  // 1. Fallback bar: a deep text turn needs at least 'mid'.
-  assert.equal(barFromFallback({ tier: "deep", isImageTurn: false, text: "analyze the tradeoffs" }).minParamClass, "mid", "deep turn → mid bar");
-  // 2. Fallback bar: an image turn requires vision modality + specialist.
-  const vb = barFromFallback({ tier: "standard", isImageTurn: true, text: "what's in this photo" });
-  assert.equal(vb.modality, "vision", "image turn → vision bar");
-  assert.equal(vb.specialist, "vision", "image turn → vision specialist");
-  // 3. Fallback bar: health wording → health specialist.
-  assert.equal(barFromFallback({ tier: "standard", isImageTurn: false, text: "what are my symptoms of anxiety" }).specialist, "health", "health words → health bar");
-  // 4. pickLocalGeneral returns the cheapest local general route.
-  assert.equal(pickLocalGeneral([local4b], "qwen3-4b").alias, "qwen3-4b", "fast-path picks local general");
-  console.log("conductor: PASS");
+const config: RouterQvacConfig = {
+  serve: {
+    models: {
+      general: {
+        model: "TEXT_SMALL",
+        preload: true,
+        default: true,
+        config: { ctx_size: 32768, tools: true, toolsMode: "dynamic" },
+      },
+      vision: {
+        model: "VISION_SMALL",
+        preload: true,
+        config: { ctx_size: 8192, projectionModelSrc: "~/.qvac/models/mmproj.gguf" },
+      },
+      embed: "EMBED",
+    },
+  },
+};
+
+const inventory = buildConfiguredModelInventory({
+  config,
+  catalog,
+  live: { up: true, ready: ["general", "vision", "classifier"] },
+});
+
+assert.equal(inventory.length, 4, "reads configured aliases plus live-only aliases");
+const general = inventory.find((m) => m.alias === "general");
+assert.equal(general?.sdkModelName, "TEXT_SMALL", "joins alias to SDK model name");
+assert.equal(general?.endpointCategory, "chat", "joins catalog endpoint category");
+assert.equal(general?.params, "4B", "joins catalog params");
+assert.equal(general?.ctxSize, 32768, "reads ctx_size");
+assert.equal(general?.toolsMode, "dynamic", "reads toolsMode");
+assert.equal(general?.tools, true, "reads tools flag");
+assert.equal(general?.isDefault, true, "reads default");
+assert.equal(general?.preload, true, "reads preload");
+assert.equal(general?.ready, true, "marks live ready aliases");
+assert.equal(inventory.find((m) => m.alias === "vision")?.endpointCategory, "vision", "projection config marks vision capability");
+assert.equal(inventory.find((m) => m.alias === "embed")?.ready, false, "reachable serve marks missing alias unavailable");
+assert.equal(inventory.find((m) => m.alias === "classifier")?.ready, true, "live-only conductor alias is available to the router");
+const prompt = buildConductorPrompt({
+  userPrompt: "hi",
+  metadata: { messageCount: 1, userTurnCount: 1, voice: false, selectedModel: null, planMode: false },
+  inventory,
+});
+assert.equal(prompt.includes('"inventory"'), false, "turn prompt does not carry model inventory");
+const systemInventory = buildConductorInventorySystemSection(inventory);
+assert.equal(systemInventory.includes('"alias":"embed"'), false, "unavailable configured aliases are not injected into the conductor system prompt");
+assert.equal(systemInventory.includes('"alias":"classifier"'), true, "live available aliases are injected into the conductor system prompt");
+assert.equal(deterministicRouteNeed("hi").required, false, "greetings can be direct conductor answers");
+const notesNeed = deterministicRouteNeed("search my notes for qvac");
+assert.equal(notesNeed.required, true, "notes/search prompts require the full agent");
+assert.equal(notesNeed.needsTools, true, "notes/search prompts need tools");
+assert.equal(notesNeed.needsMemory, true, "notes/search prompts need memory");
+assert.equal(
+  pickInventoryRouteAlias({ inventory, conductorAlias: "classifier", selectedModel: null, need: notesNeed }),
+  "general",
+  "route-required prompts pick the live default chat model, not the conductor",
+);
+
+const validAnswer = parseConductorDecision('{"action":"answer","answer":"Hi."}', inventory);
+assert.equal(validAnswer.ok, true, "valid direct answer parses");
+if (validAnswer.ok) {
+  assert.equal(validAnswer.decision.action, "answer");
+  assert.equal(validAnswer.decision.answer, "Hi.");
 }
-main();
+
+const validRoute = parseConductorDecision(
+  '{"action":"route","route":{"alias":"general","reason":"needs memory","needsTools":true,"needsVision":false,"needsMemory":true,"needsFiles":false,"sensitivity":"private"}}',
+  inventory,
+);
+assert.equal(validRoute.ok, true, "valid route parses");
+if (validRoute.ok) {
+  assert.equal(validRoute.decision.action, "route");
+  if (validRoute.decision.action === "route") {
+    assert.equal(validRoute.decision.route.alias, "general");
+    assert.equal(validRoute.decision.route.needsMemory, true);
+  }
+}
+
+const unknownAlias = parseConductorDecision(
+  '{"action":"route","route":{"alias":"missing","reason":"x","needsTools":false,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"private"}}',
+  inventory,
+);
+assert.equal(unknownAlias.ok, false, "unknown route alias rejected");
+
+const unavailableAlias = parseConductorDecision(
+  '{"action":"route","route":{"alias":"embed","reason":"x","needsTools":false,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"private"}}',
+  inventory,
+);
+assert.equal(unavailableAlias.ok, false, "reachable-but-not-ready alias rejected");
+
+const malformed = parseConductorDecision("not json", inventory);
+assert.equal(malformed.ok, false, "malformed conductor text is rejected");
+
+const extraJsonish = parseConductorDecision('```json\n{"action":"answer","answer":"Hi."}\n```\n{"action":"route"}', inventory);
+assert.equal(extraJsonish.ok, true, "first balanced valid conductor JSON is accepted even with extra text");
+if (extraJsonish.ok) {
+  assert.equal(extraJsonish.decision.action, "answer");
+}
+
+const bar = capabilityBarFromConductorRoute({
+  alias: "vision",
+  reason: "image",
+  needsTools: false,
+  needsVision: true,
+  needsMemory: false,
+  needsFiles: false,
+  sensitivity: "private",
+});
+assert.equal(bar.modality, "vision", "vision route builds a vision capability bar");
+assert.equal(bar.specialist, "vision", "vision route builds a vision specialist bar");
+
+const meshOptions = [
+  {
+    tier: "device",
+    alias: "local-small",
+    tags: { modality: "text", paramClass: "small", specialist: "general" },
+    pricePerKiloToken: 0,
+    inflight: 0,
+  },
+  {
+    tier: "public",
+    alias: "public-large",
+    tags: { modality: "text", paramClass: "large", specialist: "general" },
+    peerKey: "peer-public",
+    meshId: "public-mesh",
+    pricePerKiloToken: 500,
+    inflight: 0,
+  },
+] satisfies RouteOption[];
+const blocked = publicMeshRouteBlocked({
+  bar: { modality: "text", minParamClass: "large" },
+  sensitivity: "private",
+  options: meshOptions,
+});
+assert.equal(blocked?.alias, "public-large", "private turns block when only public mesh clears the bar");
+assert.equal(
+  publicMeshRouteBlocked({ bar: { modality: "text", minParamClass: "large" }, sensitivity: "shareable", options: meshOptions }),
+  null,
+  "shareable turns do not trigger the private public-mesh block",
+);
+assert.equal(
+  publicMeshRouteBlocked({
+    bar: { modality: "text", minParamClass: "small" },
+    sensitivity: "private",
+    options: meshOptions,
+  }),
+  null,
+  "private turns do not block when this device clears the bar",
+);
+
+console.log("conductor: PASS");

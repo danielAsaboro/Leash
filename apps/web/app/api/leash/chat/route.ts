@@ -12,9 +12,8 @@
  */
 import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
 import { z } from "zod";
-import { CHAT_MODEL, VISION_MODEL, COMPUTER_MODEL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
+import { VISION_MODEL, COMPUTER_MODEL, QVAC_OPENAI_URL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
-import { conduct } from "../../../../lib/leash/conductor.ts";
 import { tagsForAlias, type RouteOption } from "@mycelium/leash-core/routing";
 import { leashTools } from "../../../../lib/leash/tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
@@ -33,10 +32,20 @@ import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
 import { inlineFileAttachments } from "../../../../lib/leash/attachments.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
+import { conductTurn, type ConductorResult } from "../../../../lib/leash/conductor.ts";
+import {
+  barFromGuardedTurn,
+  capabilityBarFromConductorRoute,
+  pickLocalGeneral,
+  publicMeshRouteBlocked,
+  rankConductorRoute,
+  type ConductorRoute,
+  type ConductorRouteDecision,
+} from "../../../../lib/leash/conductor-core.ts";
 import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
 import { interjectRequested, clearInterject } from "../../../../lib/leash/interject-store.ts";
-import type { LeashUIMessage } from "../../../../lib/leash/types.ts";
+import type { EffortTier, LeashUIMessage } from "../../../../lib/leash/types.ts";
 import { AuditLog } from "@mycelium/shared";
 import { DATA_DIR } from "../../../../lib/leash/json-store.ts";
 import { join } from "node:path";
@@ -112,7 +121,7 @@ function toolCallAsText(text: string): { matched: boolean; toolName?: string } {
   return { matched: true, toolName: m?.[1] };
 }
 
-/** The text-parts join of the most recent user message (intent classifiers + effort grading). */
+/** The text-parts join of the most recent user message (conductor + effort grading). */
 function lastUserText(messages: LeashUIMessage[]): string {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -129,7 +138,7 @@ function isImageTurn(messages: LeashUIMessage[]): boolean {
 /**
  * Computer-use routing: screen/GUI/shell/file intent → the (possibly bigger, possibly
  * mesh-delegated) computer driver — a NO-OP while `LEASH_COMPUTER_MODEL` is unset
- * (COMPUTER_MODEL === CHAT_MODEL) apart from the raised step budget below.
+ * apart from the raised step budget below.
  */
 const COMPUTER_RE =
   /\b(screen ?shot\w*|screen|click\w*|double.?click\w*|type(?!\s+of)|typing|scroll\w*|cursor|mouse|keyboard|open (?:the |this )?app\w*|launch\w*|run (?:a |the |this )?command\w*|command.?line|terminal|shell|(?:read|write|edit|create|save) (?:a |the |that |this |my )?file\w*)\b|~\//i;
@@ -150,60 +159,84 @@ function isFilesIntent(messages: LeashUIMessage[]): boolean {
   return FILES_RE.test(lastUserText(messages));
 }
 
-/** Hypha daemon base URL (same base used by hypha.ts, economy.server.ts, etc.). */
 const HYPHA_BASE = process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11437";
 
+interface PeerRow {
+  deviceId?: string;
+  providerKey?: string;
+  peerId?: string;
+  models?: string[];
+  meshId?: string;
+  meshLabel?: string;
+  visibility?: string;
+  tier?: number;
+  live?: boolean;
+  inflight?: number;
+  pricePerKiloToken?: number;
+}
+
+interface MeshMembership {
+  meshId: string;
+  visibility?: string;
+  tier?: number;
+}
+
+function peerRouteTier(row: PeerRow, meshById: Map<string, MeshMembership>): RouteOption["tier"] {
+  const visibility = row.visibility ?? (row.meshId ? meshById.get(row.meshId)?.visibility : undefined);
+  return visibility === "public" ? "public" : "private";
+}
+
 /**
- * Build RouteOption[] from the live hypha daemon for the Conductor's pre-pass.
+ * Build RouteOption[] from QVAC's live local inventory plus Hypha's live mesh peer view.
  *
- * - Peers come from `GET /peers` (each row has `providerKey` = full key, `models` = alias names,
- *   `inflight`, `pricePerKiloToken?`, `meshId?`). LOCAL device is NOT in /peers — its aliases
- *   come from `GET /health` (`warmAliases[]`).
- * - Returns [] on ANY failure (network error, daemon down) so the route is always offline-capable.
+ * QVAC `/v1/models` is the source of truth for this device. Hypha `/peers` adds reachable peer
+ * models with tier metadata. Missing mesh visibility fails closed to private.
  */
 async function fetchRouteOptions(): Promise<RouteOption[]> {
+  type ModelsBody = { data?: { id?: string }[] };
+  const options: RouteOption[] = [];
   try {
-    type PeerRow = { providerKey?: string; models?: string[]; inflight?: number; pricePerKiloToken?: number; meshId?: string };
-    type HealthBody = { warmAliases?: string[] };
-
-    const [peersRes, healthRes] = await Promise.all([
-      fetch(`${HYPHA_BASE}/peers`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
-      fetch(`${HYPHA_BASE}/health`, { signal: AbortSignal.timeout(1500), cache: "no-store" }),
-    ]);
-
-    const options: RouteOption[] = [];
-
-    // Local device — warmAliases from /health as tier "device", price 0
-    if (healthRes.ok) {
-      const hb = (await healthRes.json()) as HealthBody;
-      for (const alias of hb.warmAliases ?? []) {
-        options.push({ tier: "device", alias, tags: tagsForAlias(alias), pricePerKiloToken: 0, inflight: 0 });
+    const modelsRes = await fetch(`${QVAC_OPENAI_URL}/models`, { signal: AbortSignal.timeout(1500), cache: "no-store" });
+    if (modelsRes.ok) {
+      const mb = (await modelsRes.json()) as ModelsBody;
+      for (const row of mb.data ?? []) {
+        if (!row.id) continue;
+        options.push({ tier: "device", alias: row.id, tags: tagsForAlias(row.id), pricePerKiloToken: 0, inflight: 0 });
       }
     }
-
-    // Peers — each row's full providerKey is the pin key the shim expects
-    if (peersRes.ok) {
-      const pb = (await peersRes.json()) as { peers?: PeerRow[] };
-      for (const row of pb.peers ?? []) {
-        if (!row.providerKey) continue;
-        for (const alias of row.models ?? []) {
-          options.push({
-            tier: "private",
-            alias,
-            tags: tagsForAlias(alias),
-            peerKey: row.providerKey,
-            ...(row.meshId ? { meshId: row.meshId } : {}),
-            pricePerKiloToken: row.pricePerKiloToken ?? 0,
-            inflight: row.inflight ?? 0,
-          });
-        }
-      }
-    }
-
-    return options;
   } catch {
-    return [];
+    /* local serve down: mesh peers below may still be available for guarded routes */
   }
+
+  try {
+    // TODO(mesh): Add a live cross-device smoke once Hypha is running on a non-solo mesh,
+    // so device -> private mesh -> public mesh delegation is verified end to end.
+    const peersRes = await fetch(`${HYPHA_BASE}/peers`, { signal: AbortSignal.timeout(1500), cache: "no-store" });
+    if (!peersRes.ok) return options;
+    const pb = (await peersRes.json()) as { peers?: PeerRow[]; meshes?: MeshMembership[] };
+    const meshById = new Map((pb.meshes ?? []).map((m) => [m.meshId, m]));
+    for (const row of pb.peers ?? []) {
+      if (row.live === false || !row.providerKey) continue;
+      for (const alias of row.models ?? []) {
+        options.push({
+          tier: peerRouteTier(row, meshById),
+          alias,
+          tags: tagsForAlias(alias),
+          peerKey: row.providerKey,
+          ...(row.meshId ? { meshId: row.meshId } : {}),
+          pricePerKiloToken: row.pricePerKiloToken ?? 0,
+          inflight: row.inflight ?? 0,
+        });
+      }
+    }
+  } catch {
+    /* hypha down: routing remains on this device */
+  }
+  return options;
+}
+
+function routeFailure(status: number, error: string, extra?: Record<string, unknown>): Response {
+  return Response.json({ ok: false, error, ...(extra ?? {}) }, { status });
 }
 
 /** Step budget for computer-use turns — a GUI loop is screenshot → act → screenshot → verify. */
@@ -218,6 +251,82 @@ const FILES_STEPS = 8;
 const SKILL_TOOL_STEPS = 12;
 /** Plan-mode agent budget: submit_plan call (pauses for approval) → execute → present the result. */
 const PLAN_STEPS = 4;
+function latestMessage(messages: LeashUIMessage[]): LeashUIMessage | undefined {
+  return messages[messages.length - 1];
+}
+
+function userTurnCount(messages: LeashUIMessage[]): number {
+  return messages.filter((m) => m.role === "user").length;
+}
+
+function hasFilePart(messages: LeashUIMessage[]): boolean {
+  const lastUser = [...messages].reverse().find((m) => m.role === "user");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((lastUser?.parts as any[]) ?? []).some((p) => p?.type === "file");
+}
+
+function hasToolApprovalResponse(messages: LeashUIMessage[]): boolean {
+  const latest = latestMessage(messages);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return ((latest?.parts as any[]) ?? []).some((p) => typeof p?.state === "string" && (p.state === "approval-responded" || p.state === "output-denied"));
+}
+
+function conductorBypassReason(input: { messages: LeashUIMessage[]; plan?: boolean }): string | null {
+  if (input.plan) return "plan mode";
+  const latest = latestMessage(input.messages);
+  if (!latest || latest.role !== "user") return "non-user continuation";
+  if (hasFilePart(input.messages)) return "file or image attachment";
+  if (hasToolApprovalResponse(input.messages)) return "tool approval continuation";
+  return null;
+}
+
+function recordConductorTurnDecision(result: ConductorResult, answeredDirectly: boolean, overrideReason?: string): void {
+  try {
+    conductorAudit.record({
+      event: "note",
+      modelId: result.conductorAlias,
+      durationMs: result.latencyMs,
+      extra: {
+        role: "conductor",
+        ok: result.ok,
+        action: result.ok ? result.decision.action : "route",
+        alias: result.ok && result.decision.action === "route" ? result.decision.route.alias : result.conductorAlias,
+        reason: overrideReason ?? (result.ok ? (result.decision.action === "route" ? result.decision.route.reason : "direct answer") : result.failureReason),
+        answeredDirectly,
+        ...(!result.ok && result.raw ? { rawPreview: result.raw.slice(0, 300) } : {}),
+      },
+    });
+  } catch {
+    /* audit write must never break a turn */
+  }
+}
+
+function isExplicitModelOverride(chosenModel: string | undefined, result: ConductorResult): boolean {
+  if (!chosenModel) return false;
+  const row = result.inventory.find((m) => m.alias === chosenModel);
+  return row ? !row.isDefault : true;
+}
+
+async function streamConductorAnswer(input: { chatId: string; messages: LeashUIMessage[]; alias: string; answer: string; reason: string }): Promise<Response> {
+  const stream = createUIMessageStream<LeashUIMessage>({
+    originalMessages: input.messages,
+    generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+    execute: ({ writer }) => {
+      const started = Date.now();
+      writer.write({ type: "data-conductor", data: { tier: "device", alias: input.alias, reason: input.reason, viaFastPath: true } });
+      writer.write({ type: "message-metadata", messageMetadata: { createdAt: started, model: input.alias, effort: "quick" satisfies EffortTier } });
+      writer.write({ type: "text-start", id: "conductor-answer" });
+      writer.write({ type: "text-delta", id: "conductor-answer", delta: input.answer });
+      writer.write({ type: "text-end", id: "conductor-answer" });
+      writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+    },
+    onFinish: ({ messages: finalMessages }) => {
+      void saveChat({ chatId: input.chatId, messages: finalMessages as LeashUIMessage[] });
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
+}
 
 export async function POST(req: Request): Promise<Response> {
   const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string };
@@ -228,6 +337,75 @@ export async function POST(req: Request): Promise<Response> {
   // A fresh turn STARTS here: clear any interject flag so a follow-up that ended the PREVIOUS turn
   // doesn't immediately end this one (this turn IS that follow-up).
   clearInterject(id);
+
+  // Rebuild the working history from the store + the incoming trigger.
+  const record = await loadRecord(id);
+  const previous = record?.messages ?? [];
+  let messages: LeashUIMessage[];
+  if (trigger === "regenerate-message" && messageId) {
+    const idx = previous.findIndex((m) => m.id === messageId);
+    messages = idx === -1 ? previous : previous.slice(0, idx); // drop the assistant msg → regenerate
+  } else if (message) {
+    // REPLACE-BY-ID, not append: a tool-approval response mutates the LAST ASSISTANT
+    // message in place client-side and resends it under the SAME id — appending would
+    // duplicate it in the stored thread. A normal user submit has a fresh id (i === -1)
+    // and still appends.
+    const i = previous.findIndex((m) => m.id === message.id);
+    messages = i === -1 ? [...previous, message] : [...previous.slice(0, i), message, ...previous.slice(i + 1)];
+  } else {
+    messages = previous;
+  }
+
+  const conductorText = lastUserText(messages);
+  const conductorBypass = conductorBypassReason({ messages, plan });
+  let conductorRoute: ConductorRoute | null = null;
+  let forcedModelAlias: string | undefined = chosenModel;
+  if (!conductorBypass && conductorText.trim()) {
+    const releaseConductor = beginGeneration();
+    let conductorResult: ConductorResult;
+    try {
+      conductorResult = await conductTurn({
+        userPrompt: conductorText,
+        metadata: {
+          messageCount: messages.length,
+          userTurnCount: userTurnCount(messages),
+          voice: !!voice,
+          selectedModel: chosenModel ?? null,
+          planMode: !!plan,
+        },
+      });
+    } finally {
+      releaseConductor();
+    }
+
+    if (!conductorResult.ok) {
+      recordConductorTurnDecision(conductorResult, false);
+      return routeFailure(502, `Conductor routing failed: ${conductorResult.failureReason}; refusing to fallback.`, {
+        conductorAlias: conductorResult.conductorAlias,
+        ...(conductorResult.raw ? { rawPreview: conductorResult.raw.slice(0, 300) } : {}),
+      });
+    }
+
+    const explicitModelOverride = isExplicitModelOverride(chosenModel, conductorResult);
+    forcedModelAlias = explicitModelOverride ? chosenModel : undefined;
+    if (conductorResult.decision.action === "answer") {
+      if (!explicitModelOverride) {
+        recordConductorTurnDecision(conductorResult, true);
+        return streamConductorAnswer({
+          chatId: id,
+          messages,
+          alias: conductorResult.conductorAlias,
+          answer: conductorResult.decision.answer,
+          reason: "conductor direct answer",
+        });
+      }
+      recordConductorTurnDecision(conductorResult, false, "selected model override");
+    } else {
+      const route = conductorResult.decision.route;
+      conductorRoute = route && explicitModelOverride && chosenModel ? { ...route, alias: chosenModel } : route;
+      recordConductorTurnDecision(conductorResult, false);
+    }
+  }
 
   // The FULL registry — used for message validation; `streamText` gets the filtered set.
   // Capability tools (search_graph, ha_*, remember/recall, tasks, photos, image, feed) now
@@ -249,24 +427,6 @@ export async function POST(req: Request): Promise<Response> {
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
   // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
   const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool };
-
-  // Rebuild the working history from the store + the incoming trigger.
-  const record = await loadRecord(id);
-  const previous = record?.messages ?? [];
-  let messages: LeashUIMessage[];
-  if (trigger === "regenerate-message" && messageId) {
-    const idx = previous.findIndex((m) => m.id === messageId);
-    messages = idx === -1 ? previous : previous.slice(0, idx); // drop the assistant msg → regenerate
-  } else if (message) {
-    // REPLACE-BY-ID, not append: a tool-approval response mutates the LAST ASSISTANT
-    // message in place client-side and resends it under the SAME id — appending would
-    // duplicate it in the stored thread. A normal user submit has a fresh id (i === -1)
-    // and still appends.
-    const i = previous.findIndex((m) => m.id === message.id);
-    messages = i === -1 ? [...previous, message] : [...previous.slice(0, i), message, ...previous.slice(i + 1)];
-  } else {
-    messages = previous;
-  }
 
   // Validate stored+new messages against current tool/metadata schemas; fall back to raw on drift.
   let validated: LeashUIMessage[] = messages;
@@ -300,27 +460,82 @@ export async function POST(req: Request): Promise<Response> {
   const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
   const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
   // The model actually driving this turn (for telemetry) — chat uses the user-chosen alias, else the
-  // configured default; NOT the hardcoded CHAT_MODEL (which is just the last-resort fallback).
+  // configured default; not a hardcoded last-resort alias.
   // Conductor: for the generalist chat lane (not image/computer) we run the Conductor to pick
   // the best available route (local vs. peer). Specialist routes keep their dedicated models — the
   // Conductor only overrides the generalist chat model selection.
-  const defaultAlias = chosenModel ?? (base.model || resolvedChatAlias());
-  // fetchRouteOptions returns [] on failure — Conductor then falls back to local (always offline-safe).
-  let conductorDecision;
+  const suggestedAlias = conductorRoute?.alias;
+  const defaultAlias = forcedModelAlias ?? suggestedAlias ?? (base.model || resolvedChatAlias());
+  let conductorDecision: ConductorRouteDecision;
+  let conductorEffortTier: EffortTier | null = null;
   try {
-    const conductorOptions = await fetchRouteOptions();
-    conductorDecision = await conduct({ text: lastUserText(validated), isImageTurn: imageTurn, options: conductorOptions, defaultAlias });
+    const allConductorOptions = await fetchRouteOptions();
+    if (!allConductorOptions.length) {
+      return routeFailure(503, "No live local or mesh QVAC routes are available; refusing to fallback to config.");
+    }
+    const conductorOptions = forcedModelAlias ? allConductorOptions.filter((o) => o.alias === forcedModelAlias) : allConductorOptions;
+    if (forcedModelAlias && !conductorOptions.length) {
+      return routeFailure(409, `Requested route alias "${forcedModelAlias}" is not live on this device or any visible mesh peer; refusing to fallback.`, {
+        liveAliases: allConductorOptions.map((o) => `${o.alias}@${o.tier}`),
+      });
+    }
+    const preclassified = conductorRoute
+      ? { bar: capabilityBarFromConductorRoute(conductorRoute), sensitivity: conductorRoute.sensitivity, reason: conductorRoute.reason }
+      : undefined;
+    const publicBlock = preclassified ? publicMeshRouteBlocked({ bar: preclassified.bar, sensitivity: preclassified.sensitivity, options: conductorOptions }) : null;
+    if (publicBlock && preclassified) {
+      const answer =
+        "I found a public mesh model that may fit this request, but the turn looks private. I won't send private notes, files, memory, health, finance, credentials, or device-specific context to the public mesh. Use a local/private mesh model, or re-ask with only shareable context if you want public paid delegation.";
+      conductorAudit.record({
+        event: "note",
+        modelId: publicBlock.alias,
+        extra: {
+          role: "conductor",
+          phase: "public-mesh-blocked",
+          sensitivity: preclassified.sensitivity,
+          bar: preclassified.bar,
+          reason: publicBlock.reason,
+        },
+      });
+      return streamConductorAnswer({ chatId: id, messages, alias: publicBlock.alias, answer, reason: `public mesh blocked for private turn: ${publicBlock.reason}` });
+    }
+    if (preclassified) {
+      conductorDecision = rankConductorRoute({
+        bar: preclassified.bar,
+        sensitivity: preclassified.sensitivity,
+        options: conductorOptions,
+        reason: preclassified.reason,
+      });
+    } else {
+      conductorEffortTier = imageTurn ? null : await classifyEffort(lastUserText(validated));
+      if (conductorEffortTier === "quick" && !imageTurn) {
+        const local = pickLocalGeneral(conductorOptions, defaultAlias);
+        conductorDecision = {
+          modality: "text",
+          sensitivity: "private",
+          bar: { modality: "text", minParamClass: "small" },
+          route: { tier: "device", alias: local.alias },
+          reason: "fast-path: trivial turn -> local",
+          viaFastPath: true,
+        };
+      } else {
+        const bar = barFromGuardedTurn({
+          tier: conductorEffortTier ?? "standard",
+          isImageTurn: imageTurn,
+          text: lastUserText(validated),
+        });
+        conductorDecision = rankConductorRoute({
+          bar,
+          sensitivity: "private",
+          options: conductorOptions,
+        });
+      }
+    }
   } catch (err) {
-    console.error("leash[conductor]: error in fetchRouteOptions/conduct, falling back to local:", err);
-    // Fallback: local device route, private sensitivity (safe default), no fast-path.
-    conductorDecision = {
-      modality: "text" as const,
-      sensitivity: "private" as const,
-      bar: { modality: "text", minParamClass: "small" },
-      route: { tier: "device" as const, alias: defaultAlias },
-      reason: "conductor error → local fallback",
-      viaFastPath: false,
-    };
+    console.error("leash[conductor]: error while ranking route options; refusing fallback:", err);
+    return routeFailure(502, "Routing failed before the model call; refusing to fallback.", {
+      detail: err instanceof Error ? err.message : String(err),
+    });
   }
   console.log(`leash[conductor]: route=${conductorDecision.route.tier}/${conductorDecision.route.alias} sensitivity=${conductorDecision.sensitivity} reason="${conductorDecision.reason}"`);
   // Audit record — skip fast-path trivial turns to avoid noise; delegation events are always logged.
@@ -363,7 +578,7 @@ export async function POST(req: Request): Promise<Response> {
   // (tools on/off, step cap, `/no_think`, token ceiling). A spoken turn must answer in seconds,
   // so voice always runs `/no_think`; text keeps full `<think>` reasoning on the `deep` tier.
   // Image turns are unchanged (the VLM handles one image-grounded turn, no tools/no /no_think).
-  const tier = imageTurn ? null : await classifyEffort(lastUserText(validated));
+  const tier = imageTurn ? null : (conductorEffortTier ?? (await classifyEffort(lastUserText(validated))));
   const cfg = tier ? effortConfig(tier, !!voice) : null;
   const useNoThink = !!cfg?.noThink;
 
@@ -555,8 +770,9 @@ export async function POST(req: Request): Promise<Response> {
     ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
-    // User-chosen chat model (from the input picker) — applied on text routes only (agent.ts).
-    ...(chosenModel ? { model: chosenModel } : {}),
+    // Text-route model alias chosen by the conductor or explicit picker.
+    // Vision/computer routes use their dedicated model factories in agent.ts.
+    ...(!imageTurn && !computerTurn ? { model: activeModel } : {}),
     system,
   };
   const result = await agent.stream({ messages: modelInput, options: callOptions, abortSignal: req.signal });

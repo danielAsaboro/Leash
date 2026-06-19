@@ -168,8 +168,8 @@ export class MeshRouter {
     return [...s];
   }
 
-  /** Every peer across every mesh, annotated with which mesh it belongs to. */
-  peers(): Array<PeerView & { meshId: string; meshLabel: string }> {
-    return this.meshes().flatMap((m) => m.pool.peers().map((p) => ({ ...p, meshId: m.meshId, meshLabel: m.label })));
+  /** Every peer across every mesh, annotated with the mesh tier and visibility it belongs to. */
+  peers(): Array<PeerView & { meshId: string; meshLabel: string; visibility: Visibility; tier: number }> {
+    return this.meshes().flatMap((m) => m.pool.peers().map((p) => ({ ...p, meshId: m.meshId, meshLabel: m.label, visibility: m.visibility, tier: m.tier })));
   }
 }

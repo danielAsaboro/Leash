@@ -16,7 +16,7 @@ import "server-only";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { createQvac } from "@qvac/ai-sdk-provider";
-import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel, type LanguageModelV2Middleware } from "ai";
+import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel, type LanguageModelMiddleware } from "ai";
 import { Agent, fetch as undiciFetch } from "undici";
 import { loopDiagnosticMiddleware, loopDebugOn } from "./loop-diagnostics.ts";
 import type { Sensitivity } from "@mycelium/leash-core/routing";
@@ -27,9 +27,9 @@ import type { Sensitivity } from "@mycelium/leash-core/routing";
  * per-step finishReason / tool-call presence the loop actually sees (after `<think>` is
  * split out). Zero behavior change; pure observation. `label` tags the log line.
  */
-function chatMiddleware(label: string): LanguageModelV2Middleware[] {
+function chatMiddleware(label: string): LanguageModelMiddleware[] {
   const reasoning = extractReasoningMiddleware({ tagName: "think" });
-  return loopDebugOn() ? [loopDiagnosticMiddleware(label), reasoning] : [reasoning];
+  return (loopDebugOn() ? [loopDiagnosticMiddleware(label), reasoning] : [reasoning]) as unknown as LanguageModelMiddleware[];
 }
 
 /**
@@ -46,6 +46,8 @@ const patientFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Paramete
 
 /** Where `qvac serve openai` listens. 11435 (not Ollama's 11434). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
+const HYPHA_SHIM_URL = (process.env["LEASH_BROKER_HYPHA_URL"] ?? `http://127.0.0.1:${process.env["HYPHA_PORT"] ?? 11437}`).replace(/\/+$/, "");
+const QVAC_ROUTED_OPENAI_URL = process.env["LEASH_ROUTED_OPENAI_URL"] ?? `${HYPHA_SHIM_URL}/v1`;
 
 /** Served model aliases — must match keys in `qvac.config.base.json` → `serve.models`. */
 export const CHAT_MODEL = process.env["LEASH_CHAT_MODEL"] ?? "qwen3-4b";
@@ -61,14 +63,6 @@ export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
  * pointed at the broker (:11436) — the broker availability-routes the turn over the mesh.
  */
 export const COMPUTER_MODEL = process.env["LEASH_COMPUTER_MODEL"] ?? CHAT_MODEL;
-/**
- * Small fast triage model alias for the proactive heartbeat — runs cheaply every cycle to
- * decide silence vs. escalate before the 4B chat model is ever woken. Defaults to the
- * `classifier` alias (installed by the Assistant Kit, a ~1.7B instruct); falls back to the
- * resolved chat alias when no dedicated classifier is configured (see resolvedClassifierAlias).
- */
-export const CLASSIFIER_MODEL = process.env["LEASH_CLASSIFIER_MODEL"] ?? "classifier";
-
 /**
  * Priority-tagged provider instances. The `x-leash-priority` header is consumed by the
  * leash-broker (the queue in front of the serve) to order requests — interactive chat
@@ -161,9 +155,9 @@ export function resolvedClassifierAlias(): string {
 }
 
 /** The small triage model for proactive heartbeats — `<think>` reasoning split out like the chat model. */
-export function classifierModel(): LanguageModel {
+export function classifierModel(alias?: string): LanguageModel {
   return wrapLanguageModel({
-    model: qvacInline(resolvedClassifierAlias()),
+    model: qvacInline(alias ?? resolvedClassifierAlias()),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }
@@ -190,10 +184,10 @@ export function imageModel() {
 }
 
 /**
- * A chat model whose POST body carries the Conductor's routing directive at the TOP LEVEL so
- * the hypha shim (shim.ts) reads `body.sensitivity` / `body.meshId` / `body.peerKey` and
- * places the turn on the chosen peer. When `peerKey` is unset the shim uses its default
- * availability ladder (sensitivity gate still applies).
+ * A chat model whose POST goes directly to the Hypha OpenAI shim and carries the Conductor's
+ * routing directive at the TOP LEVEL. The shim reads `body.sensitivity` / `body.meshId` /
+ * `body.peerKey` and places the turn on the chosen peer. When `peerKey` is unset the shim uses
+ * its default availability ladder (sensitivity gate still applies).
  *
  * Body-field mechanism: a custom fetch wrapper that JSON-parses the outgoing body, merges
  * the three fields, and re-stringifies before the HTTP POST. This is the only reliable path
@@ -224,7 +218,7 @@ export function routedChatModel(opts: { alias: string; sensitivity: Sensitivity;
     return patientFetch(input, init);
   }) as unknown as typeof fetch;
 
-  const provider = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: routedFetch, headers: { "x-leash-priority": "interactive" } });
+  const provider = createQvac({ baseURL: QVAC_ROUTED_OPENAI_URL, apiKey: "qvac", fetch: routedFetch, headers: { "x-leash-priority": "interactive" } });
   return wrapLanguageModel({
     model: provider(opts.alias),
     middleware: chatMiddleware("chat"),

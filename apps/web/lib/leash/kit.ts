@@ -41,9 +41,9 @@ export const ASSISTANT_KIT: KitRole[] = [
   {
     role: "classifier",
     alias: "classifier",
-    model: "QWEN3_1_7B_INST_Q4",
+    model: "QWEN3_600M_INST_Q4",
     config: { ctx_size: 8192 },
-    bytes: 1_056_782_912,
+    bytes: 382_156_480,
     powers: "Fast triage — runs every heartbeat to decide silence vs. escalate, cheaply.",
   },
   {

@@ -17,6 +17,13 @@
         "model": "GTE_LARGE_FP16",
         "preload": true
       },
+      "classifier": {
+        "model": "QWEN3_600M_INST_Q4",
+        "preload": true,
+        "config": {
+          "ctx_size": 8192
+        }
+      },
       "medpsy": {
         "model": "MEDGEMMA_4B_IT_Q4_1",
         "preload": true,

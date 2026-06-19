@@ -23,6 +23,7 @@ import type { EffortTier } from "./types.ts";
 const ARITHMETIC = /^[\s\d+\-*/×÷=().^%]+\??$/;
 const SIMPLE_MATH = /^(what(?:'s| is)|calculate|compute)\s+[-\d(][\s\d+\-*/×÷=().^%]*\??$/;
 const GREETING = /^(hi|hello|hey|yo|good (morning|afternoon|evening)|thanks|thank you)\b/;
+const CAPABILITY_CHECK = /^(what can you do|who are you|help|help me|what are you|capabilities|what can you help(?: me)? with)\??$/;
 
 /* ───────────── Per-tier prototype phrases (tune here) ───────────── */
 // Tier = argmax of the MAX cosine to any prototype in that tier (robust to phrase spread).
@@ -96,7 +97,7 @@ export async function classifyEffort(text: string): Promise<EffortTier> {
   const q = (text ?? "").trim();
   if (!q) return "standard";
   const lower = q.toLowerCase();
-  if (ARITHMETIC.test(lower) || SIMPLE_MATH.test(lower) || GREETING.test(lower)) return "quick";
+  if (isInstantPrompt(lower)) return "quick";
   try {
     const prototypes = await getPrototypes();
     const { embedding } = await embed({ model: embeddingModel(), value: q });
@@ -121,6 +122,13 @@ export async function classifyEffort(text: string): Promise<EffortTier> {
     console.error("leash: effort classification failed, defaulting to standard:", err);
     return "standard";
   }
+}
+
+/** Pure regex shortcut for the legacy effort budget helper. */
+function isInstantPrompt(text: string): boolean {
+  const lower = (text ?? "").trim().toLowerCase();
+  if (!lower) return false;
+  return ARITHMETIC.test(lower) || SIMPLE_MATH.test(lower) || GREETING.test(lower) || CAPABILITY_CHECK.test(lower);
 }
 
 /** Streaming params for a tier. Voice biases to speed; text keeps reasoning on `deep`. */
