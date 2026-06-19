@@ -20,6 +20,7 @@ import { readActivityRecords } from "./graph.ts";
 import { classifyAction, maxSimilarity, stricterTier, hardFloor, type Tier } from "./classify.ts";
 import { withinDailyBudget, seenRecently, recentTexts, getOverride, recordSurfaced, signature } from "./heartbeat-state.ts";
 import { addNotification } from "./notifications-store.ts";
+import { HEARTBEAT_OK as HEARTBEAT_OK_VALUE, HEARTBEAT_USER_PROMPT, buildHeartbeatSystemPrompt } from "./prompt.ts";
 
 /** Read context + the one safe, reversible write (create_task). No outward/irreversible tools. */
 const PROPOSE_ONLY = new Set(["search_graph", "recall", "understory_search", "understory_today", "list_tasks", "create_task"]);
@@ -29,7 +30,7 @@ const HEARTBEAT_STEPS = 4;
 /** How many recent activity records to ground the check in. */
 const ACTIVITY_WINDOW = 25;
 /** The sentinel the model emits when nothing warrants attention (silence-by-default). */
-export const HEARTBEAT_OK = "HEARTBEAT_OK";
+export { HEARTBEAT_OK } from "./prompt.ts";
 /** Cosine above which a fresh proposal is treated as a duplicate of a recently surfaced one. */
 const DEDUP_THRESHOLD = 0.92;
 /** Only the most recent N surfaced proposals are embedded for the fuzzy dedup check (bounds cost). */
@@ -101,23 +102,6 @@ function recentActivityText(records: { ts: string; app: string; window: string; 
     .join("\n");
 }
 
-function buildSystem(soul: string, goals: string, checklist: string, activity: string): string {
-  return [
-    "You are the user's PROACTIVE HEARTBEAT — a quiet background check, not a chat. You run on a timer; the user did not just ask you anything.",
-    soul.trim() ? `Who you're assisting (soul.md):\n${soul.trim()}` : "",
-    goals.trim() ? `Their goals (goals.md) — judge everything against these:\n${goals.trim()}` : "",
-    checklist.trim() ? `What to watch this cycle (heartbeat.md):\n${checklist.trim()}` : "",
-    activity ? `Their recent screen activity (most recent last):\n${activity}` : "No recent activity is available this cycle.",
-    "Decide whether anything RIGHT NOW genuinely deserves the user's attention, weighed against their goals and the checklist above.",
-    `If nothing does, reply with EXACTLY: ${HEARTBEAT_OK} — and nothing else. Silence is the default; most cycles end this way.`,
-    "If something does, propose ONE concise, helpful nudge: what you noticed, WHY it matters for their goals, and your suggestion. " +
-      "Ground it in what they already have using search_graph / recall / understory_search, and use create_task only to capture a concrete follow-up. " +
-      "Never invent activity you weren't shown. Be calm and sparing — over-nudging erodes trust.",
-  ]
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 export interface HeartbeatOptions {
   /** Per-day notification budget (from the schedule's heartbeat config). 0/undefined = unlimited. */
   maxPerDay?: number;
@@ -134,7 +118,7 @@ export interface HeartbeatOptions {
 export async function runHeartbeat(opts: HeartbeatOptions = {}): Promise<HeartbeatResult> {
   const [{ soul, goals, heartbeat }, records] = await Promise.all([getConstitution(), readActivityRecords()]);
   const activity = recentActivityText(records, ACTIVITY_WINDOW);
-  const system = buildSystem(soul, goals, heartbeat, activity);
+  const system = buildHeartbeatSystemPrompt({ soul, goals, checklist: heartbeat, activity });
 
   // Propose-only toolset over the live, user-toggle-respecting registry. No approval gates: the
   // heartbeat is non-interactive, so an "ask-first" tool would hang waiting on a user that isn't there.
@@ -154,11 +138,11 @@ export async function runHeartbeat(opts: HeartbeatOptions = {}): Promise<Heartbe
 
   let proposal: string;
   try {
-    const result = await agent.stream({ messages: [{ role: "user", content: "Run the heartbeat check now." }], options });
+    const result = await agent.stream({ messages: [{ role: "user", content: HEARTBEAT_USER_PROMPT }], options });
     const raw = ((await result.text) ?? "").trim();
     // OK / short-OK suppression runs on the RAW reply, BEFORE cosmetic cleaning — otherwise stripping a
     // leading HEARTBEAT_OK label would turn "HEARTBEAT_OK — all aligned" into a spurious nudge.
-    if (isHeartbeatOk(raw)) return { ok: true, suppressed: true, reason: "HEARTBEAT_OK", proposal: null };
+    if (isHeartbeatOk(raw)) return { ok: true, suppressed: true, reason: HEARTBEAT_OK_VALUE, proposal: null };
     proposal = cleanProposal(raw); // strip tool-call/label noise for the surfaced nudge
   } catch (err) {
     return { ok: false, suppressed: true, proposal: null, error: String(err) };

@@ -52,8 +52,6 @@ const QVAC_ROUTED_OPENAI_URL = process.env["LEASH_ROUTED_OPENAI_URL"] ?? `${HYPH
 /** Served model aliases — must match keys in `qvac.config.base.json` → `serve.models`. */
 export const CHAT_MODEL = process.env["LEASH_CHAT_MODEL"] ?? "qwen3-4b";
 export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "gte-large";
-/** QVAC's own medical/healthcare specialist (qvac/MedPsy, a Qwen3 fine-tune). */
-export const MEDPSY_MODEL = process.env["LEASH_MEDPSY_MODEL"] ?? "medpsy";
 /** Vision-language model (Qwen3VL) for image turns — via the forked serve's image-content support. */
 export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
 /**
@@ -116,14 +114,6 @@ export function chatModel(label = "chat", alias?: string): LanguageModel {
 export function chatModelBackground(): LanguageModel {
   return wrapLanguageModel({
     model: qvacBackground(process.env["LEASH_UTILITY_MODEL"] ?? resolvedChatAlias()),
-    middleware: extractReasoningMiddleware({ tagName: "think" }),
-  });
-}
-
-/** The medical specialist (MedPsy) — also a Qwen3 "thinking" model, so split `<think>` too. */
-export function medpsyModel(): LanguageModel {
-  return wrapLanguageModel({
-    model: qvac(MEDPSY_MODEL),
     middleware: extractReasoningMiddleware({ tagName: "think" }),
   });
 }

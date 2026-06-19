@@ -1,29 +1,23 @@
 /**
  * Editable prompt overrides — the mobile analogue of the desktop prompts-store. The defaults are
  * the exact constants the chat used before this store existed; an override edited in Brain → Prompts
- * is loaded on mount and composed into the live chat system message (App.tsx → buildSystem), so the
+ * is loaded on mount and composed into the live chat prompt (App.tsx → composeBaseSystem), so the
  * tab genuinely changes how Leash answers. One JSON file in the app's document directory.
  */
 import * as FileSystem from "expo-file-system/legacy";
+import { CHAT_SYSTEM_PROMPT, VOICE_RESPONSE_PROMPT } from "./prompt";
 
-export type PromptKey = "system" | "voice";
+export { CHAT_SYSTEM_PROMPT, VOICE_RESPONSE_PROMPT } from "./prompt";
 
-/** Base identity for every turn — ported verbatim from the original App.tsx LEASH_SYSTEM. */
-export const DEFAULT_SYSTEM =
-  "You are Leash, a private assistant that runs entirely on this device — nothing leaves for the cloud. " +
-  "Answer concisely and conversationally in plain prose. Don't pad or over-explain; if you don't know, say so plainly.";
-
-/** Appended on spoken turns — ported verbatim from the original App.tsx VOICE_DIRECTIVE. */
-export const DEFAULT_VOICE =
-  " This reply will be spoken aloud by a text-to-speech voice. Answer in at most two short sentences of plain spoken prose. " +
-  "Never use markdown, lists, code blocks, headings, links, or emoji — say 'first… then… finally…' instead of bullets.";
+export type PromptKey = "chat" | "voice";
+const PROMPT_KEYS: readonly PromptKey[] = ["chat", "voice"];
 
 export const PROMPT_META: { key: PromptKey; label: string; hint: string; def: string }[] = [
-  { key: "system", label: "System prompt", hint: "Leash's base identity, prepended to every turn.", def: DEFAULT_SYSTEM },
-  { key: "voice", label: "Voice directive", hint: "Appended on spoken turns so replies stay short and markdown-free.", def: DEFAULT_VOICE },
+  { key: "chat", label: "Chat prompt", hint: "Leash's base identity and behavior for chat turns.", def: CHAT_SYSTEM_PROMPT },
+  { key: "voice", label: "Voice response prompt", hint: "Appended on spoken turns so replies stay short and markdown-free.", def: VOICE_RESPONSE_PROMPT },
 ];
 
-export type Prompts = { system: string; voice: string };
+export type Prompts = { chat: string; voice: string };
 
 const FILE = `${FileSystem.documentDirectory}prompts.json`;
 
@@ -33,7 +27,12 @@ async function readOverrides(): Promise<Overrides> {
   try {
     const info = await FileSystem.getInfoAsync(FILE);
     if (!info.exists) return {};
-    return (JSON.parse(await FileSystem.readAsStringAsync(FILE)) as Overrides) ?? {};
+    const raw = JSON.parse(await FileSystem.readAsStringAsync(FILE)) as Record<string, unknown>;
+    if (!raw || typeof raw !== "object") return {};
+    return Object.fromEntries(PROMPT_KEYS.flatMap((key) => {
+      const value = raw[key];
+      return typeof value === "string" && value.trim() ? [[key, value] as const] : [];
+    })) as Overrides;
   } catch {
     return {};
   }
@@ -47,12 +46,12 @@ async function writeOverrides(o: Overrides): Promise<void> {
   }
 }
 
-const defaultFor = (key: PromptKey): string => (key === "system" ? DEFAULT_SYSTEM : DEFAULT_VOICE);
+const defaultFor = (key: PromptKey): string => (key === "chat" ? CHAT_SYSTEM_PROMPT : VOICE_RESPONSE_PROMPT);
 
 /** Effective prompts — the override if present, otherwise the code default. */
 export async function getPrompts(): Promise<Prompts> {
   const o = await readOverrides();
-  return { system: o.system ?? DEFAULT_SYSTEM, voice: o.voice ?? DEFAULT_VOICE };
+  return { chat: o.chat ?? CHAT_SYSTEM_PROMPT, voice: o.voice ?? VOICE_RESPONSE_PROMPT };
 }
 
 /** Is this key currently overridden (differs from the code default)? */
@@ -64,8 +63,11 @@ export async function isOverridden(key: PromptKey): Promise<boolean> {
 export async function setPrompt(key: PromptKey, value: string): Promise<void> {
   const o = await readOverrides();
   const v = value.trim();
-  if (!v || v === defaultFor(key)) delete o[key];
-  else o[key] = v;
+  if (!v || v === defaultFor(key)) {
+    delete o[key];
+  } else {
+    o[key] = v;
+  }
   await writeOverrides(o);
 }
 

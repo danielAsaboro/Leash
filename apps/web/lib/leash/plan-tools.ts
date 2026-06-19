@@ -19,6 +19,7 @@ import { disabledTools, toolNeedsApproval } from "./tool-config.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { PlanData, PlanStep, PlanStepStatus } from "./types.ts";
 import type { LeashSource } from "./tools.ts";
+import { buildPlanStepSystemPrompt } from "./prompt.ts";
 
 /** Per-step budget inside the plan pipeline — each step is ONE bounded sub-task (tool → report). */
 const PLAN_STEP_BUDGET = 3;
@@ -82,10 +83,7 @@ export async function runPlanAsPipeline(
     const prior = results.length
       ? `\n\nResults from earlier steps (use them — a later step often depends on what an earlier one returned):\n${results.map((r, j) => `· Step ${j + 1} (${steps[j]}): ${r}`).join("\n")}`
       : "";
-    const system =
-      `You are executing ONE step of a plan the user already approved.\n\nOVERALL TASK: ${task}\n\n` +
-      `YOUR CURRENT STEP (${i + 1} of ${steps.length}): ${step}${prior}\n\n` +
-      `Do ONLY this step now — call a tool if the step needs one — then briefly report what you did or found. Do not attempt the other steps; the harness runs them.`;
+    const system = buildPlanStepSystemPrompt({ task, step, index: i, total: steps.length, prior });
     loopLog(`plan step ${i + 1}/${steps.length}: ${step.slice(0, 60)}`);
     try {
       // qvac wedge rule: no abortSignal, maxRetries 0 (a retry re-pays a hung decode).

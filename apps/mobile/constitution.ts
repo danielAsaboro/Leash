@@ -7,19 +7,13 @@
  * text is the user's authored intent and is kept here. One JSON file in the document directory.
  */
 import * as FileSystem from "expo-file-system/legacy";
+import { DEFAULT_CONSTITUTION as DEFAULT_CONSTITUTION_VALUE } from "./prompt";
 
 export type ConstitutionField = "soul" | "goals" | "heartbeat";
 
 export type Constitution = { soul: string; goals: string; heartbeat: string };
 
-export const DEFAULT_CONSTITUTION: Constitution = {
-  soul:
-    "You are Leash — a calm, private thinking partner that lives entirely on this device. " +
-    "You are candid, concise, and never sycophantic. You protect the user's privacy as a first principle.",
-  goals: "",
-  heartbeat:
-    "Each cycle, check whether anything the user asked you to watch has changed, surface one useful nudge at most, and stay quiet otherwise.",
-};
+export { DEFAULT_CONSTITUTION } from "./prompt";
 
 export const FIELD_META: { key: ConstitutionField; label: string; blurb: string; rows: number }[] = [
   { key: "soul", label: "Soul", blurb: "Who you are — voice, values, boundaries. Fed into every chat.", rows: 7 },
@@ -32,15 +26,15 @@ const FILE = `${FileSystem.documentDirectory}constitution.json`;
 export async function getConstitution(): Promise<Constitution> {
   try {
     const info = await FileSystem.getInfoAsync(FILE);
-    if (!info.exists) return { ...DEFAULT_CONSTITUTION };
+    if (!info.exists) return { ...DEFAULT_CONSTITUTION_VALUE };
     const parsed = JSON.parse(await FileSystem.readAsStringAsync(FILE)) as Partial<Constitution>;
     return {
-      soul: parsed.soul ?? DEFAULT_CONSTITUTION.soul,
-      goals: parsed.goals ?? DEFAULT_CONSTITUTION.goals,
-      heartbeat: parsed.heartbeat ?? DEFAULT_CONSTITUTION.heartbeat,
+      soul: parsed.soul ?? DEFAULT_CONSTITUTION_VALUE.soul,
+      goals: parsed.goals ?? DEFAULT_CONSTITUTION_VALUE.goals,
+      heartbeat: parsed.heartbeat ?? DEFAULT_CONSTITUTION_VALUE.heartbeat,
     };
   } catch {
-    return { ...DEFAULT_CONSTITUTION };
+    return { ...DEFAULT_CONSTITUTION_VALUE };
   }
 }
 

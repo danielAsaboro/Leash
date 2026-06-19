@@ -18,27 +18,13 @@ import { completion } from "@qvac/sdk";
 import type { AuditLog } from "@mycelium/shared";
 import type { Hit } from "@mycelium/senses";
 import { verifyClaims, type Verdict } from "./critic.ts";
+import {
+  EMERGENCY_BANNER as EMERGENCY_BANNER_VALUE,
+  HEALTH_RECORDS_CONSULT_SYSTEM as HEALTH_RECORDS_CONSULT_SYSTEM_VALUE,
+  NON_DIAGNOSTIC_DISCLAIMER as NON_DIAGNOSTIC_DISCLAIMER_VALUE,
+} from "./prompt.ts";
 
-/** MedPsy framing: ground in the provided records, cite, never invent values, never diagnose, escalate emergencies. */
-export const MEDPSY_PROPOSER_SYSTEM =
-  "You are MedPsy, a private on-device medical and wellbeing assistant. The user's PRIVATE health " +
-  "records (notes, lab results, medications, allergies, visit summaries) are provided below as " +
-  "numbered SOURCES. Ground every statement in what those records actually say and cite each claim " +
-  "as [Source N]. Never invent or estimate a value that is not in the records — if the records do " +
-  "not contain the answer, say so plainly. You are NOT a substitute for a licensed clinician: do not " +
-  "diagnose, and recommend seeing a professional for any medical decision. If the question describes " +
-  "an emergency or red-flag symptom (chest pain, trouble breathing, stroke signs, suicidal thoughts, " +
-  "severe bleeding), tell the user to seek urgent care immediately.";
-
-/** Appended whenever the model's own answer lacks a clinician caveat — the disclaimer is never optional. */
-export const NON_DIAGNOSTIC_DISCLAIMER =
-  "\n\n— MedPsy is an on-device assistant grounded in your own records, not a substitute for a " +
-  "licensed clinician. For any medical decision, please consult a professional.";
-
-/** Prepended when the question contains an emergency / red-flag symptom. */
-export const EMERGENCY_BANNER =
-  "⚠️ If this is a medical emergency, call your local emergency number or seek urgent care now — " +
-  "do not wait for this assistant.\n\n";
+export { EMERGENCY_BANNER, HEALTH_RECORDS_CONSULT_SYSTEM, NON_DIAGNOSTIC_DISCLAIMER } from "./prompt.ts";
 
 const RED_FLAG_RE =
   /\b(chest pain|short(ness)? of breath|can'?t breathe|trouble breathing|stroke|face droop|slurred speech|suicidal|kill myself|self[- ]?harm|overdose|anaphylaxis|severe bleeding|unconscious|seizure)\b/i;
@@ -92,7 +78,7 @@ export async function runMedPsyConsult({ deps, question }: { deps: MedPsyDeps; q
   const run = completion({
     modelId: deps.llmModelId,
     history: [
-      { role: "system", content: MEDPSY_PROPOSER_SYSTEM },
+      { role: "system", content: HEALTH_RECORDS_CONSULT_SYSTEM_VALUE },
       { role: "user", content: `SOURCES (the user's health records):\n${sourceText}\n\nQuestion: ${question}\n\nAnswer using only the records above, and cite each claim as [Source N].` },
     ],
     stream: true,
@@ -109,19 +95,19 @@ export async function runMedPsyConsult({ deps, question }: { deps: MedPsyDeps; q
     event: "completion",
     modelId: deps.llmModelId,
     tokens: final.stats?.generatedTokens,
-    extra: { role: "medpsy-proposer", sources: sources.length },
+    extra: { role: "health-records-proposer", sources: sources.length },
   });
 
   const cited = /\[?source\s*\d/i.test(raw);
   const verifierVerdict = await verifyClaims({ llmModelId: deps.llmModelId, answer: raw, sources, audit: deps.audit });
 
   const disclaimerAppended = !hasCaveat(raw);
-  let answer = disclaimerAppended ? raw + NON_DIAGNOSTIC_DISCLAIMER : raw;
-  if (redFlag) answer = EMERGENCY_BANNER + answer;
+  let answer = disclaimerAppended ? raw + NON_DIAGNOSTIC_DISCLAIMER_VALUE : raw;
+  if (redFlag) answer = EMERGENCY_BANNER_VALUE + answer;
 
   deps.audit?.record({
     event: "note",
-    extra: { phase: "medpsy", cited, verdict: verifierVerdict.verdict, redFlag, disclaimerAppended, sources: sources.length },
+    extra: { phase: "health-records", cited, verdict: verifierVerdict.verdict, redFlag, disclaimerAppended, sources: sources.length },
   });
 
   return { answer, sources, cited, verifierVerdict, disclaimerPresent: true, disclaimerAppended, redFlag };

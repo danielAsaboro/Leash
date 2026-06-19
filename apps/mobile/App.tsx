@@ -79,7 +79,8 @@ import { EconomyScreen } from "./EconomyScreen";
 import { ServicesScreen } from "./ServicesScreen";
 import { DesktopScreen, type DesktopRoute } from "./DesktopScreen";
 import { initMesh } from "./meshClient";
-import { getPrompts, DEFAULT_SYSTEM, DEFAULT_VOICE } from "./prompts";
+import { getPrompts, CHAT_SYSTEM_PROMPT, VOICE_RESPONSE_PROMPT } from "./prompts";
+import { DEFAULT_IMAGE_PROMPT, NO_THINK_DIRECTIVE } from "./prompt";
 import { getConstitution } from "./constitution";
 import { listMemories, type Memory } from "./memories";
 import { addNotification, unreadCount } from "./notifications";
@@ -104,13 +105,13 @@ const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
 // MODEL_LABEL removed — replaced by dynamic chatKey state + chatEntry(chatKey).label below.
 
 /**
- * Compose the chat system message from the user's Brain edits — the persisted System prompt
+ * Compose the chat system message from the user's Brain edits — the persisted Chat prompt
  * override (or its default) plus the constitution's soul/goals and the enabled memories. This is
  * what makes Brain → Prompts / Proactivity / Memory genuinely change how Leash answers (Rule 4),
  * rather than being decorative tabs. The voice directive and `/no_think` are appended at call time.
  */
-function composeBaseSystem(system: string, soul: string, goals: string, memories: Memory[]): string {
-  let s = system.trim() || DEFAULT_SYSTEM;
+function composeBaseSystem(chatPrompt: string, soul: string, goals: string, memories: Memory[]): string {
+  let s = chatPrompt.trim() || CHAT_SYSTEM_PROMPT;
   if (soul.trim()) s += `\n\nWho you are:\n${soul.trim()}`;
   if (goals.trim()) s += `\n\nWhat the user is working toward:\n${goals.trim()}`;
   if (memories.length) {
@@ -212,8 +213,8 @@ export default function App(): React.JSX.Element {
   // Brain-composed prompt parts (loaded from prompts/constitution/memories on mount, refreshed when
   // the Brain screen edits them). Held in refs so runCompletion — whose deps are empty — reads the
   // latest without re-binding. Initialized to the defaults so the very first turn still has identity.
-  const baseSystemRef = useRef<string>(DEFAULT_SYSTEM);
-  const voiceDirectiveRef = useRef<string>(DEFAULT_VOICE);
+  const baseSystemRef = useRef<string>(CHAT_SYSTEM_PROMPT);
+  const voiceDirectiveRef = useRef<string>(VOICE_RESPONSE_PROMPT);
 
   // Mesh offload — the phone AUTO-borrows chat compute from a provider it discovers in its joined
   // mesh. No provider key is ever typed or stored; `offload` is the live target (null = on-device).
@@ -346,8 +347,8 @@ export default function App(): React.JSX.Element {
   // prompt overrides, the constitution's soul+goals, and the enabled memories.
   const refreshBrain = useCallback(async () => {
     const [prompts, constitution, memories] = await Promise.all([getPrompts(), getConstitution(), listMemories()]);
-    baseSystemRef.current = composeBaseSystem(prompts.system, constitution.soul, constitution.goals, memories);
-    voiceDirectiveRef.current = prompts.voice || DEFAULT_VOICE;
+    baseSystemRef.current = composeBaseSystem(prompts.chat, constitution.soul, constitution.goals, memories);
+    voiceDirectiveRef.current = prompts.voice || VOICE_RESPONSE_PROMPT;
   }, []);
 
   useEffect(() => {
@@ -496,12 +497,13 @@ export default function App(): React.JSX.Element {
       let turnTelemetry: Telemetry | undefined;
       let turnError: string | undefined;
 
-      // Legacy system prompt for the MESH-borrow and VOICE paths: Brain identity (+ voice directive on
+      // Direct system prompt for the MESH-borrow and VOICE paths: Brain identity (+ voice directive on
       // spoken turns), with `/no_think` to keep the small model fast and markdown-free for TTS. The
       // LOCAL text-chat path below runs the agent loop WITHOUT `/no_think` so reasoning is produced and
       // shown in a collapsible block (the whole point of this screen).
-      const legacySystem = (voice ? baseSystemRef.current + voiceDirectiveRef.current : baseSystemRef.current) + " /no_think";
-      const fullHistory = [{ role: "system" as const, content: legacySystem }, ...history];
+      const directBase = voice ? `${baseSystemRef.current}\n\n${voiceDirectiveRef.current}` : baseSystemRef.current;
+      const directSystem = `${directBase}\n${NO_THINK_DIRECTIVE}`;
+      const fullHistory = [{ role: "system" as const, content: directSystem }, ...history];
 
       const writeDisplay = (full: string) => {
         const display = stripThink(full);
@@ -511,7 +513,7 @@ export default function App(): React.JSX.Element {
 
       try {
         if (useMesh && voice) {
-          // FORWARD (voice): borrow the peer's resident serve over the per-pair forward transport, legacy
+          // FORWARD (voice): borrow the peer's resident serve over the per-pair forward transport, direct
           // fast path (plain text → TTS). Non-voice borrow goes through the agent loop below instead.
           const messages = fullHistory.map((m) => ({ role: m.role, content: m.content }));
           acc = await meshForward({
@@ -534,7 +536,7 @@ export default function App(): React.JSX.Element {
           console.log(`[chat] DONE where=mesh provider=${target!.displayName} model=${target!.alias} chars=${acc.length} ~${tps} tok/s ttft ${ttftMs}ms`);
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc || (cancelRef.current ? "⊘ Stopped." : ""), telemetry } : m)));
         } else if (voice) {
-          // LOCAL VOICE: legacy fast path — plain tokenStream + stripThink, read aloud by TTS.
+          // LOCAL VOICE: direct fast path — plain tokenStream + stripThink, read aloud by TTS.
           let chunks = 0;
           const result = completion({ modelId: modelIdRef.current!, history: fullHistory, stream: true });
           activeRequestIdRef.current = (result as { requestId?: string }).requestId ?? null;
@@ -710,7 +712,7 @@ export default function App(): React.JSX.Element {
   const sendImage = useCallback(
     async (items: { dataUrl: string; uri: string }[]) => {
       if (isGenerating || items.length === 0) return;
-      const prompt = input.trim() || "What's in this image?";
+      const prompt = input.trim() || DEFAULT_IMAGE_PROMPT;
       setInput("");
       setIsGenerating(true);
       const userMsg: ChatMessage = { id: makeId(), role: "user", content: prompt, image: items[0]!.uri };
@@ -1234,7 +1236,7 @@ function MessageBlock({
         // Agent turns: render the parts stream (reasoning → tool steps → answer).
         <MessageParts parts={message.parts} />
       ) : (
-        // Mesh-borrow / voice / legacy turns: plain markdown answer.
+        // Mesh-borrow / voice / direct turns: plain markdown answer.
         <MarkdownText content={message.content} baseStyle={styles.bodyText} />
       )}
       {message.telemetry && (

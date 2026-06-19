@@ -31,7 +31,7 @@ async function main() {
   const tools = { ...baseTools, ...buildSkillRunner(baseTools) };
   const enabledTools = withApprovalGates(await filterEnabledTools(tools));
 
-  const [systemPrompt, skillsSection, activeSkills] = await Promise.all([getPrompt("system"), skillsSystemSection(), activeSkillsSection(prompt)]);
+  const [systemPrompt, skillsSection, activeSkills] = await Promise.all([getPrompt("chat"), skillsSystemSection(), activeSkillsSection(prompt)]);
   const declaredSkillTools = activeSkills?.tools ?? [];
   const system = [systemPrompt, activeSkills?.section ?? "", skillsSection].filter(Boolean).join(" ");
 

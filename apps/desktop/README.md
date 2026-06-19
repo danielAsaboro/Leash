@@ -74,6 +74,6 @@ Electron runtime is missing, run a one-off `electron-builder install-app-deps`
 ## Shared seam (for a future `apps/mobile`)
 
 The framework-agnostic chat model lives in `@mycelium/shared/chat`
-(`ChatMessage`, `DEFAULT_SYSTEM_PROMPT`, `buildHistory`). A future Expo app reuses
+(`ChatMessage`, `SHARED_CHAT_SYSTEM_PROMPT`, `buildHistory`). A future Expo app reuses
 it verbatim; only the SDK-coupled model registry (`src/main/models.ts`) is
 desktop-specific.

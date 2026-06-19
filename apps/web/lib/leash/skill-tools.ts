@@ -12,6 +12,12 @@ import { listSkills } from "./skills-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import { embeddingModel } from "./provider.ts";
 import { cosine } from "./graph.ts";
+import {
+  ACTIVE_SKILL_TOOL_CALL_WARNING,
+  buildActiveSkillBody,
+  buildActiveSkillHeader,
+  buildSkillsCatalogPrompt,
+} from "./prompt.ts";
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const STOP = new Set([
@@ -169,24 +175,6 @@ async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; de
   return (await skillEmbeddingsPromise).rows;
 }
 
-function renderActiveSkillHeader(reason: "explicit" | "automatic", matched: string[]): string {
-  return reason === "explicit"
-    ? "The user EXPLICITLY named the following skill(s). Their instructions are already loaded for this turn, so follow them directly."
-    : `The route AUTO-MATCHED this request to the following skill(s) from their discovery descriptions: ${matched.join(", ")}. Their instructions are already loaded for this turn, so follow them directly.`;
-}
-
-function renderActiveSkillBody(skills: Array<{ slug: string; body: string; files: string[] }>): string {
-  const sections = skills.map((s) => {
-    const scripts = s.files.filter((f) => f.startsWith("scripts/"));
-    const docs = s.files.filter((f) => !f.startsWith("scripts/"));
-    const attachments =
-      (docs.length ? `\nAttached files: ${docs.join(", ")} — read one with read_skill_file when referenced.` : "") +
-      (scripts.length ? `\nExecutable scripts: ${scripts.join(", ")} — run one with run_skill_script when instructed.` : "");
-    return `Skill "${s.slug}" is ACTIVE for this turn.\n\n${s.body || "(this skill has an empty body)"}${attachments}`;
-  });
-  return sections.join("\n\n---\n\n");
-}
-
 function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkillView[]): ActiveSkillsResult {
   const stepSkill = skills.find((s) => (s.steps ?? []).length > 0);
   return {
@@ -195,9 +183,10 @@ function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkil
     tools: [...new Set(skills.flatMap((s) => s.tools ?? []))],
     pipeline: stepSkill ? { slug: stepSkill.slug, steps: stepSkill.steps } : null,
     section:
-      renderActiveSkillHeader(reason, skills.map((s) => s.slug)) +
-      " Do not print fake tool-call text like `CALL read_skill(...)` in your answer. If a skill requires exact output, treat that as higher priority than your normal style and emit it with no extra words or surrounding whitespace.\n\n" +
-      renderActiveSkillBody(skills),
+      buildActiveSkillHeader(reason, skills.map((s) => s.slug)) +
+      ACTIVE_SKILL_TOOL_CALL_WARNING +
+      "\n\n" +
+      buildActiveSkillBody(skills),
   };
 }
 
@@ -207,12 +196,7 @@ function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkil
  */
 export async function skillsSystemSection(): Promise<string> {
   const enabled = (await listSkills()).filter((s) => s.enabled);
-  if (enabled.length === 0) return "";
-  const lines = enabled.map((s) => `- "${s.slug}": ${s.description || s.name}`);
-  return (
-    "Your skills — when a request matches one of these, call read_skill with its slug to load its full instructions, then follow them to the letter. Actually call read_skill; don't just talk about it. Skills:\n" +
-    lines.join("\n")
-  );
+  return buildSkillsCatalogPrompt(enabled);
 }
 
 /**

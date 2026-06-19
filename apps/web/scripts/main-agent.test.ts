@@ -1,27 +1,26 @@
 /**
  * tsx assertion script (repo idiom). Run: npx tsx apps/web/scripts/main-agent.test.ts
  *
- * Note: imports DEFAULT_LEASH_SYSTEM from leash-defaults.ts (not tools.ts) because
- * tools.ts has `import "server-only"` which throws outside Next.js. leash-defaults.ts
- * is the canonical source; tools.ts re-exports from it for backward compat.
+ * Note: imports CHAT_SYSTEM_PROMPT from prompt.ts (not tools.ts) because tools.ts
+ * has `import "server-only"` which throws outside Next.js.
  */
 import assert from "node:assert";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { loadMainAgentBase } from "../lib/leash/main-agent.ts";
-import { DEFAULT_LEASH_SYSTEM } from "../lib/leash/leash-defaults.ts";
+import { CHAT_SYSTEM_PROMPT } from "../lib/leash/prompt.ts";
 
 function main() {
   // 1. No-regression: body equals the constant byte-for-byte.
   const base = loadMainAgentBase();
-  assert.strictEqual(base.body, DEFAULT_LEASH_SYSTEM, "body must equal DEFAULT_LEASH_SYSTEM");
+  assert.strictEqual(base.body, CHAT_SYSTEM_PROMPT, "body must equal CHAT_SYSTEM_PROMPT");
   assert.strictEqual(base.model, "", "model must be empty string (resolvedChatAlias() fills it at runtime)");
   assert.strictEqual(base.name, "Leash", "name must be Leash");
 
   // 2. Fallback: missing file returns constants, never throws.
   const missing = loadMainAgentBase("/nonexistent/path/leash.md");
-  assert.strictEqual(missing.body, DEFAULT_LEASH_SYSTEM, "missing file → DEFAULT_LEASH_SYSTEM");
+  assert.strictEqual(missing.body, CHAT_SYSTEM_PROMPT, "missing file -> CHAT_SYSTEM_PROMPT");
   assert.strictEqual(missing.model, "", "missing file → empty model");
   assert.strictEqual(missing.name, "Leash", "missing file → name Leash");
 
@@ -31,7 +30,7 @@ function main() {
     const garbled = join(tmp, "leash.md");
     writeFileSync(garbled, "no frontmatter here, just prose");
     const garbledResult = loadMainAgentBase(garbled);
-    assert.strictEqual(garbledResult.body, DEFAULT_LEASH_SYSTEM, "garbled file → DEFAULT_LEASH_SYSTEM");
+    assert.strictEqual(garbledResult.body, CHAT_SYSTEM_PROMPT, "garbled file -> CHAT_SYSTEM_PROMPT");
     assert.strictEqual(garbledResult.model, "", "garbled file → empty model");
     assert.strictEqual(garbledResult.name, "Leash", "garbled file → name Leash");
   } finally {

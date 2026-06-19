@@ -33,11 +33,12 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { ToolLoopAgent, stepCountIs, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
-import { chatModel, medpsyModel, visionModel, computerModel } from "./provider.ts";
+import { chatModel, visionModel, computerModel } from "./provider.ts";
 import { repairLeashToolCall } from "./json-repair.ts";
 import { DATA_DIR } from "./json-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lanes.ts";
+import { buildContinuationNudge } from "./prompt.ts";
 
 /** A skill can't reintroduce the 4096-ctx overflow: its declared toolset is truncated here. */
 const SKILL_TOOLS_CAP = 18;
@@ -65,8 +66,7 @@ export const leashCallOptionsSchema = z.object({
   thinking: z.boolean().optional(),
   /** The fully-assembled system prompt for this turn. */
   system: z.string(),
-  /** User-chosen chat model alias (from the chat input model picker). Overrides the default chat
-   *  model on text routes only — vision/computer/health keep their dedicated models. */
+  /** User-chosen/conductor-selected model alias for text routes. Vision/computer keep dedicated factories. */
   model: z
     .string()
     .regex(/^[a-z0-9][a-z0-9-]{0,40}$/)
@@ -149,38 +149,13 @@ function continuationOn(): boolean {
 }
 
 /**
- * Scratchpad re-injection — the diagnosed fix for failure mode "C — dependent-step / Implicit Action
- * Failure": after a tool returns, qwen3-4b re-decides at the continuation boundary and writes a final
- * answer instead of firing the dependent NEXT call, even when the user's request explicitly named it.
- * (Verified 2026-06-12 with loop-diagnostics: independent calls fire fine in ONE parallel step; only the
- * RESULT-DEPENDENT next step gets dropped — `finish=stop, toolCalls=0` — amplified by overthinking,
- * `reasoning=3442` vs a 112-char answer.)
- *
- * Before every step after the first, we re-state the goal and keep a running scratchpad of the tools
- * already run, with an explicit stop rule: only answer once EVERY part of the request is done. This keeps
- * the goal salient (counters C) and replaces open-ended deliberation with a checklist decision (counters
- * the overthinking that ends in "just answer"). It never FORCES a call — the model may still stop when
- * genuinely done — and `stopWhen: stepCountIs(...)` still bounds the loop.
- */
-function continuationNudge(steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<{ toolName?: string }> }>): string {
-  const ran = [...new Set(steps.flatMap((s) => (s.toolCalls ?? []).map((c) => c.toolName).filter((n): n is string => !!n)))];
-  const progress = ran.length ? `Tools you have already run this turn: ${ran.join(", ")}.` : "You have not run any tool yet this turn.";
-  return (
-    `[continuing — step ${steps.length + 1}] You are in the MIDDLE of the user's request, not at the end. ${progress} ` +
-    `Re-read their original request above and check it part by part: if ANY part is not yet done, call the right tool NOW instead of replying. ` +
-    `A later step may depend on what an earlier tool returned — use that result to do the next part. ` +
-    `Only write your final answer once EVERY part of the request is complete.`
-  );
-}
-
-/**
  * Build the per-request agent over the gated+filtered registry. `prepareCall` does
  * the per-turn mapping the route used to inline around `streamText`.
  *
  * `overrideModel` (optional): when the Conductor selected a peer route, the route passes
- * the pre-built `routedChatModel` here so `prepareCall` uses it for the `"chat"` lane
- * instead of constructing a plain `chatModel(...)`. Ignored for vision/computer/health
- * routes — those always use their dedicated models.
+ * the pre-built `routedChatModel` here so `prepareCall` uses it for text lanes instead
+ * of constructing a plain `chatModel(...)`. Ignored for vision/computer routes — those
+ * keep their dedicated model factories.
  */
 export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, overrideModel?: LanguageModel): ToolLoopAgent<LeashCallOptions, ToolSet> {
   const names = Object.keys(tools);
@@ -205,9 +180,9 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
       currentRoute = options.route;
       return {
         ...settings,
-        // For the "chat" route, prefer the Conductor's pre-built routedChatModel (peer directive)
+        // For text routes, prefer the Conductor's pre-built routedChatModel (peer directive)
         // when provided; otherwise fall back to the user-chosen or default chatModel.
-        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : options.route === "health" ? medpsyModel() : (overrideModel ?? chatModel("chat", options.model)),
+        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : (overrideModel ?? chatModel(options.route, options.model)),
         instructions: options.system,
         activeTools,
         // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision
@@ -225,7 +200,7 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
     prepareStep: ({ stepNumber, steps }) => {
       if (stepNumber < 1 || currentRoute === "vision" || !continuationOn()) return {};
       loopLog(`nudge-injected step=${stepNumber}`); // visible only with LEASH_DEBUG_LOOP — proves the override fired
-      return { system: `${currentSystem} ${continuationNudge(steps)}` };
+      return { system: `${currentSystem} ${buildContinuationNudge(steps)}` };
     },
   });
 }

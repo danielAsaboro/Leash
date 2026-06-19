@@ -17,6 +17,7 @@ import { embed } from "@qvac/sdk";
 import { selectSkill, type SkillDef, type SkillMatch } from "./skill-selection";
 import { listMeshSkills } from "../../meshClient";
 import type { SkillEvent } from "../../ai-elements/SkillEventCard";
+import { buildMobileSkillSystemAddon } from "../../prompt";
 
 const FILE = `${FileSystem.documentDirectory}skills.json`;
 
@@ -81,6 +82,6 @@ export async function activeSkillForTurn(userText: string): Promise<ActiveSkill 
   const match: SkillMatch | null = await selectSkill(userText, skills, embedder());
   if (!match) return null;
   const { skill, mode } = match;
-  const systemAddon = `\n\nActive skill — ${skill.name}:\n${skill.body}`;
+  const systemAddon = buildMobileSkillSystemAddon({ name: skill.name, body: skill.body });
   return { systemAddon, event: { skills: [{ name: skill.name, slug: skill.slug }], mode } };
 }

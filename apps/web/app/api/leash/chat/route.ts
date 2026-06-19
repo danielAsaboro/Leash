@@ -48,6 +48,20 @@ import { interjectRequested, clearInterject } from "../../../../lib/leash/interj
 import type { EffortTier, LeashUIMessage } from "../../../../lib/leash/types.ts";
 import { AuditLog } from "@mycelium/shared";
 import { DATA_DIR } from "../../../../lib/leash/json-store.ts";
+import {
+  CHAT_APPROVAL_NOTE,
+  CHAT_CITATION_NOTE,
+  CHAT_COMPUTER_MODE_NOTE,
+  CHAT_FILES_MODE_NOTE,
+  CHAT_PLAN_MODE_NOTE,
+  CHAT_THINKING_NOTE,
+  NO_THINK_DIRECTIVE,
+  buildDisabledToolsNote,
+  buildGoalsSection,
+  buildPreferenceSection,
+  buildSoulSection,
+  buildSummarySection,
+} from "../../../../lib/leash/prompt.ts";
 import { join } from "node:path";
 
 /** Singleton AuditLog for conductor decisions (logs/conductor.jsonl relative to DATA_DIR). */
@@ -442,12 +456,12 @@ export async function POST(req: Request): Promise<Response> {
     console.error("leash: UI message validation failed, using raw history:", err);
   }
 
-  // Load the built-in agent base (leash.md): body = default system prompt, model = default alias.
-  // Synchronous; falls back to DEFAULT_LEASH_SYSTEM + "" on any failure.
+  // Load the built-in agent base (leash.md): body = default chat prompt, model = default alias.
+  // Synchronous; falls back to CHAT_SYSTEM_PROMPT + "" on any failure.
   const base = loadMainAgentBase();
 
-  // Routing: image turn → vision VLM; else computer-use intent (while any computer tool is
-  // enabled) → the computer driver; else medical/wellbeing → MedPsy specialist; else generalist.
+  // Routing: image turn -> vision VLM; else computer-use intent (while any computer tool is
+  // enabled) -> computer driver; else conductor-ranked text capability (chat/health/etc.).
   const off = await disabledTools();
   const imageTurn = isImageTurn(validated);
   // Computer/Files now live in toggleable leash-tools-mcp groups: a lane is available only when
@@ -558,8 +572,9 @@ export async function POST(req: Request): Promise<Response> {
     }
   }
   // Vision hard-rule: image turns ALWAYS use the vision VLM regardless of the Conductor decision.
-  // Specialist routes (computer) keep their dedicated models.
+  // Computer keeps its dedicated model. Health remains a text capability with a task prompt.
   const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : conductorDecision.route.alias || defaultAlias;
+  const healthTurn = !imageTurn && !filesTurn && !computerTurn && conductorDecision.bar.specialist === "health";
   // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
   // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
   const conductorModel =
@@ -569,10 +584,10 @@ export async function POST(req: Request): Promise<Response> {
 
   // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
   // job is to call `submit_plan` (approval-gated → the Plan card); on approval its `execute` runs the
-  // steps through the deterministic pipeline. Restricted to the plain chat turn — image/files/computer
-  // carry their own specialized toolsets + prompts, and a skill `steps:` pipeline (below) is a
+  // steps through the deterministic pipeline. Restricted to the plain chat turn — image/files/computer/health
+  // carry their own specialized toolsets/prompts, and a skill `steps:` pipeline (below) is a
   // deterministic workflow already, so plan mode stands down for those.
-  const planMode = !!plan && !imageTurn && !filesTurn && !computerTurn;
+  const planMode = !!plan && !imageTurn && !filesTurn && !computerTurn && !healthTurn;
 
   // Dynamic effort: grade each non-image turn (text + voice) into a tier and derive its params
   // (tools on/off, step cap, `/no_think`, token ceiling). A spoken turn must answer in seconds,
@@ -586,12 +601,19 @@ export async function POST(req: Request): Promise<Response> {
   // plus the skills section ("" when no skills — honest empty state).
   const lastText = lastUserText(validated);
   planTask = lastText; // the overall task each approved plan step is executed against
-  const [systemPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([getPrompt("system", base.body), skillsSystemSection(), activeSkillsSection(lastText), preferenceTexts(), getConstitution()]);
+  const [systemPrompt, healthPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([
+    getPrompt("chat", base.body),
+    healthTurn ? getPrompt("health") : Promise.resolve(""),
+    skillsSystemSection(),
+    activeSkillsSection(lastText),
+    preferenceTexts(),
+    getConstitution(),
+  ]);
   const baseSystem = systemPrompt;
   // The constitution (soul + goals) makes EVERY turn goal-aware, not just heartbeats. Bounded by the
   // store's per-file cap. Trimmed so an unedited/empty file contributes nothing to the prompt.
-  const soulSection = constitution.soul.trim() ? "Who you're assisting (their soul.md):\n" + constitution.soul.trim() : "";
-  const goalsSection = constitution.goals.trim() ? "Their goals (goals.md) — weigh your help against these:\n" + constitution.goals.trim() : "";
+  const soulSection = buildSoulSection(constitution.soul);
+  const goalsSection = buildGoalsSection(constitution.goals);
   // Always advertise the skill catalog — even with a skill already active — so the model can
   // ORCHESTRATE: discover and load OTHER skills mid-flow with read_skill (multi-skill workflows).
   // When a skill is auto-active its body is already injected (activeSkills.section); the catalog
@@ -602,7 +624,7 @@ export async function POST(req: Request): Promise<Response> {
   const declaredSkillTools = activeSkills?.tools ?? [];
   // `preference` memories steer behavior on EVERY turn (other memory types are
   // retrieval-only via recall/search_graph). Bounded: newest 20.
-  const prefSection = prefs.length ? "Saved user preferences — follow them: " + prefs.slice(0, 20).map((p) => `· ${p}`).join(" ") : "";
+  const prefSection = buildPreferenceSection(prefs);
 
   // Tool toggles apply at streamText (not at validation): old threads must still
   // validate against the full registry even when a tool they used is now disabled.
@@ -620,43 +642,33 @@ export async function POST(req: Request): Promise<Response> {
   const enabledTools = planMode ? planTool : withApprovalGates(await filterEnabledTools(agentTools));
   // Tell the model about its computer-use powers only when they're actually active —
   // naming them every turn invites hallucinated <tool_call>s for absent tools.
-  const computerNote = computerTurn
-    ? "You can act on this Mac (all on-device or on the user's own paired mesh, never a cloud): screenshot (SEE the screen — use it before and after acting), " +
-      "and the approval-gated run_command (the real-disk executor — read with `cat`, write with a heredoc, edit with `sed`/`patch`, plus installs/builds) and computer (mouse+keyboard). If the user denies an approval, do not retry it."
-    : "";
+  const computerNote = computerTurn ? CHAT_COMPUTER_MODE_NOTE : "";
   // Files turn: name the sandboxed retrieval tool so the model reaches for bash (grep/find/cat/jq)
   // over the user's files. It's a read-only in-memory snapshot — no approval, can't touch the disk.
-  const filesNote = filesTurn
-    ? "You're in file-retrieval mode. You have a SANDBOXED `bash` over a READ-ONLY in-memory snapshot of the user's files " +
-      "(run grep/find/cat/jq/ls to locate and read context). Prefer it for searching and reading the user's files. " +
-      "The sandbox cannot touch the real disk — writes affect only the sandbox, so don't promise to have changed real files here."
-    : "";
+  const filesNote = filesTurn ? CHAT_FILES_MODE_NOTE : "";
   // The (possibly overridden) system prompt may still NAME disabled tools — tell the
   // model they're gone, or it text-hallucinates <tool_call> blocks for them.
   // (`off` was read above for the computer-turn routing.)
-  const disabledNote = off.size > 0 ? `The following tools are DISABLED and unavailable right now — do not attempt to call them: ${[...off].join(", ")}.` : "";
+  const disabledNote = buildDisabledToolsNote(off);
   // Some tool calls pause on a human approval card. A DENIED call must not be retried —
   // acknowledge the refusal and move on (without this, small models loop the same call).
-  const approvalNote =
-    "Some tool calls require the user's approval before running. If the user denies a tool call, do NOT retry it — acknowledge that it was declined and continue without it.";
+  const approvalNote = CHAT_APPROVAL_NOTE;
   // Thinking-budget cap (SmallCode port): on reasoning-ON turns (deep text), qwen3-4b can burn its
   // whole token budget on <think> and emit no answer. Steer it to reason briefly so the answer fits
   // (paired with the raised deep-tier token budget in effort.ts). Only when not /no_think and not vision.
   const thinkingNote =
     !useNoThink && !imageTurn
-      ? "Keep your private <think> reasoning BRIEF and focused — a few short sentences, not an essay — then write your actual answer. The answer matters more than the reasoning; never let thinking use up your whole response."
+      ? CHAT_THINKING_NOTE
       : "";
   // Plan mode: the model's ONE job is to draft a plan via submit_plan; the user approves it and the
   // harness runs each step. After the steps run, present their combined result as your final answer.
-  const planNote = planMode
-    ? "PLAN MODE IS ON. Do NOT answer the request directly. Your ONLY action now is to call `submit_plan` with an ordered list of ATOMIC steps (one self-contained sub-task each) that together accomplish the request — even a simple request becomes a 1-step plan. The user will review and approve it, then each step runs in order; after they finish you present the combined result as your answer."
-    : "";
+  const planNote = planMode ? CHAT_PLAN_MODE_NOTE : "";
   // Inline citations (graceful): when grounding an answer in retrieved sources, the model MAY tag
   // facts with [1], [2], … numbered in the order it first used them — the UI turns valid markers into
   // source pills. Optional, so it never forces behavior on a turn with no sources.
   const citeNote =
     !imageTurn && !computerTurn
-      ? "If you state a fact you got from a search result (your notes or the paper), you may cite it inline as [1], [2], … numbering the sources in the order you first use them. Only cite real retrieved sources; never invent citation numbers."
+      ? CHAT_CITATION_NOTE
       : "";
 
   // Context compaction (text turns only): when the thread outgrows the model's window,
@@ -673,12 +685,12 @@ export async function POST(req: Request): Promise<Response> {
   if (!imageTurn) {
     const c = await compact(id, validated, CTX, { summary: record?.summary, summarizedThrough: record?.summarizedThrough });
     if (c.tailFrom > 0 && c.tailFrom < validated.length) modelMessages = validated.slice(c.tailFrom);
-    if (c.summary) summarySection = `Earlier in this conversation (summary of ${c.tailFrom} prior message${c.tailFrom === 1 ? "" : "s"}): ${c.summary}`;
+    if (c.summary) summarySection = buildSummarySection(c.summary, c.tailFrom);
   }
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? "/no_think" : ""]
+  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -761,7 +773,7 @@ export async function POST(req: Request): Promise<Response> {
   // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
   const agent = buildLeashAgent(enabledTools, () => interjectRequested(id), conductorModel);
   const callOptions: LeashCallOptions = {
-    route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : "chat",
+    route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : healthTurn ? "health" : "chat",
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.

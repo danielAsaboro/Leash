@@ -5,6 +5,8 @@
  * topic — so the provider answers from its already-resident serve model (no on-phone weights, no
  * duplicate load / registry contention on the provider). Single reusable worklet; one request in flight.
  */
+import { DEFAULT_MESH_IMAGE_PROMPT } from "./prompt";
+
 /** Structured OpenAI streaming delta surfaced to tool-aware consumers (Stage 3). Mirrors the
  *  producer's `ForwardFrame` chunk `delta` field in apps/hypha/src/forward-control.ts. */
 export type ForwardDelta = { content?: string; tool_calls?: unknown[]; finish_reason?: string | null };
@@ -198,7 +200,7 @@ export function meshVision(
   timeoutMs = 180_000,
 ): Promise<string> {
   const content: unknown[] = [
-    { type: "text", text: prompt || "What is in this image? Answer in one short sentence." },
+    { type: "text", text: prompt || DEFAULT_MESH_IMAGE_PROMPT },
     ...imageDataUrls.map((url) => ({ type: "image_url", image_url: { url } })),
   ];
   return meshForward({ providerKey, consumerKey, model, messages: [{ role: "user", content }], onChunk, timeoutMs });

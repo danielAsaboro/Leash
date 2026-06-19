@@ -14,6 +14,7 @@ import { z } from "zod";
 import { chatModelBackground } from "./provider.ts";
 import { saveSummary } from "./chat-store.ts";
 import type { LeashUIMessage } from "./types.ts";
+import { COMPACTION_NOOP_TOOL_DESCRIPTION, buildCompactionPrompt } from "./prompt.ts";
 
 /** Messages always kept verbatim at the end (recent turns the model sees in full). */
 const KEEP_TAIL = 6;
@@ -35,7 +36,7 @@ function messageText(m: LeashUIMessage): string {
 const estTokens = (s: string): number => Math.ceil(s.length / 4);
 
 const inertTools = {
-  noop: tool({ description: "Unused. Do NOT call this — answer directly in text.", inputSchema: z.object({}), execute: async () => ({ ignore: true }) }),
+  noop: tool({ description: COMPACTION_NOOP_TOOL_DESCRIPTION, inputSchema: z.object({}), execute: async () => ({ ignore: true }) }),
 };
 
 export interface Compaction {
@@ -80,11 +81,7 @@ export async function compact(chatId: string, messages: LeashUIMessage[], ctxSiz
   }
 
   try {
-    const prompt =
-      "/no_think\nYou maintain a running summary of a conversation so it fits a small context window.\n" +
-      (summary ? `Existing summary:\n${summary}\n\n` : "") +
-      `New earlier messages to fold in:\n${toFold}\n\n` +
-      "Write an updated, compact summary (max ~200 words) preserving names, decisions, facts, preferences, and open threads. Output only the summary.";
+    const prompt = buildCompactionPrompt({ summary, toFold });
     const result = streamText({ model: chatModelBackground(), prompt, maxOutputTokens: 400, tools: inertTools, stopWhen: stepCountIs(2) });
     let text = "";
     for await (const d of result.textStream) text += d;

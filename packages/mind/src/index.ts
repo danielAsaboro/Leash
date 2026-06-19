@@ -15,5 +15,6 @@ export { verifyClaims } from "./critic.ts";
 export type { Verdict, VerifyClaimsParams } from "./critic.ts";
 export { classify, answerTrivial } from "./router.ts";
 export type { Classification, AnswerTrivialParams } from "./router.ts";
-export { runMedPsyConsult, MEDPSY_PROPOSER_SYSTEM, NON_DIAGNOSTIC_DISCLAIMER, EMERGENCY_BANNER } from "./medpsy.ts";
+export { runMedPsyConsult, HEALTH_RECORDS_CONSULT_SYSTEM, NON_DIAGNOSTIC_DISCLAIMER, EMERGENCY_BANNER } from "./medpsy.ts";
 export type { MedPsyDeps, MedPsyResult } from "./medpsy.ts";
+export { COUNCIL_PROPOSER_SYSTEM, COUNCIL_VERIFIER_SYSTEM } from "./prompt.ts";

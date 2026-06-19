@@ -28,6 +28,7 @@ import { getSkill, type Skill } from "./skills-store.ts";
 import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { LeashSource } from "./tools.ts";
+import { buildSkillStepSystemPrompt, buildSkillSubtaskSystemPrompt } from "./prompt.ts";
 
 /** Step budget for a single-shot delegated sub-skill (its own small tool loop). */
 const SUB_STEPS = 6;
@@ -77,10 +78,7 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
     const prior = results.length
       ? `\n\nResults from earlier steps (use them — a later step often depends on what an earlier one returned):\n${results.map((r, j) => `· Step ${j + 1} (${skill.steps[j]}): ${r}`).join("\n")}`
       : "";
-    const system =
-      `You are executing ONE step of the "${skill.name}" skill for the main assistant.\n\n${skill.body}\n\n` +
-      `OVERALL TASK: ${task}\n\nYOUR CURRENT STEP (${i + 1} of ${skill.steps.length}): ${step}${prior}\n\n` +
-      `Do ONLY this step now — call a tool if the step needs one — then briefly report what you did or found. Do not attempt the other steps; the harness will run them.`;
+    const system = buildSkillStepSystemPrompt({ skillName: skill.name, skillBody: skill.body, task, step, index: i, total: skill.steps.length, prior });
     loopLog(`pipeline ${skill.slug} step ${i + 1}/${skill.steps.length}: ${step.slice(0, 60)}`);
     const r = await generateText(subCallBase(`run_skill:${skill.slug}:step${i + 1}`, system, step, subTools, names, PIPELINE_STEP_BUDGET));
     results.push(r.text.trim() || "(this step produced no text output)");
@@ -137,7 +135,7 @@ export function buildSkillRunner(registry: ToolSet): ToolSet {
             const r = await generateText(
               subCallBase(
                 `run_skill:${s.slug}`,
-                `You are running the "${s.name}" skill as a focused sub-task for the main assistant. Follow these instructions, use your tools, and return a concise result the main assistant can use directly.\n\n${s.body}`,
+                buildSkillSubtaskSystemPrompt(s.name, s.body),
                 task,
                 subTools,
                 names,

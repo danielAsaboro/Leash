@@ -10,6 +10,9 @@
  * Distinct from `ChatTurn` in kv-sessions.ts (that one is the KV-cache session
  * ledger shape); keep the two separate on purpose.
  */
+import { SHARED_CHAT_SYSTEM_PROMPT } from "./prompt.ts";
+
+export { SHARED_CHAT_SYSTEM_PROMPT } from "./prompt.ts";
 
 /** One message in a chat transcript, in the shape `completion({ history })` expects. */
 export interface ChatMessage {
@@ -18,25 +21,16 @@ export interface ChatMessage {
 }
 
 /**
- * Default system prompt for the desktop/mobile chat clients. Kept terse and
- * on-device-flavoured — these clients run a small local model with no tools.
- */
-export const DEFAULT_SYSTEM_PROMPT =
-  'You are Leash, a private assistant running entirely on the user\'s own device. ' +
-  'Answer concisely and helpfully. You have no internet access; never claim to look ' +
-  'things up online.'
-
-/**
  * Build the `history` array handed to `completion()`. Prepends a single system
  * message (unless the caller already included one) and drops any empty messages
  * so a half-typed bubble never reaches the model.
  *
  * @param messages  The visible transcript (user/assistant turns, no system).
- * @param system    System prompt to lead with. Defaults to {@link DEFAULT_SYSTEM_PROMPT}.
+ * @param system    System prompt to lead with. Defaults to {@link SHARED_CHAT_SYSTEM_PROMPT}.
  */
 export function buildHistory(
   messages: ChatMessage[],
-  system: string = DEFAULT_SYSTEM_PROMPT
+  system: string = SHARED_CHAT_SYSTEM_PROMPT
 ): ChatMessage[] {
   const turns = messages.filter((m) => m.role !== 'system' && m.content.trim().length > 0)
   const hasSystem = messages.some((m) => m.role === 'system')

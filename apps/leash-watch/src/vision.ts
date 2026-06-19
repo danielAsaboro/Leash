@@ -8,9 +8,9 @@
  */
 import { AuditLog, now } from "@mycelium/shared";
 import { QVAC_OPENAI_URL, VISION_MODEL, VISION_TIMEOUT_MS, LOG_DIR } from "./config.ts";
+import { FRAME_SUMMARY_PROMPT } from "./prompt.ts";
 
 const audit = new AuditLog("leash-watch", LOG_DIR);
-const PROMPT = "Summarize what's on screen in one line; note the app and task.";
 
 export interface VisionResult {
   summary: string;
@@ -88,7 +88,7 @@ export async function summarizeFrame(dataUrl: string, app: string): Promise<Visi
           {
             role: "user",
             content: [
-              { type: "text", text: PROMPT },
+              { type: "text", text: FRAME_SUMMARY_PROMPT },
               { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
@@ -107,7 +107,7 @@ export async function summarizeFrame(dataUrl: string, app: string): Promise<Visi
     audit.record({
       event: "completion",
       modelId: VISION_MODEL,
-      prompt: PROMPT,
+      prompt: FRAME_SUMMARY_PROMPT,
       tokens: json.usage?.completion_tokens,
       ttftMs,
       durationMs,

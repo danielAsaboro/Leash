@@ -28,6 +28,7 @@ import type { Agent } from "./agents-store.ts";
 import { mcpToolNamesForServers, connectInline } from "./mcp.ts";
 import { grantedNames } from "./agent-grants.ts";
 import { readMemoryContext, agentMemoryTools } from "./agent-memory.ts";
+import { buildAgentFallbackInstructions } from "./prompt.ts";
 
 /** Max agent tools emitted at once — each is one schema; cap keeps the active toolset under budget. */
 const AGENT_TOOLS_CAP = 8;
@@ -124,7 +125,7 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
           // QVAC wedge rule: maxRetries 0 and NEVER an abortSignal (an aborted decode wedges the serve).
           const sub = new ToolLoopAgent({
             model: chatModel(`agent:${agent.slug}`, agent.model || undefined),
-            instructions: (agent.body || `You are the "${agent.name}" agent. Carry out the task and end with a clear, self-contained summary of your result.`) + skillCtx + memCtx,
+            instructions: (agent.body || buildAgentFallbackInstructions(agent.name)) + skillCtx + memCtx,
             temperature: 0.6,
             topP: 0.95,
             maxRetries: 0,

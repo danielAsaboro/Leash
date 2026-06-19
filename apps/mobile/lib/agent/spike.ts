@@ -12,6 +12,7 @@
 import { streamText, stepCountIs, tool } from "ai";
 import { z } from "zod";
 import { deviceChatModel } from "../qvac-bridge";
+import { BRIDGE_SPIKE_NOW_TOOL_DESCRIPTION, BRIDGE_SPIKE_SYSTEM, BRIDGE_SPIKE_USER_PROMPT } from "../../prompt";
 
 export type SpikeResult = {
   ok: boolean;
@@ -31,11 +32,11 @@ export async function runBridgeSpike(modelId: string): Promise<SpikeResult> {
     log.push(`[spike] model=${modelId} starting streamText`);
     const result = streamText({
       model: deviceChatModel(modelId),
-      system: "You are a concise assistant. When asked the time, call the `now` tool, then answer in one short sentence.",
-      messages: [{ role: "user", content: "Think briefly about why you'd need a tool, then tell me the current time." }],
+      system: BRIDGE_SPIKE_SYSTEM,
+      messages: [{ role: "user", content: BRIDGE_SPIKE_USER_PROMPT }],
       tools: {
         now: tool({
-          description: "Get the current date and time as an ISO 8601 string.",
+          description: BRIDGE_SPIKE_NOW_TOOL_DESCRIPTION,
           inputSchema: z.object({}),
           execute: async () => ({ iso: new Date().toISOString() }),
         }),

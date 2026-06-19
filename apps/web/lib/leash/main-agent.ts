@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { splitFrontmatter } from "@mycelium/leash-core/frontmatter";
-import { DEFAULT_LEASH_SYSTEM } from "./leash-defaults.ts";
+import { CHAT_SYSTEM_PROMPT } from "./prompt.ts";
 
 export interface MainAgentBase {
   body: string;
@@ -12,14 +12,14 @@ export interface MainAgentBase {
   name: string;
 }
 
-const FALLBACK: MainAgentBase = { body: DEFAULT_LEASH_SYSTEM, model: "", name: "Leash" };
+const FALLBACK: MainAgentBase = { body: CHAT_SYSTEM_PROMPT, model: "", name: "Leash" };
 
 const here = dirname(fileURLToPath(import.meta.url));
 // In the packaged standalone build the bundled route module can't resolve the source tree, so
 // server-launch.mjs injects LEASH_BUILTIN_AGENTS_DIR. Dev/tsx/tests fall back to the source-relative
 // path (apps/web/lib/leash → apps/web/builtin-agents).
 const BUILTIN_AGENTS_DIR = process.env["LEASH_BUILTIN_AGENTS_DIR"] ?? join(here, "..", "..", "builtin-agents");
-const DEFAULT_LEASH_MD = join(BUILTIN_AGENTS_DIR, "leash.md");
+const BUILTIN_LEASH_AGENT_MD = join(BUILTIN_AGENTS_DIR, "leash.md");
 
 /**
  * Load the static base (prompt + model + name) for the main Leash agent from leash.md.
@@ -28,7 +28,7 @@ const DEFAULT_LEASH_MD = join(BUILTIN_AGENTS_DIR, "leash.md");
  */
 export function loadMainAgentBase(mdPath?: string): MainAgentBase {
   try {
-    const raw = readFileSync(mdPath ?? DEFAULT_LEASH_MD, "utf8");
+    const raw = readFileSync(mdPath ?? BUILTIN_LEASH_AGENT_MD, "utf8");
     const parsed = splitFrontmatter(raw);
     if (!parsed) return { ...FALLBACK };
     const { fields, body } = parsed;

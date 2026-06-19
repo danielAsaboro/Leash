@@ -18,6 +18,7 @@ import type { AuditLog } from "@mycelium/shared";
 import type { Hit } from "@mycelium/senses";
 import { SEARCH_GRAPH_TOOL } from "./tools.ts";
 import { verifyClaims, type Verdict } from "./critic.ts";
+import { COUNCIL_PROPOSER_SYSTEM } from "./prompt.ts";
 
 type Msg = { role: string; content: string };
 
@@ -46,12 +47,6 @@ export interface CouncilResult {
 }
 
 const MAX_ITERS = 2;
-
-const PROPOSER_SYSTEM =
-  "You are the proposer in a private on-device assistant. You have a tool, search_graph, that " +
-  "searches the user's private notes. For any question about the user (their devices, projects, or " +
-  "preferences) you MUST call search_graph first instead of guessing. After you receive results, " +
-  "answer concisely and cite each claim as [Source N]. If the sources don't contain the answer, say so.";
 
 /** One proposer turn with the search_graph tool. Drains the stream (so `final` resolves) and streams via onToken. */
 async function proposeTurn(deps: CouncilDeps, history: Msg[]): Promise<CompletionFinal> {
@@ -83,7 +78,7 @@ function readTopK(args: Record<string, unknown>): number {
 
 export async function runCouncil({ deps, question }: { deps: CouncilDeps; question: string }): Promise<CouncilResult> {
   const history: Msg[] = [
-    { role: "system", content: PROPOSER_SYSTEM },
+    { role: "system", content: COUNCIL_PROPOSER_SYSTEM },
     { role: "user", content: question },
   ];
   const sources: Hit[] = [];

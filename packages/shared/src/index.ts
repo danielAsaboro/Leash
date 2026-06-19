@@ -326,5 +326,5 @@ export type { GraphNode, GraphNodeInput } from "./graph.ts";
 
 // Framework-agnostic chat primitives — shared by apps/desktop (and a future
 // apps/mobile) so the chat message model + history builder need no rewrite.
-export { DEFAULT_SYSTEM_PROMPT, buildHistory } from "./chat.ts";
+export { SHARED_CHAT_SYSTEM_PROMPT, buildHistory } from "./chat.ts";
 export type { ChatMessage } from "./chat.ts";

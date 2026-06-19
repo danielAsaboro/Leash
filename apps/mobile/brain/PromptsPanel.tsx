@@ -4,19 +4,19 @@ import { C, F, TRACKING_LABEL } from "../theme";
 import { getPrompts, isOverridden, PROMPT_META, resetPrompt, setPrompt, type PromptKey } from "../prompts";
 
 /**
- * Brain → Prompts. Edit the System prompt + Voice directive overrides. Saving writes the override
+ * Brain → Prompts. Edit the Chat prompt + Voice response prompt overrides. Saving writes the override
  * and calls onChanged so App recomposes the live chat system message — so an edit here visibly
  * changes the next reply (the proof these tabs are real, Rule 4). Reset restores the code default.
  */
 export function PromptsPanel({ onChanged }: { onChanged: () => void }) {
-  const [drafts, setDrafts] = useState<Record<PromptKey, string>>({ system: "", voice: "" });
-  const [overridden, setOverridden] = useState<Record<PromptKey, boolean>>({ system: false, voice: false });
+  const [drafts, setDrafts] = useState<Record<PromptKey, string>>({ chat: "", voice: "" });
+  const [overridden, setOverridden] = useState<Record<PromptKey, boolean>>({ chat: false, voice: false });
   const [saved, setSaved] = useState<PromptKey | null>(null);
 
   const load = async () => {
     const p = await getPrompts();
-    setDrafts({ system: p.system, voice: p.voice });
-    setOverridden({ system: await isOverridden("system"), voice: await isOverridden("voice") });
+    setDrafts({ chat: p.chat, voice: p.voice });
+    setOverridden({ chat: await isOverridden("chat"), voice: await isOverridden("voice") });
   };
   useEffect(() => {
     void load();
@@ -69,8 +69,8 @@ export function PromptsPanel({ onChanged }: { onChanged: () => void }) {
         </View>
       ))}
       <Text style={styles.foot}>
-        These are applied live: the System prompt (plus your soul, goals, and memories) is composed
-        into every chat turn; the Voice directive is appended on spoken replies.
+        These are applied live: the Chat prompt (plus your soul, goals, and memories) is composed
+        into every chat turn; the Voice response prompt is appended on spoken replies.
       </Text>
     </View>
   );

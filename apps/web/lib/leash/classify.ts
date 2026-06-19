@@ -19,6 +19,7 @@ import "server-only";
 import { generateText, embed } from "ai";
 import { classifierModel, embeddingModel } from "./provider.ts";
 import { cosine } from "./graph.ts";
+import { ACTION_TIER_CLASSIFIER_RUBRIC } from "./prompt.ts";
 
 export type Tier = "auto" | "notify" | "ask";
 
@@ -40,14 +41,6 @@ const ASK_FLOOR =
 export function hardFloor(proposal: string): Tier {
   return ASK_FLOOR.test(proposal) ? "ask" : "auto";
 }
-
-const RUBRIC =
-  "You classify a PROPOSED proactive action by how it should reach the user. Reply with ONLY a compact JSON object " +
-  '{"tier":"auto|notify|ask","reason":"<≤12 words>"}. Tiers:\n' +
-  "- auto: reversible, low-stakes, clearly helpful and on-goal (e.g. tagging, an internal note). Acts silently.\n" +
-  "- notify: a nudge, suggestion, or reversible action worth telling the user about. THE DEFAULT for observations.\n" +
-  "- ask: anything outward-facing (sending/posting/messaging), irreversible (deleting), spending money, or sensitive — needs approval first.\n" +
-  "When unsure, choose the SAFER (higher) tier. Output JSON only, no prose.";
 
 function parseTier(raw: string): { tier: Tier; reason: string } | null {
   const m = raw.match(/\{[\s\S]*\}/);
@@ -82,7 +75,7 @@ export async function classifyAction(input: { proposal: string; goals?: string }
   const onGoal = await onGoalScore(proposal, input.goals ?? "");
   if (!proposal) return { tier: "notify", reason: "empty proposal", onGoal };
   try {
-    const { text } = await generateText({ model: classifierModel(), system: RUBRIC, prompt: proposal.slice(0, 2000), temperature: 0, maxOutputTokens: 80, maxRetries: 0 });
+    const { text } = await generateText({ model: classifierModel(), system: ACTION_TIER_CLASSIFIER_RUBRIC, prompt: proposal.slice(0, 2000), temperature: 0, maxOutputTokens: 80, maxRetries: 0 });
     const parsed = parseTier(text);
     const modelTier = parsed?.tier ?? "notify";
     return { tier: stricterTier(modelTier, floor), reason: parsed?.reason || "graded by classifier", onGoal };

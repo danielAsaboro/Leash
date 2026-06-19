@@ -9,6 +9,7 @@
 import { completion } from "@qvac/sdk";
 import type { AuditLog } from "@mycelium/shared";
 import type { Hit } from "@mycelium/senses";
+import { COUNCIL_VERIFIER_SYSTEM } from "./prompt.ts";
 
 export interface Verdict {
   verdict: "pass" | "revise";
@@ -23,12 +24,6 @@ export interface VerifyClaimsParams {
   audit?: AuditLog;
 }
 
-const VERIFIER_SYSTEM =
-  "You are the verifier in a private on-device assistant. Decide whether every claim in the " +
-  "ANSWER is supported by the SOURCES. Begin your reply with exactly one word — PASS if all claims " +
-  "are supported (or the answer correctly states it doesn't know), or REVISE if any claim is " +
-  "unsupported or contradicts the sources — then give a one-sentence reason.";
-
 /** Verify the answer's claims against its sources. Emits a `completion` (verifier) record. */
 export async function verifyClaims({ llmModelId, answer, sources, audit }: VerifyClaimsParams): Promise<Verdict> {
   const sourceText = sources.length
@@ -37,7 +32,7 @@ export async function verifyClaims({ llmModelId, answer, sources, audit }: Verif
   const run = completion({
     modelId: llmModelId,
     history: [
-      { role: "system", content: VERIFIER_SYSTEM },
+      { role: "system", content: COUNCIL_VERIFIER_SYSTEM },
       { role: "user", content: `SOURCES:\n${sourceText}\n\nANSWER:\n${answer}` },
     ],
     stream: true,
