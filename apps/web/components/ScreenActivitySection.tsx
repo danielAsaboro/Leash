@@ -5,6 +5,7 @@ import { Trash2Icon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { ActivityPage } from "../lib/leash/memory-admin.ts";
 
 /**
@@ -28,10 +29,18 @@ export function ScreenActivitySection({ activity, offset, pageSize = 50 }: { act
     setError(null);
     try {
       const res = await fetchWithTimeout("/api/leash/memory/forget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "activity", ts }) });
-      if (!res.ok) setError(`Forget failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Forget failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        toast.success("Activity record forgotten");
+      }
       router.refresh();
     } catch {
-      setError("Forget failed — is the app still running?");
+      const msg = "Forget failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

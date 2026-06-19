@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { TicketIcon } from "lucide-react";
 import { fetchWithTimeout } from "../../lib/http.ts";
+import { toast } from "../Toast.tsx";
 
 const kicker = (color: string) => ({ color, fontFamily: "var(--font-mono)" as const });
 
@@ -70,10 +71,18 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
     try {
       const r = await fetchWithTimeout("/api/leash/hypha/mesh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "invite", meshId }) });
       const body = (await r.json().catch(() => ({}))) as { invite?: string; error?: string };
-      if (!r.ok || body.error || !body.invite) setError(body.error ?? `Couldn't mint an invite (${r.status}).`);
-      else setInvite(body.invite);
+      if (!r.ok || body.error || !body.invite) {
+        const msg = body.error ?? `Couldn't mint an invite (${r.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        setInvite(body.invite);
+        toast.success("Mesh invite minted");
+      }
     } catch {
-      setError("Request failed — is the Hypha daemon running? (Services → Mesh)");
+      const msg = "Request failed — is the Hypha daemon running? (Services → Mesh)";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -84,9 +93,10 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
     try {
       await navigator.clipboard.writeText(invite);
       setCopied(true);
+      toast.success("Invite copied");
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard blocked — the textarea is selectable */
+      toast.error("Couldn't copy invite");
     }
   };
 

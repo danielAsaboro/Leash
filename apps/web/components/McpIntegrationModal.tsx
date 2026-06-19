@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { XIcon, PlusIcon, Trash2Icon, WandSparklesIcon, ImageIcon, UploadIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { McpServerStatus } from "../lib/leash/mcp.ts";
 import {
   validateServerInput,
@@ -177,7 +178,13 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
       setBusy(true);
       const r = await putEdit(editing.id, { name: name.trim(), userIcon: iconValue.trim() });
       setBusy(false);
-      if (!r.ok) return setError(r.error ?? "failed");
+      if (!r.ok) {
+        const msg = r.error ?? "failed";
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success("Integration updated");
       router.refresh();
       onClose();
       return;
@@ -185,16 +192,21 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
     try {
       validateServerInput(manualInput()); // instant inline feedback before the round-trip
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setBusy(true);
     const r = isEdit && editing ? await putEdit(editing.id, manualInput()) : await post(manualInput());
     setBusy(false);
     if (!r.ok) {
-      setError(r.error ?? "failed");
+      const msg = r.error ?? "failed";
+      setError(msg);
+      toast.error(msg);
       return;
     }
+    toast.success(isEdit ? "Integration updated" : "Integration added");
     router.refresh();
     onClose();
   };
@@ -216,7 +228,9 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
     setError(null);
     setJsonSummary(null);
     if (!preview || preview.parseError) {
-      setError(preview?.parseError ?? "paste a JSON object of servers");
+      const msg = preview?.parseError ?? "paste a JSON object of servers";
+      setError(msg);
+      toast.error(msg);
       return;
     }
     setBusy(true);
@@ -236,11 +250,17 @@ export function McpIntegrationModal({ existing, editing, onClose }: { existing: 
     setBusy(false);
     router.refresh();
     if (added > 0 && failed.length === 0) {
+      toast.success(`Added ${added} integration${added === 1 ? "" : "s"}`);
       onClose();
       return;
     }
-    setJsonSummary(`Added ${added}${skipped ? ` · skipped ${skipped} (already configured)` : ""}${failed.length ? ` · ${failed.length} failed` : ""}`);
-    if (failed.length) setError(failed.join("\n"));
+    const summary = `Added ${added}${skipped ? ` · skipped ${skipped} (already configured)` : ""}${failed.length ? ` · ${failed.length} failed` : ""}`;
+    setJsonSummary(summary);
+    if (added > 0) toast.info(summary);
+    if (failed.length) {
+      setError(failed.join("\n"));
+      toast.error(`${failed.length} integration${failed.length === 1 ? "" : "s"} failed`);
+    }
   };
 
   return (

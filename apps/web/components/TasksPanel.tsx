@@ -1,11 +1,12 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PlusIcon, CheckCheckIcon, RotateCcwIcon, Trash2Icon, XIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { LeashTask, TaskStatus, TaskPriority, TaskSource } from "../lib/leash/tasks-store.ts";
 
 /* Live (system) rows that share the task list: downloads + services. A task with a different KIND. */
@@ -73,6 +74,7 @@ export function TasksPanel({
   const [downloads, setDownloads] = useState<Dl[]>(initialDownloads);
   const [services, setServices] = useState<Svc[]>([]);
   const [retrying, setRetrying] = useState<Set<string>>(new Set());
+  const lastMeshToast = useRef(0);
   useEffect(() => {
     let alive = true;
     const tick = async (): Promise<void> => {
@@ -104,7 +106,14 @@ export function TasksPanel({
       es = new EventSource("/api/leash/hypha/events");
       es.onmessage = (e) => {
         try {
-          if ((JSON.parse(e.data) as { kind?: string }).kind === "tasks") router.refresh();
+          if ((JSON.parse(e.data) as { kind?: string }).kind === "tasks") {
+            router.refresh();
+            const now = Date.now();
+            if (now - lastMeshToast.current > 10_000) {
+              lastMeshToast.current = now;
+              toast.info("Tasks synced from the mesh");
+            }
+          }
         } catch {
           /* non-JSON keepalive/down frame — ignore */
         }
@@ -118,12 +127,14 @@ export function TasksPanel({
     return () => es?.close();
   }, [router]);
   const activeServices = services.filter((s) => SVC_VIEW[s.state] !== null);
-  const postDownload = (d: Dl, action: "retry" | "cancel"): Promise<unknown> =>
-    fetchWithTimeout("/api/leash/downloads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: d.name, kind: d.kind ?? "model", action }) }, 15000).catch(() => undefined);
+  const postDownload = (d: Dl, action: "retry" | "cancel"): Promise<Response | null> =>
+    fetchWithTimeout("/api/leash/downloads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: d.name, kind: d.kind ?? "model", action }) }, 15000).catch(() => null);
   const retryDownload = async (d: Dl): Promise<void> => {
     const key = `${d.kind ?? "model"}:${d.name}`;
     setRetrying((s) => new Set(s).add(key));
-    await postDownload(d, "retry");
+    const res = await postDownload(d, "retry");
+    if (res?.ok) toast.info(`Retrying ${d.label ?? d.name}`);
+    else toast.error(`Couldn't retry ${d.label ?? d.name}`);
     setTimeout(() => setRetrying((s) => { const n = new Set(s); n.delete(key); return n; }), 4000);
   };
   const cancelDownload = async (d: Dl): Promise<void> => {
@@ -132,7 +143,9 @@ export function TasksPanel({
     setDownloads((ds) =>
       ds.map((x) => (x.name === d.name && (x.kind ?? "model") === (d.kind ?? "model") ? { ...x, state: "cancelled" as const, error: "cancelled by you" } : x)),
     );
-    await postDownload(d, "cancel");
+    const res = await postDownload(d, "cancel");
+    if (res?.ok) toast.success(`Cancelled ${d.label ?? d.name}`);
+    else toast.error(`Couldn't cancel ${d.label ?? d.name}`);
   };
 
   // Downloads/services share the page's status filter (they're tasks-with-a-kind). They aren't
@@ -172,7 +185,13 @@ export function TasksPanel({
         }),
       );
       const failed = results.filter((ok) => !ok).length;
-      if (failed > 0) setError(`${ids.length - failed} of ${ids.length} ${label} — ${failed} failed.`);
+      if (failed > 0) {
+        const msg = `${ids.length - failed} of ${ids.length} ${label} — ${failed} failed.`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        toast.success(`${ids.length} ${label}`);
+      }
       setSelected(new Set());
       router.refresh();
     } finally {
@@ -189,15 +208,23 @@ export function TasksPanel({
     void bulk("deleted", (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
   };
 
-  const call = async (fn: () => Promise<Response>) => {
+  const call = async (fn: () => Promise<Response>, success = "Task updated") => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
-      if (!res.ok) setError(`Request failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success(success);
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -217,23 +244,28 @@ export function TasksPanel({
       if (res.ok) {
         setTitle("");
         setDetail("");
+        toast.success("Task created");
       } else {
-        setError(`Couldn't create the task (${res.status}).`);
+        const msg = `Couldn't create the task (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
       }
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
   };
 
   const patch = (id: string, body: Record<string, unknown>) =>
-    call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+    call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), "Task updated");
 
   const del = async (id: string) => {
     if (!(await appConfirm("Delete this task?", { confirmLabel: "Delete", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }), "Task deleted");
   };
 
   return (

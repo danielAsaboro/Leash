@@ -8,9 +8,17 @@ import { useState } from "react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { activateAndGo } from "../lib/auth-handshake.ts";
 import { appAlert, appConfirm } from "../lib/prompt.ts";
+import { toast } from "./Toast.tsx";
 
 async function signOut(): Promise<void> {
-  await fetch("/api/leash/auth/logout", { method: "POST" });
+  try {
+    const res = await fetch("/api/leash/auth/logout", { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    toast.success("Signed out");
+  } catch {
+    toast.error("Sign out failed");
+    return;
+  }
   // logout drops the supervisor back to BOOTSTRAP (no active user); wait for that respawn
   // before landing on /login so we don't race a connection-refused.
   await activateAndGo(null, "/login");
@@ -45,11 +53,15 @@ export function AccountCard({ username, userId }: { username: string; userId: st
     e.preventDefault();
     setMsg(null);
     if (next !== confirm) {
-      setMsg({ kind: "err", text: "New passwords don't match." });
+      const text = "New passwords don't match.";
+      setMsg({ kind: "err", text });
+      toast.error(text);
       return;
     }
     if (next.length < 6) {
-      setMsg({ kind: "err", text: "New password must be at least 6 characters." });
+      const text = "New password must be at least 6 characters.";
+      setMsg({ kind: "err", text });
+      toast.error(text);
       return;
     }
     setBusy(true);
@@ -60,13 +72,18 @@ export function AccountCard({ username, userId }: { username: string; userId: st
         body: JSON.stringify({ currentPassword: current, newPassword: next }),
       });
       if (!r.ok) {
-        setMsg({ kind: "err", text: (await r.json().catch(() => ({})))?.error ?? "Couldn't change password." });
+        const text = (await r.json().catch(() => ({})))?.error ?? "Couldn't change password.";
+        setMsg({ kind: "err", text });
+        toast.error(text);
         return;
       }
       closeForm();
       setMsg({ kind: "ok", text: "Password changed. Other devices have been signed out." });
+      toast.success("Password changed");
     } catch {
-      setMsg({ kind: "err", text: "Couldn't change password." });
+      const text = "Couldn't change password.";
+      setMsg({ kind: "err", text });
+      toast.error(text);
     } finally {
       setBusy(false);
     }
@@ -88,13 +105,17 @@ export function AccountCard({ username, userId }: { username: string; userId: st
         body: JSON.stringify({ scope: "user" }),
       });
       if (!r.ok) {
-        await appAlert((await r.json().catch(() => ({})))?.error ?? "Reset failed.", { tone: "error" });
+        const msg = (await r.json().catch(() => ({})))?.error ?? "Reset failed.";
+        toast.error(msg);
+        await appAlert(msg, { tone: "error" });
         setBusy(false);
         return;
       }
+      toast.success("Account reset started");
       await activateAndGo(null, "/login"); // supervisor wipes + respawns to bootstrap
     } catch {
       setBusy(false);
+      toast.error("Reset failed");
     }
   };
 

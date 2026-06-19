@@ -5,6 +5,7 @@ import { PlayIcon, SquareIcon, RotateCcwIcon, RefreshCwIcon, OctagonXIcon, Erase
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { ServiceStatus } from "../lib/leash/services.ts";
 
 /**
@@ -39,6 +40,7 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
   const [showLog, setShowLog] = useState(false);
 
   const act = async (action: "start" | "stop" | "restart" | "force-stop" | "force-restart" | "reset") => {
+    const actionLabel = action.replace("-", " ");
     const danger = service.name === "qvac-serve" && action !== "start";
     if (danger && !(await appConfirm(`${action === "stop" ? "Stop" : "Restart"} the model serve? Make sure no generation is running.`, { confirmLabel: action === "stop" ? "Stop" : "Restart", destructive: true }))) return;
     if (action === "stop" && service.name !== "qvac-serve" && !(await appConfirm(`Stop ${service.label}?`, { confirmLabel: "Stop", destructive: true }))) return;
@@ -52,11 +54,17 @@ export function ServiceCard({ service, children }: { service: ServiceStatus; chi
       const res = await fetchWithTimeout("/api/leash/services", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name: service.name, action }) }, TIMEOUT.heavy);
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
       }
+      toast.success(`${service.label}: ${actionLabel} requested`);
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
       setPending(null);

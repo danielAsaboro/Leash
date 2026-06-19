@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { toast } from "../Toast.tsx";
 import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
 import {
   createContext,
@@ -469,7 +470,9 @@ export const CodeBlockCopyButton = ({
 
   const copyToClipboard = useCallback(async () => {
     if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
-      onError?.(new Error("Clipboard API not available"));
+      const err = new Error("Clipboard API not available");
+      onError?.(err);
+      toast.error("Clipboard is unavailable");
       return;
     }
 
@@ -478,6 +481,7 @@ export const CodeBlockCopyButton = ({
         await navigator.clipboard.writeText(code);
         setIsCopied(true);
         onCopy?.();
+        toast.success("Code copied");
         timeoutRef.current = window.setTimeout(
           () => setIsCopied(false),
           timeout
@@ -485,6 +489,7 @@ export const CodeBlockCopyButton = ({
       }
     } catch (error) {
       onError?.(error as Error);
+      toast.error("Couldn't copy code");
     }
   }, [code, onCopy, onError, timeout, isCopied]);
 

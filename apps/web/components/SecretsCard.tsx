@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
+import { toast } from "./Toast.tsx";
 import type { SecretStatus } from "../lib/leash/vault.ts";
 
 /**
@@ -23,14 +24,20 @@ export function SecretsCard({ secrets }: { secrets: SecretStatus[] }) {
     setError(null);
     try {
       const res = await fetchWithTimeout("/api/leash/secrets", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ name, value: drafts[name] ?? "" }) });
-      if (!res.ok) setError(`Save failed (${res.status}).`);
-      else {
-        setEditing(null);
-        setDrafts((d) => ({ ...d, [name]: "" }));
+      if (!res.ok) {
+        const msg = `Save failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
       }
+      setEditing(null);
+      setDrafts((d) => ({ ...d, [name]: "" }));
+      toast.success("Secret saved");
       router.refresh();
     } catch {
-      setError("Save failed — is the app still running?");
+      const msg = "Save failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(null);
     }
@@ -42,10 +49,18 @@ export function SecretsCard({ secrets }: { secrets: SecretStatus[] }) {
     setError(null);
     try {
       const res = await fetchWithTimeout(`/api/leash/secrets?name=${encodeURIComponent(name)}`, { method: "DELETE" });
-      if (!res.ok) setError(`Clear failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Clear failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success("Secret cleared");
       router.refresh();
     } catch {
-      setError("Clear failed — is the app still running?");
+      const msg = "Clear failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(null);
     }

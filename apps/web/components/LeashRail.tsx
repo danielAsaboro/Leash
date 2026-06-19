@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { siteHome } from "../lib/site.ts";
+import { toast } from "./Toast.tsx";
 
 /**
  * The Leash shell's left rail — the app's primary nav.
@@ -147,7 +148,10 @@ export function LeashRail() {
         const bridge = (window as unknown as { shell?: ShellBridge }).shell;
         for (const n of data.notifications ?? []) {
           if (seen.current.has(n.id)) continue;
-          if (primed.current && bridge?.notify) bridge.notify({ title: n.title, body: n.why ? `${n.title} — ${n.why}` : n.body.slice(0, 140), tag: n.id });
+          if (primed.current) {
+            if (bridge?.notify) bridge.notify({ title: n.title, body: n.why ? `${n.title} — ${n.why}` : n.body.slice(0, 140), tag: n.id });
+            if (!pathname.startsWith("/notifications")) toast.info(`New notification: ${n.title}`);
+          }
           seen.current.add(n.id);
         }
         primed.current = true;
@@ -161,7 +165,7 @@ export function LeashRail() {
       alive = false;
       clearInterval(id);
     };
-  }, []);
+  }, [pathname]);
 
   // The landing (`/`) IS the marketing home — it provides its own masthead, so the app rail hides there.
   if (pathname === "/") return null;

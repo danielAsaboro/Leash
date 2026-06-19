@@ -11,7 +11,8 @@
  * P2P mesh peers are LAN, not cloud — shown separately and labeled. The HUD is the live
  * continuous indicator; the recorded airplane-mode acceptance test is the hard proof.
  */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "./Toast.tsx";
 
 interface NetSocket {
   command: string;
@@ -33,6 +34,8 @@ const POLL_MS = 5000;
 export function OfflineHud() {
   const [data, setData] = useState<NetMon | null>(null);
   const [open, setOpen] = useState(false);
+  const prevCloud = useRef<number | null>(null);
+  const prevUnavailable = useRef<boolean | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -40,9 +43,22 @@ export function OfflineHud() {
       try {
         const r = await fetch("/api/leash/netmon", { cache: "no-store" });
         const j = (await r.json()) as NetMon;
-        if (alive) setData(j);
+        if (alive) {
+          setData(j);
+          const cloud = j.cloud?.length ?? 0;
+          const unavailable = !j.ok;
+          if (prevCloud.current !== null && prevCloud.current === 0 && cloud > 0) toast.error(`${cloud} cloud connection${cloud === 1 ? "" : "s"} detected`);
+          if (prevUnavailable.current !== null && !prevUnavailable.current && unavailable) toast.error("Connection monitor unavailable");
+          prevCloud.current = cloud;
+          prevUnavailable.current = unavailable;
+        }
       } catch {
-        if (alive) setData({ ok: false, error: "monitor unreachable", sampledAt: new Date().toISOString(), monitored: [], loopback: 0, lan: [], cloud: [] });
+        if (alive) {
+          setData({ ok: false, error: "monitor unreachable", sampledAt: new Date().toISOString(), monitored: [], loopback: 0, lan: [], cloud: [] });
+          if (prevUnavailable.current === false) toast.error("Connection monitor unreachable");
+          prevCloud.current = 0;
+          prevUnavailable.current = true;
+        }
       }
     };
     void tick();

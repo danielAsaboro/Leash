@@ -32,6 +32,7 @@ import { FilterChipBar, type FilterChip } from "./FilterChipBar.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { CtxSizeControl } from "./CtxSizeControl.tsx";
 import { GpuToggle } from "./GpuToggle.tsx";
+import { toast } from "./Toast.tsx";
 import type { ServeStatus } from "../lib/leash/serve-control.ts";
 
 const FIT_COLOR: Record<NonNullable<FitEstimate["verdict"]>, string> = {
@@ -206,19 +207,30 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
     return () => clearInterval(t);
   }, [active, router]);
 
-  const call = async (fn: () => Promise<Response>, confirmMsg?: string): Promise<void> => {
-    if (confirmMsg && !(await appConfirm(confirmMsg, { confirmLabel: "Continue", destructive: true }))) return;
+  const call = async (fn: () => Promise<Response>, confirmMsg?: string, success?: string): Promise<boolean> => {
+    if (confirmMsg && !(await appConfirm(confirmMsg, { confirmLabel: "Continue", destructive: true }))) return false;
     setBusy(true);
     setError(null);
     setNotice(null);
     try {
       const res = await fn();
       const body = (await res.json().catch(() => ({}))) as { error?: string; appliesOn?: string };
-      if (!res.ok) setError(body.error ?? `Request failed (${res.status}).`);
-      else if (body.appliesOn) setNotice(`Saved — applies on ${body.appliesOn}.`);
+      if (!res.ok) {
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return false;
+      }
+      const msg = success ?? (body.appliesOn ? `Saved — applies on ${body.appliesOn}.` : "Model settings saved");
+      if (body.appliesOn) setNotice(`Saved — applies on ${body.appliesOn}.`);
+      toast.success(msg);
       router.refresh();
+      return true;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
+      return false;
     } finally {
       setBusy(false);
     }
@@ -227,8 +239,9 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
   const startDownload = (rawName: string) => {
     const name = rawName.trim().toUpperCase();
     if (!name) return;
-    void call(() => fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }, TIMEOUT.heavy)).then(() => {
-      setDownloads((d) => [...d.filter((x) => x.name !== name), { name, state: "starting", percentage: 0, downloaded: 0, total: 0 }]);
+    toast.info(`Starting download: ${name}`);
+    void call(() => fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }, TIMEOUT.heavy), undefined, "Download queued").then((ok) => {
+      if (ok) setDownloads((d) => [...d.filter((x) => x.name !== name), { name, state: "starting", percentage: 0, downloaded: 0, total: 0 }]);
     });
   };
 
@@ -259,6 +272,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
     });
     try {
       await fetchWithTimeout("/api/leash/hypha/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ alias, on: nextShared }) }, TIMEOUT.crud);
+      toast.success(`${alias} ${nextShared ? "shared" : "made private"}`);
     } catch {
       setUnshared((prev) => {
         const n = new Set(prev);
@@ -266,6 +280,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
         else n.delete(alias);
         return n;
       });
+      toast.error(`Couldn't update sharing for ${alias}`);
     }
   };
 
@@ -334,6 +349,8 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify({ action: "config", alias: r.alias, patch: { ctx_size: ctx } }),
                 }),
+                undefined,
+                "Context size saved",
               )
             }
           />
@@ -355,6 +372,8 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
                   headers: { "content-type": "application/json" },
                   body: JSON.stringify({ action: "config", alias: r.alias, patch: { use_gpu: useGpu } }),
                 }),
+                undefined,
+                "GPU setting saved",
               )
             }
           />
@@ -424,7 +443,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
                   void (async () => {
                     const alias = await appPrompt(`Config alias for ${r.name}?`, r.name.toLowerCase().replace(/_/g, "-").slice(0, 24), { inputLabel: "Config alias" });
                     if (!alias) return;
-                    await call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }));
+                    await call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "add", alias: alias.trim(), model: r.name }) }), undefined, "Model added to config");
                   })();
                 }}
               >
@@ -433,7 +452,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
               <IconButton
                 title={canRemove ? "Remove from qvac.config.base.json (won't load next restart)" : "Remove from config — not configured"}
                 disabled={busy || !canRemove}
-                onClick={() => void call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", alias: r.alias }) }), `Remove "${r.alias}" from qvac.config.base.json? It won't load on the next serve restart.`)}
+                onClick={() => void call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "remove", alias: r.alias }) }), `Remove "${r.alias}" from qvac.config.base.json? It won't load on the next serve restart.`, "Model removed from config")}
               >
                 <MinusIcon size={14} aria-hidden />
               </IconButton>
@@ -441,7 +460,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
                 title={canUnload ? "Unload from the running serve (comes back on restart)" : "Unload — not currently loaded"}
                 danger
                 disabled={busy || !canUnload}
-                onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/loaded/${encodeURIComponent(r.alias as string)}`, { method: "DELETE" }), `Unload "${r.alias}" from the running serve? It comes back on the next restart.`)}
+                onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/loaded/${encodeURIComponent(r.alias as string)}`, { method: "DELETE" }), `Unload "${r.alias}" from the running serve? It comes back on the next restart.`, "Model unloaded")}
               >
                 <LogOutIcon size={14} aria-hidden />
               </IconButton>
@@ -449,7 +468,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
                 title={canDelete ? "Delete the cached file from disk" : "Delete file — not on disk"}
                 danger
                 disabled={busy || !canDelete}
-                onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/file/${encodeURIComponent(r.cacheFile as string)}${r.inConfig ? "?force=1" : ""}`, { method: "DELETE" }), `Delete ${r.cacheFile} (${fmtBytes(r.onDiskBytes)}) from the model cache?${r.inConfig ? " It is referenced by the config — the next restart will re-download it." : ""}`)}
+                onClick={() => void call(() => fetchWithTimeout(`/api/leash/models/file/${encodeURIComponent(r.cacheFile as string)}${r.inConfig ? "?force=1" : ""}`, { method: "DELETE" }), `Delete ${r.cacheFile} (${fmtBytes(r.onDiskBytes)}) from the model cache?${r.inConfig ? " It is referenced by the config — the next restart will re-download it." : ""}`, "Cached model deleted")}
               >
                 <Trash2Icon size={14} aria-hidden />
               </IconButton>
@@ -468,7 +487,9 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
   const kitBytes = ASSISTANT_KIT.reduce((s, r) => s + r.bytes, 0);
   const downloadKit = async (): Promise<void> => {
     // Wire the aliases first — a cheap config edit (reads the catalog, never touches the registry).
-    await call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "kit" }) }, TIMEOUT.heavy));
+    toast.info("Preparing Assistant Kit…");
+    const configured = await call(() => fetchWithTimeout("/api/leash/models/config", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "kit" }) }, TIMEOUT.heavy), undefined, "Assistant Kit config saved");
+    if (!configured) return;
     // Then download weights ONE AT A TIME. The QVAC registry corestore is single-process: firing every
     // weight at once makes the download children contend on its fd-lock and abort each other. Chain on
     // each SKU's status file — start it, wait until it leaves the active state, then the next.
@@ -490,6 +511,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
         }, 2500);
       });
     }
+    toast.success("Assistant Kit downloads finished");
   };
 
   return (

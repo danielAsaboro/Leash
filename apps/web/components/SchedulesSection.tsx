@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
+import { toast } from "./Toast.tsx";
 import type { ScheduleEntry, CronScheduleState, CronRun, JobScript } from "../lib/leash/schedules-store.ts";
 
 /**
@@ -34,19 +35,25 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
   const [adding, setAdding] = useState(false);
   const [draft, setDraft] = useState({ name: "", kind: "job" as "job" | "task", script: "dream" as JobScript, researchQ: "", taskTitle: "", shapeType: "daily" as "once" | "interval" | "daily" | "weekly", at: "03:30", onceAt: "", minutes: 60, day: 1 });
 
-  const call = async (fn: () => Promise<Response>): Promise<boolean> => {
+  const call = async (fn: () => Promise<Response>, success: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        toast.success(success);
       }
       router.refresh();
       return res.ok;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
       return false;
     } finally {
       setBusy(false);
@@ -69,7 +76,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
       schedule,
       ...(draft.kind === "job" ? { job: { script: draft.script, ...(draft.script === "research" ? { args: [draft.researchQ.trim()] } : {}) } } : { task: { title: draft.taskTitle.trim() } }),
     };
-    const ok = await call(() => fetchWithTimeout("/api/leash/schedules", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }));
+    const ok = await call(() => fetchWithTimeout("/api/leash/schedules", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), "Schedule created");
     if (ok) {
       setAdding(false);
       setDraft((d) => ({ ...d, name: "", taskTitle: "", onceAt: "" }));
@@ -77,11 +84,11 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
   };
 
   const toggle = (e: ScheduleEntry) =>
-    void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !e.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !e.enabled }) }), `Schedule ${e.enabled ? "disabled" : "enabled"}`);
 
   const del = async (e: ScheduleEntry) => {
     if (!(await appConfirm(`Delete the schedule "${e.name}"?`, { confirmLabel: "Delete", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/schedules/${e.id}`, { method: "DELETE" }), "Schedule deleted");
   };
 
   const input = "border bg-transparent px-2 py-1.5";

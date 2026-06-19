@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { toast } from "./Toast.tsx";
 import type { Notification, NotificationActionKind } from "../lib/leash/notifications-store.ts";
 
 /**
@@ -24,6 +25,7 @@ export function NotificationsPanel({ initial }: { initial: Notification[] }) {
   const [items, setItems] = useState<Notification[]>(initial);
   const [busy, setBusy] = useState<string | null>(null);
   const alive = useRef(true);
+  const seenIds = useRef(new Set(initial.map((n) => n.id)));
 
   useEffect(() => {
     alive.current = true;
@@ -32,7 +34,13 @@ export function NotificationsPanel({ initial }: { initial: Notification[] }) {
         const r = await fetchWithTimeout("/api/leash/notifications?limit=50", { cache: "no-store" }, 4000);
         if (!r.ok || !alive.current) return;
         const data = (await r.json()) as { notifications: Notification[] };
-        setItems(data.notifications ?? []);
+        const next = data.notifications ?? [];
+        const fresh = next.filter((n) => !seenIds.current.has(n.id));
+        if (fresh.length > 0) {
+          toast.info(fresh.length === 1 ? `New notification: ${fresh[0]!.title}` : `${fresh.length} new notifications`);
+          for (const n of fresh) seenIds.current.add(n.id);
+        }
+        setItems(next);
       } catch {
         /* transient — next tick */
       }
@@ -44,9 +52,10 @@ export function NotificationsPanel({ initial }: { initial: Notification[] }) {
     };
   }, []);
 
-  const act = async (id: string, action: NotificationActionKind | "read", ms?: number): Promise<void> => {
+  const act = async (id: string, action: NotificationActionKind | "read", ms?: number, quiet = false): Promise<void> => {
     if (action === "open_chat") {
-      await act(id, "dismiss"); // mark handled, then take the conversation to chat
+      await act(id, "dismiss", undefined, true); // mark handled, then take the conversation to chat
+      toast.info("Opening chat");
       router.push("/chat");
       return;
     }
@@ -60,9 +69,13 @@ export function NotificationsPanel({ initial }: { initial: Notification[] }) {
       if (r.ok) {
         // Optimistic: snooze/dismiss/always_auto drop the card; read just clears the dot.
         setItems((xs) => (action === "read" ? xs.map((n) => (n.id === id ? { ...n, read: true } : n)) : xs.filter((n) => n.id !== id)));
+        if (!quiet) toast.success(action === "read" ? "Marked read" : action === "snooze" ? "Notification snoozed" : action === "approve" ? "Approved" : action === "always_auto" ? "Future matches will be automatic" : "Notification dismissed");
         router.refresh();
+      } else if (!quiet) {
+        toast.error(`Notification action failed (${r.status})`);
       }
     } catch {
+      if (!quiet) toast.error("Notification action failed");
       /* leave the card; the next poll reconciles */
     } finally {
       setBusy(null);

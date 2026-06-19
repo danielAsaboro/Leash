@@ -8,6 +8,7 @@ import { IconButton } from "./IconButton.tsx";
 import { Switch } from "./Switch.tsx";
 import { McpIntegrationModal } from "./McpIntegrationModal.tsx";
 import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
+import { toast } from "./Toast.tsx";
 import type { McpServerStatus } from "../lib/leash/mcp.ts";
 import type { McpTransport } from "../lib/leash/mcp-config.ts";
 
@@ -50,11 +51,23 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
     try {
       const res = await fetchWithTimeout(`/api/leash/mcp/${encodeURIComponent(s.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) });
       const body = (await res.json().catch(() => ({}))) as { error?: string; warning?: string };
-      if (!res.ok) setError(body.error ?? `Request failed (${res.status}).`);
-      else if (body.warning) setNotice(body.warning);
+      if (!res.ok) {
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      if (body.warning) {
+        setNotice(body.warning);
+        toast.info(body.warning);
+      } else {
+        toast.success(`${s.name} ${s.enabled ? "disabled" : s.builtin ? "started" : "enabled"}`);
+      }
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusyId(null);
     }
@@ -68,11 +81,17 @@ export function McpPanel({ servers }: { servers: McpServerStatus[] }) {
       const res = await fetchWithTimeout(`/api/leash/mcp/${encodeURIComponent(s.id)}`, { method: "DELETE" });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
       }
+      toast.success("MCP server removed");
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusyId(null);
     }

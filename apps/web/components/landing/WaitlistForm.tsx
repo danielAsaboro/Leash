@@ -18,6 +18,7 @@ export function WaitlistForm() {
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(data.error || "Couldn't join the waitlist.");
       setDone(true);
+      toast.success("You're on the waitlist");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't join the waitlist — try again.");
     } finally {

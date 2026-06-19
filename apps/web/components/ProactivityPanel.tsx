@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { SaveIcon, Loader2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { Constitution, ConstitutionField } from "../lib/leash/constitution.ts";
 
 /**
@@ -35,15 +36,20 @@ export function ProactivityPanel({ constitution }: { constitution: Constitution 
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Save failed (${res.status}).`);
+        const msg = body.error ?? `Save failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
         return;
       }
       const body = (await res.json()) as { constitution: Constitution };
       setSaved(body.constitution);
       setDrafts(body.constitution);
+      toast.success(`${FIELDS.find((f) => f.key === field)?.label ?? "Constitution"} saved`);
       router.refresh();
     } catch {
-      setError("Save failed — is the app still running?");
+      const msg = "Save failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(null);
     }

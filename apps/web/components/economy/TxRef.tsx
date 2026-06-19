@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { toast } from "../Toast.tsx";
 
 /**
  * On-chain tx reference. The local anvil fork has no block explorer, so the honest default is a
@@ -29,9 +30,10 @@ export function TxRef({ hash, explorerBase }: { hash: string; explorerBase?: str
     try {
       await navigator.clipboard.writeText(hash);
       setCopied(true);
+      toast.success("Transaction hash copied");
       setTimeout(() => setCopied(false), 1200);
     } catch {
-      /* clipboard blocked (insecure context) — the title still shows the full hash to copy by hand */
+      toast.error("Couldn't copy transaction hash");
     }
   };
   return (

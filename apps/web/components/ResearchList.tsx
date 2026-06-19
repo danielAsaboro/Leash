@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { toast } from "./Toast.tsx";
 import type { ResearchStatus } from "../lib/leash/research-store.ts";
 
 /**
@@ -51,11 +52,19 @@ export function ResearchList({ runs, page, pages, total, perPage }: { runs: Rese
     setError(null);
     try {
       const res = await fetchWithTimeout("/api/leash/research", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ question }) });
-      if (!res.ok) setError(`Couldn't start research (${res.status}).`);
-      else setQuestion("");
+      if (!res.ok) {
+        const msg = `Couldn't start research (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        setQuestion("");
+        toast.success("Research started");
+      }
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

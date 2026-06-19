@@ -10,6 +10,7 @@
  * is best-effort and must never break the conversation.
  */
 import { useState } from "react";
+import { toast } from "./Toast.tsx";
 
 export function MessageFeedback({
   messageId,
@@ -27,21 +28,28 @@ export function MessageFeedback({
   const [correction, setCorrection] = useState("");
   const [done, setDone] = useState(false);
 
-  const post = (r: "up" | "down", corr?: string) => {
-    void fetch("/api/leash/feedback", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ messageId, chatId, rating: r, prompt, answer, correction: corr }),
-    }).catch(() => {
-      /* best-effort — never surface into the chat */
-    });
+  const post = async (r: "up" | "down", corr?: string) => {
+    try {
+      const res = await fetch("/api/leash/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ messageId, chatId, rating: r, prompt, answer, correction: corr }),
+      });
+      if (!res.ok) {
+        toast.error(`Couldn't save feedback (${res.status})`);
+        return;
+      }
+      toast.success("Feedback saved");
+    } catch {
+      toast.error("Couldn't save feedback");
+    }
   };
 
   if (done) return <span className="chat-meta">🌱 noted for tonight's training</span>;
 
   const onUp = () => {
     setRating("up");
-    post("up");
+    void post("up");
     setDone(true);
   };
   const onDown = () => {
@@ -49,7 +57,7 @@ export function MessageFeedback({
     setAskCorrection(true);
   };
   const submitCorrection = () => {
-    post("down", correction.trim() || undefined);
+    void post("down", correction.trim() || undefined);
     setDone(true);
   };
 

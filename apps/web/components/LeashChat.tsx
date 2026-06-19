@@ -30,6 +30,7 @@ import type { PlanData } from "@/lib/leash/types";
 import { ElicitationCard } from "./ElicitationCard.tsx";
 import { VoiceCall } from "./VoiceCall.tsx";
 import { MessageFeedback } from "./MessageFeedback.tsx";
+import { toast } from "./Toast.tsx";
 import { blobToWav } from "@/lib/leash/audio";
 import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
 import type { ConductorDecisionEvent, ElicitationView, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
@@ -176,7 +177,10 @@ function renderTimelineNode(node: TimelineNode, live: boolean, approval?: Approv
     if (st !== "approval-requested" && st !== "output-denied") return null;
     const handle = approval;
     const apprId = node.part.approval?.id as string | undefined;
-    const respond = (approved: boolean, reason?: string) => handle?.respond({ id: apprId!, approved, ...(reason ? { reason } : {}) });
+    const respond = (approved: boolean, reason?: string) => {
+      handle?.respond({ id: apprId!, approved, ...(reason ? { reason } : {}) });
+      toast[approved ? "success" : "info"](approved ? "Plan approved" : "Plan sent back");
+    };
     const actionable = !!handle && !!apprId && st === "approval-requested";
     return (
       <ChainOfThoughtStep key={key} icon={ListChecksIcon} label={<span>{st === "output-denied" ? "Plan rejected" : "Plan proposed — review"}</span>}>
@@ -333,7 +337,10 @@ function MicButton({ disabled }: { disabled: boolean }) {
         aria-label="Record voice input (on-device transcription)"
         title="Speak — on-device transcription"
         className="chat-mic-el size-9"
-        onSpeechError={(m) => setMicError(m)}
+        onSpeechError={(m) => {
+          setMicError(m);
+          toast.error(m);
+        }}
         onAudioRecorded={async (blob) => {
           setMicError(null);
           const wav = await blobToWav(blob);
@@ -347,6 +354,7 @@ function MicButton({ disabled }: { disabled: boolean }) {
         onTranscriptionChange={(text) => {
           const cur = controller.textInput.value;
           controller.textInput.setInput(cur ? `${cur} ${text}` : text);
+          toast.success("Transcription added");
         }}
       />
       {micError && (
@@ -431,6 +439,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
     const next = !planModeRef.current;
     planModeRef.current = next;
     setPlanMode(next);
+    toast.info(`Plan mode ${next ? "on" : "off"}`);
     try {
       window.localStorage.setItem(`leash-plan-${id}`, next ? "1" : "0");
     } catch {
@@ -475,6 +484,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   const pickChatModel = (alias: string) => {
     setChatModelAlias(alias);
     chatModelRef.current = alias;
+    toast.success(`Chat model set to ${alias}`);
     try {
       window.localStorage.setItem(`leash-model-${id}`, alias);
     } catch {
@@ -505,9 +515,13 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
     onData: (part) => {
       if (part.type !== "data-elicitation") return;
       const ev = part.data as LeashElicitationEvent;
+      if (ev.kind === "open") toast.info("Input requested");
       setElicitations((prev) => (ev.kind === "open" ? [...prev.filter((e) => e.id !== ev.elicitation.id), ev.elicitation] : prev.filter((e) => e.id !== ev.id)));
     },
-    onError: (e) => console.error("Leash chat error:", e),
+    onError: (e) => {
+      console.error("Leash chat error:", e);
+      toast.error(friendlyChatError(e));
+    },
   });
   const busy = status === "submitted" || status === "streaming";
 
@@ -558,7 +572,8 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       // boundary so this follow-up sends as a normal turn sooner instead of waiting for the whole
       // multi-step turn to finish. The drain effect (on idle) actually sends it.
       setQueued((q) => [...q, { id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${q.length}`, text: t, ...(norm && norm.length ? { files: norm } : {}) }]);
-      void fetch("/api/leash/chat/interject", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => {});
+      toast.info("Message queued");
+      void fetch("/api/leash/chat/interject", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }) }).catch(() => toast.error("Couldn't ask the running turn to yield"));
       return;
     }
     void sendMessage({ text: t, ...(norm && norm.length ? { files: norm } : {}) });
@@ -588,9 +603,11 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
     if (!(await appConfirm("Restore to here? This permanently deletes this turn and everything after it.", { confirmLabel: "Restore", destructive: true }))) return;
     setMessages(messages.slice(0, index));
     try {
-      await fetch(`/api/leash/chats/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keep: index }) });
+      const res = await fetch(`/api/leash/chats/${id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ keep: index }) });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      toast.success("Conversation restored");
     } catch {
-      /* client already reverted; the store write is best-effort and retried on next send */
+      toast.error("Conversation restored locally; store update failed");
     }
   };
 
@@ -625,7 +642,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                   message={m}
                   streaming={busy}
                   live={busy && idx === messages.length - 1}
-                  onRegenerate={!busy ? () => regenerate({ messageId: m.id }) : undefined}
+                  onRegenerate={!busy ? () => { toast.info("Regenerating answer"); regenerate({ messageId: m.id }); } : undefined}
                   chatId={id}
                   prompt={precedingUserText(messages, idx)}
                   // Approval cards are actionable only on the LAST message of an idle chat —
@@ -656,7 +673,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
           {error && (
             <div className="chat-error">
               <span>⚠ {friendlyChatError(error)}</span>
-              <button type="button" onClick={() => regenerate()}>
+              <button type="button" onClick={() => { toast.info("Retrying answer"); regenerate(); }}>
                 Retry
               </button>
             </div>
@@ -680,7 +697,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                       <div className="flex items-start gap-2">
                         <QueueItemContent className="!line-clamp-2 whitespace-normal">{q.text || "(image)"}</QueueItemContent>
                         <QueueItemActions>
-                          <QueueItemAction aria-label="Remove from queue" onClick={() => setQueued((qq) => qq.filter((x) => x.id !== q.id))}>
+                          <QueueItemAction aria-label="Remove from queue" onClick={() => { setQueued((qq) => qq.filter((x) => x.id !== q.id)); toast.info("Queued message removed"); }}>
                             <XIcon className="size-3.5" />
                           </QueueItemAction>
                         </QueueItemActions>
@@ -694,7 +711,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
         )}
         {/* Provider gives us a controller (for the mic to drop text into the box) + shared attachments. */}
         <PromptInputProvider>
-          <PromptInput className="chat-composer-inner mx-auto max-w-[760px]" onSubmit={(message) => ask(message.text ?? "", message.files)}>
+          <PromptInput className="chat-composer-inner mx-auto max-w-[760px]" onError={(e) => toast.error(e.message)} onSubmit={(message) => ask(message.text ?? "", message.files)}>
             <PromptInputBody>
               {/* Visible thumbnails / chips of attached files (with remove). */}
               <ComposerAttachments />
@@ -715,7 +732,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 {/* 📞 Call → hands-free, audio-only voice loop over the SAME conversation. Icon-only, label on hover. */}
                 <button
                   type="button"
-                  onClick={() => setCallOpen(true)}
+                  onClick={() => { setCallOpen(true); toast.info("Voice call starting"); }}
                   aria-label="Call — hands-free voice mode"
                   title="Call — hands-free voice mode"
                   className="chat-mic chat-icon-btn"
@@ -845,6 +862,7 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
     audioRef.current?.pause();
     audioRef.current = null;
     setTtsState("idle");
+    toast.info("Read aloud stopped");
   };
 
   /** On-device read-aloud of the answer text via /api/leash/speak (supertonic TTS). */
@@ -854,6 +872,7 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
       return;
     }
     if (!text.trim()) return;
+    toast.info("Synthesizing speech…");
     setTtsError(null);
     setTtsState("loading");
     const ac = new AbortController();
@@ -883,12 +902,15 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
       };
       await audio.play();
       setTtsState("playing");
+      toast.success("Read aloud playing");
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") {
         setTtsState("idle"); // user cancelled — not an error
         return;
       }
-      setTtsError(err instanceof Error ? err.message : "Read aloud failed.");
+      const msg = err instanceof Error ? err.message : "Read aloud failed.";
+      setTtsError(msg);
+      toast.error(msg);
       setTtsState("idle");
     }
   };
@@ -898,9 +920,10 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
+      toast.success("Answer copied");
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard unavailable (insecure context) — silently no-op */
+      toast.error("Couldn't copy answer");
     }
   };
 

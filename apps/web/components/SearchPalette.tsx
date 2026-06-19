@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { sectionKicker } from "../lib/ui.ts";
+import { toast } from "./Toast.tsx";
 
 /** A window event both the nav magnifier and the global ⌘K hotkey dispatch to open. */
 const OPEN_EVENT = "understory:open-search";
@@ -50,6 +51,7 @@ export function SearchPalette() {
   const [loading, setLoading] = useState(false);
   const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const searchFailed = useRef(false);
 
   const close = useCallback(() => {
     setOpen(false);
@@ -101,13 +103,21 @@ export function SearchPalette() {
     const id = window.setTimeout(async () => {
       try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = (await res.json()) as { hits: Hit[] };
         if (!stale) {
+          searchFailed.current = false;
           setHits(data.hits);
           setActive(0);
         }
       } catch {
-        if (!stale) setHits([]);
+        if (!stale) {
+          setHits([]);
+          if (!searchFailed.current) {
+            toast.error("Search failed");
+            searchFailed.current = true;
+          }
+        }
       } finally {
         if (!stale) setLoading(false);
       }

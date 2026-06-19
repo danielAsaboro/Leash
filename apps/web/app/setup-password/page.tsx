@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { activateAndGo } from "../../lib/auth-handshake.ts";
+import { toast } from "../../components/Toast.tsx";
 
 export default function SetupPassword(): React.JSX.Element {
   const [username, setUsername] = useState("");
@@ -12,16 +13,37 @@ export default function SetupPassword(): React.JSX.Element {
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setErr("");
-    if (!username.trim()) return setErr("Choose a username.");
-    if (pw.length < 6) return setErr("Password must be at least 6 characters.");
-    if (pw !== confirm) return setErr("Passwords don't match.");
+    if (!username.trim()) {
+      setErr("Choose a username.");
+      toast.error("Choose a username");
+      return;
+    }
+    if (pw.length < 6) {
+      setErr("Password must be at least 6 characters.");
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (pw !== confirm) {
+      setErr("Passwords don't match.");
+      toast.error("Passwords don't match");
+      return;
+    }
     setBusy(true);
-    const r = await fetch("/api/leash/auth/setup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: username.trim(), password: pw }) });
-    if (r.ok) {
-      const j = (await r.json()) as { switchTo: string };
-      await activateAndGo(j.switchTo);
-    } else {
-      setErr((await r.json().catch(() => ({})))?.error ?? "Setup failed.");
+    try {
+      const r = await fetch("/api/leash/auth/setup", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: username.trim(), password: pw }) });
+      if (r.ok) {
+        const j = (await r.json()) as { switchTo: string };
+        toast.success("Account created");
+        await activateAndGo(j.switchTo);
+      } else {
+        const msg = (await r.json().catch(() => ({})))?.error ?? "Setup failed.";
+        setErr(msg);
+        toast.error(msg);
+        setBusy(false);
+      }
+    } catch {
+      setErr("Setup failed.");
+      toast.error("Setup failed");
       setBusy(false);
     }
   }

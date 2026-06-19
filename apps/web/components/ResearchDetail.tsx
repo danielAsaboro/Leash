@@ -3,6 +3,7 @@ import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
+import { toast } from "./Toast.tsx";
 import type { ResearchStatus } from "../lib/leash/research-store.ts";
 import { PlanCard } from "./PlanCard.tsx";
 import type { PlanData, PlanStep, PlanStepStatus } from "../lib/leash/types.ts";
@@ -220,13 +221,31 @@ export function ResearchDetail({ run, report }: { run: ResearchStatus; report: s
 
   const cancel = async () => {
     if (!(await appConfirm("Cancel this research run? Anything gathered so far is kept; if a model call is mid-decode the worker finishes it first (a few seconds).", { confirmLabel: "Cancel run", destructive: true }))) return;
-    await fetchWithTimeout(`/api/leash/research/${run.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "cancel" }) });
-    router.refresh();
+    try {
+      const res = await fetchWithTimeout(`/api/leash/research/${run.id}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "cancel" }) });
+      if (!res.ok) {
+        toast.error(`Couldn't cancel research (${res.status})`);
+        return;
+      }
+      toast.success("Research cancellation requested");
+      router.refresh();
+    } catch {
+      toast.error("Couldn't cancel research");
+    }
   };
   const del = async () => {
     if (!(await appConfirm("Delete this research run and its report?", { confirmLabel: "Delete", destructive: true }))) return;
-    await fetchWithTimeout(`/api/leash/research/${run.id}`, { method: "DELETE" });
-    router.push("/services/research");
+    try {
+      const res = await fetchWithTimeout(`/api/leash/research/${run.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        toast.error(`Couldn't delete research (${res.status})`);
+        return;
+      }
+      toast.success("Research deleted");
+      router.push("/services/research");
+    } catch {
+      toast.error("Couldn't delete research");
+    }
   };
 
   return (

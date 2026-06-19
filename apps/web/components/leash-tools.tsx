@@ -5,6 +5,7 @@ import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from "@/componen
 import { Task, TaskTrigger, TaskContent, TaskItem } from "@/components/ai-elements/task";
 import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from "@/components/ai-elements/confirmation";
 import type { TaskRow } from "@/lib/leash/task-tools";
+import { toast } from "./Toast.tsx";
 
 /**
  * Generative UI for Leash's tools — renders each tool result as a bespoke broadsheet
@@ -323,10 +324,23 @@ function ApprovalCard({ name, part, approval }: { name: string; part: Part; appr
       <ConfirmationActions>
         {approval && part.approval?.id ? (
           <>
-            <ConfirmationAction variant="outline" onClick={() => approval.respond({ id: part.approval.id, approved: false, reason: "denied by user" })}>
+            <ConfirmationAction
+              variant="outline"
+              onClick={() => {
+                approval.respond({ id: part.approval.id, approved: false, reason: "denied by user" });
+                toast.info("Tool denied");
+              }}
+            >
               ✕ Deny
             </ConfirmationAction>
-            <ConfirmationAction onClick={() => approval.respond({ id: part.approval.id, approved: true })}>✓ Approve &amp; run</ConfirmationAction>
+            <ConfirmationAction
+              onClick={() => {
+                approval.respond({ id: part.approval.id, approved: true });
+                toast.success("Tool approved");
+              }}
+            >
+              ✓ Approve &amp; run
+            </ConfirmationAction>
           </>
         ) : (
           <span className="kicker" style={{ color: "var(--color-faint)" }}>awaiting a decision</span>

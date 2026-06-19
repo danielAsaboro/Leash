@@ -7,6 +7,7 @@ import { appConfirm } from "../lib/prompt.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
+import { toast } from "./Toast.tsx";
 
 /**
  * Subagents editor (client) — create / edit / enable / delete specialized assistants the
@@ -88,20 +89,25 @@ export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent:
   };
   const visible = agents.filter((a) => (filter === "all" ? true : filter === "builtin" ? isBuiltin(a) : !isBuiltin(a)));
 
-  const call = async (fn: () => Promise<Response>): Promise<boolean> => {
+  const call = async (fn: () => Promise<Response>, success?: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
         return false;
       }
+      if (success) toast.success(success);
       router.refresh();
       return true;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
       return false;
     } finally {
       setBusy(false);
@@ -131,8 +137,8 @@ export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent:
     if (!draft.name.trim()) return;
     const ok =
       editing === "new"
-        ? await call(() => fetchWithTimeout("/api/leash/agents", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload()) }))
-        : await call(() => fetchWithTimeout(`/api/leash/agents/${editing}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload()) }));
+        ? await call(() => fetchWithTimeout("/api/leash/agents", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload()) }), "Subagent created")
+        : await call(() => fetchWithTimeout(`/api/leash/agents/${editing}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(payload()) }), "Subagent saved");
     if (ok) {
       setEditing(null);
       setDraft(EMPTY);
@@ -140,11 +146,11 @@ export function AgentsPanel({ agents, mainAgent }: { agents: Agent[]; mainAgent:
   };
 
   const toggle = (a: Agent) =>
-    void call(() => fetchWithTimeout(`/api/leash/agents/${a.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !a.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/agents/${a.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !a.enabled }) }), `Subagent ${a.enabled ? "disabled" : "enabled"}`);
 
   const del = async (a: Agent) => {
     if (!(await appConfirm(`Delete the subagent "${a.name}"?`, { confirmLabel: "Delete", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/agents/${a.slug}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/agents/${a.slug}`, { method: "DELETE" }), "Subagent deleted");
   };
 
   const editor = (

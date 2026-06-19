@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { activateAndGo } from "../lib/auth-handshake.ts";
 import { appAlert, appConfirm } from "../lib/prompt.ts";
+import { toast } from "./Toast.tsx";
 import type { StorageUsage } from "../lib/leash/storage.ts";
 
 function fmt(bytes: number): string {
@@ -25,8 +26,15 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
     if (!(await appConfirm(`Clear ${label} (${fmt(bytes)})? This permanently deletes it from this device.`, { confirmLabel: "Clear", destructive: true }))) return;
     setBusy(true);
     try {
-      await fetchWithTimeout("/api/leash/data/clear", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ category }) });
+      const res = await fetchWithTimeout("/api/leash/data/clear", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ category }) });
+      if (!res.ok) {
+        toast.error(`Clear failed (${res.status})`);
+        return;
+      }
+      toast.success(`${label} cleared`);
       router.refresh();
+    } catch {
+      toast.error("Clear failed");
     } finally {
       setBusy(false);
     }
@@ -39,12 +47,16 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
     try {
       const r = await fetchWithTimeout("/api/leash/data/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "factory" }) });
       if (!r.ok) {
-        await appAlert((await r.json().catch(() => ({})))?.error ?? "Reset failed.", { tone: "error" });
+        const msg = (await r.json().catch(() => ({})))?.error ?? "Reset failed.";
+        toast.error(msg);
+        await appAlert(msg, { tone: "error" });
         setBusy(false);
         return;
       }
+      toast.success("Factory reset started");
       await activateAndGo(null, "/login"); // supervisor wipes + respawns to bootstrap
     } catch {
+      toast.error("Reset failed");
       setBusy(false);
     }
   };

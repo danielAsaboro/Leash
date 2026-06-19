@@ -8,6 +8,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appAlert, appConfirm } from "../lib/prompt.ts";
+import { toast } from "./Toast.tsx";
 import type { StorageUsage } from "../lib/leash/storage.ts";
 import { paginate, sumSelectedBytes } from "../lib/leash/storage-paging.ts";
 
@@ -53,8 +54,16 @@ export function ModelCacheCard({ files, totalBytes }: { files: StorageUsage["mod
         if (!r.ok) failed.push(file);
       }
       setSel(new Set());
-      if (failed.length) await appAlert(`Failed to delete: ${failed.join(", ")}`, { tone: "error" });
+      if (failed.length) {
+        const msg = `Failed to delete: ${failed.join(", ")}`;
+        toast.error(msg);
+        await appAlert(msg, { tone: "error" });
+      } else {
+        toast.success(targets.length === 1 ? "Cached model deleted" : `${targets.length} cached models deleted`);
+      }
       router.refresh();
+    } catch {
+      toast.error("Delete failed");
     } finally {
       setBusy(false);
     }

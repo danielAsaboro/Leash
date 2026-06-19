@@ -7,6 +7,7 @@
  * permission grants live in the browser, not on the device.
  */
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "./Toast.tsx";
 
 type State = "granted" | "denied" | "prompt" | "unknown" | "unsupported";
 
@@ -70,7 +71,9 @@ export function PermissionsCard() {
     try {
       const stream = await c.request();
       stream.getTracks().forEach((t) => t.stop()); // we only wanted the grant, not the capture
+      toast.success(`${c.label} permission granted`);
     } catch {
+      toast.error(`${c.label} permission was not granted`);
       /* denied or cancelled — refresh reflects it */
     } finally {
       setBusy(null);

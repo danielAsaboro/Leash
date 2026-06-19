@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { activateAndGo } from "../../lib/auth-handshake.ts";
+import { toast } from "../../components/Toast.tsx";
 
 export default function Login(): React.JSX.Element {
   const [mode, setMode] = useState<"signin" | "create">("signin");
@@ -14,18 +15,40 @@ export default function Login(): React.JSX.Element {
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
     setErr("");
-    if (!username.trim()) return setErr("Enter a username.");
-    if (pw.length < 6) return setErr("Password must be at least 6 characters.");
-    if (creating && pw !== confirm) return setErr("Passwords don't match.");
+    if (!username.trim()) {
+      setErr("Enter a username.");
+      toast.error("Enter a username");
+      return;
+    }
+    if (pw.length < 6) {
+      setErr("Password must be at least 6 characters.");
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+    if (creating && pw !== confirm) {
+      setErr("Passwords don't match.");
+      toast.error("Passwords don't match");
+      return;
+    }
     setBusy(true);
     const url = creating ? "/api/leash/auth/setup" : "/api/leash/auth/login";
-    const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: username.trim(), password: pw }) });
-    if (r.ok) {
-      const j = (await r.json()) as { switchTo: string };
-      setErr(""); // entering "Switching…" — keep busy
-      await activateAndGo(j.switchTo);
-    } else {
-      setErr((await r.json().catch(() => ({})))?.error ?? (creating ? "Could not create account." : "Incorrect username or password."));
+    try {
+      const r = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: username.trim(), password: pw }) });
+      if (r.ok) {
+        const j = (await r.json()) as { switchTo: string };
+        setErr(""); // entering "Switching…" — keep busy
+        toast.success(creating ? "Account created" : "Signed in");
+        await activateAndGo(j.switchTo);
+      } else {
+        const msg = (await r.json().catch(() => ({})))?.error ?? (creating ? "Could not create account." : "Incorrect username or password.");
+        setErr(msg);
+        toast.error(msg);
+        setBusy(false);
+      }
+    } catch {
+      const msg = creating ? "Could not create account." : "Could not sign in.";
+      setErr(msg);
+      toast.error(msg);
       setBusy(false);
     }
   }

@@ -11,6 +11,7 @@ import { ForgetPeerButton, ClearStaleButton, RestorePeerButton } from "./MeshPee
 import { IconButton } from "./IconButton.tsx";
 import { MeshInvite } from "./mesh/MeshInvite.tsx";
 import { MeshLanPairing, type PairStateView } from "./mesh/MeshLanPairing.tsx";
+import { toast } from "./Toast.tsx";
 
 /**
  * The single mesh card (Settings → Devices → "My meshes"). The mesh is the unit — you join a
@@ -164,27 +165,31 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
   const [pairingMeshId, setPairingMeshId] = useState<string | null>(null);
   const prevOutStatus = useRef<string | null>(null);
 
-  const run = async (fn: () => Promise<MeshActionResult>, after?: () => void): Promise<void> => {
+  const run = async (fn: () => Promise<MeshActionResult>, after?: () => void, success?: string): Promise<void> => {
     setBusy(true);
     setErr(null);
     const res = await fn();
     setBusy(false);
     if (!res.ok) {
-      setErr(res.error ?? "Failed.");
+      const msg = res.error ?? "Failed.";
+      setErr(msg);
+      toast.error(msg);
       return;
     }
     after?.();
+    if (success) toast.success(success);
     router.refresh();
   };
 
   /** Map a visibility-first form choice to a mesh action and run it. */
-  const submitEntry = (intent: MeshIntent, visibility: MeshVisibility, fields: { label?: string; invite?: string; sharedId?: string }, after?: () => void): void => {
+  const submitEntry = (intent: MeshIntent, visibility: MeshVisibility, fields: { label?: string; invite?: string; sharedId?: string }, after?: () => void, success?: string): void => {
     const res = meshEntryAction({ intent, visibility, ...fields });
     if ("error" in res) {
       setErr(res.error);
+      toast.error(res.error);
       return;
     }
-    void run(() => meshPost(res.action, res.payload), after);
+    void run(() => meshPost(res.action, res.payload), after, success);
   };
 
   const createMesh = (): void =>
@@ -192,7 +197,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       setNewLabel("");
       setNewSharedId("");
       setNewOpen(false);
-    });
+    }, newVis === "public" ? "Public mesh joined" : "Mesh created");
 
   const joinMesh = (): void =>
     submitEntry("join", joinVis, { invite: joinInvite, label: joinLabel, sharedId: joinSharedId }, () => {
@@ -200,17 +205,17 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       setJoinLabel("");
       setJoinSharedId("");
       setJoinOpen(false);
-    });
+    }, "Mesh joined");
 
   const deleteMesh = async (meshId: string, label: string): Promise<void> => {
     if (!(await appConfirm(`Delete the mesh "${label}"? This device stops serving it and drops the membership. This can't be undone.`, { confirmLabel: "Delete", destructive: true }))) return;
-    void run(() => meshPost("delete", { meshId }));
+    void run(() => meshPost("delete", { meshId }), undefined, "Mesh deleted");
   };
   // Leave a mesh this device JOINED (didn't create) — public cells or someone else's private mesh. The
   // mesh lives on for its other members; the creator-gated delete is the founder's destructive path.
   const leaveMesh = async (meshId: string, label: string): Promise<void> => {
     if (!(await appConfirm(`Leave the mesh "${label}"? This device drops its membership; the mesh lives on for its other members.`, { confirmLabel: "Leave", destructive: true }))) return;
-    void run(() => meshPost("leave", { meshId }));
+    void run(() => meshPost("leave", { meshId }), undefined, "Mesh left");
   };
 
   // Peer + share state — polled (the detail is live: liveness, inflight, pull progress).
@@ -269,7 +274,10 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       // A completed pair adds a device (and possibly founds the primary mesh) — pull the
       // server-rendered membership/peer list forward once on the done transition.
       const outStatus = outgoing?.status ?? null;
-      if (outStatus === "done" && prevOutStatus.current !== "done") router.refresh();
+      if (outStatus === "done" && prevOutStatus.current !== "done") {
+        toast.success("Device paired");
+        router.refresh();
+      }
       prevOutStatus.current = outStatus;
     } catch {
       setPairErr("Couldn't reach the dashboard API.");
@@ -282,9 +290,27 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       try {
         const r = await fetchWithTimeout("/api/leash/hypha/pair", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action, ...extra }) });
         const body = (await r.json().catch(() => ({}))) as { error?: unknown };
-        if (!r.ok || body.error) setPairErr(errStr(body.error) ?? `Request failed (${r.status}).`);
+        if (!r.ok || body.error) {
+          const msg = errStr(body.error) ?? `Request failed (${r.status}).`;
+          setPairErr(msg);
+          toast.error(msg);
+        } else {
+          const msg =
+            action === "mode"
+              ? extra.on === false
+                ? "Pairing stopped"
+                : "Pairing started"
+              : action === "submit-pin"
+                ? "Pairing PIN submitted"
+                : action === "cancel"
+                  ? "Pairing cancelled"
+                  : "Pairing action sent";
+          toast.success(msg);
+        }
       } catch {
-        setPairErr("Request failed — is the daemon running?");
+        const msg = "Request failed — is the daemon running?";
+        setPairErr(msg);
+        toast.error(msg);
       } finally {
         setPairBusy(false);
         await refreshPair();
@@ -309,8 +335,11 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
       const r = await fetchWithTimeout("/api/leash/hypha/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ on }) }, TIMEOUT.crud);
       if (!r.ok) throw new Error("toggle failed");
       setShare((p) => (p ? { ...p, shareModels: on } : p));
+      toast.success(on ? "Model sharing enabled" : "Models made private");
     } catch (e) {
-      setShareErr(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setShareErr(msg);
+      toast.error(msg);
     } finally {
       setShareBusy(false);
     }
@@ -318,14 +347,19 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
   const pull = async (alias: string): Promise<void> => {
     const name = share?.aliasToName[alias];
     if (!name) {
-      setShareErr(`can't resolve "${alias}" to a registry model to pull`);
+      const msg = `can't resolve "${alias}" to a registry model to pull`;
+      setShareErr(msg);
+      toast.error(msg);
       return;
     }
     try {
       await fetchWithTimeout("/api/leash/models/download", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ name }) }, TIMEOUT.heavy);
+      toast.info(`Pulling ${alias}`);
       void pollDownloads();
     } catch (e) {
-      setShareErr(e instanceof Error ? e.message : String(e));
+      const msg = e instanceof Error ? e.message : String(e);
+      setShareErr(msg);
+      toast.error(msg);
     }
   };
   const toggleExpand = (meshId: string): void =>

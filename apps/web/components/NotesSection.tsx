@@ -5,6 +5,7 @@ import { Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { NoteView } from "../lib/leash/memory-admin.ts";
 
 /**
@@ -28,10 +29,18 @@ export function NotesSection({ notes }: { notes: NoteView[] }) {
     setError(null);
     try {
       const res = await fetchWithTimeout("/api/leash/memory/forget", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind: "note", file }) });
-      if (!res.ok) setError(`Forget failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Forget failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        toast.success("Note forgotten");
+      }
       router.refresh();
     } catch {
-      setError("Forget failed — is the app still running?");
+      const msg = "Forget failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

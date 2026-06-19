@@ -5,6 +5,7 @@ import { UnplugIcon, RotateCcwIcon, EraserIcon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 
 /**
  * Client icon-buttons (icon + label-on-hover) for mesh membership management in the Devices →
@@ -30,8 +31,11 @@ export function ForgetPeerButton({ deviceKey, name }: { deviceKey: string; name:
   const run = async () => {
     if (!(await appConfirm(`Disconnect ${name}? It will be removed from this mesh and can no longer borrow or lend compute until you pair again.`, { confirmLabel: "Disconnect", destructive: true }))) return;
     setBusy(true);
-    setErr(await post("forget", { deviceKey }));
+    const msg = await post("forget", { deviceKey });
+    setErr(msg);
     setBusy(false);
+    if (msg) toast.error(msg);
+    else toast.success(`${name} disconnected`);
     router.refresh();
   };
   return (
@@ -54,8 +58,11 @@ export function RestorePeerButton({ deviceKey }: { deviceKey: string }) {
   const [err, setErr] = useState<string | null>(null);
   const run = async () => {
     setBusy(true);
-    setErr(await post("restore", { deviceKey }));
+    const msg = await post("restore", { deviceKey });
+    setErr(msg);
     setBusy(false);
+    if (msg) toast.error(msg);
+    else toast.success("Device restored");
     router.refresh();
   };
   return (
@@ -78,8 +85,11 @@ export function ClearStaleButton({ count }: { count: number }) {
   const [err, setErr] = useState<string | null>(null);
   const run = async () => {
     setBusy(true);
-    setErr(await post("forget-stale"));
+    const msg = await post("forget-stale");
+    setErr(msg);
     setBusy(false);
+    if (msg) toast.error(msg);
+    else toast.success(`Cleared ${count} stale peer${count === 1 ? "" : "s"}`);
     router.refresh();
   };
   return (

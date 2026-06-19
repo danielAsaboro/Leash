@@ -6,6 +6,7 @@ import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 
 /**
  * Plugins manager (client) — install / enable / review / uninstall plugin bundles
@@ -99,10 +100,15 @@ function ReviewExpander({ id }: { id: string }) {
     try {
       const res = await fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(id)}`);
       const body = (await res.json().catch(() => ({}))) as { inventory?: Inventory; error?: string };
-      if (!res.ok || !body.inventory) setError(body.error ?? `Couldn't load components (${res.status}).`);
-      else setInv(body.inventory);
+      if (!res.ok || !body.inventory) {
+        const msg = body.error ?? `Couldn't load components (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else setInv(body.inventory);
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -204,20 +210,25 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
   const [marketplaces, setMarketplaces] = useState<CachedMarketplace[] | null>(null);
   const [marketUrl, setMarketUrl] = useState("");
 
-  const call = async (fn: () => Promise<Response>): Promise<boolean> => {
+  const call = async (fn: () => Promise<Response>, success?: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
         return false;
       }
+      if (success) toast.success(success);
       router.refresh();
       return true;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
       return false;
     } finally {
       setBusy(false);
@@ -225,21 +236,28 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
   };
 
   const toggle = (p: PluginEntry) =>
-    void call(() => fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(p.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !p.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(p.id)}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !p.enabled }) }), `Plugin ${p.enabled ? "disabled" : "enabled"}`);
 
   const del = async (p: PluginEntry) => {
     if (!(await appConfirm(`Uninstall the plugin "${p.name}"? Its skills, MCP servers, and agents are removed.`, { confirmLabel: "Uninstall", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(p.id)}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/plugins/${encodeURIComponent(p.id)}`, { method: "DELETE" }), "Plugin uninstalled");
   };
 
   const loadMarketplaces = async () => {
     try {
       const res = await fetchWithTimeout("/api/leash/plugins/marketplaces");
       const body = (await res.json().catch(() => ({}))) as { marketplaces?: CachedMarketplace[]; error?: string };
-      if (!res.ok) setError(body.error ?? `Couldn't load marketplaces (${res.status}).`);
-      else setMarketplaces(body.marketplaces ?? []);
+      if (!res.ok) {
+        const msg = body.error ?? `Couldn't load marketplaces (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        setMarketplaces(body.marketplaces ?? []);
+      }
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     }
   };
 
@@ -252,7 +270,8 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
   const installUpload = (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    void call(() => fetchWithTimeout("/api/leash/plugins/install/upload", { method: "POST", body: fd }, TIMEOUT.heavy)).then((ok) => { if (ok) setInstallMode(null); });
+    toast.info("Installing plugin…");
+    void call(() => fetchWithTimeout("/api/leash/plugins/install/upload", { method: "POST", body: fd }, TIMEOUT.heavy), "Plugin installed").then((ok) => { if (ok) setInstallMode(null); });
   };
 
   const installFromInput = () => {
@@ -260,13 +279,14 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
     if (!input) return;
     const url = installMode === "github" ? "/api/leash/plugins/install/github" : installMode === "folder" ? "/api/leash/plugins/install/folder" : "/api/leash/plugins/install/mesh";
     const body = installMode === "github" ? { url: input } : installMode === "folder" ? { path: input } : { pluginId: input };
-    void call(() => fetchWithTimeout(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, TIMEOUT.heavy)).then((ok) => { if (ok) setInstallMode(null); });
+    toast.info("Installing plugin…");
+    void call(() => fetchWithTimeout(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, TIMEOUT.heavy), "Plugin installed").then((ok) => { if (ok) setInstallMode(null); });
   };
 
   const addMarketplace = async () => {
     const url = marketUrl.trim();
     if (!url) return;
-    const ok = await call(() => fetchWithTimeout("/api/leash/plugins/marketplaces", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) }, TIMEOUT.heavy));
+    const ok = await call(() => fetchWithTimeout("/api/leash/plugins/marketplaces", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ url }) }, TIMEOUT.heavy), "Marketplace added");
     if (ok) {
       setMarketUrl("");
       await loadMarketplaces();
@@ -274,7 +294,7 @@ export function PluginsPanel({ plugins }: { plugins: PluginEntry[] }) {
   };
 
   const installFromMarketplace = (marketplaceId: string, name: string) =>
-    void call(() => fetchWithTimeout("/api/leash/plugins/install/marketplace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ marketplaceId, name }) }, TIMEOUT.heavy)).then((ok) => { if (ok) setInstallMode(null); });
+    void call(() => fetchWithTimeout("/api/leash/plugins/install/marketplace", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ marketplaceId, name }) }, TIMEOUT.heavy), "Plugin installed").then((ok) => { if (ok) setInstallMode(null); });
 
   return (
     <div className="flex flex-col gap-4">

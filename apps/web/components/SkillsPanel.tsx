@@ -7,6 +7,7 @@ import { appConfirm } from "../lib/prompt.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
+import { toast } from "./Toast.tsx";
 import type { Skill } from "../lib/leash/skills-store.ts";
 
 /**
@@ -41,11 +42,18 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
     try {
       const res = await fetchWithTimeout(fileUrl(slug, f));
       const body = (await res.json()) as { text?: string; error?: string };
-      if (!res.ok) return onError(body.error ?? `Couldn't read ${f}.`);
+      if (!res.ok) {
+        const msg = body.error ?? `Couldn't read ${f}.`;
+        onError(msg);
+        toast.error(msg);
+        return;
+      }
       setFileName(f);
       setFileBody(body.text ?? "");
     } catch {
-      onError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      onError(msg);
+      toast.error(msg);
     }
   };
 
@@ -60,14 +68,19 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        onError(body.error ?? `Save failed (${res.status}).`);
+        const msg = body.error ?? `Save failed (${res.status}).`;
+        onError(msg);
+        toast.error(msg);
       } else {
         setFileName("");
         setFileBody("");
+        toast.success("Attachment saved");
         onChanged();
       }
     } catch {
-      onError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      onError(msg);
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -77,10 +90,18 @@ function AttachmentsEditor({ slug, files, busy, onChanged, onError }: { slug: st
     if (!(await appConfirm(`Delete the attachment "${f}"?`, { confirmLabel: "Delete", destructive: true }))) return;
     try {
       const res = await fetchWithTimeout(fileUrl(slug, f), { method: "DELETE" });
-      if (!res.ok) return onError(`Delete failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Delete failed (${res.status}).`;
+        onError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success("Attachment deleted");
       onChanged();
     } catch {
-      onError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      onError(msg);
+      toast.error(msg);
     }
   };
 
@@ -154,20 +175,25 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
   // Path notice when VS Code CLI is not found (shown above the inline editor)
   const [pathNotice, setPathNotice] = useState<string | null>(null);
 
-  const call = async (fn: () => Promise<Response>): Promise<boolean> => {
+  const call = async (fn: () => Promise<Response>, success?: string): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
         return false;
       }
+      if (success) toast.success(success);
       router.refresh();
       return true;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
       return false;
     } finally {
       setBusy(false);
@@ -186,19 +212,25 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
       const res = await fetchWithTimeout(`/api/leash/skills/${s.slug}/open-editor`, { method: "POST" });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
         return;
       }
       const body = (await res.json()) as { opened: boolean; path: string };
       if (body.opened) {
         setVsCodeNotice({ slug: s.slug, path: body.path });
+        toast.success("Opened in VS Code");
       } else {
         // VS Code CLI not found — fall back to textarea editor, show path
         setPathNotice(body.path);
         startEdit(s);
+        toast.info("VS Code CLI not found — editing in browser");
       }
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -208,8 +240,8 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
     if (!draft.name.trim()) return;
     const ok =
       editing === "new"
-        ? await call(() => fetchWithTimeout("/api/leash/skills", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }))
-        : await call(() => fetchWithTimeout(`/api/leash/skills/${editing}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }));
+        ? await call(() => fetchWithTimeout("/api/leash/skills", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }), "Skill created")
+        : await call(() => fetchWithTimeout(`/api/leash/skills/${editing}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(draft) }), "Skill saved");
     if (ok) {
       setEditing(null);
       setDraft(EMPTY);
@@ -218,17 +250,18 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
   };
 
   const toggle = (s: Skill) =>
-    void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }));
+    void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !s.enabled }) }), `Skill ${s.enabled ? "disabled" : "enabled"}`);
 
   const del = async (s: Skill) => {
     if (!(await appConfirm(`Delete the skill "${s.name}"?`, { confirmLabel: "Delete", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/skills/${s.slug}`, { method: "DELETE" }), "Skill deleted");
   };
 
   const importZip = (file: File) => {
     const fd = new FormData();
     fd.append("file", file);
-    void call(() => fetchWithTimeout("/api/leash/skills/import", { method: "POST", body: fd }, TIMEOUT.heavy));
+    toast.info("Importing skill…");
+    void call(() => fetchWithTimeout("/api/leash/skills/import", { method: "POST", body: fd }, TIMEOUT.heavy), "Skill imported");
   };
 
   const importFromInput = () => {
@@ -236,7 +269,8 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
     if (!input) return;
     const url = importMode === "github" ? "/api/leash/skills/import-github" : "/api/leash/skills/import-folder";
     const body = importMode === "github" ? { url: input } : { path: input };
-    void call(() => fetchWithTimeout(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, TIMEOUT.heavy));
+    toast.info("Importing skill…");
+    void call(() => fetchWithTimeout(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, TIMEOUT.heavy), "Skill imported");
   };
 
   const editor = (
@@ -248,7 +282,12 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
           <code style={{ fontSize: "0.78rem", fontFamily: "var(--font-mono)", color: "var(--color-ink-soft)" }}>{pathNotice}</code>
           <button
             type="button"
-            onClick={() => void navigator.clipboard.writeText(pathNotice)}
+            onClick={() =>
+              void navigator.clipboard
+                .writeText(pathNotice)
+                .then(() => toast.success("Path copied"))
+                .catch(() => toast.error("Couldn't copy path"))
+            }
             className="kicker border px-2 py-0.5 transition-opacity hover:opacity-70"
             style={{ borderColor: "var(--color-rule)", color: "var(--color-muted)" }}
           >

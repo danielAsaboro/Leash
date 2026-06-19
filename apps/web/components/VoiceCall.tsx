@@ -7,6 +7,7 @@ import { blobToWav, makeAudioContext, playEarcon, VAD, VOICES, VOICE_VALUES, DEF
 import { stripMarkdownForSpeech, segmentSentences } from "@/lib/leash/speech-text";
 import { pickFillerPhrase } from "@/lib/leash/filler";
 import { Persona, type PersonaState } from "@/components/ai-elements/persona";
+import { toast } from "./Toast.tsx";
 
 /**
  * VoiceCall — Leash's hands-free, audio-only "call" mode.
@@ -378,6 +379,7 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
     speakAbortRef.current = null;
     if (audioCtxRef.current && audioCtxRef.current.state !== "closed") playEarcon(audioCtxRef.current, "error");
     setNote(message);
+    toast.error(message);
     setCallState("error");
   };
 
@@ -398,6 +400,7 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
         voiceRef.current = DEFAULT_VOICE;
         setVoice(DEFAULT_VOICE);
         setNote(`Voice unavailable — using ${DEFAULT_VOICE}. Tap to retry.`);
+        toast.info(`Voice unavailable — using ${DEFAULT_VOICE}`);
       }
       throw new Error(info.error || `Speech failed (HTTP ${res.status}).`);
     }
@@ -552,6 +555,7 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
         return;
       }
       setUserCaption(text);
+      toast.info("Voice message sent");
       setAssistantCaption(null);
       awaitingTurnRef.current = true;
       if (audioCtxRef.current && audioCtxRef.current.state !== "closed") playEarcon(audioCtxRef.current, "sent");
@@ -681,9 +685,11 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
       const denied = err instanceof DOMException && (err.name === "NotAllowedError" || err.name === "SecurityError");
       if (denied) {
         setNote("Microphone permission denied — allow it in your browser, then Retry.");
+        toast.error("Microphone permission denied");
         setCallState("denied");
       } else {
         setNote("Couldn't access the microphone.");
+        toast.error("Couldn't access the microphone");
         setCallState("error");
       }
     }
@@ -894,12 +900,12 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
         {note && <p className={`call-note${isError ? " is-error" : ""}`}>{note}</p>}
 
         <div className="call-controls">
-          <button type="button" className="call-hangup" onClick={onClose} aria-label="Hang up">
+          <button type="button" className="call-hangup" onClick={() => { toast.info("Voice call ended"); onClose(); }} aria-label="Hang up">
             ✕ Hang up
           </button>
 
           {showRetry && (
-            <button type="button" className="call-action" onClick={() => void arm()}>
+            <button type="button" className="call-action" onClick={() => { toast.info("Retrying microphone"); void arm(); }}>
               ↻ Retry
             </button>
           )}
@@ -908,6 +914,7 @@ export function VoiceCall({ open, onClose, messages, sendMessage, status, error,
               type="button"
               className="call-action"
               onClick={() => {
+                toast.info("Voice call resumed");
                 setNote(null);
                 setUserCaption(null);
                 setAssistantCaption(null);

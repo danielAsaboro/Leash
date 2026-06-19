@@ -6,6 +6,7 @@ import { fetchWithTimeout } from "../lib/http.ts";
 import { Switch } from "./Switch.tsx";
 import { IconButton } from "./IconButton.tsx";
 import { VisibilityFilter, type Visibility } from "./VisibilityFilter.tsx";
+import { toast } from "./Toast.tsx";
 
 /**
  * Tool toggles (client) — flip individual assistant tools on/off, and mark tools
@@ -44,22 +45,33 @@ export function ToolsPanel({ tools }: { tools: ToolRow[] }) {
   };
   const visible = tools.filter((t) => (filter === "all" ? true : filter === "builtin" ? !t.mcp : !!t.mcp));
 
-  const put = async (body: { disabled?: string[]; askFirst?: Record<string, boolean> }) => {
+  const put = async (body: { disabled?: string[]; askFirst?: Record<string, boolean> }, success: string) => {
     setBusy(true);
     setError(null);
     try {
       const res = await fetchWithTimeout("/api/leash/tools", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
-      if (!res.ok) setError(`Save failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Save failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success(success);
       router.refresh();
     } catch {
-      setError("Save failed — is the app still running?");
+      const msg = "Save failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
   };
 
-  const toggle = (name: string) => put({ disabled: tools.filter((t) => (t.name === name ? t.enabled : !t.enabled)).map((t) => t.name) });
-  const toggleAsk = (t: ToolRow) => put({ askFirst: { [t.name]: !t.askFirst } });
+  const toggle = (name: string) => {
+    const tool = tools.find((t) => t.name === name);
+    return put({ disabled: tools.filter((t) => (t.name === name ? t.enabled : !t.enabled)).map((t) => t.name) }, `${name} ${tool?.enabled ? "disabled" : "enabled"}`);
+  };
+  const toggleAsk = (t: ToolRow) => put({ askFirst: { [t.name]: !t.askFirst } }, `Ask first ${t.askFirst ? "disabled" : "enabled"} for ${t.name}`);
 
   return (
     <div>

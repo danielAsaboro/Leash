@@ -5,6 +5,7 @@ import { DownloadIcon, ListPlusIcon, Loader2Icon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import { appPrompt } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { ForageResult, Recommendation } from "../lib/leash/forage.ts";
 
 /**
@@ -35,11 +36,18 @@ export function ForagePanel({ result }: { result: ForageResult }) {
       const res = await fn();
       if (!res.ok) {
         const b = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(b.error ?? `Request failed (${res.status}).`);
-      } else setNotice(ok);
+        const msg = b.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        setNotice(ok);
+        toast.success(ok);
+      }
       router.refresh();
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(null);
     }

@@ -5,6 +5,7 @@ import { PencilIcon, Trash2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { appConfirm, appPrompt } from "../lib/prompt.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { LeashMemory, MemoryType } from "../lib/leash/memories-store.ts";
 
 /**
@@ -28,16 +29,24 @@ export function MemoriesSection({ memories }: { memories: LeashMemory[] }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const call = async (fn: () => Promise<Response>) => {
+  const call = async (fn: () => Promise<Response>, success: string) => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
-      if (!res.ok) setError(`Request failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+      } else {
+        toast.success(success);
+      }
       router.refresh();
       return res.ok;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
       return false;
     } finally {
       setBusy(false);
@@ -49,22 +58,23 @@ export function MemoriesSection({ memories }: { memories: LeashMemory[] }) {
     if (!newText.trim()) return;
     const ok = await call(() =>
       fetchWithTimeout("/api/leash/memory/items", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ type: newType, text: newText }) }),
+      "Memory added",
     );
     if (ok) setNewText("");
   };
 
   const retype = (m: LeashMemory, type: string) =>
-    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }));
+    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ type }) }), "Memory type saved");
 
   const edit = async (m: LeashMemory) => {
     const text = await appPrompt("Edit memory", m.text, { inputLabel: "Memory text" });
     if (text == null || !text.trim()) return;
-    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }));
+    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ text }) }), "Memory saved");
   };
 
   const forget = async (m: LeashMemory) => {
     if (!(await appConfirm("Forget this memory? The assistant will no longer know it.", { confirmLabel: "Forget", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "DELETE" }));
+    void call(() => fetchWithTimeout(`/api/leash/memory/items/${m.id}`, { method: "DELETE" }), "Memory forgotten");
   };
 
   const shown = typeFilter ? memories.filter((m) => m.type === typeFilter) : memories;

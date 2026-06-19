@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { fetchWithTimeout } from "../lib/http.ts";
+import { toast } from "./Toast.tsx";
 import type { ElicitationView } from "../lib/leash/types.ts";
 
 /**
@@ -55,13 +56,21 @@ export function ElicitationCard({ elicitation, onDone }: { elicitation: Elicitat
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Failed (${res.status}).`);
-        if (res.status === 404) onDone(elicitation.id); // already timed out — drop the stale card
+        const msg = body.error ?? `Failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        if (res.status === 404) {
+          toast.info("That request already timed out");
+          onDone(elicitation.id); // already timed out — drop the stale card
+        }
         return;
       }
+      toast.success(action === "accept" ? "Response sent" : action === "decline" ? "Request declined" : "Request cancelled");
       onDone(elicitation.id);
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

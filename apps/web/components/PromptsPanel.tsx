@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { SaveIcon, RotateCcwIcon, Loader2Icon } from "lucide-react";
 import { fetchWithTimeout } from "../lib/http.ts";
 import { IconButton } from "./IconButton.tsx";
+import { toast } from "./Toast.tsx";
 import type { PromptView } from "../lib/leash/prompts-store.ts";
 
 /**
@@ -17,15 +18,23 @@ export function PromptsPanel({ prompts }: { prompts: PromptView[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const put = async (key: string, value: string | null) => {
+  const put = async (key: string, value: string | null, success: string) => {
     setBusy(key);
     setError(null);
     try {
       const res = await fetchWithTimeout("/api/leash/prompts", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ key, value }) });
-      if (!res.ok) setError(`Save failed (${res.status}).`);
+      if (!res.ok) {
+        const msg = `Save failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
+        return;
+      }
+      toast.success(success);
       router.refresh();
     } catch {
-      setError("Save failed — is the app still running?");
+      const msg = "Save failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(null);
     }
@@ -61,7 +70,7 @@ export function PromptsPanel({ prompts }: { prompts: PromptView[] }) {
               aria-label={`${p.label} text`}
             />
             <div className="mt-2 flex items-center gap-2">
-              <IconButton title="Save override" color="var(--color-sage-deep)" disabled={busy === p.key || !dirty || !draft.trim()} onClick={() => void put(p.key, draft)}>
+              <IconButton title="Save override" color="var(--color-sage-deep)" disabled={busy === p.key || !dirty || !draft.trim()} onClick={() => void put(p.key, draft, `${p.label} saved`)}>
                 {busy === p.key ? <Loader2Icon size={15} className="animate-spin" /> : <SaveIcon size={15} />}
               </IconButton>
               <IconButton
@@ -69,7 +78,7 @@ export function PromptsPanel({ prompts }: { prompts: PromptView[] }) {
                 disabled={busy === p.key || !p.overridden}
                 onClick={() => {
                   setDrafts((d) => ({ ...d, [p.key]: p.defaultValue }));
-                  void put(p.key, null);
+                  void put(p.key, null, `${p.label} reset`);
                 }}
               >
                 <RotateCcwIcon size={15} />

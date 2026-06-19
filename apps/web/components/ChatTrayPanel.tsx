@@ -32,20 +32,25 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const call = async (fn: () => Promise<Response>, { refresh = true } = {}) => {
+  const call = async (fn: () => Promise<Response>, { refresh = true, success }: { refresh?: boolean; success?: string } = {}) => {
     setBusy(true);
     setError(null);
     try {
       const res = await fn();
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Request failed (${res.status}).`);
+        const msg = body.error ?? `Request failed (${res.status}).`;
+        setError(msg);
+        toast.error(msg);
         return false;
       }
+      if (success) toast.success(success);
       if (refresh) router.refresh();
       return true;
     } catch {
-      setError("Request failed — is the app still running?");
+      const msg = "Request failed — is the app still running?";
+      setError(msg);
+      toast.error(msg);
       return false;
     } finally {
       setBusy(false);
@@ -85,7 +90,7 @@ export function ChatTrayPanel({ chats, dreams, activeId }: { chats: ChatSummary[
     e.stopPropagation();
     const title = await appPrompt("Rename conversation", current, { inputLabel: "Conversation title" });
     if (title == null || !title.trim()) return;
-    await call(() => fetchWithTimeout(`/api/leash/chats/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }));
+    await call(() => fetchWithTimeout(`/api/leash/chats/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ title }) }), { success: "Conversation renamed" });
   };
 
   return (
