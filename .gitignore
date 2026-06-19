@@ -111,3 +111,7 @@ data/leash-feedback.jsonl
 .env.local
 **/.env
 **/.env.local
+
+# also ignore node_modules symlinks (trailing-slash pattern misses them)
+node_modules
+apps/mobile/node_modules
