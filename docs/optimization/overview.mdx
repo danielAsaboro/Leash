@@ -1,0 +1,50 @@
+---
+title: "Optimisation"
+description: "The optimisations that make Leash useful on a small, local, QVAC-only model."
+sidebarTitle: "Overview"
+---
+
+Leash is optimised around one constraint: the agent must feel capable while every AI call runs through `@qvac/sdk` on local or mesh-owned hardware. The work is not one trick. It is a stack of routing, prompt, queueing, model, memory, mesh, and mobile choices that keep the 4B-class agent inside its budget.
+
+<CardGroup cols={2}>
+  <Card title="Skill selection" icon="route" href="/optimization/skill-selection">
+    Lexical + embedding selection, RRF ranking, one active skill, and deterministic step pipelines.
+  </Card>
+  <Card title="Context and prompts" icon="brackets-curly" href="/optimization/context-and-prompts">
+    Dynamic prompt assembly, focused tools, compaction, sampling, and continuation experiments.
+  </Card>
+  <Card title="Inference runtime" icon="gauge-high" href="/optimization/inference-runtime">
+    Broker scheduling, cancel-on-disconnect, queue aging, schema caps, and diagnostics.
+  </Card>
+  <Card title="Mesh delegation" icon="circle-nodes" href="/optimization/mesh-delegation">
+    Warm-peer routing, overflow, KV-cache reuse, two-seed identity, and lazy mesh startup.
+  </Card>
+  <Card title="Models, memory, mobile" icon="microchip" href="/optimization/models-memory-mobile">
+    Fit estimation, warm caches, RAG defaults, MedGemma routing, LoRA honesty, and iOS constraints.
+  </Card>
+  <Card title="Evidence" icon="flask" href="/optimization/evidence">
+    The measurements, smokes, and negative results that shaped the optimisations.
+  </Card>
+</CardGroup>
+
+## The operating principle
+
+Small local models fail differently from cloud-scale models. They can call tools, reason, and write, but they are sensitive to overloaded prompts, too many schemas, dependent multi-step chains, cold model loads, and abandoned decodes that keep the GPU busy.
+
+Leash handles those limits in the harness:
+
+| Pressure | Optimisation |
+| --- | --- |
+| Too many possible skills | Select one likely skill with lexical + semantic routing. |
+| Too many tools | Compute active tools per turn and cap schema counts. |
+| Long conversations | Compact only the model input; keep the full transcript intact. |
+| Slow or abandoned decodes | Cancel safely on disconnect and serialize through the broker. |
+| Weak local hardware | Route to local, private mesh, or public mesh by capability and sensitivity. |
+| Repeated delegated history | Reuse KV cache only when the prefix is proven identical. |
+| Phone limits | Use JSC, curated model choices, smaller contexts, and mesh borrowing. |
+
+## What this section is
+
+This section is the engineering ledger for those choices. It folds together the polished docs, the Claude-Code architecture analysis, the sawdust build log, and the implementation comments.
+
+It deliberately includes negative results: the continuation nudge did not improve dependent chains, the 600M LoRA recall result was 0% in one reported run, and some tempting resilience work was killed when a spike showed the premise was wrong. Those failures are part of the optimisation story because they kept the shipped system simpler.

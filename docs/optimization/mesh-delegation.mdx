@@ -1,0 +1,68 @@
+---
+title: "Mesh delegation"
+description: "Warm-peer routing, overflow, KV-cache reuse, identity fixes, and lazy mesh startup."
+sidebarTitle: "Mesh delegation"
+---
+
+The mesh is both a capability feature and a performance feature. A small device can borrow a warm model from another device instead of loading it locally, and a saturated desktop can shed overflow to a peer.
+
+## Route by capability and sensitivity
+
+The Conductor ranks live route options from local QVAC inventory and Hypha's peer view. A route option includes tier, alias, tags, price, inflight count, mesh id, and peer key.
+
+The ranking obeys two constraints:
+
+| Constraint | Behavior |
+| --- | --- |
+| Capability | Pick a model that matches the required modality, size class, and specialist tag. |
+| Sensitivity | Do not send private turns to public mesh routes. |
+
+Quick trivial text turns stay local. Private memory, files, health, credentials, and device-specific context require a local or private mesh route.
+
+## Warm-peer overflow
+
+The broker's mesh overflow is additive and off unless `LEASH_BROKER_HYPHA_URL` is set. When on, it can route a chat completion to a peer for two reasons:
+
+| Trigger | Meaning |
+| --- | --- |
+| `availabilityRouted` | The alias is not served locally, but a peer has it warm. |
+| `shed` | The local alias queue is already deep enough and a warm peer can take it. |
+
+Overflow only targets a live peer that already holds the alias warm. It never pays a cold model load on the request path.
+
+## KV-cache reuse, with proof
+
+Delegated turns can reuse a peer's KV cache, but only when Hypha proves the request strictly extends the exact prefix already cached on that same peer.
+
+QVAC custom KV keys are count-based, not content-addressed. A key hit sends only the turns beyond the stored count. If the prefix is wrong, the context is silently corrupt. So Leash uses a ledger:
+
+| Case | Result |
+| --- | --- |
+| Same session, same peer, longer history, matching prefix hash | Reuse the generation key. |
+| Edit, regenerate, peer switch, aborted turn, dirty entry, daemon restart | Bump generation and re-prime. |
+| Ledger grows too large | Evict least-recently-used session; disk janitor sweeps later. |
+
+Correctness beats speed. A faster wrong answer is not an optimisation.
+
+## Identity and LAN fixes
+
+Two mesh optimisations came from painful failure modes:
+
+| Problem | Fix |
+| --- | --- |
+| Two HyperDHT servers using the same seed half-opened dials against the wrong process. | Only the SDK worker uses the raw seed; other swarms derive `sha256(seed + ":<role>")`. |
+| HyperDHT's LAN shortcut could abort a same-public-IP dial without relay fallback. | Payment/control and mesh swarms force `localConnection:false` and holepunch instead. |
+
+On a normal LAN, the forced holepunch path reconnects quickly and avoids the no-fallback LAN trap.
+
+## Lazy mesh startup
+
+Fresh daemons do not eagerly found separate meshes at boot. They run the local shim and pairing surface first, then found or join the Autobase at first pairing. This avoids the "two already-populated Autobases cannot merge" failure.
+
+The design is less flashy than an always-on mesh, but it optimises for the thing users actually need: two devices can pair cleanly.
+
+## Metered economy efficiency
+
+The economy avoids per-token or per-chunk on-chain settlement. Metered sessions use an escalating Permit2 witness ladder and settle the highest reached rung once at close. Gas stays O(1) per session rather than scaling with token count.
+
+See [Economy](/platforms/economy) and [The agent economy](/explanation/the-agent-economy) for the settlement details.

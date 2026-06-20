@@ -1,0 +1,52 @@
+---
+title: "Evidence"
+description: "Measurements, smokes, and negative results behind the optimisation choices."
+sidebarTitle: "Evidence"
+---
+
+Optimisation claims in Leash are tied to observed runs, smoke tests, or explicit negative results.
+
+## Measured numbers
+
+| Area | Evidence |
+| --- | --- |
+| Local inference | 600M at 113.7 tok/s locked figure; 1B around 70.6-74.7 tok/s; 4B at 24.1 tok/s in spike/device-fit runs. |
+| RAG | 3 docs -> 7 chunks, retrieval around 23-26 ms, top score 0.768. |
+| Delegated compute | P2P round trip 1.27 s at 45.4 tok/s; cross-machine delegated decode around 100 tok/s in later saturated-GPU shed demo. |
+| Broker shed | A fourth saturated request answered from the Pro in 2.9 s at 100.8 tok/s. |
+| LoRA | On-device fine-tune completed in 152.7 s with train 0.86 / validation 0.85 and a 20 MB adapter. |
+| Diffusion | `SD_V2_1_1B_Q8_0` images measured around 98-106 s per 768x512 image. |
+| Mobile/P2P model pull | 2382 MB pulled in 159 s over the Hypercore blob core. |
+
+See [Benchmarks](/reference/benchmarks) for the consolidated table.
+
+## Smoke tests and probes
+
+| Check | What it proves |
+| --- | --- |
+| `spike/abort-safety-inproc.ts` and HTTP abort probe | Mid-decode cancel no longer wedges the serve on SDK 0.13.1. |
+| `npm run smoke:orchestration` | Subagent streaming, nested tool calls, preloaded skills, and main-agent delegation work on-device. |
+| `npm run smoke:plugins-live` | Plugin skill activation and specialist answers work against a tools-enabled qvac serve. |
+| `smoke-model-fit` / model rows checks | Model inventory and fit verdicts reflect current config and cache state. |
+| Hypha/economy smokes | Delegation, metering, reputation, identity, and firewall behavior are exercised outside the UI. |
+
+The root-cause rule still applies: scripts are evidence, not a replacement for product-path verification.
+
+## Negative results that shaped the system
+
+| Finding | Design consequence |
+| --- | --- |
+| Qwen3 4B dropped dependent next calls even when a continuation nudge was injected. | Step-declared skills use deterministic harness pipelines. |
+| A tool-less tools-enabled chat model can hang or 500 on SDK 0.13.x. | Every text route carries at least one active tool; subagents get a keep-alive tool if needed. |
+| A tools-disabled chat serve makes the model talk about tools instead of calling them. | Dashboard-added chat aliases default to `tools:true, toolsMode:"dynamic"`. |
+| The planned Layer-1 reconnection monkey-patch could not reach the SDK Bare worker. | The overbuilt resilience layer was killed; the real fix was distinct DHT seeds. |
+| The 600M memory-evolution recall run scored 0% at 2 epochs. | LoRA mechanism is documented as real; recall improvement remains unclaimed. |
+| Hermes failed on modern SDK polyfill syntax. | iOS uses JavaScriptCore. |
+
+## Where the records live
+
+The detailed build log is `submission/sawdust.md`. The submission evidence and handoffs live under `submission/`. Product docs stay under `mycelium/docs/`.
+
+<Note>
+This page summarizes those records; it does not rewrite them. When a number changes, update the source evidence first, then update this summary.
+</Note>

@@ -26,7 +26,11 @@ Compaction state lives as two fields on the `ChatRecord`:
 | Budget fraction | `0.8` of the window | `LEASH_COMPACT_FRACTION` (clamped 0.1–0.95) |
 | Kept tail | `KEEP_TAIL = 6` messages | — |
 
-Token cost is estimated cheaply at ~4 chars/token over the text and reasoning parts of each message.
+Token cost is estimated cheaply at ~4 chars/token over the visible text parts of each message.
+
+<Note>
+Reasoning / `<think>` parts are **not** fed back into future agent calls. They stay in the stored UI transcript so you can inspect them, but compaction summarizes only visible text, and the chat route strips assistant `reasoning` parts from the recent tail before `convertToModelMessages`.
+</Note>
 
 <Steps>
   <Step title="Estimate the model input">
@@ -36,10 +40,10 @@ Token cost is estimated cheaply at ~4 chars/token over the text and reasoning pa
     If `summary + tail` fits the budget (`window × BUDGET_FRACTION`), the stored summary and tail are used as-is — compaction does no work.
   </Step>
   <Step title="Over budget → fold the oldest">
-    Everything older than the last `KEEP_TAIL = 6` messages is folded into the summary. The last 6 messages stay **verbatim** — the recent turns the model sees in full.
+    Everything older than the last `KEEP_TAIL = 6` messages is folded into the summary. The last 6 message records stay intact in storage; the model sees their visible text/tool/file content, with assistant reasoning stripped before the final model-message conversion.
   </Step>
   <Step title="Summarize on the background model">
-    The fold runs through the **background chat model** (`chatModelBackground()`), prompted (with `/no_think`) to write a compact summary (~200 words) preserving names, decisions, facts, preferences, and open threads. The new summary and advanced `summarizedThrough` are persisted via `saveSummary`.
+    The fold runs through the **background chat model** (`chatModelBackground()`), prompted (with `/no_think`) to write a compact summary (~200 words) preserving names, decisions, facts, preferences, and open threads. The fold input contains visible message text only, not prior reasoning traces. The new summary and advanced `summarizedThrough` are persisted via `saveSummary`.
   </Step>
 </Steps>
 
@@ -49,7 +53,7 @@ Token cost is estimated cheaply at ~4 chars/token over the text and reasoning pa
 Compaction never blocks a chat. If the summarization call fails, the error is logged and the turn runs with the **prior** summary plus tail — more context than ideal, but the conversation still proceeds.
 </Note>
 
-The summarization request uses an inert `noop` tool and `stopWhen: stepCountIs(2)` to keep the small model answering in text rather than calling a tool, then strips any `<think>…</think>` block from the result before storing it.
+The summarization request uses an inert `noop` tool and `stopWhen: stepCountIs(2)` to keep the small model answering in text rather than calling a tool, then strips any `<think>…</think>` block from the result before storing it. That means neither old assistant thoughts nor the summarizer's own thoughts become part of the next agent prompt.
 
 ## Interaction with checkpoint revert
 

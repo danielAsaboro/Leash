@@ -8,6 +8,82 @@ The day-by-day release history of Leash / Mycelium across the QVAC Hackathon bui
 (May 31 – June 21, 2026). Everything here runs on-device through `@qvac/sdk` — no cloud AI.
 Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
 
+<Update label="June 20" description="Durable orchestration, Apple Notes UI, MCP consolidation & skill routing fixes" tags={["Leash", "Agent", "MCP", "Skills"]}>
+  The agent runtime gained a durable **goal-run ledger** and context capsules so long work is
+  observable as steps, artifacts, errors, final synthesis, and model traces instead of an opaque
+  stream. The chat route, plan tool, and skill pipeline now write step state into that ledger, with
+  new smoke/stress coverage for goal runs, context capsules, tool policy, permission boundaries,
+  P2P routing, Psy health routing, and orchestration gauntlets. Apple Notes got a real UI/open-url
+  path, while Brain folded the old Tools tab into the **MCP** surface so built-in and connected
+  tool groups are managed from one place.
+
+  The skill layer was also corrected at the root: built-in `SKILL.md` manifests now route through
+  the same parser/metadata path as user/plugin skills, the Skills panel surfaces the corrected
+  manifest data, and a new chat-API smoke covers skill routing end to end.
+
+  `8a5a652` Brain tools → MCP · `6e5764d` durable orchestration + Apple Notes UI · `8c2c8d7`
+  skill manifest routing
+</Update>
+
+<Update label="June 19" description="Conductor refactor, SDK 0.13.5, prompt cleanup & app-dialog UX" tags={["Agent", "Models", "UI"]}>
+  Routing moved into the **Conductor**: capability-first, privacy-gated, cost-aware route ranking
+  now sits in `conductor-core`, with fast-path local answers, deterministic guarded fallback, peer
+  pinning, public-mesh blocking for private turns, and a visible conductor event in chat. The SDK
+  and CLI line moved to **0.13.5 / 0.7.0** with deduped serve dependencies and rebuilt mobile
+  worklets. Prompt text was centralized and aligned with QVAC/Qwen guidance, including specialist
+  identity and health-routing improvements.
+
+  The web UI also replaced native browser prompts with in-app dialogs and added toast feedback
+  across actions, tightening the product surface without changing the local-only inference rule.
+
+  `f0fd143` SDK/CLI 0.13.5/0.7.0 dedupe · `ed0e380` rebuild mobile worklets · `fa5309a`
+  Conductor refactor · `2a755ad` app dialogs · `08bd32b` toast feedback · `8a4dc64`
+  centralize prompts · `d88f509` QVAC prompt guidance · `a9f49f0` specialist identities + health routing
+</Update>
+
+<Update label="June 18" description="Cancel-when-safe replaces the old drain discipline" tags={["Agent", "Mesh", "Mobile", "Economy"]}>
+  The old "never abort, always drain" rule was retired after SDK 0.13.1 abort-safety probes proved
+  targeted cancellation no longer wedges the serve. Web and desktop now pass the client
+  `abortSignal` through the agent call; the broker aborts upstream serve / hypha fetches on client
+  disconnect; hypha cancels local delegated decodes on disconnect, TTFB timeout, or auth stop; and
+  mobile cancels the active on-device turn by `requestId` with `modelId` as fallback.
+
+  Forward mesh cancellation was wired too: a consumer cancel reaches the provider, which aborts its
+  local serve fetch, and metered sessions settle **actual emitted tokens** rather than a full quote.
+  The mobile forward worklet flushes the cancel frame before tearing down the swarm, and docs were
+  updated to describe cancel-when-safe with drain as fallback.
+
+  `b65d46c` abort-safety probes · `a267294` web/desktop Stop cancels decode · `4455b04` hypha
+  delegated cancel · `f523ab9` broker aborts upstream · `e835277` mobile requestId cancel ·
+  `13c7b35` forward cancel · `3f97628` bill actual cancelled tokens · `68eb710` flush mobile
+  forward cancel · `1f0038a` cancel-when-safe docs
+</Update>
+
+<Update label="June 17" description="Conductor, Leash-as-agent, specialist delegates, frontmatter parity, mobile model selection & file attachments" tags={["Agent", "Mobile", "Leash", "Docs"]}>
+  The agent architecture snapped into its current shape. The **Conductor** landed as a capability
+  and privacy router over local, private-mesh, and public-mesh options, including per-peer pinning,
+  route tags, deterministic ranking, guarded fallbacks, and a UI/audit event. Leash itself became
+  the default markdown-backed agent (`leash.md`) loaded per turn and bundled into standalone builds.
+  Specialist delegates then joined it as built-in subagents — Joy, Sage, Bree, and Grace — with
+  model-driven delegation replacing the hardcoded health regex.
+
+  Agent frontmatter reached Claude-compatible parity for the fields Leash can safely support:
+  `mcpServers`, sandboxed per-agent `memory`, reserved fields, inline MCP connection/disconnect,
+  referenced MCP grants, and PUT/toggle preservation. Mobile got the missing Brain surfaces:
+  a read-only Agents roster and a global chat-model selector with curated phone-runnable models,
+  persisted selection, progress reporting, and failure-safe switching. Chat attachments became real
+  for any file: images still route to the VLM, while text/code/CSV/JSON/log attachments are folded
+  into the model input as bounded text and binaries get an honest note.
+
+  The README and docs were also truthed up into a submission-grade front door, and the landing/web
+  brand assets switched back to the real PNG logo with matted screenshot plates.
+
+  `a07867e` MedPsy RAG workflow · `a8aeaee` route ranking · `c9d534c` capability-discovery MCP ·
+  `a558de0` Conductor in chat · `1d86d56` route UI/audit event · `428bab3` Leash default agent ·
+  `84fc462` specialist delegates · `24c03ae` Claude frontmatter parity · `d2ffca0` mobile model
+  selection · `bc3e65c` mobile Agents roster · `e7e1da2` any-file chat attachments + README/docs
+</Update>
+
 <Update label="June 16" description="Plugins, first-class subagents, mesh-native task sync & the phone as a real mesh member" tags={["Leash", "Skills", "Mesh", "Agent"]}>
   Four landings. A **plugin system** — Claude-Code-compatible bundles (skills + MCP servers +
   subagents) registered *virtually* and quarantined on install, with five install sources

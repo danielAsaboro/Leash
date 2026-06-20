@@ -1,0 +1,63 @@
+---
+title: "Models, memory, and mobile"
+description: "Model fit, warm cache, RAG defaults, specialist routing, LoRA honesty, and iOS runtime choices."
+sidebarTitle: "Models & mobile"
+---
+
+Model and memory choices are part of performance. Leash does not assume every device can host every capability at once.
+
+## Model aliases and warm cache
+
+Code talks to aliases, not filenames. The dashboard edits `qvac.config.base.json`, and `qvac.config.mjs` expands machine-local `~/` paths. That keeps shared config portable across Macs while allowing each device to cache weights where it makes sense.
+
+| Choice | Optimisation |
+| --- | --- |
+| `preload: true` on core aliases | Avoid first-turn cold load. |
+| `downloadAsset(...)` warm scripts | Cache weights without loading them into memory. |
+| External `~/.qvac` symlink | Keep multi-GB weights off the internal SSD. |
+| No config `qvac.config.json` | Avoid shadowing the machine-neutral `.mjs` wrapper. |
+
+Warm-cache is also the offline acceptance path: after the one-time download and DHT bootstrap, the app should run in airplane mode.
+
+## Fit estimation and context size
+
+The dashboard estimates model fit before a download. The rough calculation is:
+
+```text
+peak ~= weight_size + KV_cache + 0.5 GB overhead
+KV_cache (GB) ~= 0.000008 * params_B * ctx_tokens
+```
+
+This makes context size a first-class performance knob. A 4B model at 32k uses about 1 GB of KV cache; at 8k it drops to about 0.25 GB. The slider in **Brain -> Models** updates the fit verdict live.
+
+## RAG-first memory
+
+The exocortex defaults to consulting the graph for personal questions. That decision came from a real failure: a voice memo contained the answer, but a keyword router treated the question as trivial and the local model hallucinated. The fix was root-cause: only arithmetic and simple greetings take the trivial path; anything that may depend on private context goes through retrieval.
+
+Embeddings are therefore not optional for grounded chat. `gte-large` powers RAG, skill selection, memory indexing, and heartbeat dedup.
+
+## Specialist routing
+
+Health questions route to `medpsy` when that alias is available. The MedPsy workflow uses retrieve-then-read instead of relying on MedGemma to decide to call a tool. In a high-stakes domain, grounding should be a harness rule, not a model preference.
+
+The same principle shows up elsewhere: the Council improves citation reliability at the cost of latency, and specialist delegates isolate domain prompts and tools from the main thread.
+
+## LoRA honesty
+
+QVAC Fabric LoRA is proven: the spike fine-tuned locally in 152.7 seconds and produced a 20 MB adapter with observable behavior change. The memory-evolution loop is more cautious. One reported 600M recall run scored 0% at 2 epochs, so the docs describe the mechanism as real and the recall improvement as unproven until stronger evidence exists.
+
+That is an optimisation too: do not spend user trust on a claim the measurements do not support.
+
+## Mobile constraints
+
+Mobile gets a different runtime shape:
+
+| Constraint | Choice |
+| --- | --- |
+| Hermes cannot compile some SDK polyfill syntax | Use JavaScriptCore. |
+| Phone RAM is tighter | Use curated chat models and smaller contexts. |
+| Model switching is slow | Persist one global selected local chat model. |
+| Desktop-only tools/MCP | Show Brain tabs but execute those capabilities on paired desktop Leash. |
+| Stronger peer available | Auto-borrow over the mesh when a provider is discovered. |
+
+The phone is not a thin chat client: iOS can join the private mesh and replicate tasks. But it still respects platform limits instead of pretending it can host the whole desktop harness.

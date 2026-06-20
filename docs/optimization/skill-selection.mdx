@@ -1,0 +1,73 @@
+---
+title: "Skill selection"
+description: "How Leash chooses one useful skill without filling the prompt with every possible instruction."
+sidebarTitle: "Skill selection"
+---
+
+Leash treats skills as a context budget problem before it treats them as a feature. A skill can carry long instructions, tools, examples, and scripts. Loading every enabled skill into every turn would drown the 4B model. So the harness advertises only a catalog, activates at most one skill automatically, and lets that skill reach for others with tools when needed.
+
+## Selection pipeline
+
+The chat route asks `activeSkillsSection(userText)` to choose a skill. The selector has two paths:
+
+| Path | What it does |
+| --- | --- |
+| Explicit mention | If the user names a skill by slug, `@slug`, or exact name, Leash loads that skill directly. |
+| Automatic routing | Leash scores enabled skills with lexical overlap and on-device embeddings, then ranks surviving candidates with Reciprocal Rank Fusion. |
+
+Each skill is represented by multiple routing utterances: its discovery text, `when_to_use` lines, and metadata examples. The embedding score is the max cosine against those utterances, not just one broad description. This is what lets a specific skill beat a broad sibling on a concrete intent.
+
+## Calibrated floors
+
+Automatic activation is gated by confidence floors:
+
+| Signal | Default | Why |
+| --- | --- | --- |
+| Lexical | `LEASH_SKILL_LEX_FLOOR=0.45` | Catches keyword-only matches while general prompts stay low. |
+| Embedding | `LEASH_SKILL_EMB_FLOOR=0.81` | Separates true intents from false positives with `gte-large`. |
+
+The selector logs the top candidates under loop diagnostics so floors can be tuned against real turns, not vibes.
+
+## One active skill
+
+RRF orders candidates that clear a floor, but only the top skill loads. That keeps the main prompt lean and prevents instruction collisions.
+
+If the active skill declares `tools:`, that list becomes the turn's active toolset, intersected with the live registry. The route default is only the fallback. Skill-selected tools are capped at 18 so a skill cannot reintroduce schema overflow.
+
+## Skill composition
+
+The active skill still gets the skill-system tools:
+
+| Tool | Purpose |
+| --- | --- |
+| `read_skill` | Load another skill body on demand. |
+| `read_skill_file` | Read an attached reference from a skill. |
+| `run_skill_script` | Run bundled scripts behind approval. |
+| `run_skill` | Delegate a sub-task to another skill in a focused context. |
+
+That gives Leash progressive disclosure: start with one skill, then load more only if the turn proves it needs them.
+
+## Deterministic pipelines
+
+The biggest optimisation is not faster decoding. It is moving step order out of the model.
+
+When a skill declares `steps:`, the chat route does not let the model free-run the whole task. It runs `runSkillAsPipeline`: one bounded model call per step, earlier step results fed forward, and the harness decides when the next step starts.
+
+This exists because the build logs showed a concrete small-model failure: `qwen3-4b` can fire one sub-task, but often drops the dependent next call at the continuation boundary. The pipeline path measured **3/3** on the dependent chain where free-run was roughly **1/3**.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Skills" icon="book" href="/capabilities/skills">
+    User-facing skill behavior and authoring.
+  </Card>
+  <Card title="Delegation" icon="share-nodes" href="/agents/delegation">
+    How skills and subagents delegate work.
+  </Card>
+  <Card title="Runtime" icon="gears" href="/agents/runtime">
+    `prepareCall`, active tools, and step budgets.
+  </Card>
+  <Card title="Subagents" icon="robot" href="/agents/subagents">
+    Focused agent contexts with restricted tools.
+  </Card>
+</CardGroup>

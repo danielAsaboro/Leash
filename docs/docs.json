@@ -53,6 +53,16 @@
               "install/ios",
               "install/android"
             ]
+          },
+          {
+            "group": "Platforms",
+            "pages": [
+              "platforms/overview",
+              "platforms/desktop",
+              "platforms/mesh",
+              "platforms/economy",
+              "platforms/mobile"
+            ]
           }
         ]
       },
@@ -144,106 +154,91 @@
             "pages": [
               "agents/brain"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Capabilities",
-        "icon": "wrench",
-        "groups": [
-          {
-            "group": "Overview",
-            "pages": [
-              "capabilities/overview"
-            ]
           },
           {
-            "group": "Skills",
+            "group": "Capabilities",
             "pages": [
-              "capabilities/skills",
-              "capabilities/skills-workshop",
-              "capabilities/skills-creating",
-              "capabilities/skills-config"
-            ]
-          },
-          {
-            "group": "MCP",
-            "pages": [
-              "capabilities/mcp",
+              "capabilities/overview",
               {
-                "group": "Tools",
+                "group": "Skills",
                 "pages": [
-                  "capabilities/tools",
-                  "capabilities/tools/memory",
-                  "capabilities/tools/tasks",
-                  "capabilities/tools/context",
-                  "capabilities/tools/feed",
-                  "capabilities/tools/research",
-                  "capabilities/tools/computer",
-                  "capabilities/tools/files",
-                  "capabilities/tools/photos",
-                  "capabilities/tools/image",
-                  "capabilities/tools/home-assistant",
-                  "capabilities/tools/mcp-admin",
-                  "capabilities/tools/scheduler",
-                  "capabilities/tools/skills"
+                  "capabilities/skills",
+                  "capabilities/skills-workshop",
+                  "capabilities/skills-creating",
+                  "capabilities/skills-config"
                 ]
               },
               {
-                "group": "Automation",
+                "group": "MCP",
                 "pages": [
-                  "capabilities/automation",
-                  "capabilities/scheduler",
-                  "capabilities/background-tasks"
+                  "capabilities/mcp",
+                  {
+                    "group": "Tools",
+                    "pages": [
+                      "capabilities/tools",
+                      "capabilities/tools/memory",
+                      "capabilities/tools/tasks",
+                      "capabilities/tools/context",
+                      "capabilities/tools/feed",
+                      "capabilities/tools/research",
+                      "capabilities/tools/computer",
+                      "capabilities/tools/files",
+                      "capabilities/tools/photos",
+                      "capabilities/tools/image",
+                      "capabilities/tools/home-assistant",
+                      "capabilities/tools/mcp-admin",
+                      "capabilities/tools/scheduler",
+                      "capabilities/tools/skills"
+                    ]
+                  },
+                  {
+                    "group": "Automation",
+                    "pages": [
+                      "capabilities/automation",
+                      "capabilities/scheduler",
+                      "capabilities/background-tasks"
+                    ]
+                  }
                 ]
-              }
-            ]
-          },
-          {
-            "group": "Plugins",
-            "pages": [
+              },
               "capabilities/plugins"
             ]
-          }
-        ]
-      },
-      {
-        "tab": "Models",
-        "icon": "microchip",
-        "groups": [
+          },
           {
             "group": "Models",
             "pages": [
               "models/overview",
               "models/catalog",
               "models/aliases",
-              "models/config"
-            ]
-          },
-          {
-            "group": "By modality",
-            "pages": [
-              "models/modality/chat",
-              "models/modality/vision",
-              "models/modality/embeddings",
-              "models/modality/speech",
-              "models/modality/image"
+              "models/config",
+              {
+                "group": "By modality",
+                "pages": [
+                  "models/modality/chat",
+                  "models/modality/vision",
+                  "models/modality/embeddings",
+                  "models/modality/speech",
+                  "models/modality/image"
+                ]
+              }
             ]
           }
         ]
       },
       {
-        "tab": "Platforms",
-        "icon": "server",
+        "tab": "Optimisation",
+        "icon": "gauge",
         "groups": [
           {
-            "group": "Platforms",
+            "group": "Optimisation",
             "pages": [
-              "platforms/overview",
-              "platforms/desktop",
-              "platforms/mesh",
-              "platforms/economy",
-              "platforms/mobile"
+              "optimization/overview",
+              "optimization/skill-selection",
+              "optimization/context-and-prompts",
+              "optimization/inference-runtime",
+              "optimization/mesh-delegation",
+              "optimization/models-memory-mobile",
+              "optimization/evidence"
             ]
           }
         ]

@@ -1,0 +1,83 @@
+---
+title: "Inference runtime"
+description: "Broker scheduling, cancellation, queue aging, schema caps, and runtime diagnostics."
+sidebarTitle: "Inference runtime"
+---
+
+The runtime optimisations sit between the agent loop and `qvac serve`. Their job is to keep the GPU useful: no accidental same-model collisions, no abandoned decodes burning tokens, and no background task starving forever.
+
+## Request-boundary scheduling
+
+`leash-broker` is a reverse proxy in front of `qvac serve`:
+
+```bash
+npm run broker   # :11436 -> :11435
+```
+
+The serve can only decode one request per model context. The SDK queues same-model requests inside one process, but Leash has many processes: web chat, compaction, research, watcher, desktop services, and probes. The broker is the cross-process chokepoint.
+
+| Mechanism | Effect |
+| --- | --- |
+| Per-alias serialization | One in-flight request per model alias. |
+| Cross-alias parallelism | Different aliases can run at the same time. |
+| Priority tiers | `interactive` beats `inline`, which beats `background`. |
+| Aging | A waiting request gains priority every 8 seconds by default. |
+| No body timeout | Long local decodes are not killed by proxy timeouts. |
+
+## Cancel-on-disconnect
+
+The 0.11-era rule was "never abort; drain in the background" because mid-decode aborts could wedge the serve. SDK 0.13.1 changed the equation: targeted cancellation is safe and was verified with abort-safety probes.
+
+Current rule:
+
+1. The browser Stop button or client disconnect aborts the route's fetch.
+2. The agent passes that `abortSignal` to the model call.
+3. The serve's cancel bridge fires `cancel({ requestId })`.
+4. The GPU is freed mid-decode.
+5. Drain remains only as a fallback where no signal or cancel acknowledgement exists.
+
+This matters because a stopped 2,000-token answer should not keep the only local GPU occupied while the user sends the next turn.
+
+## Schema budget
+
+The serve's prompt budget can be blown by tool schemas before the user prompt is interesting. Leash caps the high-cardinality surfaces:
+
+| Surface | Cap |
+| --- | --- |
+| Active skill tools | 18 tools |
+| Enabled subagent tools | 8 agent tools |
+| MCP-admin tools | Skill-gated; never always-on |
+| Computer tools | Only on computer route |
+
+Those caps are deliberately harness-side. They make overload impossible even if a plugin or user-authored skill declares too much.
+
+## Diagnostics
+
+Runtime diagnostics exist because small-model failures look similar from the UI. `LEASH_DEBUG_LOOP` logs the raw step finish reason, tool-call count, text/reasoning presence, and continuation classification.
+
+The docs name three root-cause buckets:
+
+| Bucket | Symptom | Likely fix |
+| --- | --- | --- |
+| A | Stop with tool calls present | Harness loop bug. |
+| B | Reaches a call in reasoning, then overthinks | Decode or thinking-budget issue. |
+| C | Clean final answer after step 1, no next call | Plan/decomposition issue. |
+
+The continuation-nudge experiment came from bucket C and failed to move the number. That is why deterministic pipelines are part of the optimisation stack.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="The broker" icon="diagram-project" href="/agents/queue">
+    Full broker behavior and configuration.
+  </Card>
+  <Card title="Priority & aging" icon="arrow-up-wide-short" href="/agents/queue-priority">
+    The scheduling formula and mesh overflow gate.
+  </Card>
+  <Card title="Runtime engine" icon="gears" href="/agents/runtime">
+    `ToolLoopAgent`, `prepareCall`, repair, and diagnostics.
+  </Card>
+  <Card title="Benchmarks" icon="gauge" href="/reference/benchmarks">
+    TTFT and throughput evidence.
+  </Card>
+</CardGroup>

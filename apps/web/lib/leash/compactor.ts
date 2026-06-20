@@ -6,6 +6,8 @@
  * running `summary` (stored on the ChatRecord) and feed the model
  * `[summary + recent tail]`. The full message array is never touched — the user still
  * sees and the store still keeps everything; only the model's input is compacted.
+ * Reasoning / `<think>` parts are not summarized or sent back through the model
+ * input; only visible text participates in compaction.
  * Adapted from Odysseus `src/context_compactor.py`.
  */
 import "server-only";
@@ -15,22 +17,12 @@ import { chatModelBackground } from "./provider.ts";
 import { saveSummary } from "./chat-store.ts";
 import type { LeashUIMessage } from "./types.ts";
 import { COMPACTION_NOOP_TOOL_DESCRIPTION, buildCompactionPrompt } from "./prompt.ts";
+import { compactableMessageText } from "./compaction-text.ts";
 
 /** Messages always kept verbatim at the end (recent turns the model sees in full). */
 const KEEP_TAIL = 6;
 /** Fraction of the context window history may occupy before we compact (env-overridable). */
 const BUDGET_FRACTION = Math.min(0.95, Math.max(0.1, Number(process.env["LEASH_COMPACT_FRACTION"] ?? 0.8)));
-
-/** Plain text of a UI message (text parts joined) — for token estimation + summarizing. */
-function messageText(m: LeashUIMessage): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const parts = (m.parts as any[]) ?? [];
-  const text = parts
-    .filter((p) => p?.type === "text" || p?.type === "reasoning")
-    .map((p) => p.text ?? "")
-    .join(" ");
-  return text.replace(/\s+/g, " ").trim();
-}
 
 /** Cheap token estimate (~4 chars/token). */
 const estTokens = (s: string): number => Math.ceil(s.length / 4);
@@ -59,7 +51,7 @@ export async function compact(chatId: string, messages: LeashUIMessage[], ctxSiz
   let tailFrom = Math.min(prior.summarizedThrough ?? 0, messages.length);
 
   // Current model-input estimate = summary + the tail we'd send.
-  const tailTokens = () => messages.slice(tailFrom).reduce((n, m) => n + estTokens(messageText(m)), 0);
+  const tailTokens = () => messages.slice(tailFrom).reduce((n, m) => n + estTokens(compactableMessageText(m)), 0);
   const summaryTokens = () => (summary ? estTokens(summary) : 0);
 
   // Already within budget → use the stored summary + tail as-is (no LLM call).
@@ -71,7 +63,7 @@ export async function compact(chatId: string, messages: LeashUIMessage[], ctxSiz
 
   const toFold = messages
     .slice(tailFrom, newTailFrom)
-    .map((m) => `${m.role}: ${messageText(m)}`)
+    .map((m) => `${m.role}: ${compactableMessageText(m)}`)
     .filter((l) => l.length > l.indexOf(":") + 2)
     .join("\n");
   if (!toFold.trim()) {

@@ -1,0 +1,81 @@
+---
+title: "Context and prompts"
+description: "Dynamic prompt assembly, focused tools, compaction, sampling, and the prompt experiments that did not ship."
+sidebarTitle: "Context & prompts"
+---
+
+Leash follows the useful part of the Claude-Code harness pattern: keep the core loop simple, but compile the context around it deliberately. The prompt is assembled from explicit inputs, not a single static mega-prompt.
+
+## Dynamic context compiler
+
+Each chat turn composes the system input from the current route and state:
+
+| Input | Why it is included |
+| --- | --- |
+| Main agent base | The default Leash behavior and current agent body. |
+| Soul and goals | The user's constitution. |
+| Preferences and memory | Durable user context, only where relevant. |
+| Compaction summary | Older conversation state when the thread is long. |
+| Active skill body | Loaded only when explicit or confidently selected. |
+| Route notes | Files, computer, health, vision, plan, approval, and citation constraints. |
+| Disabled tools note | The model sees unavailable capabilities honestly. |
+
+The model sees the compiled input. The user still sees the full transcript.
+
+## Compaction without mutating the record
+
+Context compaction triggers around 80% of the model window. It folds older messages into a running summary and keeps the recent tail's visible content available to the model. The stored `messages` array is never mutated.
+
+This gives the model a smaller input while keeping the user-visible record and future recovery path intact. If compaction fails, chat proceeds with the prior summary plus tail rather than blocking the turn.
+
+## Thoughts are not fed back
+
+Qwen3's `<think>` output is extracted into `reasoning` parts so the UI can show it separately. Those parts are not treated as durable conversation content for future agent calls.
+
+There are three guardrails:
+
+| Stage | Guardrail |
+| --- | --- |
+| Compaction input | Only visible `text` parts are summarized. Reasoning parts are ignored when estimating tokens and building the fold. |
+| Compaction output | The background summarizer runs with `/no_think`, and any `<think>...</think>` block in its output is stripped before storage. |
+| Recent tail | Before `convertToModelMessages`, assistant `reasoning` parts are removed from the model input. The stored/displayed thread is untouched. |
+
+The effect is deliberate: the user can inspect reasoning in the UI, but the agent does not recursively consume its prior private thoughts as if they were facts.
+
+See [Context compaction](/agents/compaction) for the exact fields and knobs.
+
+## Focused tool exposure
+
+The active toolset is calculated in `prepareCall`:
+
+| Route | Active tools |
+| --- | --- |
+| `vision` | No tools; the VLM is single-shot. |
+| `files` | Sandboxed bash/read/search tools. |
+| `computer` | GUI and computer-use tools only. |
+| `health` | Health-safe tools only. |
+| Active skill | The skill's declared tools plus skill-system tools. |
+| General chat | Everything except computer and MCP-admin tools. |
+
+This solves two problems at once: the model sees fewer affordances, and the qvac serve avoids the context overflow caused by too many schemas.
+
+## Toolless-hang guard
+
+The main chat model is served with `tools:true` and `toolsMode:"dynamic"`. On SDK 0.13.x, sending an empty tools array to that model shape can fail. Leash keeps at least one active tool on text routes and gives pure-reasoning subagents a harmless keep-alive tool. Vision is the exception because it uses a separate model that is not tools-enabled.
+
+## Sampling, not greedy defaults
+
+Qwen3 turns do not use the serve's near-greedy default. The runtime sets sampling by thinking mode:
+
+| Mode | Temperature | topP |
+| --- | --- | --- |
+| Thinking | `0.6` | `0.95` |
+| No-think | `0.7` | `0.8` |
+
+The goal is reliability, not maximal randomness: avoid repetition loops while keeping tool-call behavior stable.
+
+## Negative result: continuation nudge
+
+Leash has a flag-gated continuation nudge that re-injects the goal and tool checklist after the first step. It is off by default because the measured result did not justify shipping it: ON was around **1/5**, OFF around **1/3** on the dependent-chain test, within noise.
+
+That result pushed the design toward deterministic skill pipelines and plan-mode execution instead of hoping a stronger prompt would fix the failure.
