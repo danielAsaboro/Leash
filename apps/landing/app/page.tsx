@@ -84,7 +84,7 @@ export default function Landing() {
         <p className="landing-kicker kicker kicker-sage rise" style={{ animationDelay: "0.5s" }}>The private exocortex</p>
         <h2 className="landing-headline rise" style={{ animationDelay: "0.6s" }}>Your mind, on your own devices.</h2>
         <p className="landing-dek rise" style={{ animationDelay: "0.72s" }}>
-          Leash is a private assistant grounded in your own data — your notes, your files, your world. It runs entirely on your devices.
+          Leash is a private assistant grounded in your own data — Apple Notes, files, memory, and your world. It runs entirely on your devices.
           No cloud. No leak. Powered by your personal mesh.
         </p>
         <div className="landing-cta-row rise" style={{ animationDelay: "0.84s" }}>

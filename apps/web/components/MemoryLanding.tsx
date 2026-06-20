@@ -44,7 +44,7 @@ export function MemoryLanding({ memories, notes, activity, stats }: { memories: 
   return (
     <div className="flex flex-col gap-5">
       <p className="kicker" style={faint}>
-        Index: {stats.noteFiles} note file(s){stats.noteChunks !== null ? ` · ${stats.noteChunks} note chunks` : " · notes not embedded yet"} · {stats.activityRecords} activity record(s)
+        Index: {stats.noteFiles} local context file(s){stats.noteChunks !== null ? ` · ${stats.noteChunks} context chunks` : " · local context not embedded yet"} · {stats.activityRecords} activity record(s)
         {stats.activityChunks !== null ? ` · ${stats.activityChunks} activity chunks` : " · activity not embedded yet"}
       </p>
 
@@ -65,9 +65,9 @@ export function MemoryLanding({ memories, notes, activity, stats }: { memories: 
           )}
       </Card>
 
-      <Card href="/brain/notes" icon={<FileTextIcon size={16} />} title="Notes" count={`${notes.length}`} open="Open Notes">
+      <Card href="/brain/notes" icon={<FileTextIcon size={16} />} title="Local context" count={`${notes.length}`} open="Open local context">
         {topNotes.length === 0
-          ? empty("No notes — drop .md files into data/notes.")
+          ? empty("No local context files indexed.")
           : (
             <ul className="flex flex-col gap-1.5">
               {topNotes.map((n) => (

@@ -29,6 +29,7 @@ import { mcpToolNamesForServers, connectInline } from "./mcp.ts";
 import { grantedNames } from "./agent-grants.ts";
 import { readMemoryContext, agentMemoryTools } from "./agent-memory.ts";
 import { buildAgentFallbackInstructions } from "./prompt.ts";
+import { enforceToolPolicy, filterToolNamesForContext } from "@mycelium/leash-core/tool-policy";
 
 /** Max agent tools emitted at once — each is one schema; cap keeps the active toolset under budget. */
 const AGENT_TOOLS_CAP = 8;
@@ -59,7 +60,9 @@ async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: Too
   const off = await disabledTools();
   const denied = new Set(agent.disallowedTools);
   const names: string[] = [];
+  const policyAllowed = new Set(filterToolNamesForContext(agent.tools, { route: "agent", subagent: true }));
   for (const n of agent.tools) {
+    if (!policyAllowed.has(n)) continue;
     if (NO_NEST.has(n) || n.startsWith("agent__") || !registry[n] || off.has(n) || denied.has(n)) continue;
     if (await toolNeedsApproval(n)) continue; // subagents can't pause on a human approval card (AI SDK caveat)
     names.push(n);
@@ -68,12 +71,13 @@ async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: Too
     const serverToolNames = await mcpToolNamesForServers(agent.mcpServers.refs);
     const chosen = new Set(names);
     for (const n of grantedNames(serverToolNames, new Set(Object.keys(registry)), chosen, denied)) {
+      if (!filterToolNamesForContext([n], { route: "agent", subagent: true }).length) continue;
       if (off.has(n)) continue; // a globally disabled tool stays disabled even via a reference
       if (await toolNeedsApproval(n)) continue; // delegates still can't use approval-gated tools
       names.push(n);
     }
   }
-  const tools: ToolSet = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
+  const tools: ToolSet = enforceToolPolicy(Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]])), { route: "agent", subagent: true });
   return { tools, names };
 }
 
@@ -118,7 +122,7 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
           const memCtx = agent.memory ? await readMemoryContext(agent.slug) : "";
           const memTools = agent.memory ? agentMemoryTools(agent.slug) : {};
           // Merge declared tools + inline MCP tools + memory tools; apply toolless-hang guard to the merged set.
-          const merged: ToolSet = { ...(names.length ? tools : {}), ...inline.tools, ...memTools };
+          const merged: ToolSet = enforceToolPolicy({ ...(names.length ? tools : {}), ...inline.tools, ...memTools }, { route: "agent", subagent: true });
           const runTools = Object.keys(merged).length ? merged : KEEPALIVE_TOOLS;
           loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${Object.keys(runTools).length} tool(s), ${agent.skills.length} skill(s), ${agent.mcpServers.inline.length} inline mcp)`);
           // The subagent is a ToolLoopAgent — same primitive as the main chat agent — with an isolated context.

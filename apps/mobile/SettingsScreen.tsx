@@ -120,7 +120,7 @@ export function SettingsScreen({
   const resetDevice = () => {
     Alert.alert(
       "Reset this device",
-      "Erase ALL on-device Leash data — conversations, memories, tasks, notes, and alerts. Secrets in the Keychain are kept. This can't be undone.",
+      "Erase ALL on-device Leash data — conversations, memories, tasks, local text entries, and alerts. Secrets in the Keychain are kept. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -193,7 +193,7 @@ export function SettingsScreen({
               <Text style={styles.dangerText}>⊘  RESET THIS DEVICE</Text>
             </Pressable>
             <Text style={styles.subNote}>
-              Erases conversations, memories, tasks, notes, and alerts. Keychain secrets and the mesh
+              Erases conversations, memories, tasks, local text entries, and alerts. Keychain secrets and the mesh
               pairing are kept.
             </Text>
           </>

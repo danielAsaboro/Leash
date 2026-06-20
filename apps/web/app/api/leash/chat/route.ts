@@ -47,6 +47,18 @@ import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
 import { interjectRequested, clearInterject } from "../../../../lib/leash/interject-store.ts";
 import type { EffortTier, LeashUIMessage } from "../../../../lib/leash/types.ts";
 import { AuditLog } from "@mycelium/shared";
+import { enforceToolPolicy, type ToolRoute } from "@mycelium/leash-core/tool-policy";
+import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
+import {
+  appendGoalRunError,
+  createGoalRun,
+  finishGoalRun,
+  getGoalRun,
+  goalRunView,
+  recordGoalRunModelTrace,
+  startGoalRunStep,
+  updateGoalRunStep,
+} from "@mycelium/leash-core/goal-runs";
 import { DATA_DIR } from "../../../../lib/leash/json-store.ts";
 import {
   CHAT_APPROVAL_NOTE,
@@ -98,6 +110,35 @@ const conductorDataSchema = z.object({
   meshId: z.string().optional(),
   reason: z.string(),
   viaFastPath: z.boolean(),
+});
+
+const goalRunDataSchema = z.object({
+  id: z.string(),
+  chatId: z.string().optional(),
+  title: z.string(),
+  status: z.enum(["active", "paused", "failed", "cancelled", "completed"]),
+  route: z.enum(["chat", "health", "computer", "files", "vision", "plan", "skill", "agent", "background"]),
+  sensitivity: z.enum(["private", "shareable"]),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+  startedAt: z.number().optional(),
+  finishedAt: z.number().optional(),
+  steps: z.array(
+    z.object({
+      id: z.string(),
+      index: z.number(),
+      title: z.string(),
+      status: z.enum(["pending", "active", "done", "failed", "skipped", "cancelled"]),
+      route: z.enum(["chat", "health", "computer", "files", "vision", "plan", "skill", "agent", "background"]),
+      model: z.string().optional(),
+      startedAt: z.number().optional(),
+      finishedAt: z.number().optional(),
+      summary: z.string().optional(),
+    }),
+  ),
+  artifacts: z.array(z.object({ id: z.string(), kind: z.string(), title: z.string(), ref: z.string().optional(), summary: z.string().optional(), createdAt: z.number() })),
+  errors: z.array(z.string()),
+  finalSynthesis: z.string().optional(),
 });
 
 /**
@@ -161,10 +202,10 @@ function isComputerIntent(messages: LeashUIMessage[]): boolean {
 }
 
 /**
- * Files routing: RETRIEVAL intent over the user's files/notes/code → the sandboxed `bash`
+ * Files routing: RETRIEVAL intent over the user's files/Apple Notes/code → the sandboxed `bash`
  * tools (`bash-tools.ts`) preferred over the real-disk read tools. Matches a retrieval verb
- * near a file-ish noun, a bare `grep`/`glob`, or "in my files/notes/…". Checked BEFORE the
- * computer route so "search/read my notes" gets the safe sandbox, while "edit/create/save a
+ * near a file-ish noun, a bare `grep`/`glob`, or "in my files/Apple Notes/…". Checked BEFORE the
+ * computer route so "search/read Apple Notes" gets the safe sandbox, while "edit/create/save a
  * file", "run command", "terminal", and GUI verbs still fall through to the computer route.
  */
 const FILES_RE =
@@ -342,8 +383,15 @@ async function streamConductorAnswer(input: { chatId: string; messages: LeashUIM
   return createUIMessageStreamResponse({ stream });
 }
 
+type ChatPostBody = { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string };
+
 export async function POST(req: Request): Promise<Response> {
-  const body = (await req.json()) as { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string };
+  let body: ChatPostBody;
+  try {
+    body = (await req.json()) as ChatPostBody;
+  } catch {
+    return Response.json({ error: "invalid_json" }, { status: 400 });
+  }
   const { id, trigger, messageId, message, voice, plan } = body;
   // User-chosen chat model alias from the input picker (validated against the regex in the schema).
   const chosenModel = typeof body.model === "string" && /^[a-z0-9][a-z0-9-]{0,40}$/.test(body.model) ? body.model : undefined;
@@ -430,13 +478,23 @@ export async function POST(req: Request): Promise<Response> {
   // getters because the tool is built before the task text + response writer exist; `execute` (which
   // uses them) runs only after approval, by which point both are set.
   const planId = createIdGenerator({ prefix: "plan", size: 16 })();
+  const goalRunId = createIdGenerator({ prefix: "run", size: 16 })();
   const planStream: { writer?: { write: (part: unknown) => void } } = {};
   let planTask = "";
+  let activeModelForRun = "";
   // The plan pipeline halts BETWEEN steps when the client stopped (`req.signal`) OR a follow-up is
   // waiting to interject — this gate decides whether the NEXT step launches. An in-flight decode is
   // now also cancelled on `req.signal` via the agent's abortSignal (safe on 0.13.1); interject still
   // halts cleanly between steps rather than mid-decode so the queued follow-up runs on a clean turn.
-  const planTool = buildPlanTool({ registry: baseTools, getTask: () => planTask, getWriter: () => planStream.writer, getAbort: () => req.signal.aborted || interjectRequested(id), planId });
+  const planTool = buildPlanTool({
+    registry: baseTools,
+    getTask: () => planTask,
+    getWriter: () => planStream.writer,
+    getAbort: () => req.signal.aborted || interjectRequested(id),
+    planId,
+    getRunId: () => goalRunId,
+    getModel: () => activeModelForRun || undefined,
+  });
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
   // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
@@ -450,7 +508,7 @@ export async function POST(req: Request): Promise<Response> {
       messages,
       tools: tools as any,
       metadataSchema,
-      dataSchemas: { skill: skillDataSchema, plan: planDataSchema, conductor: conductorDataSchema },
+      dataSchemas: { skill: skillDataSchema, plan: planDataSchema, conductor: conductorDataSchema, goalRun: goalRunDataSchema },
     })) as LeashUIMessage[];
   } catch (err) {
     console.error("leash: UI message validation failed, using raw history:", err);
@@ -499,7 +557,7 @@ export async function POST(req: Request): Promise<Response> {
     const publicBlock = preclassified ? publicMeshRouteBlocked({ bar: preclassified.bar, sensitivity: preclassified.sensitivity, options: conductorOptions }) : null;
     if (publicBlock && preclassified) {
       const answer =
-        "I found a public mesh model that may fit this request, but the turn looks private. I won't send private notes, files, memory, health, finance, credentials, or device-specific context to the public mesh. Use a local/private mesh model, or re-ask with only shareable context if you want public paid delegation.";
+        "I found a public mesh model that may fit this request, but the turn looks private. I won't send Apple Notes, files, memory, health, finance, credentials, or device-specific context to the public mesh. Use a local/private mesh model, or re-ask with only shareable context if you want public paid delegation.";
       conductorAudit.record({
         event: "note",
         modelId: publicBlock.alias,
@@ -574,6 +632,7 @@ export async function POST(req: Request): Promise<Response> {
   // Vision hard-rule: image turns ALWAYS use the vision VLM regardless of the Conductor decision.
   // Computer keeps its dedicated model. Health remains a text capability with a task prompt.
   const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : conductorDecision.route.alias || defaultAlias;
+  activeModelForRun = activeModel;
   const healthTurn = !imageTurn && !filesTurn && !computerTurn && conductorDecision.bar.specialist === "health";
   // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
   // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
@@ -639,7 +698,7 @@ export async function POST(req: Request): Promise<Response> {
   // stored plan-mode threads validate; offering it every turn would invite spurious plans + eat the
   // serve's 4096-token tool budget).
   const agentTools = Object.fromEntries(Object.entries(tools).filter(([n]) => n !== "submit_plan"));
-  const enabledTools = planMode ? planTool : withApprovalGates(await filterEnabledTools(agentTools));
+  const enabledTools = planMode ? planTool : await filterEnabledTools(agentTools);
   // Tell the model about its computer-use powers only when they're actually active —
   // naming them every turn invites hallucinated <tool_call>s for absent tools.
   const computerNote = computerTurn ? CHAT_COMPUTER_MODE_NOTE : "";
@@ -704,6 +763,16 @@ export async function POST(req: Request): Promise<Response> {
   // pipeline 3/3 vs free-run ~1/3 on a dependent chain). The pipeline uses the skill's own declared
   // tools (approval-gated ones are skipped, like run_skill). Text turns only; image turns never match here.
   const pipeline = !imageTurn && !planMode ? activeSkills?.pipeline ?? null : null;
+  const callRoute: LeashCallOptions["route"] = imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : healthTurn ? "health" : "chat";
+  const runRoute: ToolRoute = pipeline ? "skill" : planMode ? "plan" : callRoute;
+  const goalRun = await createGoalRun({
+    id: goalRunId,
+    chatId: id,
+    title: lastText || "Leash turn",
+    route: runRoute,
+    sensitivity: conductorDecision.sensitivity,
+    ...(record?.summary ? { contextSummary: record.summary } : {}),
+  });
   if (pipeline) {
     let unsubscribePipe: (() => void) | undefined;
     const pipeStream = createUIMessageStream<LeashUIMessage>({
@@ -711,6 +780,7 @@ export async function POST(req: Request): Promise<Response> {
       generateId: createIdGenerator({ prefix: "msg", size: 16 }),
       execute: async ({ writer }) => {
         writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}) } });
+        writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(goalRun) });
         unsubscribePipe = subscribeElicitations((ev) => {
           try {
             writer.write({ type: "data-elicitation", data: ev, transient: true });
@@ -722,11 +792,16 @@ export async function POST(req: Request): Promise<Response> {
         writer.write({ type: "data-skill", data: { mode: activeSkills?.mode ?? "automatic", skills: activeSkills?.skills ?? [{ slug: pipeline.slug, name: pipeline.slug }] } });
         let text: string;
         try {
-          const out = await runSkillAsPipeline(pipeline.slug, lastText, baseTools);
+          const out = await runSkillAsPipeline(pipeline.slug, lastText, baseTools, { goalRunId });
           text = out.text;
+          await finishGoalRun(goalRunId, "completed", text);
         } catch (e) {
           text = `The "${pipeline.slug}" workflow couldn't finish: ${e instanceof Error ? e.message : String(e)}`;
+          await appendGoalRunError(goalRunId, text);
+          await finishGoalRun(goalRunId, "failed", text);
         } finally {
+          const finalRun = await getGoalRun(goalRunId);
+          if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
           release();
         }
         const tid = "pipeline-out";
@@ -771,9 +846,8 @@ export async function POST(req: Request): Promise<Response> {
   // mid-decode cancel; SDK 0.13.1 cancels safely (spike/abort-safety-inproc.ts), so it
   // is now re-enabled. The partial answer still persists: `createUIMessageStream`'s
   // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
-  const agent = buildLeashAgent(enabledTools, () => interjectRequested(id), conductorModel);
   const callOptions: LeashCallOptions = {
-    route: imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : healthTurn ? "health" : "chat",
+    route: callRoute,
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.
@@ -787,6 +861,29 @@ export async function POST(req: Request): Promise<Response> {
     ...(!imageTurn && !computerTurn ? { model: activeModel } : {}),
     system,
   };
+  const runBeforeStep = (await getGoalRun(goalRunId)) ?? goalRun;
+  const capsule = buildContextCapsule({
+    run: runBeforeStep,
+    currentStep: "Answer the user's latest turn with the selected route and allowed tools.",
+    relevantContext: [lastText, summarySection].filter(Boolean),
+    maxChars: 6000,
+  });
+  const mainStep = await startGoalRunStep(goalRunId, {
+    title: planMode ? "Draft and run approved plan" : "Answer user turn",
+    route: runRoute,
+    model: activeModel,
+    contextCapsule: capsule.text,
+    contextTokensEstimate: capsule.tokenEstimate,
+  });
+  const policyContext = {
+    route: planMode ? "chat" : callRoute,
+    runId: goalRunId,
+    stepId: mainStep.id,
+    publicMesh: conductorDecision.route.tier === "public",
+  } satisfies Parameters<typeof enforceToolPolicy>[1];
+  const policyTools = enforceToolPolicy(enabledTools, policyContext);
+  const approvedTools = planMode ? policyTools : withApprovalGates(policyTools);
+  const agent = buildLeashAgent(approvedTools, () => interjectRequested(id), conductorModel);
   const result = await agent.stream({ messages: modelInput, options: callOptions, abortSignal: req.signal });
 
   // Drive the stream server-side so persistence still runs if the client stops reading mid-token.
@@ -816,6 +913,8 @@ export async function POST(req: Request): Promise<Response> {
       });
       // Conductor decision — always emitted (even fast-path) so the UI has the route context.
       writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath } });
+      const runNow = await getGoalRun(goalRunId);
+      if (runNow) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(runNow) });
       if (activeSkills?.skills.length) {
         writer.write({
           type: "data-skill",
@@ -832,7 +931,11 @@ export async function POST(req: Request): Promise<Response> {
           },
           onError: (error) => {
             release();
-            return error instanceof Error ? error.message : String(error);
+            const message = error instanceof Error ? error.message : String(error);
+            void updateGoalRunStep(goalRunId, mainStep.id, { status: "failed", error: message });
+            void appendGoalRunError(goalRunId, message);
+            void finishGoalRun(goalRunId, "failed", message);
+            return message;
           },
         }),
       );
@@ -845,9 +948,32 @@ export async function POST(req: Request): Promise<Response> {
           writer.write({ type: "text-delta", id, delta: text });
           writer.write({ type: "text-end", id });
         };
+        const emptyFallback = !finalText && !planMode ? await emptyTurnFallback(result) : "";
+        const finalSummary = planMode && !finalText ? "Plan proposed; waiting for user approval." : finalText || emptyFallback;
+        const finalStatus = planMode && !finalText ? "paused" : finalText ? "completed" : "failed";
+        await updateGoalRunStep(goalRunId, mainStep.id, {
+          status: finalStatus === "failed" ? "failed" : "done",
+          summary: finalSummary,
+          ...(finalStatus === "failed" ? { error: "model produced no final answer text" } : {}),
+        });
+        if (finalStatus === "failed") await appendGoalRunError(goalRunId, "model produced no final answer text");
+        await finishGoalRun(goalRunId, finalStatus, finalSummary);
+        await recordGoalRunModelTrace(goalRunId, {
+          stepId: mainStep.id,
+          model: activeModel,
+          alias: conductorDecision.route.alias,
+          routeTier: conductorDecision.route.tier,
+          ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}),
+          startedAt: mainStep.startedAt ?? Date.now(),
+          finishedAt: Date.now(),
+          contextTokensEstimate: capsule.tokenEstimate,
+          reason: conductorDecision.reason,
+        });
+        const finalRun = await getGoalRun(goalRunId);
+        if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
         if (!finalText) {
           // Empty turn: the model emitted no answer (often after burning its budget on <think>).
-          appendText("empty-turn-fallback", await emptyTurnFallback(result));
+          if (emptyFallback) appendText("empty-turn-fallback", emptyFallback);
         } else {
           // Tool-call-as-text: the model wrote a tool call into its answer instead of invoking it.
           // Log it (to measure frequency) and add an honest nudge after the stray text.
@@ -857,8 +983,13 @@ export async function POST(req: Request): Promise<Response> {
             appendText("toolcall-text-note", "\n\n_(I wrote that as text instead of actually running the tool — ask me to try again and I'll invoke it for real.)_");
           }
         }
-      } catch {
-        /* never let the guard break the response */
+      } catch (e) {
+        const message = req.signal.aborted ? "cancelled" : e instanceof Error ? e.message : "stream-tail guard failed";
+        await updateGoalRunStep(goalRunId, mainStep.id, { status: req.signal.aborted ? "cancelled" : "failed", error: message });
+        await appendGoalRunError(goalRunId, message);
+        await finishGoalRun(goalRunId, req.signal.aborted ? "cancelled" : "failed", message);
+        const finalRun = await getGoalRun(goalRunId);
+        if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
       }
     },
     onFinish: ({ messages: finalMessages }) => {

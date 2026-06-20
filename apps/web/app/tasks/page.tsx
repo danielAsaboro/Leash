@@ -14,6 +14,7 @@ import { cronRuns } from "../../lib/leash/schedules-store.ts";
 import { listAllDownloads } from "../../lib/leash/models.ts";
 import { DashShell } from "../../components/dash.tsx";
 import { TasksPanel } from "../../components/TasksPanel.tsx";
+import { listGoalRuns } from "@mycelium/leash-core/goal-runs";
 
 export const dynamic = "force-dynamic";
 
@@ -210,13 +211,14 @@ async function PipelineTab({ params }: { params: Record<string, string | string[
 
 interface RunRow {
   key: string;
-  source: "newsroom" | "cron";
+  source: "newsroom" | "cron" | "agent";
   name: string;
   ok: boolean;
   startedAt: number;
   /** Seconds, or null while still running. */
   seconds: number | null;
   detail: string;
+  href?: string;
 }
 
 async function RunsTab({ params }: { params: Record<string, string | string[] | undefined> }) {
@@ -224,7 +226,7 @@ async function RunsTab({ params }: { params: Record<string, string | string[] | 
   const sourceFilter = one(params["runsource"]);
   const okFilter = one(params["ok"]); // "1" | "0"
 
-  const [{ runs: daemonRuns }, cron] = await Promise.all([getDaemons(60), cronRuns(60)]);
+  const [{ runs: daemonRuns }, cron, goalRuns] = await Promise.all([getDaemons(60), cronRuns(60), listGoalRuns({ limit: 80 })]);
   const rows: RunRow[] = [
     ...daemonRuns.map((r) => ({
       key: `nr-${r.id}`,
@@ -243,6 +245,16 @@ async function RunsTab({ params }: { params: Record<string, string | string[] | 
       startedAt: r.startedAt,
       seconds: (r.finishedAt - r.startedAt) / 1000,
       detail: r.error ?? (r.exitCode !== undefined ? `exit ${r.exitCode}` : ""),
+    })),
+    ...goalRuns.map((r) => ({
+      key: `gr-${r.id}`,
+      source: "agent" as const,
+      name: r.title,
+      ok: r.status === "completed" || r.status === "active" || r.status === "paused",
+      startedAt: r.startedAt ?? r.createdAt,
+      seconds: r.finishedAt && r.startedAt ? (r.finishedAt - r.startedAt) / 1000 : null,
+      detail: `${r.status} · ${r.route} · ${r.steps.length} step${r.steps.length === 1 ? "" : "s"}${r.errors.length ? ` · ${r.errors[0]}` : ""}`,
+      ...(r.chatId ? { href: `/chat/${r.chatId}` } : {}),
     })),
   ]
     .filter((r) => !sourceFilter || r.source === sourceFilter)
@@ -268,6 +280,7 @@ async function RunsTab({ params }: { params: Record<string, string | string[] | 
         <FilterChip href={qs({ runsource: undefined })} label="All" active={!sourceFilter} />
         <FilterChip href={qs({ runsource: "newsroom" })} label="newsroom" active={sourceFilter === "newsroom"} />
         <FilterChip href={qs({ runsource: "cron" })} label="cron" active={sourceFilter === "cron"} />
+        <FilterChip href={qs({ runsource: "agent" })} label="agent" active={sourceFilter === "agent"} />
         <span className="kicker ml-4" style={{ color: "var(--color-faint)" }}>
           Outcome
         </span>
@@ -303,7 +316,13 @@ async function RunsTab({ params }: { params: Record<string, string | string[] | 
                   {r.source}
                 </td>
                 <td className="border-b px-2 py-1.5" style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
-                  {r.name}
+                  {r.href ? (
+                    <Link href={r.href} className="transition-opacity hover:opacity-60">
+                      {r.name}
+                    </Link>
+                  ) : (
+                    r.name
+                  )}
                 </td>
                 <td className="border-b px-2 py-1.5" style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-mono)", fontSize: "0.72rem" }}>
                   {fmtTime(r.startedAt)}

@@ -35,7 +35,7 @@ export function classifyFillerDomain(text: string): FillerDomain {
 
 /** Varied, natural spoken phrases per domain (picked at random so it doesn't repeat). */
 export const FILLER_PHRASES: Record<FillerDomain, string[]> = {
-  notes: ["Let me dig through your notes.", "One sec, searching your notes.", "Looking that up in your notes."],
+  notes: ["Let me dig through private context.", "One sec, searching private context.", "Looking that up in Apple Notes and private context."],
   paper: ["Let me check The Understory.", "Pulling up your paper now.", "Checking your latest edition."],
   photos: ["Let me find those photos.", "Looking through your images.", "One sec, pulling up your photos."],
   imagegen: ["Let me sketch that out.", "Working on that image now.", "Give me a moment to create that."],

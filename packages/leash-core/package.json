@@ -98,6 +98,18 @@
     "./routing": {
       "types": "./dist/routing/index.d.ts",
       "default": "./dist/routing/index.js"
+    },
+    "./tool-policy": {
+      "types": "./dist/tool-policy.d.ts",
+      "default": "./dist/tool-policy.js"
+    },
+    "./goal-runs": {
+      "types": "./dist/goal-runs.d.ts",
+      "default": "./dist/goal-runs.js"
+    },
+    "./context-capsule": {
+      "types": "./dist/context-capsule.d.ts",
+      "default": "./dist/context-capsule.js"
     }
   },
   "scripts": {

@@ -20,3 +20,6 @@ export * from "./provider-core.ts";
 export * from "./graph.ts"; // searchNotes/readActivityRecords/… + NOTES_DIR/ACTIVITY_LOG/CHATS_DIR
 export { TOOL_GROUPS, groupById, approvalToolNames } from "./groups/index.ts";
 export type { ToolGroup, GroupTool } from "./groups/types.ts";
+export * from "./tool-policy.ts";
+export * from "./goal-runs.ts";
+export * from "./context-capsule.ts";

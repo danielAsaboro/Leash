@@ -21,7 +21,7 @@ import { PromptInput, PromptInputProvider, PromptInputBody, PromptInputTextarea,
 import { Reasoning, ReasoningTrigger, ReasoningContent, useReasoning } from "@/components/ai-elements/reasoning";
 import { Loader } from "@/components/ai-elements/loader";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import { toolMeta, toolName, ToolCard, collectSources } from "./leash-tools.tsx";
+import { AppleNotesOpenLink, toolMeta, toolName, ToolCard, collectSources } from "./leash-tools.tsx";
 import { PlanCard } from "./PlanCard.tsx";
 import { SkillEventCard } from "./SkillEventCard.tsx";
 import { kindOf } from "../lib/leash/model-rows.ts";
@@ -33,7 +33,7 @@ import { MessageFeedback } from "./MessageFeedback.tsx";
 import { toast } from "./Toast.tsx";
 import { blobToWav } from "@/lib/leash/audio";
 import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
-import type { ConductorDecisionEvent, ElicitationView, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
+import type { ConductorDecisionEvent, ElicitationView, GoalRunEvent, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
 
 /**
  * The Leash chat surface (client) — Vercel AI Elements on the AI SDK, re-skinned with
@@ -52,6 +52,7 @@ const SUGGESTIONS = ["What's in today's paper?", "What did I note about the mesh
 const isToolPart = (p: Part): boolean => typeof p?.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool");
 const isSkillPart = (p: Part): p is { type: "data-skill"; data: LeashSkillEvent } => p?.type === "data-skill";
 const isConductorPart = (p: Part): p is { type: "data-conductor"; data: ConductorDecisionEvent } => p?.type === "data-conductor";
+const isGoalRunPart = (p: Part): p is { type: "data-goalRun"; data: GoalRunEvent } => p?.type === "data-goalRun";
 
 /** "qwen3-4b · 142 tok · 18 tok/s" from message metadata, once finished. */
 function telemetry(md: LeashMetadata | undefined): string | null {
@@ -69,7 +70,7 @@ function telemetry(md: LeashMetadata | undefined): string | null {
  * non-text part at all, everything is the answer (a plain reply, no timeline).
  */
 interface TimelineNode {
-  kind: "reasoning" | "tool" | "skill" | "text" | "plan" | "route-decision";
+  kind: "reasoning" | "tool" | "skill" | "text" | "plan" | "route-decision" | "goal-run";
   part: Part;
   idx: number;
 }
@@ -83,6 +84,7 @@ function buildTimeline(parts: Part[]): { nodes: TimelineNode[]; answer: string }
     if (p?.type === "reasoning") items.push({ kind: "reasoning", part: p, idx });
     else if (isPlanPart(p)) items.push({ kind: "plan", part: p, idx });
     else if (isConductorPart(p)) items.push({ kind: "route-decision", part: p, idx });
+    else if (isGoalRunPart(p)) items.push({ kind: "goal-run", part: p, idx });
     else if (isToolPart(p)) items.push({ kind: "tool", part: p, idx });
     else if (isSkillPart(p)) items.push({ kind: "skill", part: p, idx });
     else if (p?.type === "text") items.push({ kind: "text", part: p, idx });
@@ -159,6 +161,35 @@ function RouteDecisionStep({ event }: { event: ConductorDecisionEvent }) {
   );
 }
 
+function GoalRunStep({ event }: { event: GoalRunEvent }) {
+  const active = event.status === "active" || event.status === "paused";
+  const done = event.status === "completed";
+  const glyph = done ? "done" : active ? "running" : event.status;
+  return (
+    <details className="rounded border px-3 py-2 text-xs" style={{ borderColor: "var(--color-rule)", color: "var(--color-muted)" }}>
+      <summary className="cursor-pointer" style={{ color: "var(--color-ink)", fontFamily: "var(--font-mono)" }}>
+        Run {glyph}: {event.title} · {event.steps.length} step{event.steps.length === 1 ? "" : "s"}
+      </summary>
+      <div className="mt-2 space-y-1">
+        {event.steps.map((s) => (
+          <div key={s.id} className="flex gap-2">
+            <span style={{ color: s.status === "done" ? "var(--color-sage-deep)" : s.status === "failed" ? "var(--color-brick)" : "var(--color-faint)" }}>{s.status}</span>
+            <span>{s.title}</span>
+          </div>
+        ))}
+        {event.errors.map((e, i) => (
+          <div key={i} style={{ color: "var(--color-brick)" }}>
+            {e}
+          </div>
+        ))}
+        <a href={`/tasks?tab=runs&run=${event.id}`} className="inline-block pt-1 underline decoration-dotted underline-offset-4">
+          Run evidence
+        </a>
+      </div>
+    </details>
+  );
+}
+
 /** Render one timeline node as a ChainOfThought step (its card nests as the step's children). */
 function renderTimelineNode(node: TimelineNode, live: boolean, approval?: ApprovalHandle) {
   const key = `n-${node.idx}`;
@@ -201,6 +232,13 @@ function renderTimelineNode(node: TimelineNode, live: boolean, approval?: Approv
   if (node.kind === "route-decision") {
     return <ChainOfThoughtStep key={key} icon={NetworkIcon} label={<RouteDecisionStep event={node.part.data as ConductorDecisionEvent} />} />;
   }
+  if (node.kind === "goal-run") {
+    return (
+      <ChainOfThoughtStep key={key} icon={ListChecksIcon} label={<span>Run ledger</span>}>
+        <GoalRunStep event={node.part.data as GoalRunEvent} />
+      </ChainOfThoughtStep>
+    );
+  }
   if (node.kind === "skill") {
     return <ChainOfThoughtStep key={key} icon={SparklesIcon} label={<SkillEventCard event={node.part.data} />} />;
   }
@@ -218,7 +256,7 @@ function renderTimelineNode(node: TimelineNode, live: boolean, approval?: Approv
 }
 
 /** One cited source as an InlineCitation hover pill (`[N]` badge → title/url/snippet card). A
- *  custom trigger avoids the upstream `new URL()` that would throw on url-less private notes. */
+ *  custom trigger avoids the upstream `new URL()` that would throw on url-less private context. */
 function CitationPill({ n, source }: { n: number; source: { title: string; snippet?: string; url?: string } }) {
   return (
     <InlineCitation className="cite-pill-wrap">
@@ -236,6 +274,120 @@ function CitationPill({ n, source }: { n: number; source: { title: string; snipp
         </InlineCitationCardBody>
       </InlineCitationCard>
     </InlineCitation>
+  );
+}
+
+type AppleNoteAnswerRow = { title: string; id?: string; openUrl?: string; folder?: string; account?: string };
+type AppleNotesAnswer =
+  | { kind: "search"; intro: string; rows: AppleNoteAnswerRow[]; text: string }
+  | { kind: "read"; title: string; id?: string; openUrl?: string; body: string; text: string }
+  | { kind: "receipt"; label: string; title: string; id?: string; openUrl?: string; text: string };
+
+const APPLE_NOTES_ANSWER_TOOLS = new Set(["search-notes", "list-notes", "get-note-content", "get-note-details", "get-note-by-id", "create-note", "update-note", "delete-note", "move-note"]);
+
+function toolOutputText(output: { text?: unknown; content?: unknown }): string {
+  if (typeof output.text === "string") return output.text;
+  if (typeof output.content === "string") return output.content;
+  if (Array.isArray(output.content)) {
+    return output.content
+      .map((item) => (item && typeof item === "object" && "text" in item && typeof item.text === "string" ? item.text : ""))
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+function stripAppleNotesMarkup(text: string): string {
+  return text
+    .replace(/<\/div>\s*<div>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?div>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+}
+
+function appleNotesAnswerFromParts(parts: Part[], rawAnswer: string): AppleNotesAnswer | null {
+  if (!/x-coredata:\/\/|<div>|Found \d+ notes|The title of the note|Note (?:created|updated|deleted|moved)/i.test(rawAnswer)) return null;
+  const toolPart = [...parts].reverse().find((p) => isToolPart(p) && p.state === "output-available" && APPLE_NOTES_ANSWER_TOOLS.has(toolName(p)));
+  if (!toolPart) return null;
+  const name = toolName(toolPart);
+  const input = (toolPart.input ?? {}) as Record<string, unknown>;
+  const output = (toolPart.output ?? {}) as Record<string, unknown>;
+  const text = toolOutputText(output);
+
+  if (name === "search-notes" || name === "list-notes") {
+    const notes = (Array.isArray(output.notes) ? output.notes : []) as Array<{ title?: string; id?: string; openUrl?: string; folder?: string; account?: string }>;
+    if (!notes.length) return null;
+    const query = typeof input.query === "string" ? input.query : "";
+    const intro = query ? `Found ${notes.length} Apple Notes for "${query}".` : `Found ${notes.length} Apple Notes.`;
+    const rows = notes.map((n) => ({ title: n.title || "Untitled note", ...(n.id ? { id: n.id } : {}), ...(n.openUrl ? { openUrl: n.openUrl } : {}), ...(n.folder ? { folder: n.folder } : {}), ...(n.account ? { account: n.account } : {}) }));
+    return { kind: "search", intro, rows, text: `${intro} ${rows.map((r) => r.title).join("; ")}` };
+  }
+
+  if (name === "get-note-content" || name === "get-note-details" || name === "get-note-by-id") {
+    const title = typeof output.title === "string" ? output.title : "Apple Note";
+    const id = typeof input.id === "string" ? input.id : undefined;
+    const openUrl = typeof output.openUrl === "string" ? output.openUrl : undefined;
+    const body = stripAppleNotesMarkup(text);
+    return { kind: "read", title, ...(id ? { id } : {}), ...(openUrl ? { openUrl } : {}), body, text: `${title}\n${body}`.trim() };
+  }
+
+  const label = name === "create-note" ? "Created" : name === "update-note" ? "Updated" : name === "delete-note" ? "Deleted" : name === "move-note" ? "Moved" : "Updated";
+  const title = String(input.newTitle ?? input.title ?? text.match(/"([^"]+)"/)?.[1] ?? "Apple Note");
+  const id = typeof input.id === "string" ? input.id : text.match(/x-coredata:\/\/\S+/)?.[0]?.replace(/\]$/, "");
+  const openUrl = typeof output.openUrl === "string" ? output.openUrl : undefined;
+  return { kind: "receipt", label, title, ...(id ? { id } : {}), ...(openUrl ? { openUrl } : {}), text: `${label}: ${title}` };
+}
+
+function AppleNotesAnswerView({ answer }: { answer: AppleNotesAnswer }) {
+  if (answer.kind === "search") {
+    return (
+      <div className="apple-answer">
+        <p>{answer.intro}</p>
+        <ul>
+          {answer.rows.map((row) => {
+            const meta = [row.account, row.folder].filter(Boolean).join(" · ");
+            return (
+              <li key={row.id ?? row.title}>
+                <AppleNotesOpenLink id={row.id} openUrl={row.openUrl} className="" fallback={row.title}>
+                  {row.title}
+                </AppleNotesOpenLink>
+                {meta ? <span>{meta}</span> : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+  if (answer.kind === "read") {
+    return (
+      <div className="apple-answer">
+        <p>
+          Read{" "}
+          <AppleNotesOpenLink id={answer.id} openUrl={answer.openUrl} className="" fallback={answer.title}>
+            {answer.title}
+          </AppleNotesOpenLink>
+          .
+        </p>
+        {answer.body ? <blockquote>{answer.body}</blockquote> : null}
+      </div>
+    );
+  }
+  return (
+    <div className="apple-answer">
+      <p>
+        {answer.label}{" "}
+        <AppleNotesOpenLink id={answer.id} openUrl={answer.openUrl} className="" fallback={answer.title}>
+          {answer.title}
+        </AppleNotesOpenLink>
+        .
+      </p>
+    </div>
   );
 }
 
@@ -552,7 +704,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
   // node takes over.
   const assistantVisible =
     last?.role === "assistant" &&
-    lastAssistantParts.some((p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || isToolPart(p) || isSkillPart(p) || isConductorPart(p));
+    lastAssistantParts.some((p) => ((p?.type === "text" || p?.type === "reasoning") && typeof p.text === "string" && p.text.trim().length > 0) || isToolPart(p) || isSkillPart(p) || isConductorPart(p) || isGoalRunPart(p));
   const awaitingModel = busy && !assistantVisible;
   // Prompt queue — on a slow on-device model, let the user stack follow-ups WHILE a turn is
   // generating; they auto-send one at a time as each turn finishes (drained below). Each carries
@@ -616,9 +768,9 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       <Conversation>
         <ConversationContent className="mx-auto w-full max-w-[760px]">
           {messages.length === 0 ? (
-            <ConversationEmptyState title="Ask Leash anything." description="Grounded in your private notes and The Understory — all on-device.">
+            <ConversationEmptyState title="Ask Leash anything." description="Grounded in private context and The Understory — all on-device.">
               <p className="chat-empty-title">Ask Leash anything.</p>
-              <p className="chat-empty-sub">Grounded in your private notes and The Understory — all on-device. Home &amp; Activity arrive once configured.</p>
+              <p className="chat-empty-sub">Grounded in private context and The Understory — all on-device. Home &amp; Activity arrive once configured.</p>
               <Suggestions className="mt-6 justify-center">
                 {SUGGESTIONS.map((s) => (
                   <Suggestion key={s} suggestion={s} onClick={(text) => ask(text)} />
@@ -715,7 +867,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
             <PromptInputBody>
               {/* Visible thumbnails / chips of attached files (with remove). */}
               <ComposerAttachments />
-              <PromptInputTextarea placeholder="Ask about your notes, your paper, or attach a file…" />
+              <PromptInputTextarea placeholder="Ask about Apple Notes, your paper, or attach a file…" />
             </PromptInputBody>
             <PromptInputFooter>
               <PromptInputTools>
@@ -959,7 +1111,8 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
   const meta = telemetry(message.metadata);
   const isLive = !!live;
   const { nodes, answer } = buildTimeline(parts);
-  const answerText = answer;
+  const appleNotesAnswer = appleNotesAnswerFromParts(parts, answer);
+  const answerText = appleNotesAnswer?.text ?? answer;
   const sources = collectSources(parts);
   // While streaming with no answer yet and the last node isn't already showing an active
   // affordance, append a "Thinking…" node so the spine has a live tail (the pending step).
@@ -982,7 +1135,7 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
           </ChainOfThought>
         )}
 
-        {answerText.trim() && <CitedAnswer text={answerText} sources={sources} />}
+        {answerText.trim() && (appleNotesAnswer ? <AppleNotesAnswerView answer={appleNotesAnswer} /> : <CitedAnswer text={answerText} sources={sources} />)}
 
         {/* RAG grounding aggregated from this message's tool outputs (notes / paper). */}
         {sources.length > 0 && (

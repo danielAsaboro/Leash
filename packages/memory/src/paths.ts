@@ -25,7 +25,7 @@ export const LOG_DIR = join(here, "..", "logs");
 export const MEMORIES_FILE = join(DATA_DIR, "leash-memories.json");
 /** Per-chat transcripts (`{messages:[{role,parts,metadata}]}`). */
 export const CHATS_DIR = join(DATA_DIR, "leash-chats");
-/** Markdown notes the senses graph ingests — read as graph facts WITHOUT opening the
+/** Local text documents the senses graph ingests — read as graph facts WITHOUT opening the
  *  Autobase corestore (the registry is single-process / fd-locked; see CLAUDE.md). */
 export const NOTES_DIR = join(DATA_DIR, "notes");
 /** Optional plain-JSONL GraphStore export (best-effort; absent when the graph only

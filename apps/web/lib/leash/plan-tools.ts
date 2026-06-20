@@ -20,6 +20,9 @@ import { loopLog } from "./loop-diagnostics.ts";
 import type { PlanData, PlanStep, PlanStepStatus } from "./types.ts";
 import type { LeashSource } from "./tools.ts";
 import { buildPlanStepSystemPrompt } from "./prompt.ts";
+import { filterToolNamesForContext, enforceToolPolicy } from "@mycelium/leash-core/tool-policy";
+import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
+import { getGoalRun, startGoalRunStep, updateGoalRunStep, finishGoalRun, recordGoalRunModelTrace } from "@mycelium/leash-core/goal-runs";
 
 /** Per-step budget inside the plan pipeline — each step is ONE bounded sub-task (tool → report). */
 const PLAN_STEP_BUDGET = 3;
@@ -42,15 +45,18 @@ export const planDataSchema = z.object({
 
 /** Resolve the executable subset of a registry: non-disabled, non-approval-gated, no run_skill/submit_plan
  *  (a non-streaming generateText step can't pause on an approval card, and plan steps don't re-plan). */
-async function executableTools(registry: ToolSet): Promise<{ subTools: ToolSet; names: string[] }> {
+async function executableTools(registry: ToolSet, goalRunId?: string): Promise<{ subTools: ToolSet; names: string[] }> {
   const off = await disabledTools();
   const names: string[] = [];
+  const policyAllowed = new Set(filterToolNamesForContext(Object.keys(registry), { route: "plan", ...(goalRunId ? { runId: goalRunId } : {}) }));
   for (const n of Object.keys(registry)) {
+    if (!policyAllowed.has(n)) continue;
     if (n === "run_skill" || n === "submit_plan" || off.has(n)) continue;
     if (await toolNeedsApproval(n)) continue;
     names.push(n);
   }
-  return { subTools: Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]])), names };
+  const raw = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
+  return { subTools: enforceToolPolicy(raw, { route: "plan", ...(goalRunId ? { runId: goalRunId } : {}) }), names };
 }
 
 /** Per-step status callback — the route wires this to a `data-plan` writer for live UI updates. */
@@ -67,8 +73,9 @@ export async function runPlanAsPipeline(
   registry: ToolSet,
   onStep?: PlanProgress,
   shouldCancel?: () => boolean,
+  opts: { goalRunId?: string; model?: string } = {},
 ): Promise<{ text: string; results: string[]; cancelled: boolean }> {
-  const { subTools, names } = await executableTools(registry);
+  const { subTools, names } = await executableTools(registry, opts.goalRunId);
   const results: string[] = [];
   for (let i = 0; i < steps.length; i++) {
     const step = steps[i] as string;
@@ -85,6 +92,22 @@ export async function runPlanAsPipeline(
       : "";
     const system = buildPlanStepSystemPrompt({ task, step, index: i, total: steps.length, prior });
     loopLog(`plan step ${i + 1}/${steps.length}: ${step.slice(0, 60)}`);
+    let ledgerStepId: string | undefined;
+    const startedAt = Date.now();
+    if (opts.goalRunId) {
+      const run = await getGoalRun(opts.goalRunId);
+      if (run) {
+        const capsule = buildContextCapsule({ run, currentStep: step, relevantContext: [task], maxChars: 5000 });
+        const ledgerStep = await startGoalRunStep(opts.goalRunId, {
+          title: step,
+          route: "plan",
+          ...(opts.model ? { model: opts.model } : {}),
+          contextCapsule: capsule.text,
+          contextTokensEstimate: capsule.tokenEstimate,
+        });
+        ledgerStepId = ledgerStep.id;
+      }
+    }
     try {
       // qvac wedge rule: no abortSignal, maxRetries 0 (a retry re-pays a hung decode).
       const r = await generateText({
@@ -99,9 +122,21 @@ export async function runPlanAsPipeline(
       const out = r.text.trim() || "(this step produced no text output)";
       results.push(out);
       onStep?.(i, "done", out.length > 160 ? out.slice(0, 157) + "…" : out);
+      if (opts.goalRunId && ledgerStepId) {
+        await updateGoalRunStep(opts.goalRunId, ledgerStepId, { status: "done", summary: out });
+        await recordGoalRunModelTrace(opts.goalRunId, {
+          stepId: ledgerStepId,
+          model: opts.model ?? "qwen3-4b",
+          alias: `plan:step${i + 1}`,
+          startedAt,
+          finishedAt: Date.now(),
+          tokens: ((r as { totalUsage?: { totalTokens?: number }; usage?: { totalTokens?: number } }).totalUsage?.totalTokens ?? (r as { usage?: { totalTokens?: number } }).usage?.totalTokens),
+        });
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       onStep?.(i, "failed", msg);
+      if (opts.goalRunId && ledgerStepId) await updateGoalRunStep(opts.goalRunId, ledgerStepId, { status: "failed", error: msg });
       // Mark the remaining steps skipped and stop the plan.
       for (let j = i + 1; j < steps.length; j++) onStep?.(j, "skipped");
       throw new Error(`step ${i + 1} ("${step}") failed: ${msg}`);
@@ -129,6 +164,10 @@ export interface PlanToolDeps {
   getAbort: () => boolean;
   /** A stable id for this turn's plan (so the proposed card and the executing part reconcile). */
   planId: string;
+  /** Stable id of the durable run this plan belongs to. */
+  getRunId?: () => string | undefined;
+  /** Model alias selected for this turn, for ledger telemetry. */
+  getModel?: () => string | undefined;
 }
 
 /**
@@ -136,7 +175,7 @@ export interface PlanToolDeps {
  * at the approval gate. On approval, `execute` runs the steps through the deterministic pipeline,
  * streaming a reconciled `data-plan` part as it goes, and returns the synthesized result text.
  */
-export function buildPlanTool({ registry, getTask, getWriter, getAbort, planId }: PlanToolDeps): ToolSet {
+export function buildPlanTool({ registry, getTask, getWriter, getAbort, planId, getRunId, getModel }: PlanToolDeps): ToolSet {
   return {
     submit_plan: tool({
       description:
@@ -169,14 +208,17 @@ export function buildPlanTool({ registry, getTask, getWriter, getAbort, planId }
               emit("running");
             },
             getAbort,
+            { goalRunId: getRunId?.(), model: getModel?.() },
           );
           emit(out.cancelled ? "failed" : "done");
+          if (getRunId?.()) await finishGoalRun(getRunId()!, out.cancelled ? "cancelled" : "completed", out.text);
           return {
             text: out.cancelled ? `Plan cancelled after ${out.results.length} of ${steps.length} step(s).\n\n${out.text}` : out.text,
             sources: [{ kind: "graph", title: "Plan", snippet: task.slice(0, 120) }] as LeashSource[],
           };
         } catch (e) {
           emit("failed");
+          if (getRunId?.()) await finishGoalRun(getRunId()!, "failed", e instanceof Error ? e.message : String(e));
           return { text: `The plan stopped: ${e instanceof Error ? e.message : String(e)}`, sources: [] as LeashSource[] };
         }
       },

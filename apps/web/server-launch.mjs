@@ -22,6 +22,7 @@
  *   MYCELIUM_SERVE_PORT   qvac serve port to reap on switch                          [default: 11435]
  */
 import { spawn, execFile } from "node:child_process";
+import { createServer } from "node:net";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, rmSync, cpSync, readdirSync, statSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
@@ -269,6 +270,15 @@ function killServeOnPort() {
   });
 }
 
+function portIsAvailable(port) {
+  return new Promise((resolve) => {
+    const probe = createServer();
+    probe.once("error", (err) => resolve(err?.code !== "EADDRINUSE"));
+    probe.once("listening", () => probe.close(() => resolve(true)));
+    probe.listen(port);
+  });
+}
+
 // ── lifecycle ───────────────────────────────────────────────────────────────────────────
 let child = null;
 let lastUserId = null;
@@ -310,6 +320,10 @@ async function spawnScoped() {
   // Seeded into the scope's data dir; cron reads the same file. Injected into the web env so the
   // middleware can authorize the header without a session (see middleware.ts INTERNAL_ROUTES).
   const internalToken = ensureInternalToken(scope.dataDir);
+  if (!(await portIsAvailable(WEB_PORT))) {
+    console.error(`[launch] port ${WEB_PORT} is already in use; another Leash web process is likely running. Not starting a duplicate.`);
+    process.exit(0);
+  }
   console.log(`[launch] Leash → ${newUserId ?? "(bootstrap)"} on ${hostname}:${WEB_PORT} — data: ${scope.dataDir}`);
   child = spawn(cmd, cmdArgs, {
     cwd,

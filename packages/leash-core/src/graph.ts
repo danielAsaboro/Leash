@@ -51,7 +51,7 @@ export function chunkText(text: string): string[] {
     .filter((s) => s.length > 40);
 }
 
-/** The note files (.md) currently on disk. */
+/** Legacy local-context markdown files currently on disk. */
 function noteFiles(): string[] {
   if (!existsSync(NOTES_DIR)) return [];
   return readdirSync(NOTES_DIR).filter((n) => n.endsWith(".md")).sort();

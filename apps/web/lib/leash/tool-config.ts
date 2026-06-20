@@ -9,28 +9,20 @@
  * overrides per tool in either direction.
  *
  * CRITICAL ORDERING (chat route): `validateUIMessages` must see the FULL registry —
- * stored threads contain parts for now-disabled tools and would fail validation —
- * and only `streamText` gets the filtered set.
+ * stored threads contain parts for now-disabled tools and would fail validation.
+ * Before `streamText`, apply hard tool policy first, then these approval gates, so
+ * route/subagent/public-mesh denial cannot be overridden by user-facing toggles.
  */
 import "server-only";
 import { join } from "node:path";
 import type { ToolSet } from "ai";
 import { readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
+import { policyDefaultAskFirstNames, policyRequiresApproval } from "@mycelium/leash-core/tool-policy";
 
 export const TOOLS_FILE = process.env["LEASH_TOOLS_FILE"] ?? join(DATA_DIR, "leash-tools.json");
 
 /** Tools that pause on a human approval card unless explicitly overridden off. */
-export const DEFAULT_ASK_FIRST: ReadonlySet<string> = new Set([
-  "ha_call_service",
-  "run_skill_script",
-  // Computer-use: every side-effectful action on the Mac asks first (screenshot stays
-  // un-gated — see-only — but remains toggleable). run_command is the real-disk executor
-  // (reads/writes/edits/installs all flow through it), so it always asks.
-  "run_command",
-  "computer",
-  "upsert_mcp_server",
-  "install_mcp_repo",
-]);
+export const DEFAULT_ASK_FIRST: ReadonlySet<string> = new Set(policyDefaultAskFirstNames());
 
 interface ToolConfig {
   disabled: string[];
@@ -53,6 +45,7 @@ export async function askFirstOverrides(): Promise<Record<string, boolean>> {
 
 /** Does `name` need a human approval card right now? (override ?? default) */
 export async function toolNeedsApproval(name: string): Promise<boolean> {
+  if (policyRequiresApproval(name)) return true;
   const overrides = await askFirstOverrides();
   return overrides[name] ?? DEFAULT_ASK_FIRST.has(name);
 }
@@ -73,6 +66,7 @@ export async function setAskFirst(overrides: Record<string, boolean>): Promise<v
   const merged: Record<string, boolean> = { ...(raw?.askFirst ?? {}) };
   for (const [name, v] of Object.entries(overrides)) {
     if (typeof v !== "boolean" || !name.trim()) continue;
+    if (!v && policyRequiresApproval(name)) continue; // policy-required approval cannot be disabled by UI config
     if (v === DEFAULT_ASK_FIRST.has(name)) delete merged[name]; // back to default → no override row
     else merged[name] = v;
   }

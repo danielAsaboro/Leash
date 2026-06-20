@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 export default async function NotesPage() {
   return (
-    <DashShell kicker="Leash · Brain" title="Notes" lede="Markdown notes under data/notes the assistant embeds and recalls. Deleting one really forgets it.">
+    <DashShell kicker="Leash · Brain" title="Local context" lede="Legacy file-backed context indexed by the assistant. Apple Notes is connected through MCP, not this folder.">
       <Link href="/brain" className="kicker mb-4 inline-flex items-center gap-1 transition-opacity hover:opacity-70" style={{ color: "var(--color-muted)" }}>
         <ChevronLeftIcon size={14} /> Brain
       </Link>

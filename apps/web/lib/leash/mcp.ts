@@ -11,7 +11,10 @@
  */
 import "server-only";
 import { join } from "node:path";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
+import { homedir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import type { ToolSet } from "ai";
 import { createMCPClient, ElicitationRequestSchema, type ElicitResult, type MCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
@@ -41,6 +44,7 @@ interface FailedAttempt {
 }
 
 interface Registry {
+  version: number;
   connections: Map<string, Connection>; // keyed by entry id
   failures: Map<string, FailedAttempt>; // keyed by entry id (last failed connect, for status)
   reconciling: Promise<void> | null;
@@ -48,7 +52,14 @@ interface Registry {
 
 // On globalThis so Next dev-mode reloads reuse live connections instead of leaking them.
 const g = globalThis as unknown as { __leashMcp?: Registry };
-const registry: Registry = (g.__leashMcp ??= { connections: new Map(), failures: new Map(), reconciling: null });
+const MCP_REGISTRY_VERSION = 2;
+if (g.__leashMcp && g.__leashMcp.version !== MCP_REGISTRY_VERSION) {
+  for (const conn of g.__leashMcp.connections.values()) {
+    void conn.client.close().catch(() => {});
+  }
+  g.__leashMcp = undefined;
+}
+const registry: Registry = (g.__leashMcp ??= { version: MCP_REGISTRY_VERSION, connections: new Map(), failures: new Map(), reconciling: null });
 
 /** How long a failed connect is remembered before we retry (avoids hammering a dead server every turn). */
 const FAILURE_TTL_MS = 30_000;
@@ -63,6 +74,8 @@ const ICON_HARVEST_TIMEOUT_MS = 8_000;
 // use SSE streams that never close, so the body-read times out with "Failed to set fetch
 // cache". Passing `cache: 'no-store'` tells Next.js not to buffer the response.
 const mcpFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: "no-store" });
+const execFileAsync = promisify(execFile);
+const SQLITE3 = "/usr/bin/sqlite3";
 
 /** Package-manager launchers that fetch into a cache — `npx -y <pkg>` MCP servers, etc. */
 const PM_COMMAND_RE = /^(npx|npm|yarn|pnpm|pnpx|bunx|bun)$/;
@@ -132,6 +145,82 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
  * through untouched.
  */
 type RawMcpResult = { content?: Array<{ type?: string; text?: string }>; structuredContent?: Record<string, unknown>; isError?: boolean };
+const APPLE_NOTES_TOOL_NAMES = new Set([
+  "search-notes",
+  "list-notes",
+  "get-note-content",
+  "get-note-details",
+  "get-note-by-id",
+  "create-note",
+  "update-note",
+  "delete-note",
+  "move-note",
+]);
+function notesDbPath(): string | null {
+  const homes = [process.env["HOME"], homedir(), "/Users/MAC"].filter((v): v is string => !!v);
+  for (const home of [...new Set(homes)]) {
+    const path = join(home, "Library/Group Containers/group.com.apple.notes/NoteStore.sqlite");
+    if (existsSync(path)) return path;
+  }
+  return null;
+}
+
+function coreDataPrimaryKey(id: unknown): number | null {
+  if (typeof id !== "string") return null;
+  const match = id.match(/\/p(\d+)$/);
+  if (!match) return null;
+  const pk = Number(match[1]);
+  return Number.isSafeInteger(pk) && pk > 0 ? pk : null;
+}
+
+async function appleNotesIdentifierFor(id: unknown): Promise<string | null> {
+  const pk = coreDataPrimaryKey(id);
+  if (!pk) return null;
+  const db = notesDbPath();
+  if (!db) return null;
+  try {
+    const { stdout } = await execFileAsync(SQLITE3, [db, `SELECT ZIDENTIFIER FROM ZICCLOUDSYNCINGOBJECT WHERE Z_PK = ${pk} LIMIT 1;`], { timeout: 1_000 });
+    const identifier = stdout.trim();
+    return /^[0-9A-Fa-f-]{36}$/.test(identifier) ? identifier.toUpperCase() : null;
+  } catch (err) {
+    console.warn(`leash mcp: Apple Notes deep link lookup failed for ${String(id)}:`, err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
+function appleNotesOpenUrl(identifier: string): string {
+  return `applenotes://showNote?identifier=${encodeURIComponent(identifier)}`;
+}
+
+async function appleNoteLinkFields(id: unknown): Promise<Record<string, string>> {
+  const identifier = await appleNotesIdentifierFor(id);
+  return identifier ? { deepLinkIdentifier: identifier, openUrl: appleNotesOpenUrl(identifier) } : {};
+}
+
+function contentText(content: unknown): string {
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((c) => (c && typeof c === "object" && "text" in c && typeof c.text === "string" ? c.text : ""))
+    .filter(Boolean)
+    .join("\n");
+}
+
+async function enrichAppleNotesResult(name: string, args: unknown, result: unknown): Promise<unknown> {
+  if (!APPLE_NOTES_TOOL_NAMES.has(name) || !result || typeof result !== "object") return result;
+  const out = { ...(result as Record<string, unknown>) };
+  if (Array.isArray(out["notes"])) {
+    out["notes"] = await Promise.all(
+      (out["notes"] as unknown[]).map(async (note) => {
+        if (!note || typeof note !== "object") return note;
+        return { ...(note as Record<string, unknown>), ...(await appleNoteLinkFields((note as Record<string, unknown>)["id"])) };
+      }),
+    );
+  }
+  const inputId = args && typeof args === "object" ? (args as Record<string, unknown>)["id"] : undefined;
+  const textId = contentText(out["content"]).match(/x-coredata:\/\/\S+/)?.[0]?.replace(/\]$/, "");
+  Object.assign(out, await appleNoteLinkFields(inputId ?? textId));
+  return out;
+}
 
 function liftStructuredSources(tools: ToolSet): ToolSet {
   const out: ToolSet = {};
@@ -148,12 +237,12 @@ function liftStructuredSources(tools: ToolSet): ToolSet {
         const result = await origExecute.call(tool, args, opts);
         const r = result as RawMcpResult;
         if (!r || typeof r !== "object" || r.structuredContent == null || typeof r.structuredContent !== "object") {
-          return result; // external tool (no structured payload) — leave untouched
+          return enrichAppleNotesResult(name, args, result); // external tool — enrich known Apple Notes payloads, else pass through
         }
         const text = Array.isArray(r.content)
           ? r.content.filter((c) => c?.type === "text" && typeof c.text === "string").map((c) => c.text as string).join("\n")
           : "";
-        return { ...r.structuredContent, text, content: r.content, ...(r.isError ? { isError: true } : {}) };
+        return enrichAppleNotesResult(name, args, { ...r.structuredContent, text, content: r.content, ...(r.isError ? { isError: true } : {}) });
       },
     } as ToolSet[string];
   }

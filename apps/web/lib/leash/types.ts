@@ -1,5 +1,6 @@
 /** Client-safe Leash chat types (no server-only imports — shared by route + UI). */
 import type { UIMessage } from "ai";
+import type { GoalRunView } from "@mycelium/leash-core/goal-runs";
 
 /**
  * Dynamic-effort tier a turn was graded into (server-side embedding classifier).
@@ -78,12 +79,16 @@ export interface ConductorDecisionEvent {
   viaFastPath: boolean;
 }
 
+/** Persisted `data-goal-run` part: durable run progress/evidence for this assistant turn. */
+export type GoalRunEvent = GoalRunView;
+
 /** Typed data parts on the Leash stream. `elicitation` is transient; `skill` + `conductor` + `plan` are persisted. */
 export type LeashDataParts = {
   elicitation: LeashElicitationEvent;
   skill: LeashSkillEvent;
   plan: PlanData;
   conductor: ConductorDecisionEvent;
+  goalRun: GoalRunEvent;
 };
 
 /** The Leash UI message, carrying `LeashMetadata` + typed data parts. */

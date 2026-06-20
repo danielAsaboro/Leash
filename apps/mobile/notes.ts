@@ -1,6 +1,6 @@
 /**
- * On-device markdown notes — the phone's local notebook, the standalone analogue of the desktop
- * Brain's notes. Each note is one JSON file in the app's document directory (title + body + mtime),
+ * On-device local text entries — the phone's standalone context store. Each entry
+ * is one JSON file in the app's document directory (title + body + mtime),
  * mirroring chats.ts. Plain on-device storage; nothing leaves the phone.
  */
 import * as FileSystem from "expo-file-system/legacy";

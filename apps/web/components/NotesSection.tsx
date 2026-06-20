@@ -9,9 +9,8 @@ import { toast } from "./Toast.tsx";
 import type { NoteView } from "../lib/leash/memory-admin.ts";
 
 /**
- * Notes the assistant recalls — `.md` files under `data/notes`, embedded by the graph.
- * Deleting a note removes the file (REAL forgetting — the graph re-embeds via its
- * directory fingerprint). The full list lives at /brain/notes; a preview sits on /brain.
+ * Legacy local context files indexed by the graph. Apple Notes is provided by the
+ * Apple Notes MCP server; this view is only the old file-backed context surface.
  */
 
 function fmtTime(ms: number | string): string {
@@ -24,7 +23,7 @@ export function NotesSection({ notes }: { notes: NoteView[] }) {
   const [error, setError] = useState<string | null>(null);
 
   const forget = async (file: string) => {
-    if (!(await appConfirm(`Delete the note "${file}"? The assistant will no longer recall it.`, { confirmLabel: "Delete", destructive: true }))) return;
+    if (!(await appConfirm(`Delete the local context file "${file}"? The assistant will no longer recall it.`, { confirmLabel: "Delete", destructive: true }))) return;
     setBusy(true);
     setError(null);
     try {
@@ -34,7 +33,7 @@ export function NotesSection({ notes }: { notes: NoteView[] }) {
         setError(msg);
         toast.error(msg);
       } else {
-        toast.success("Note forgotten");
+        toast.success("Local context forgotten");
       }
       router.refresh();
     } catch {
@@ -55,7 +54,7 @@ export function NotesSection({ notes }: { notes: NoteView[] }) {
       )}
       {notes.length === 0 ? (
         <p className="kicker py-4" style={{ color: "var(--color-faint)" }}>
-          No notes — drop .md files into data/notes and the assistant will recall them.
+          No local context files indexed.
         </p>
       ) : (
         <ul>

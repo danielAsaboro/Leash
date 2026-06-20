@@ -13,7 +13,7 @@ export const SEARCH_GRAPH_TOOL: Tool = {
   type: "function",
   name: "search_graph",
   description:
-    "Search the user's private context graph (their personal notes, files, and voice memos) for passages relevant to a query. Returns the most relevant source snippets, each tagged [Source N]. Call this whenever answering requires private facts about the user, their devices, projects, or preferences — do not guess from prior knowledge.",
+    "Search the user's private context graph (Apple Notes, files, and voice memos) for passages relevant to a query. Returns the most relevant source snippets, each tagged [Source N]. Call this whenever answering requires private facts about the user, their devices, projects, or preferences — do not guess from prior knowledge.",
   parameters: {
     type: "object",
     properties: {

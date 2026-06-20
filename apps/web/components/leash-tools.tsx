@@ -1,6 +1,23 @@
 "use client";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ChevronDownIcon, ClockIcon, ImageIcon, ListTodoIcon, SearchIcon, WrenchIcon, type LucideIcon } from "lucide-react";
+import {
+  AppleIcon,
+  BookOpenTextIcon,
+  ChevronDownIcon,
+  CircleCheckIcon,
+  ClockIcon,
+  FolderIcon,
+  ImageIcon,
+  ListTodoIcon,
+  SearchIcon,
+  SquarePenIcon,
+  StickyNoteIcon,
+  StickyNotePlusIcon,
+  Trash2Icon,
+  WrenchIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from "@/components/ai-elements/tool";
 import { Task, TaskTrigger, TaskContent, TaskItem } from "@/components/ai-elements/task";
 import { Confirmation, ConfirmationTitle, ConfirmationRequest, ConfirmationActions, ConfirmationAction } from "@/components/ai-elements/confirmation";
@@ -12,7 +29,7 @@ import { toast } from "./Toast.tsx";
  * component instead of a raw JSON dump (per the AI SDK "connect tool output → React
  * component" pattern). Keyed on the typed `tool-${name}` part + its `state`:
  *   · understory_today / understory_search → clickable paper cards
- *   · search_graph                         → private-note snippet cards
+ *   · search_graph                         → private-context snippet cards
  *   · now                                  → a date/time chip
  * Unknown tools (e.g. future MCP tools) fall back to the generic AI Elements <Tool>.
  */
@@ -20,31 +37,81 @@ import { toast } from "./Toast.tsx";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Part = any;
 type Source = { kind: "graph" | "paper"; title: string; snippet: string; url?: string };
+type AppleNoteRow = {
+  id?: string;
+  openUrl?: string;
+  deepLinkIdentifier?: string;
+  title?: string;
+  content?: string;
+  folder?: string;
+  account?: string;
+  created?: string;
+  modified?: string;
+  tags?: string[];
+};
 
 export const toolName = (p: Part): string => (p.type === "dynamic-tool" ? String(p.toolName) : String(p.type).slice("tool-".length));
 const isTool = (p: Part): boolean => typeof p?.type === "string" && (p.type.startsWith("tool-") || p.type === "dynamic-tool");
+const APPLE_NOTES_TOOLS = new Set([
+  "doctor",
+  "search-notes",
+  "list-notes",
+  "get-note-content",
+  "get-note-details",
+  "get-note-by-id",
+  "create-note",
+  "update-note",
+  "delete-note",
+  "move-note",
+  "list-folders",
+  "list-accounts",
+]);
 
 const LOADING_LABEL: Record<string, string> = {
-  search_graph: "Searching your notes…",
+  search_graph: "Searching private context…",
   understory_today: "Reading today's paper…",
   understory_search: "Searching the paper…",
   now: "Checking the time…",
   generate_image: "Painting your image (on-device)…",
-  list_tasks: "Reading your task list…",
-  create_task: "Adding a task…",
-  update_task: "Updating a task…",
+  list_tasks: "Reading your todo list…",
+  create_task: "Adding a todo…",
+  update_task: "Updating a todo…",
+  doctor: "Checking Apple Notes access…",
+  "search-notes": "Searching Apple Notes…",
+  "list-notes": "Listing Apple Notes…",
+  "get-note-content": "Reading Apple Note…",
+  "get-note-details": "Reading Apple Note details…",
+  "get-note-by-id": "Reading Apple Note…",
+  "create-note": "Creating Apple Note…",
+  "update-note": "Updating Apple Note…",
+  "delete-note": "Deleting Apple Note…",
+  "move-note": "Moving Apple Note…",
+  "list-folders": "Reading Apple Notes folders…",
+  "list-accounts": "Reading Apple Notes accounts…",
 };
 
 /** Label once a tool has produced output — past-tense, for the collapsed timeline node. */
 const DONE_LABEL: Record<string, string> = {
-  search_graph: "Searched your notes",
+  search_graph: "Searched private context",
   understory_today: "Read today's paper",
   understory_search: "Searched the paper",
   now: "Checked the time",
   generate_image: "Generated an image",
-  list_tasks: "Listed your tasks",
-  create_task: "Created a task",
-  update_task: "Updated a task",
+  list_tasks: "Listed your todos",
+  create_task: "Created a todo",
+  update_task: "Updated a todo",
+  doctor: "Checked Apple Notes access",
+  "search-notes": "Searched Apple Notes",
+  "list-notes": "Listed Apple Notes",
+  "get-note-content": "Read Apple Note",
+  "get-note-details": "Read Apple Note details",
+  "get-note-by-id": "Read Apple Note",
+  "create-note": "Created Apple Note",
+  "update-note": "Updated Apple Note",
+  "delete-note": "Deleted Apple Note",
+  "move-note": "Moved Apple Note",
+  "list-folders": "Listed Apple Notes folders",
+  "list-accounts": "Listed Apple Notes accounts",
 };
 
 const TOOL_ICON: Record<string, LucideIcon> = {
@@ -56,6 +123,18 @@ const TOOL_ICON: Record<string, LucideIcon> = {
   list_tasks: ListTodoIcon,
   create_task: ListTodoIcon,
   update_task: ListTodoIcon,
+  doctor: AppleIcon,
+  "search-notes": SearchIcon,
+  "list-notes": StickyNoteIcon,
+  "get-note-content": BookOpenTextIcon,
+  "get-note-details": BookOpenTextIcon,
+  "get-note-by-id": BookOpenTextIcon,
+  "create-note": StickyNotePlusIcon,
+  "update-note": SquarePenIcon,
+  "delete-note": Trash2Icon,
+  "move-note": FolderIcon,
+  "list-folders": FolderIcon,
+  "list-accounts": AppleIcon,
 };
 
 /** Icon + label + status for a tool's timeline node (the ChainOfThought step header). */
@@ -128,6 +207,7 @@ export function ToolView({ part, approval }: { part: Part; approval?: ApprovalHa
   const output = part.output ?? {};
   if (name === "understory_today" || name === "understory_search") return <PaperCard output={output} />;
   if (name === "search_graph") return <NotesCard output={output} />;
+  if (APPLE_NOTES_TOOLS.has(name)) return <AppleNotesCard name={name} input={part.input ?? {}} output={output} />;
   if (name === "now") return <NowChip output={output} />;
   if (name === "generate_image") return <ImageCard output={output} />;
   if (name.startsWith("agent__")) return <AgentCard part={part} />;
@@ -151,6 +231,7 @@ export function ToolCard({ part, approval }: { part: Part; approval?: ApprovalHa
   if (name === "list_tasks" || name === "create_task" || name === "update_task") return <TaskCard output={output} />;
   if (name === "understory_today" || name === "understory_search") return <PaperCard output={output} />;
   if (name === "search_graph") return <NotesCard output={output} />;
+  if (APPLE_NOTES_TOOLS.has(name)) return <AppleNotesCard name={name} input={part.input ?? {}} output={output} />;
   if (name === "now") return <NowChip output={output} />;
   if (name === "generate_image") return <ImageCard output={output} />;
   if (name.startsWith("agent__")) return <AgentCard part={part} />;
@@ -196,12 +277,12 @@ function TaskCard({ output }: { output: { tasks?: TaskRow[]; task?: TaskRow; tex
   if (rows.length === 0) {
     return (
       <div className="tool-card">
-        <span className="tool-card-kicker kicker kicker-sage">✓ Tasks</span>
+        <span className="tool-card-kicker kicker kicker-sage">✓ Todos</span>
         {output.text ? <span className="tool-note-snip">{output.text}</span> : null}
       </div>
     );
   }
-  const title = rows.length === 1 ? rows[0]!.title : `${rows.length} tasks`;
+  const title = rows.length === 1 ? rows[0]!.title : `${rows.length} todos`;
   return (
     <Task defaultOpen>
       <TaskTrigger title={title}>
@@ -268,10 +349,10 @@ function PaperCard({ output }: { output: { sources?: Source[] } }) {
 
 function NotesCard({ output }: { output: { sources?: Source[] } }) {
   const notes = (output.sources ?? []).filter((s) => s.kind === "graph");
-  if (notes.length === 0) return <div className="tool-card"><span className="tool-card-kicker kicker">🔎 No matching notes</span></div>;
+  if (notes.length === 0) return <div className="tool-card"><span className="tool-card-kicker kicker">🔎 No matching private context</span></div>;
   return (
     <div className="tool-card">
-      <span className="tool-card-kicker kicker kicker-sage">🔎 From your notes</span>
+      <span className="tool-card-kicker kicker kicker-sage">🔎 From private context</span>
       <div className="tool-notes">
         {notes.map((n, i) => (
           <div key={i} className="tool-note">
@@ -280,6 +361,192 @@ function NotesCard({ output }: { output: { sources?: Source[] } }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function outputText(output: { text?: unknown; content?: unknown }): string {
+  if (typeof output.text === "string") return output.text;
+  if (typeof output.content === "string") return output.content;
+  if (Array.isArray(output.content)) {
+    return output.content
+      .map((item) => (item && typeof item === "object" && "text" in item && typeof item.text === "string" ? item.text : ""))
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+function stripAppleNotesMarkup(text: string): string {
+  return text
+    .replace(/<\/div>\s*<div>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?div>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .trim();
+}
+
+function compactId(id?: string): string {
+  if (!id) return "";
+  const tail = id.match(/\/([^/]+)$/)?.[1] ?? id;
+  return tail.length > 24 ? `${tail.slice(0, 10)}…${tail.slice(-8)}` : tail;
+}
+
+function appleNotesHref(openUrl?: string): string | null {
+  return openUrl?.startsWith("applenotes://") ? openUrl : null;
+}
+
+export function AppleNotesOpenLink({
+  id,
+  openUrl,
+  children = "Open in Notes",
+  className = "apple-note-open",
+  fallback = null,
+}: {
+  id?: string;
+  openUrl?: string;
+  children?: ReactNode;
+  className?: string;
+  fallback?: ReactNode;
+}) {
+  const [href, setHref] = useState<string | null>(() => appleNotesHref(openUrl));
+  useEffect(() => {
+    const direct = appleNotesHref(openUrl);
+    if (direct) {
+      setHref(direct);
+      return;
+    }
+    if (!id) {
+      setHref(null);
+      return;
+    }
+    let cancelled = false;
+    fetch(`/api/leash/apple-notes/open-url?id=${encodeURIComponent(id)}`, { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { openUrl?: string } | null) => {
+        if (!cancelled) setHref(appleNotesHref(data?.openUrl));
+      })
+      .catch(() => {
+        if (!cancelled) setHref(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id, openUrl]);
+  return href ? (
+    <a className={className} href={href}>
+      {children}
+    </a>
+  ) : fallback ? (
+    <span>{fallback}</span>
+  ) : null;
+}
+
+function formatNoteDate(v?: string): string {
+  if (!v) return "";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: d.getFullYear() === new Date().getFullYear() ? undefined : "numeric" });
+}
+
+function AppleNoteRows({ notes }: { notes: AppleNoteRow[] }) {
+  return (
+    <div className="apple-notes-list">
+      {notes.map((note, i) => {
+        const snip = stripAppleNotesMarkup(note.content ?? "");
+        const meta = [note.account, note.folder, formatNoteDate(note.modified ?? note.created), compactId(note.id)].filter(Boolean).join(" · ");
+        const href = appleNotesHref(note.openUrl);
+        return (
+          <div key={note.id ?? `${note.title}-${i}`} className="apple-note-row">
+            <span className="apple-note-title">{note.title || "Untitled note"}</span>
+            {meta ? <span className="apple-note-meta">{meta}</span> : null}
+            {snip ? <span className="apple-note-preview">{snip}</span> : null}
+            <AppleNotesOpenLink id={note.id} openUrl={href ?? undefined} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AppleNotePreview({ title, text, id, openUrl }: { title?: string; text: string; id?: string; openUrl?: string }) {
+  const clean = stripAppleNotesMarkup(text);
+  const href = appleNotesHref(openUrl);
+  return (
+    <div className="apple-note-preview-card">
+      <div className="apple-note-preview-head">
+        <span className="apple-note-title">{title || "Untitled note"}</span>
+        {id ? <span className="apple-note-meta">{compactId(id)}</span> : null}
+      </div>
+      <pre className="apple-note-body">{clean || "No note content returned."}</pre>
+      <AppleNotesOpenLink id={id} openUrl={href ?? undefined} />
+    </div>
+  );
+}
+
+function AppleNotesReceipt({ name, input, output }: { name: string; input: Record<string, unknown>; output: Record<string, unknown> }) {
+  const text = outputText(output);
+  const title = String(input["newTitle"] ?? input["title"] ?? text.match(/"([^"]+)"/)?.[1] ?? "Apple Note");
+  const id = String(input["id"] ?? text.match(/x-coredata:\/\/\S+/)?.[0]?.replace(/\]$/, "") ?? "");
+  const href = appleNotesHref(typeof output["openUrl"] === "string" ? output["openUrl"] : undefined);
+  const label =
+    name === "create-note" ? "Created" : name === "update-note" ? "Updated" : name === "delete-note" ? "Deleted" : name === "move-note" ? "Moved" : "Completed";
+  return (
+    <div className="apple-note-receipt">
+      <CircleCheckIcon className="apple-note-receipt-icon" aria-hidden />
+      <div>
+        <span className="apple-note-title">{label}: {title}</span>
+        {id ? <span className="apple-note-meta">{compactId(id)}</span> : null}
+        {text && !text.includes(title) ? <span className="apple-note-preview">{text}</span> : null}
+        <AppleNotesOpenLink id={id} openUrl={href ?? undefined} />
+      </div>
+    </div>
+  );
+}
+
+function AppleNotesCard({ name, input, output }: { name: string; input: Record<string, unknown>; output: Record<string, unknown> }) {
+  const notes = (Array.isArray(output["notes"]) ? output["notes"] : Array.isArray(output["results"]) ? output["results"] : []) as AppleNoteRow[];
+  const count = typeof output["count"] === "number" ? output["count"] : notes.length;
+  const text = outputText(output);
+  const title = typeof output["title"] === "string" ? output["title"] : typeof input["title"] === "string" ? input["title"] : undefined;
+  const inputId = typeof input["id"] === "string" ? input["id"] : undefined;
+  const openUrl = typeof output["openUrl"] === "string" ? output["openUrl"] : undefined;
+
+  if (name === "search-notes" || name === "list-notes") {
+    return (
+      <div className="tool-card apple-notes-card">
+        <span className="tool-card-kicker kicker kicker-sage">Apple Notes · {count} found</span>
+        {notes.length ? <AppleNoteRows notes={notes} /> : <span className="tool-note-snip">{text || "No matching notes returned."}</span>}
+      </div>
+    );
+  }
+
+  if (name === "get-note-content" || name === "get-note-details" || name === "get-note-by-id") {
+    return (
+      <div className="tool-card apple-notes-card">
+        <span className="tool-card-kicker kicker kicker-sage">Apple Notes · note content</span>
+        <AppleNotePreview title={title} text={text} id={inputId} openUrl={openUrl} />
+      </div>
+    );
+  }
+
+  if (name === "create-note" || name === "update-note" || name === "delete-note" || name === "move-note") {
+    return (
+      <div className="tool-card apple-notes-card">
+        <span className="tool-card-kicker kicker kicker-sage">Apple Notes · write result</span>
+        <AppleNotesReceipt name={name} input={input} output={output} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="tool-card apple-notes-card">
+      <span className="tool-card-kicker kicker kicker-sage">Apple Notes · {DONE_LABEL[name] ?? name}</span>
+      <span className="tool-note-snip">{text || JSON.stringify(output, null, 2)}</span>
     </div>
   );
 }

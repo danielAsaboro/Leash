@@ -1,7 +1,7 @@
 /**
  * File connector (Layer 2 — Senses).
  *
- * Turns a directory of markdown notes into graph nodes and indexes them — the
+ * Turns a directory of local text documents into graph nodes and indexes them — the
  * "files" half of the Week-1 context graph (voice is added in voice.ts). Used by
  * the hub (its canonical graph) and the edge (its local replica). The workspace is
  * reset first so each ingest is deterministic.

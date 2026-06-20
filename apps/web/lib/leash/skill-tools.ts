@@ -135,6 +135,20 @@ function discoveryText(skill: { slug: string; name: string; description: string 
   return `${skill.slug}: ${skill.description || skill.name}`;
 }
 
+const DIRECT_TOOL_REQUEST_RE = /\b(?:tool only|use (?:the )?[a-z0-9_-]+ (?:mcp )?tool|do not use (?:run_skill|skills?|search_graph))\b/i;
+const APPLE_NOTES_REQUEST_RE = /\b(?:apple notes|notes\.app|search-notes|get-note(?:s|-content|-details|-by-id|-markdown)?|create-note|update-note|delete-note|move-note|list-notes|doctor)\b/i;
+
+function skillEligibleForAutoActivation(query: string, skill: { slug: string }): boolean {
+  if (DIRECT_TOOL_REQUEST_RE.test(query)) return false;
+  if (skill.slug === "file-finder" && APPLE_NOTES_REQUEST_RE.test(query)) return false;
+  if (skill.slug !== "mcp-installer") return true;
+  return (
+    /\b(?:install|add|set\s*up|setup|register|connect|configure|wire|enable)\b[\s\S]{0,80}\b(?:mcp|server|tool|integration)\b/i.test(query) ||
+    /\b(?:mcp|server|tool|integration)\b[\s\S]{0,80}\b(?:install|add|set\s*up|setup|register|connect|configure|wire|enable)\b/i.test(query) ||
+    /\b(?:github\.com|mcpservers\.org|npx\s+-?y|npm\s+(?:exec|install))\b/i.test(query)
+  );
+}
+
 function tokenize(s: string): string[] {
   return (s.toLowerCase().match(/[a-z0-9][a-z0-9-]{1,}/g) ?? []).filter((t) => !STOP.has(t));
 }
@@ -222,10 +236,12 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
   // across BOTH signals) instead of comparing two differently-scaled scores via max(). A confidence FLOOR
   // still gates candidates (so general turns load no skill); RRF only ORDERS the ones that clear it. One
   // skill at a time keeps context lean — the model pulls in others mid-turn with read_skill.
-  const lex = new Map(enabled.map((s) => [s.slug, lexicalScore(query, s)]));
+  const routable = enabled.filter((s) => skillEligibleForAutoActivation(query, s));
+  if (routable.length === 0) return null;
+  const lex = new Map(routable.map((s) => [s.slug, lexicalScore(query, s)]));
   const emb = new Map<string, number>();
   try {
-    const rows = await getSkillEmbeddings(enabled);
+    const rows = await getSkillEmbeddings(routable);
     const { embedding } = await embed({ model: embeddingModel(), value: query });
     for (const r of rows) emb.set(r.slug, r.embeddings.reduce((m, e) => Math.max(m, cosine(embedding, e)), -1));
   } catch {
@@ -233,18 +249,18 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
   }
   // Rank each signal (1-based, descending) → RRF score = Σ 1/(k + rank), k=60 (community default).
   const rankBy = (score: (slug: string) => number): Map<string, number> => {
-    const order = [...enabled].sort((a, b) => score(b.slug) - score(a.slug));
+    const order = [...routable].sort((a, b) => score(b.slug) - score(a.slug));
     return new Map(order.map((s, i) => [s.slug, i + 1]));
   };
   const lexRank = rankBy((slug) => lex.get(slug) ?? 0);
   const embRank = rankBy((slug) => emb.get(slug) ?? -1);
   const K = 60;
-  const rrf = (slug: string): number => 1 / (K + (lexRank.get(slug) ?? enabled.length)) + 1 / (K + (embRank.get(slug) ?? enabled.length));
+  const rrf = (slug: string): number => 1 / (K + (lexRank.get(slug) ?? routable.length)) + 1 / (K + (embRank.get(slug) ?? routable.length));
   const best = enabled
     .filter((s) => (lex.get(s.slug) ?? 0) >= SKILL_LEX_FLOOR || (emb.get(s.slug) ?? -1) >= SKILL_EMB_FLOOR)
     .sort((a, b) => rrf(b.slug) - rrf(a.slug))[0];
   // Gated diagnostic: the top few candidates with their lex/emb so floors can be tuned against real queries.
-  const top = [...enabled].sort((a, b) => Math.max(emb.get(b.slug) ?? -1, lex.get(b.slug) ?? 0) - Math.max(emb.get(a.slug) ?? -1, lex.get(a.slug) ?? 0)).slice(0, 3);
+  const top = [...routable].sort((a, b) => Math.max(emb.get(b.slug) ?? -1, lex.get(b.slug) ?? 0) - Math.max(emb.get(a.slug) ?? -1, lex.get(a.slug) ?? 0)).slice(0, 3);
   loopLog(`match "${query.slice(0, 40)}" → ${best?.slug ?? "(none)"} | top: ${top.map((s) => `${s.slug}(lex=${(lex.get(s.slug) ?? 0).toFixed(2)},emb=${(emb.get(s.slug) ?? -1).toFixed(2)})`).join(" ")}`);
   return best ? activeSkillsResult("automatic", [best]) : null;
 }

@@ -32,7 +32,7 @@ export const REPO_ROOT = findRepoRoot();
 /** `mycelium/data` — where every Leash file-store lives (env-overridable). */
 export const DATA_DIR = process.env["LEASH_DATA_DIR"] ?? join(REPO_ROOT, "data");
 
-/** `data/notes` — the user's markdown notes (RAG over them). */
+/** Legacy local-context directory for file-backed RAG snippets. Apple Notes comes through MCP. */
 export const NOTES_DIR = process.env["LEASH_NOTES_DIR"] ?? join(DATA_DIR, "notes");
 
 /** `data/leash-activity.jsonl` — the screen-watcher trail (written by `npm run watch`). */

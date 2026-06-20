@@ -1,7 +1,7 @@
 /**
  * Memory administration (server-only) — the Brain → Memory tab's read/forget layer.
  *
- *   · notes: list `data/notes/*.md` (with preview + chunk count) and REALLY delete —
+ *   · local context: list legacy markdown snippets (with preview + chunk count) and REALLY delete —
  *     `rm` the file; the graph's directory-fingerprint cache re-embeds on next search
  *   · activity: paginated, newest-first view of the watcher trail (tombstone-filtered);
  *     forgetting tombstones the record (the JSONL is never rewritten — watcher-contended)
@@ -47,7 +47,7 @@ export async function listNotes(): Promise<NoteView[]> {
   return notes.filter((n): n is NoteView => n !== null).sort((a, b) => b.mtimeMs - a.mtimeMs);
 }
 
-/** Delete a note file — the real forget. Basename-only (no path traversal). */
+/** Delete a legacy local-context file. Basename-only (no path traversal). */
 export async function deleteNote(file: string): Promise<boolean> {
   const name = basename(file);
   if (!name.endsWith(".md")) return false;

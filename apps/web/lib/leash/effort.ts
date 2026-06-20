@@ -48,13 +48,13 @@ const PROTOTYPES: Record<EffortTier, string[]> = {
   deep: [
     "compare these two options and recommend one",
     "plan the steps to launch this project",
-    "research across my notes and activity and synthesize a summary",
+    "research across Apple Notes, private context, and activity and synthesize a summary",
     "walk me through debugging this issue",
     "analyze the tradeoffs and give me a recommendation",
     // Personal-context multi-step phrasings — so a genuinely multi-step query over the user's own
-    // notes/photos isn't pulled to `standard` by its RAG-flavored wording (measured tuning).
-    "compare my two notes and recommend which is better",
-    "compare my project notes and pick the best one",
+    // Apple Notes/photos isn't pulled to `standard` by its RAG-flavored wording (measured tuning).
+    "compare my two Apple Notes and recommend which is better",
+    "compare my project Apple Notes and pick the best one",
     "plan the steps and walk me through how to do this",
   ],
 };
@@ -164,7 +164,8 @@ export function effortConfig(tier: EffortTier, isVoice: boolean): EffortConfig {
       return { tools: true, steps: isVoice ? 4 : 6, noThink: isVoice, maxOutputTokens: isVoice ? 600 : 2500 };
     case "standard":
     default:
-      // 3 steps: a skill-driven turn needs read_skill → read_skill_file → answer.
-      return { tools: true, steps: 3, noThink: true, maxOutputTokens: 300 };
+      // 3 steps: a tool/RAG turn needs tool -> observe -> answer. Keep enough headroom for
+      // small-model overthinking so the final answer is not starved after the tool result.
+      return { tools: true, steps: 3, noThink: true, maxOutputTokens: 900 };
   }
 }

@@ -4,7 +4,7 @@
  * The live graph lives in the Autobase corestore, which is single-process /
  * fd-locked (CLAUDE.md) — opening it from `evolve` while a serve/hub holds it would
  * deadlock. So this source reads the graph's underlying FILE signals instead:
- *   1. the markdown notes the senses connector ingests (`data/notes/*.md`), and
+ *   1. local text documents the senses connector ingests (`data/notes/*.{md,txt,markdown}`), and
  *   2. an optional plain-JSONL GraphStore export (`data/graph.jsonl`), if present.
  * Both are real, on-disk, corestore-free. Each fact becomes Q→A pairs.
  */

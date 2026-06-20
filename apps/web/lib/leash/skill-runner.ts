@@ -29,6 +29,9 @@ import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { LeashSource } from "./tools.ts";
 import { buildSkillStepSystemPrompt, buildSkillSubtaskSystemPrompt } from "./prompt.ts";
+import { enforceToolPolicy, filterToolNamesForContext } from "@mycelium/leash-core/tool-policy";
+import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
+import { getGoalRun, startGoalRunStep, updateGoalRunStep, recordGoalRunModelTrace, type GoalRunRoute } from "@mycelium/leash-core/goal-runs";
 
 /** Step budget for a single-shot delegated sub-skill (its own small tool loop). */
 const SUB_STEPS = 6;
@@ -41,7 +44,9 @@ async function subAgentTools(skill: Skill, registry: ToolSet): Promise<{ subTool
   const off = await disabledTools();
   const names: string[] = [];
   const skipped: string[] = [];
+  const policyAllowed = new Set(filterToolNamesForContext(skill.tools, { route: "skill", subagent: true }));
   for (const n of skill.tools) {
+    if (!policyAllowed.has(n)) continue;
     if (n === "run_skill" || !registry[n] || off.has(n)) continue;
     if (await toolNeedsApproval(n)) {
       skipped.push(n);
@@ -49,7 +54,7 @@ async function subAgentTools(skill: Skill, registry: ToolSet): Promise<{ subTool
     }
     names.push(n);
   }
-  const subTools: ToolSet = Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]]));
+  const subTools: ToolSet = enforceToolPolicy(Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]])), { route: "skill", subagent: true });
   return { subTools, names, skipped };
 }
 
@@ -71,7 +76,7 @@ function subCallBase(label: string, system: string, userContent: string, subTool
  * forward. The model never chooses whether to continue — the harness does. Each step is an isolated
  * `generateText` (fresh context → no overthinking accumulation), bounded to PIPELINE_STEP_BUDGET.
  */
-async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, names: string[]): Promise<string> {
+async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, names: string[], goalRunId?: string): Promise<string> {
   const results: string[] = [];
   for (let i = 0; i < skill.steps.length; i++) {
     const step = skill.steps[i] as string;
@@ -80,8 +85,41 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
       : "";
     const system = buildSkillStepSystemPrompt({ skillName: skill.name, skillBody: skill.body, task, step, index: i, total: skill.steps.length, prior });
     loopLog(`pipeline ${skill.slug} step ${i + 1}/${skill.steps.length}: ${step.slice(0, 60)}`);
-    const r = await generateText(subCallBase(`run_skill:${skill.slug}:step${i + 1}`, system, step, subTools, names, PIPELINE_STEP_BUDGET));
-    results.push(r.text.trim() || "(this step produced no text output)");
+    let ledgerStepId: string | undefined;
+    const startedAt = Date.now();
+    if (goalRunId) {
+      const run = await getGoalRun(goalRunId);
+      if (run) {
+        const capsule = buildContextCapsule({ run, currentStep: step, relevantContext: [task], maxChars: 5000 });
+        const ledgerStep = await startGoalRunStep(goalRunId, {
+          title: step,
+          route: "skill" satisfies GoalRunRoute,
+          model: "qwen3-4b",
+          contextCapsule: capsule.text,
+          contextTokensEstimate: capsule.tokenEstimate,
+        });
+        ledgerStepId = ledgerStep.id;
+      }
+    }
+    try {
+      const r = await generateText(subCallBase(`run_skill:${skill.slug}:step${i + 1}`, system, step, subTools, names, PIPELINE_STEP_BUDGET));
+      const out = r.text.trim() || "(this step produced no text output)";
+      results.push(out);
+      if (goalRunId && ledgerStepId) {
+        await updateGoalRunStep(goalRunId, ledgerStepId, { status: "done", summary: out });
+        await recordGoalRunModelTrace(goalRunId, {
+          stepId: ledgerStepId,
+          model: "qwen3-4b",
+          alias: `run_skill:${skill.slug}:step${i + 1}`,
+          startedAt,
+          finishedAt: Date.now(),
+          tokens: ((r as { totalUsage?: { totalTokens?: number }; usage?: { totalTokens?: number } }).totalUsage?.totalTokens ?? (r as { usage?: { totalTokens?: number } }).usage?.totalTokens),
+        });
+      }
+    } catch (e) {
+      if (goalRunId && ledgerStepId) await updateGoalRunStep(goalRunId, ledgerStepId, { status: "failed", error: e instanceof Error ? e.message : String(e) });
+      throw e;
+    }
   }
   // Hand the main assistant a compact, ordered digest of what the pipeline accomplished.
   return skill.steps.map((s, j) => `Step ${j + 1} — ${s}\n${results[j]}`).join("\n\n");
@@ -94,14 +132,14 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
  * dependent steps). Returns the same `{ text, sources }` shape run_skill produces. Loads the skill
  * by slug; returns an honest message if it's missing/disabled or has no steps.
  */
-export async function runSkillAsPipeline(slug: string, task: string, registry: ToolSet): Promise<{ text: string; sources: LeashSource[] }> {
+export async function runSkillAsPipeline(slug: string, task: string, registry: ToolSet, opts: { goalRunId?: string } = {}): Promise<{ text: string; sources: LeashSource[] }> {
   const s = await getSkill(slug.trim().toLowerCase());
   if (!s || !s.enabled) return { text: `No runnable skill named "${slug}".`, sources: [] };
   if (s.steps.length === 0) return { text: `The "${s.slug}" skill has no steps to run.`, sources: [] };
   const { subTools, names, skipped } = await subAgentTools(s, registry);
   const note = skipped.length ? ` (note: ${skipped.join(", ")} need approval and were skipped — invoke them on the main turn if needed.)` : "";
   try {
-    const text = await runStepPipeline(s, task, subTools, names);
+    const text = await runStepPipeline(s, task, subTools, names, opts.goalRunId);
     return { text: text + note, sources: [{ kind: "graph", title: `Skill · ${s.name}`, snippet: task.slice(0, 120) }] };
   } catch (e) {
     return { text: `The "${s.slug}" skill failed: ${e instanceof Error ? e.message : String(e)}`, sources: [] };

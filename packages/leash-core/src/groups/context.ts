@@ -1,7 +1,7 @@
 /**
  * Context tool group — the user's private context graph + live screen-activity trail.
  *
- *   · search_graph     — RAG over notes + activity + typed memories + past chats (QVAC embeds)
+ *   · search_graph     — RAG over private context + activity + typed memories + past chats (QVAC embeds)
  *   · active_context   — what the user is doing on their screen right now
  *   · activity_recent  — the user's screen activity over the last N minutes
  */
@@ -30,21 +30,21 @@ function hhmm(ts: string): string {
 export const contextGroup: ToolGroup = {
   id: "context",
   label: "Context",
-  description: "Search the user's private context graph (notes, files, memories, past chats) and read their live screen-activity trail.",
+  description: "Search the user's private context graph (Apple Notes, files, memories, past chats) and read their live screen-activity trail.",
   tools: [
     defineTool({
       name: "search_graph",
       description:
-        "Search the user's private context graph (their personal notes, files, voice memos, and past conversations with you) for passages relevant to a query. Call this whenever answering needs private facts about the user, their devices, projects, preferences, or what was said in an earlier chat — do not guess.",
+        "Search the user's private context graph (Apple Notes, files, voice memos, and past conversations with you) for passages relevant to a query. Call this whenever answering needs private facts about the user, their devices, projects, preferences, or what was said in an earlier chat — do not guess.",
       inputSchema: {
         query: z.string().describe("Natural-language description of the information needed."),
         topK: z.number().int().min(1).max(8).optional().describe("How many snippets to retrieve (default 3)."),
       },
       handler: async ({ query, topK }) => {
         const hits = await searchNotes(query, topK ?? 3);
-        const sources: LeashSource[] = hits.map((h) => ({ kind: "graph", title: `Note · ${h.source}`, snippet: oneLine(h.text).slice(0, 200) }));
+        const sources: LeashSource[] = hits.map((h) => ({ kind: "graph", title: `Context · ${h.source}`, snippet: oneLine(h.text).slice(0, 200) }));
         return {
-          text: hits.length ? hits.map((h) => `(${h.source}) ${oneLine(h.text)}`).join("\n---\n") : "No matching passages in the user's private notes.",
+          text: hits.length ? hits.map((h) => `(${h.source}) ${oneLine(h.text)}`).join("\n---\n") : "No matching passages in the user's private context.",
           sources,
         };
       },

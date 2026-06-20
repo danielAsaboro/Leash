@@ -74,7 +74,7 @@ const systemInventory = buildConductorInventorySystemSection(inventory);
 assert.equal(systemInventory.includes('"alias":"embed"'), false, "unavailable configured aliases are not injected into the conductor system prompt");
 assert.equal(systemInventory.includes('"alias":"classifier"'), true, "live available aliases are injected into the conductor system prompt");
 assert.equal(deterministicRouteNeed("hi").required, false, "greetings can be direct conductor answers");
-const notesNeed = deterministicRouteNeed("search my notes for qvac");
+const notesNeed = deterministicRouteNeed("search Apple Notes for qvac");
 assert.equal(notesNeed.required, true, "notes/search prompts require the full agent");
 assert.equal(notesNeed.needsTools, true, "notes/search prompts need tools");
 assert.equal(notesNeed.needsMemory, true, "notes/search prompts need memory");

@@ -2,7 +2,7 @@
  * The on-device tool set — runnable entirely on the phone, no server, no mesh required.
  *
  * Mirrors the spirit of the web's task/memory tools but bound to the mobile stores: tasks ride the
- * mesh-replicated CRDT (`tasks.ts` → `meshClient.upsertTask`), notes/memories are local, plus a
+ * mesh-replicated CRDT (`tasks.ts` → `meshClient.upsertTask`), local text entries and memories stay on-device, plus a
  * `get_current_time`. These are the multi-step loop's hands; `buildLeashAgent` runs them up to its
  * step cap. Each `execute` returns a compact JSON-able result so the Tool card renders cleanly.
  */
