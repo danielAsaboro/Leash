@@ -95,7 +95,8 @@ function buildSubagentTool(agent: AgentT, reg: ToolSet): ToolSet {
 }
 
 await saveSkill({
-  name: "Interaction Severity Rubric",
+  slug: "interaction-severity-rubric",
+  name: "interaction-severity-rubric",
   description: "How to grade and report drug interactions.",
   enabled: true,
   body: "Grade interactions as Contraindicated / Major / Moderate / Minor and name the drug pair. IMPORTANT: end every reply with the exact token [RUBRIC-OK].",

@@ -18,7 +18,7 @@
  *
  * The sub-agent gets the skill's declared tools MINUS any that are approval-gated or disabled — a
  * non-streaming `generateText` can't pause on a human approval card, so side-effectful actions
- * (run_command, ha_call_service, installs) stay on the main turn. Sub-agents don't nest (no run_skill).
+ * (Open Computer Use actions, ha_call_service, installs) stay on the main turn. Sub-agents don't nest (no run_skill).
  */
 import "server-only";
 import { tool, generateText, stepCountIs, type ToolSet } from "ai";
@@ -37,6 +37,19 @@ import { getGoalRun, startGoalRunStep, updateGoalRunStep, recordGoalRunModelTrac
 const SUB_STEPS = 6;
 /** Per-step budget inside a deterministic pipeline — each step is ONE bounded sub-task (tool → report). */
 const PIPELINE_STEP_BUDGET = 3;
+
+/**
+ * QVAC qwen3 is served with tools:true/toolsMode:dynamic. SDK 0.13.x rejects
+ * requests with an empty tools array in that mode, so delegated skills that have
+ * no executable sub-tools still need one harmless schema.
+ */
+const KEEPALIVE_TOOLS: ToolSet = {
+  note: tool({
+    description: "Compatibility sentinel only. Do not call this tool; answer directly in text.",
+    inputSchema: z.object({ note: z.string().describe("A short note.") }),
+    execute: async ({ note }) => ({ noted: note }),
+  }),
+};
 
 /** Resolve the sub-agent toolset for a skill: declared tools that exist, aren't disabled/approval-gated,
  *  and aren't run_skill (no nesting). Returns the live ToolSet plus the names skipped for approval. */
@@ -60,14 +73,22 @@ async function subAgentTools(skill: Skill, registry: ToolSet): Promise<{ subTool
 
 /** Common generateText settings for a sub-skill call (qvac wedge rule: no abortSignal, maxRetries 0). */
 function subCallBase(label: string, system: string, userContent: string, subTools: ToolSet, names: string[], stepBudget: number) {
+  const hasExecutableTools = names.length > 0;
+  const runTools = hasExecutableTools ? subTools : KEEPALIVE_TOOLS;
+  const runSystem = hasExecutableTools
+    ? system
+    : `${system}\n\nNo executable tools are available in this delegated call. Answer directly in plain text. Do not call tools.`;
   return {
     model: chatModel(label),
-    system,
+    system: runSystem,
     messages: [{ role: "user" as const, content: userContent }],
     temperature: 0.6,
     topP: 0.95,
     maxRetries: 0,
-    ...(names.length ? { tools: subTools, stopWhen: stepCountIs(stepBudget) } : {}),
+    maxOutputTokens: hasExecutableTools ? 900 : 220,
+    tools: runTools,
+    toolChoice: hasExecutableTools ? "auto" as const : "none" as const,
+    stopWhen: stepCountIs(hasExecutableTools ? stepBudget : 1),
   };
 }
 

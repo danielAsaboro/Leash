@@ -78,6 +78,7 @@
     "stress:orchestration-units": "tsx scripts/stress-orchestration-gauntlet.ts",
     "stress:chat-orchestration-gauntlet": "tsx scripts/stress-chat-orchestration-gauntlet.ts",
     "stress:orchestration-gauntlet": "tsx scripts/stress-chat-orchestration-gauntlet.ts",
+    "stress:long-chat-turn": "tsx scripts/stress-long-chat-turn.ts",
     "smoke:bash": "tsx scripts/smoke-bash-tool.ts",
     "gate:firewall-revocation": "tsx scripts/gate-firewall-revocation.ts",
     "probe:metered-continuation": "tsx scripts/probe-metered-continuation.ts",
@@ -119,6 +120,7 @@
     "@x402/evm": "^2.14.0",
     "@x402/fetch": "^2.14.0",
     "@x402/svm": "^2.14.0",
+    "open-computer-use": "^0.1.53",
     "undici": "^8.3.0"
   },
   "devDependencies": {

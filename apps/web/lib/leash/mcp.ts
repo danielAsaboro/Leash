@@ -354,7 +354,7 @@ const BUILTIN_START_COOLDOWN_MS = 30_000;
  *  refuses when already running / overlay still downloading; connect retries on the next reconcile). */
 async function ensureBuiltinDaemon(entry: McpServerEntry): Promise<void> {
   const builtin = builtinById(entry.id);
-  if (!builtin) return;
+  if (!builtin?.service) return;
   const last = builtinStartAttempt.get(builtin.service) ?? 0;
   if (Date.now() - last < BUILTIN_START_COOLDOWN_MS) return;
   builtinStartAttempt.set(builtin.service, Date.now());

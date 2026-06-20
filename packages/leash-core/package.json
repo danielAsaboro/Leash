@@ -67,14 +67,6 @@
       "types": "./dist/skill-exec.d.ts",
       "default": "./dist/skill-exec.js"
     },
-    "./capture": {
-      "types": "./dist/capture.d.ts",
-      "default": "./dist/capture.js"
-    },
-    "./computer-exec": {
-      "types": "./dist/computer-exec.d.ts",
-      "default": "./dist/computer-exec.js"
-    },
     "./mcp-config": {
       "types": "./dist/mcp-config.d.ts",
       "default": "./dist/mcp-config.js"

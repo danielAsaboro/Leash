@@ -23,6 +23,7 @@ import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skil
 import { buildAgentTools } from "../../../../lib/leash/agent-runner.ts";
 import { listAgents } from "../../../../lib/leash/agents-store.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
+import { KEEPALIVE_TOOLS } from "../../../../lib/leash/keepalive-tool.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { loadMainAgentBase } from "../../../../lib/leash/main-agent.ts";
@@ -159,6 +160,25 @@ async function emptyTurnFallback(result: unknown): Promise<string> {
     : "I couldn't produce a response to that — try rephrasing it, or breaking it into smaller steps.";
 }
 
+async function pendingApprovalFallback(result: unknown): Promise<string | null> {
+  try {
+    const steps = ((await (result as { steps?: Promise<unknown[]> }).steps) ?? []) as Array<{
+      finishReason?: string;
+      toolCalls?: Array<{ toolName?: string }>;
+      toolResults?: unknown[];
+    }>;
+    const pending = steps.flatMap((s) =>
+      s.finishReason === "tool-calls" && (s.toolCalls?.length ?? 0) > 0 && (s.toolResults?.length ?? 0) === 0
+        ? (s.toolCalls ?? []).map((c) => c.toolName).filter((n): n is string => !!n)
+        : [],
+    );
+    const names = [...new Set(pending)];
+    return names.length ? `Waiting for approval to run ${names.join(", ")}.` : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Forgiving-parser DETECTOR (SmallCode port, measure-and-nudge scope): did the model emit a tool
  * call as plain TEXT (`<tool_call>…</tool_call>`, Liquid `<|tool_call_start|>`, `functions.x(...)`,
@@ -191,22 +211,22 @@ function isImageTurn(messages: LeashUIMessage[]): boolean {
 }
 
 /**
- * Computer-use routing: screen/GUI/shell/file intent → the (possibly bigger, possibly
+ * Computer-use routing: screen/GUI/app-control intent → the (possibly bigger, possibly
  * mesh-delegated) computer driver — a NO-OP while `LEASH_COMPUTER_MODEL` is unset
  * apart from the raised step budget below.
  */
 const COMPUTER_RE =
-  /\b(screen ?shot\w*|screen|click\w*|double.?click\w*|type(?!\s+of)|typing|scroll\w*|cursor|mouse|keyboard|open (?:the |this )?app\w*|launch\w*|run (?:a |the |this )?command\w*|command.?line|terminal|shell|(?:read|write|edit|create|save) (?:a |the |that |this |my )?file\w*)\b|~\//i;
+  /\b(computer-use|list_apps|get_app_state|type_text|press_key|set_value|screen ?shot\w*|screen|click\w*|double.?click\w*|type(?!\s+of)|typing|scroll\w*|cursor|mouse|keyboard|open (?:the |this )?app\w*|launch\w*)\b/i;
 function isComputerIntent(messages: LeashUIMessage[]): boolean {
   return COMPUTER_RE.test(lastUserText(messages));
 }
 
 /**
  * Files routing: RETRIEVAL intent over the user's files/Apple Notes/code → the sandboxed `bash`
- * tools (`bash-tools.ts`) preferred over the real-disk read tools. Matches a retrieval verb
+ * tool preferred over GUI computer use. Matches a retrieval verb
  * near a file-ish noun, a bare `grep`/`glob`, or "in my files/Apple Notes/…". Checked BEFORE the
- * computer route so "search/read Apple Notes" gets the safe sandbox, while "edit/create/save a
- * file", "run command", "terminal", and GUI verbs still fall through to the computer route.
+ * computer route so "search/read Apple Notes" gets the safe sandbox, while GUI verbs still
+ * fall through to the computer route.
  */
 const FILES_RE =
   /\b(?:grep|ripgrep|\brg\b|glob)\b|\b(?:search|find|look(?:ing)?|list|show|read|cat|explore|scan|locate|count|summari[sz]e)\b[\s\S]{0,30}\b(?:files?|notes?|docs?|documents?|folders?|director(?:y|ies)|code(?:base)?|repo(?:sitor(?:y|ies)|s)?|projects?|workspace|markdown|\.(?:md|txt|json|csv|ya?ml))\b|\bin (?:my|the|this) (?:files?|notes?|docs?|code(?:base)?|folder|director(?:y|ies)|projects?|repo(?:sitor(?:y|ies)|s)?|workspace)\b/i;
@@ -294,7 +314,7 @@ function routeFailure(status: number, error: string, extra?: Record<string, unkn
   return Response.json({ ok: false, error, ...(extra ?? {}) }, { status });
 }
 
-/** Step budget for computer-use turns — a GUI loop is screenshot → act → screenshot → verify. */
+/** Step budget for computer-use turns — a GUI loop is app state → act → app state → verify. */
 const COMPUTER_STEPS = 10;
 /** Step budget for files turns — a retrieval loop is grep → read → grep → answer. */
 const FILES_STEPS = 8;
@@ -419,6 +439,7 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const conductorText = lastUserText(messages);
+  const requestedComputer = isComputerIntent(messages);
   const conductorBypass = conductorBypassReason({ messages, plan });
   let conductorRoute: ConductorRoute | null = null;
   let forcedModelAlias: string | undefined = chosenModel;
@@ -451,7 +472,7 @@ export async function POST(req: Request): Promise<Response> {
     const explicitModelOverride = isExplicitModelOverride(chosenModel, conductorResult);
     forcedModelAlias = explicitModelOverride ? chosenModel : undefined;
     if (conductorResult.decision.action === "answer") {
-      if (!explicitModelOverride) {
+      if (!explicitModelOverride && !requestedComputer) {
         recordConductorTurnDecision(conductorResult, true);
         return streamConductorAnswer({
           chatId: id,
@@ -461,7 +482,7 @@ export async function POST(req: Request): Promise<Response> {
           reason: "conductor direct answer",
         });
       }
-      recordConductorTurnDecision(conductorResult, false, "selected model override");
+      recordConductorTurnDecision(conductorResult, false, requestedComputer ? "computer intent bypassed direct answer" : "selected model override");
     } else {
       const route = conductorResult.decision.route;
       conductorRoute = route && explicitModelOverride && chosenModel ? { ...route, alias: chosenModel } : route;
@@ -498,7 +519,7 @@ export async function POST(req: Request): Promise<Response> {
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
   // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
-  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool };
+  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool, ...KEEPALIVE_TOOLS };
 
   // Validate stored+new messages against current tool/metadata schemas; fall back to raw on drift.
   let validated: LeashUIMessage[] = messages;
@@ -522,12 +543,11 @@ export async function POST(req: Request): Promise<Response> {
   // enabled) -> computer driver; else conductor-ranked text capability (chat/health/etc.).
   const off = await disabledTools();
   const imageTurn = isImageTurn(validated);
-  // Computer/Files now live in toggleable leash-tools-mcp groups: a lane is available only when
-  // its tools are present in the merged registry this turn (i.e. its group is enabled) and not disabled.
+  // Computer/Files live in toggleable MCP servers: a lane is available only when its tools are
+  // present in the merged registry this turn and not disabled.
   const available = new Set(Object.keys(baseTools));
   const computerEnabled = [...COMPUTER_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
-  // Files (sandboxed retrieval) takes precedence over computer for read/search intents
-  // ("prefer bash tool over ours"); real writes/GUI/shell still fall through to computer.
+  // Files (sandboxed retrieval) takes precedence over computer for read/search intents.
   const filesEnabled = [...BASH_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
   const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
   const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
@@ -689,7 +709,7 @@ export async function POST(req: Request): Promise<Response> {
   // validate against the full registry even when a tool they used is now disabled.
   // Approval gates ("Ask first") read config at call time — a toggle applies next turn.
   // Approval gates + disabled-tool filtering apply to the registry the AGENT holds;
-  // the per-turn FOCUSED TOOLSET (computer turns activate only the six computer tools —
+  // the per-turn FOCUSED TOOLSET (computer turns activate only the Open Computer Use tools —
   // 28 offered schemas overflow the serve's 4096-token prompt and hang the decode,
   // verified 2026-06-07) is `activeTools` in the agent's prepareCall (agent.ts).
   // Plan mode restricts the AGENT to just `submit_plan` (already approval-gated) so the 4B is forced
@@ -854,6 +874,7 @@ export async function POST(req: Request): Promise<Response> {
     steps: imageTurn || !cfg ? null : planMode ? PLAN_STEPS : declaredSkillTools.length ? SKILL_TOOL_STEPS : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
     maxOutputTokens: imageTurn || !cfg ? null : cfg.maxOutputTokens,
     ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
+    ...(tier === "quick" && callRoute === "chat" && !planMode && declaredSkillTools.length === 0 ? { leanTools: true } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
     // Text-route model alias chosen by the conductor or explicit picker.
@@ -948,9 +969,10 @@ export async function POST(req: Request): Promise<Response> {
           writer.write({ type: "text-delta", id, delta: text });
           writer.write({ type: "text-end", id });
         };
-        const emptyFallback = !finalText && !planMode ? await emptyTurnFallback(result) : "";
-        const finalSummary = planMode && !finalText ? "Plan proposed; waiting for user approval." : finalText || emptyFallback;
-        const finalStatus = planMode && !finalText ? "paused" : finalText ? "completed" : "failed";
+        const approvalFallback = !finalText ? await pendingApprovalFallback(result) : null;
+        const emptyFallback = !finalText && !planMode && !approvalFallback ? await emptyTurnFallback(result) : "";
+        const finalSummary = approvalFallback ?? (planMode && !finalText ? "Plan proposed; waiting for user approval." : finalText || emptyFallback);
+        const finalStatus = approvalFallback || (planMode && !finalText) ? "paused" : finalText ? "completed" : "failed";
         await updateGoalRunStep(goalRunId, mainStep.id, {
           status: finalStatus === "failed" ? "failed" : "done",
           summary: finalSummary,

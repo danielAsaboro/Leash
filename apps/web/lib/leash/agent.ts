@@ -39,6 +39,7 @@ import { DATA_DIR } from "./json-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, HEALTH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lanes.ts";
 import { buildContinuationNudge } from "./prompt.ts";
+import { KEEPALIVE_TOOL_NAME } from "./keepalive-tool.ts";
 
 /** A skill can't reintroduce the 4096-ctx overflow: its declared toolset is truncated here. */
 const SKILL_TOOLS_CAP = 18;
@@ -57,6 +58,8 @@ export const leashCallOptionsSchema = z.object({
    * route branch. Empty = use the route default. Never applied on the tool-less vision route.
    */
   skillTools: z.array(z.string()).optional(),
+  /** Quick/plain turns keep one sentinel schema instead of the full registry. */
+  leanTools: z.boolean().optional(),
   /**
    * Whether `<think>` reasoning is ON for this turn (deep text). Drives sampling per Qwen3's
    * best practices: thinking → temp 0.6 / topP 0.95; non-thinking (/no_think) → temp 0.7 / topP 0.8
@@ -104,6 +107,7 @@ const SKILL_SYSTEM_NAMES = new Set(["read_skill", "read_skill_file", "run_skill_
  */
 function resolveActiveTools(names: string[], options: LeashCallOptions): string[] {
   if (options.route === "vision") return [];
+  if (options.leanTools) return names.includes(KEEPALIVE_TOOL_NAME) ? [KEEPALIVE_TOOL_NAME] : names.slice(0, 1);
 
   const declared = options.skillTools ?? [];
   if (declared.length > 0) {
@@ -120,7 +124,7 @@ function resolveActiveTools(names: string[], options: LeashCallOptions): string[
   if (options.route === "files") return names.filter((n) => BASH_TOOL_NAMES.has(n));
   if (options.route === "computer") return names.filter((n) => COMPUTER_TOOL_NAMES.has(n));
   if (options.route === "health") return names.filter((n) => HEALTH_TOOL_NAMES.has(n));
-  return names.filter((n) => !COMPUTER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n));
+  return names.filter((n) => n !== KEEPALIVE_TOOL_NAME && !COMPUTER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n));
 }
 
 /** Schema-count guard (LEASH_DEBUG_TOOLS=1): log the active toolset so a route can be checked against the ~22-schema cap. */

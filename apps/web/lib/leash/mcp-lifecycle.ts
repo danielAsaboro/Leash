@@ -47,9 +47,11 @@ export async function toggleBuiltin(id: string, enabled: boolean): Promise<Built
   if (!b) throw new Error(`unknown built-in "${id}"`);
   const server = await setBuiltinEnabled(id, enabled);
 
+  if (!b.service) return { server };
+
   if (enabled) {
     const started = await startService(b.service); // ok:false "already running" is fine — health is the truth
-    const ready = await waitHealthy(b.healthUrl, READY_TIMEOUT_MS);
+    const ready = b.healthUrl ? await waitHealthy(b.healthUrl, READY_TIMEOUT_MS) : true;
     if (!ready) {
       const why = started.ok ? "the daemon started but isn't answering yet" : started.error ?? "the daemon failed to start";
       return { server, warning: `${b.name} is on, but ${why} — it'll connect once the daemon is healthy.` };

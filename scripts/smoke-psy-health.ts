@@ -53,7 +53,7 @@ assert.deepEqual(safety!.tools, joy!.tools, "health safety skill remains read-on
 assert.equal(isHealthIntent("I have chest pain and shortness of breath"), true, "health guard detects urgent health text");
 
 for (const name of joy!.tools) assert.equal(toolPolicyDecision(name, { route: "health" }).ok, true, `${name} allowed in health route`);
-for (const name of ["remember", "create_task", "run_command", "computer", "deep_research"]) {
+for (const name of ["remember", "create_task", "get_app_state", "type_text", "deep_research"]) {
   assert.equal(toolPolicyDecision(name, { route: "health" }).ok, false, `${name} blocked in health route`);
 }
 assert.equal(toolPolicyDecision("recall", { route: "health", publicMesh: true }).ok, false, "private health context cannot route to public mesh");

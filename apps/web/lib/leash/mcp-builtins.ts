@@ -1,22 +1,21 @@
 /**
  * Built-in MCP servers (server-only) — code-defined, non-deletable, lifecycle-bound.
  *
- * A built-in is the bridge between a SUPERVISED DAEMON (a `services.ts` ServiceDef) and
- * the MCP tool layer: flipping it on in Brain → MCP starts the daemon AND connects to
- * it; flipping it off disconnects AND stops the daemon. The user can never delete it —
- * only turn it off. Its connection target (URL/transport) is fixed here; only its
- * enabled bit is persisted (as an override in `data/leash-mcp.json`).
- *
- * Today the sole built-in is "Mesh Tools" — the `leash-mcp` daemon (:11439) that turns
- * device pairing into in-chat tools with the PIN asked as an elicitation form.
+ * A built-in is a code-defined MCP server the user can toggle but never delete. Most
+ * built-ins bridge to a supervised localhost daemon (`services.ts`); stdio built-ins
+ * launch their own local package directly. The connection target is fixed here; only
+ * enabled/name/icon overrides are persisted in `data/leash-mcp.json`.
  */
 import "server-only";
+import { join } from "node:path";
+import { REPO_ROOT } from "@mycelium/leash-core/paths";
 import type { ServiceName } from "./services.ts";
 import type { McpServerEntry, McpTransport } from "./mcp-config.ts";
 
 const LEASH_MCP_PORT = Number(process.env["LEASH_MCP_PORT"] ?? 11439);
 const LEASH_TOOLS_MCP_PORT = Number(process.env["LEASH_TOOLS_MCP_PORT"] ?? 11440);
 const TOOLS_MCP_HEALTH = `http://127.0.0.1:${LEASH_TOOLS_MCP_PORT}/health`;
+const OPEN_COMPUTER_USE_BIN = join(REPO_ROOT, "node_modules", ".bin", process.platform === "win32" ? "open-computer-use.cmd" : "open-computer-use");
 
 /**
  * The tool groups hosted by the ONE `leash-tools-mcp` daemon — each a built-in MCP server
@@ -36,7 +35,6 @@ const TOOLS_MCP_GROUPS: { id: string; name: string; description: string }[] = [
   { id: "image", name: "Image", description: "Generate images from text, fully on-device." },
   { id: "research", name: "Research", description: "Run a deep, multi-source WEB research run in the background (needs network)." },
   { id: "skills", name: "Skills", description: "Load the user's skills on demand and run their bundled scripts (read_skill, read_skill_file, run_skill_script)." },
-  { id: "computer", name: "Computer Use", description: "See and act on this Mac: screenshot, approval-gated run_command (the real-disk executor), and mouse/keyboard." },
   { id: "files", name: "Files", description: "Sandboxed read-only file retrieval (grep/find/cat/jq) over a snapshot of the user's files." },
   { id: "mcp-admin", name: "MCP", description: "Install and register OTHER MCP servers from a URL or by hand (install_mcp_repo, upsert_mcp_server)." },
   { id: "scheduler", name: "Scheduler", description: "Let the assistant schedule its own future actions — recurring reminders and allowlisted maintenance jobs (no arbitrary commands, no cloud AI tasks)." },
@@ -47,12 +45,21 @@ export interface McpBuiltin {
   id: string;
   name: string;
   description: string;
-  url: string;
   transport: McpTransport;
-  /** The supervised daemon this built-in starts/stops. */
-  service: ServiceName;
-  /** Liveness probe — polled until ready when the built-in is turned on. */
-  healthUrl: string;
+  /** http/sse only. */
+  url?: string;
+  /** stdio only. */
+  command?: string;
+  /** stdio only. */
+  args?: string[];
+  /** stdio only. */
+  cwd?: string;
+  /** stdio only. */
+  env?: Record<string, string>;
+  /** The supervised daemon this built-in starts/stops. Absent for self-launching stdio built-ins. */
+  service?: ServiceName;
+  /** Liveness probe — polled until ready when a daemon-backed built-in is turned on. */
+  healthUrl?: string;
   /** Enabled state on a fresh install. The CORE assistant groups (the senses + memory + tasks the
    *  chat and the proactive heartbeat depend on) are ON by default — built-in, the user never starts
    *  them — so the daemon is always up; everything else is opt-in. See ALWAYS_ON_GROUPS below. */
@@ -61,12 +68,13 @@ export interface McpBuiltin {
 
 /**
  * Tool groups ON by a fresh install — the daemon must always be up for the assistant to function:
- * `context` (search_graph + live activity), `memory` (remember/recall), `tasks` (create/list), and
- * `feed` (the daily paper). These ARE the proactive heartbeat's propose-only tools, so a fresh user's
- * heartbeat works out of the box. The heavier / privileged / setup-requiring groups (home-assistant,
- * photos, image, research, computer, files, mcp-admin, skills) stay opt-in.
+ * `context` (search_graph + live activity), `files` (read-only local file search), `memory`
+ * (remember/recall), `tasks` (create/list), and `feed` (the daily paper). These ARE the proactive
+ * heartbeat's propose-only tools plus the built-in file-finder's executor, so a fresh user's
+ * heartbeat and local-file skill work out of the box. The heavier / privileged / setup-requiring
+ * groups (home-assistant, photos, image, research, computer, mcp-admin, skills) stay opt-in.
  */
-const ALWAYS_ON_GROUPS = new Set(["context", "memory", "tasks", "feed"]);
+const ALWAYS_ON_GROUPS = new Set(["context", "files", "memory", "tasks", "feed"]);
 
 export const MCP_BUILTINS: McpBuiltin[] = [
   {
@@ -77,6 +85,15 @@ export const MCP_BUILTINS: McpBuiltin[] = [
     transport: "http",
     service: "leash-mcp",
     healthUrl: `http://127.0.0.1:${LEASH_MCP_PORT}/health`,
+    defaultEnabled: false,
+  },
+  {
+    id: "builtin:computer-use",
+    name: "Computer Use",
+    description: "Use Open Computer Use's local stdio MCP server to inspect apps and act on this Mac.",
+    transport: "stdio",
+    command: OPEN_COMPUTER_USE_BIN,
+    args: ["mcp"],
     defaultEnabled: false,
   },
   ...TOOLS_MCP_GROUPS.map((g): McpBuiltin => ({
@@ -104,9 +121,13 @@ export function builtinEntry(b: McpBuiltin, enabled: boolean, overrides?: { name
     id: b.id,
     name: overrides?.name?.trim() || b.name,
     transport: b.transport,
-    url: b.url,
     enabled,
     builtin: true,
+    ...(b.url ? { url: b.url } : {}),
+    ...(b.command ? { command: b.command } : {}),
+    ...(b.args ? { args: b.args } : {}),
+    ...(b.cwd ? { cwd: b.cwd } : {}),
+    ...(b.env ? { env: b.env } : {}),
     ...(overrides?.userIcon ? { userIcon: overrides.userIcon } : {}),
   };
 }

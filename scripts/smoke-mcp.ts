@@ -12,7 +12,7 @@
  *   npm run smoke:mcp
  */
 import assert from "node:assert/strict";
-import { validateServerInput, parseMcpJson, formatMcpJson, serverSignature } from "../apps/web/lib/leash/mcp-config.ts";
+import { validateServerInput, parseMcpJson, formatMcpJson, serverSignature } from "@mycelium/leash-core/mcp-config";
 
 // --- validateServerInput: http/sse ---------------------------------------------------
 const http = validateServerInput({ url: "https://api.example.com/mcp", headers: { Authorization: "Bearer t" } });

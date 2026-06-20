@@ -8,7 +8,7 @@
  * enabled in Brain → MCP, so toggling a server off takes the whole group offline.
  *
  * What stays in-process here is `mcpAdminTools` (skill-gated MCP management) — it manages the
- * MCP layer itself and so can't live behind it. The other in-process tools (skills, computer,
+ * MCP layer itself and so can't live behind it. The other in-process tools (skills,
  * sandboxed bash, plan) are assembled in the chat route, not here.
  *
  * `LeashSource` (the citation shape every tool returns) now lives in `@mycelium/leash-core`
@@ -21,8 +21,8 @@ import type { ToolSet } from "ai";
 export type { LeashSource } from "@mycelium/leash-core/sources";
 
 /**
- * The in-process tool registry is now EMPTY — every capability (incl. MCP-admin, computer,
- * files, skills, research) is a toggleable `leash-tools-mcp` group reached via `leashMcpTools()`.
+ * The in-process tool registry is now EMPTY — capabilities are reached via `leashMcpTools()`
+ * or assembled as agent control-flow tools in the chat route.
  * Kept as an (empty) export so the registry-assembly sites still spread it without a special case.
  * `run_skill` / `submit_plan` are agent control-flow built in the chat route, not listed tools.
  */

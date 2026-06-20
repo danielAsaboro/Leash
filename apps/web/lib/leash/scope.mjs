@@ -47,7 +47,6 @@ export function userScope(leashBase, userId) {
     notesDir: join(dataDir, "notes"),
     feedbackFile: join(dataDir, "leash-feedback.jsonl"),
     mcpReposDir: join(scopeDir, ".leash-mcp-repos"),
-    computerRoot: join(scopeDir, "workspace"),
     hyphaDataDir: join(dataDir, "hypha"),
     modelsDir: join(scopeDir, ".qvac", "models"),
   };
@@ -77,7 +76,6 @@ export function userEnv(leashBase, scope) {
     LEASH_NOTES_DIR: scope.notesDir,
     LEASH_FEEDBACK_FILE: scope.feedbackFile,
     LEASH_MCP_REPOS_DIR: scope.mcpReposDir,
-    LEASH_COMPUTER_ROOT: scope.computerRoot,
     HYPHA_DATA_DIR: scope.hyphaDataDir,
     LEASH_ACTIVITY_LOG: join(scope.dataDir, "leash-activity.jsonl"),
     LEASH_TASKS_FILE: join(scope.dataDir, "leash-tasks.json"),

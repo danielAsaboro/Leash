@@ -28,6 +28,19 @@ import { getGoalRun, startGoalRunStep, updateGoalRunStep, finishGoalRun, recordG
 const PLAN_STEP_BUDGET = 3;
 const MAX_PLAN_STEPS = 10;
 
+/**
+ * QVAC qwen3 is served with tools:true/toolsMode:dynamic. SDK 0.13.x rejects
+ * requests with an empty tools array in that mode, so plan steps that have no
+ * executable sub-tools still need one harmless schema.
+ */
+const KEEPALIVE_TOOLS: ToolSet = {
+  note: tool({
+    description: "Compatibility sentinel only. Do not call this tool; answer directly in text.",
+    inputSchema: z.object({ note: z.string().describe("A short note.") }),
+    execute: async ({ note }) => ({ noted: note }),
+  }),
+};
+
 /** zod schema for the persisted `data-plan` part (validateUIMessages dataSchemas). */
 export const planDataSchema = z.object({
   id: z.string(),
@@ -110,14 +123,21 @@ export async function runPlanAsPipeline(
     }
     try {
       // qvac wedge rule: no abortSignal, maxRetries 0 (a retry re-pays a hung decode).
+      const hasExecutableTools = names.length > 0;
+      const runSystem = hasExecutableTools
+        ? system
+        : `${system}\n\nNo executable tools are available in this plan step. Answer directly in plain text. Do not call tools.`;
       const r = await generateText({
         model: chatModel(`plan:step${i + 1}`),
-        system,
+        system: runSystem,
         messages: [{ role: "user" as const, content: step }],
         temperature: 0.6,
         topP: 0.95,
         maxRetries: 0,
-        ...(names.length ? { tools: subTools, stopWhen: stepCountIs(PLAN_STEP_BUDGET) } : {}),
+        maxOutputTokens: hasExecutableTools ? 900 : 220,
+        tools: hasExecutableTools ? subTools : KEEPALIVE_TOOLS,
+        toolChoice: hasExecutableTools ? "auto" : "none",
+        stopWhen: stepCountIs(hasExecutableTools ? PLAN_STEP_BUDGET : 1),
       });
       const out = r.text.trim() || "(this step produced no text output)";
       results.push(out);

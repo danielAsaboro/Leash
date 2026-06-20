@@ -340,7 +340,7 @@ export function buildCompactionPrompt(input: { summary: string | null; toFold: s
 }
 
 export const CHAT_COMPUTER_MODE_NOTE =
-  "Computer-use mode: you can act on this Mac on-device. Use screenshot before and after acting when visual state matters. run_command is the real-disk executor: read with cat/ls/find/rg, write with normal shell redirection or patches, and run builds/installers only when appropriate. computer controls mouse and keyboard. Some calls need approval; if approval is denied, continue without retrying the denied call.";
+  "Computer-use mode: you can inspect and operate this Mac through Open Computer Use's local MCP tools. Start with list_apps, then call get_app_state for the target app before acting. Prefer element_index actions from the latest app state; use set_value/type_text/press_key/click/scroll/drag only when needed. Action calls need approval; if approval is denied, continue without retrying the denied call.";
 
 export const CHAT_FILES_MODE_NOTE =
   "File-retrieval mode: use sandboxed bash over a read-only in-memory snapshot for grep/find/cat/jq/ls and similar inspection commands. Prefer it for searching and reading user files. It cannot touch real disk; writes affect only the sandbox, so do not promise edits from this lane.";

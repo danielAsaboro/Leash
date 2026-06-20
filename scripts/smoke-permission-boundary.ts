@@ -9,8 +9,8 @@ import { enforceToolPolicy, toolPolicyDecision } from "../packages/leash-core/sr
 
 const registry = {
   bash: tool({ description: "read-only file snapshot", inputSchema: z.object({ command: z.string() }), execute: async () => ({ text: "ok" }) }),
-  run_command: tool({ description: "real shell", inputSchema: z.object({ command: z.string() }), execute: async () => ({ text: "bad" }) }),
-  computer: tool({ description: "mouse/keyboard", inputSchema: z.object({ action: z.string() }), execute: async () => ({ text: "bad" }) }),
+  get_app_state: tool({ description: "desktop state", inputSchema: z.object({ app: z.string() }), execute: async () => ({ text: "bad" }) }),
+  type_text: tool({ description: "type into app", inputSchema: z.object({ app: z.string(), text: z.string() }), execute: async () => ({ text: "bad" }) }),
   install_mcp_repo: tool({ description: "install", inputSchema: z.object({ url: z.string() }), execute: async () => ({ text: "bad" }) }),
   ha_call_service: tool({ description: "home write", inputSchema: z.object({ domain: z.string(), service: z.string() }), execute: async () => ({ text: "bad" }) }),
   unknown_external_tool: tool({ description: "external MCP", inputSchema: z.object({}), execute: async () => ({ text: "bad" }) }),

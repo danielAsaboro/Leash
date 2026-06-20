@@ -6,14 +6,13 @@
  */
 import { z } from "zod";
 import { spawn } from "node:child_process";
-import { join } from "node:path";
+import { homedir } from "node:os";
 import { REPO_ROOT } from "../paths.ts";
-import { COMPUTER_ROOT } from "../computer-exec.ts";
 import type { LeashSource } from "../sources.ts";
 import { defineTool, type ToolGroup } from "./types.ts";
 
-/** Root the sandbox snapshots. Defaults to the computer-use jail (home); narrow for speed. */
-const BASH_ROOT = process.env["LEASH_BASH_ROOT"] ?? COMPUTER_ROOT;
+/** Root the sandbox snapshots. Defaults to home; narrow for speed. */
+const BASH_ROOT = process.env["LEASH_BASH_ROOT"] ?? homedir();
 const CHILD = "apps/web/scripts/bash-exec.mts";
 const TIMEOUT_MS = 20_000;
 const NO_SOURCES: LeashSource[] = [];
@@ -47,11 +46,9 @@ function realShellOnlyMessage(command: string): string | null {
   const trimmed = command.trim();
   if (!trimmed) return "The `bash` tool needs a command to inspect the snapshot.";
   if (!REAL_SHELL_ONLY_PATTERNS.some((re) => re.test(trimmed))) return null;
-  const suggested = JSON.stringify({ command: trimmed });
   return (
     "The `bash` tool is a read-only snapshot inspector. Do not use it for installs, builds, starts, network fetches, or real file/process changes. " +
-    `Immediately call \`run_command\` with this input instead: ${suggested}. ` +
-    "For real disk edits, use `run_command` (e.g. a heredoc `cat > file <<'EOF' … EOF`, or `sed -i`/`patch`)."
+    "Use the user's explicit approval path outside the Files lane for real disk edits or process control."
   );
 }
 

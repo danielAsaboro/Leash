@@ -118,7 +118,7 @@ export function chatModelBackground(): LanguageModel {
   });
 }
 
-/** The computer-use driver — orchestrates the computer tools (the screenshot tool's VLM perceives). */
+/** The computer-use driver — plans and sequences Open Computer Use MCP tool calls. */
 export function computerModel(): LanguageModel {
   return wrapLanguageModel({
     model: qvac(process.env["LEASH_COMPUTER_MODEL"] ?? resolvedChatAlias()),

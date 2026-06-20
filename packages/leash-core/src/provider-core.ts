@@ -18,7 +18,7 @@ export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0
 export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "gte-large";
 /** Served image model alias. */
 export const IMAGE_MODEL = process.env["LEASH_IMAGE_MODEL"] ?? "sd";
-/** Vision-language model alias (Qwen3VL) — the `screenshot` tool's perception model. */
+/** Vision-language model alias (Qwen3VL), kept for shared-core callers that need image perception. */
 export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
 
 /**
@@ -43,7 +43,7 @@ export function imageModel() {
   return qvac.imageModel(IMAGE_MODEL);
 }
 
-/** The vision model (Qwen3VL) for the `screenshot` tool — `<think>` split out like the web's. */
+/** The vision model (Qwen3VL) — `<think>` split out like the web's. */
 export function visionModel(): LanguageModel {
   return wrapLanguageModel({ model: qvac(VISION_MODEL), middleware: extractReasoningMiddleware({ tagName: "think" }) });
 }

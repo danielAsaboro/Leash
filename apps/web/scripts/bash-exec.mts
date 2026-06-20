@@ -5,7 +5,7 @@
  * spawns this per tool call.
  *
  * Protocol:  stdin  = JSON { op: "bash"|"readFile", command?, path? }
- *            argv    = (none)        env LEASH_BASH_ROOT (or LEASH_COMPUTER_ROOT / home)
+ *            argv    = (none)        env LEASH_BASH_ROOT (or home)
  *            stdout  = JSON { ok, stdout?, stderr?, exitCode?, error?, included?, truncated? }
  *
  * The snapshot is cached to a temp file (60s TTL) so a multi-command retrieval turn doesn't
@@ -20,7 +20,7 @@ import { buildSnapshot, type Snapshot } from "../lib/leash/bash-snapshot.ts";
 import { BASH_SNAPSHOT_TOOL_PROMPT } from "../lib/leash/prompt.ts";
 
 const TTL_MS = 60_000;
-const ROOT = process.env["LEASH_BASH_ROOT"] ?? process.env["LEASH_COMPUTER_ROOT"] ?? homedir();
+const ROOT = process.env["LEASH_BASH_ROOT"] ?? homedir();
 const SNAP_FILE = join(tmpdir(), `leash-bash-snap-${createHash("sha1").update(ROOT).digest("hex").slice(0, 12)}.json`);
 
 function out(o: unknown): never {

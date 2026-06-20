@@ -103,7 +103,6 @@ const GROUP_DEFAULTS: Record<string, Omit<ToolPolicy, "name">> = {
   image: { scope: "media", allowedRoutes: ["chat"], ...LOW_WRITE },
   research: { scope: "network", risk: "network", approval: "required", allowedRoutes: ["chat"], subagentAllowed: false, backgroundAllowed: true, publicMeshAllowed: false },
   skills: { scope: "orchestration", allowedRoutes: ["chat", "plan", "skill", "agent"], ...READ_SAFE },
-  computer: { scope: "device", risk: "device_control", approval: "required", allowedRoutes: ["computer"], subagentAllowed: false, backgroundAllowed: false, publicMeshAllowed: false },
   files: { scope: "files", allowedRoutes: ["files", "chat", "plan", "skill", "agent"], ...READ_SAFE },
   "mcp-admin": { scope: "mcp_admin", risk: "admin", approval: "required", allowedRoutes: ["chat"], subagentAllowed: false, backgroundAllowed: false, publicMeshAllowed: false },
   scheduler: { scope: "scheduler", risk: "write", approval: "required", allowedRoutes: ["chat"], subagentAllowed: false, backgroundAllowed: false, publicMeshAllowed: false },
@@ -129,9 +128,6 @@ const TOOL_OVERRIDES: Record<string, Partial<Omit<ToolPolicy, "name">>> = {
   read_skill_file: { allowedRoutes: ["chat", "plan", "skill", "agent"], subagentAllowed: true },
   run_skill_script: { risk: "shell", approval: "required", allowedRoutes: ["chat"], subagentAllowed: false, backgroundAllowed: false },
 
-  screenshot: { risk: "read", approval: "none", allowedRoutes: ["computer"], subagentAllowed: false, backgroundAllowed: false },
-  run_command: { risk: "shell", approval: "required", allowedRoutes: ["computer"], subagentAllowed: false, backgroundAllowed: false },
-  computer: { risk: "device_control", approval: "required", allowedRoutes: ["computer"], subagentAllowed: false, backgroundAllowed: false },
   bash: { scope: "files", risk: "read", approval: "none", allowedRoutes: ["files", "chat", "plan", "skill", "agent"], subagentAllowed: true, backgroundAllowed: true },
 
   install_mcp_repo: { risk: "admin", approval: "required", allowedRoutes: ["chat"], subagentAllowed: false, backgroundAllowed: false },
@@ -145,6 +141,16 @@ const TOOL_OVERRIDES: Record<string, Partial<Omit<ToolPolicy, "name">>> = {
 };
 
 const CONTROL_POLICIES: Record<string, ToolPolicy> = {
+  leash_keepalive: {
+    name: "leash_keepalive",
+    scope: "orchestration",
+    risk: "read",
+    approval: "none",
+    allowedRoutes: ["chat"],
+    subagentAllowed: false,
+    backgroundAllowed: false,
+    publicMeshAllowed: false,
+  },
   run_skill: {
     name: "run_skill",
     scope: "orchestration",
@@ -296,6 +302,46 @@ function builtinPolicies(): Record<string, ToolPolicy> {
 
 const BUILTIN_POLICIES = builtinPolicies();
 
+const OPEN_COMPUTER_USE_READ_TOOLS = new Set(["list_apps", "get_app_state"]);
+const OPEN_COMPUTER_USE_ACTION_TOOLS = new Set(["click", "perform_secondary_action", "scroll", "drag", "type_text", "press_key", "set_value"]);
+
+function openComputerUsePolicy(name: string): ToolPolicy | null {
+  if (OPEN_COMPUTER_USE_READ_TOOLS.has(name)) {
+    return {
+      name,
+      scope: "device",
+      risk: "read",
+      approval: "none",
+      allowedRoutes: ["computer"],
+      subagentAllowed: false,
+      backgroundAllowed: false,
+      publicMeshAllowed: false,
+    };
+  }
+  if (OPEN_COMPUTER_USE_ACTION_TOOLS.has(name)) {
+    return {
+      name,
+      scope: "device",
+      risk: "device_control",
+      approval: "required",
+      allowedRoutes: ["computer"],
+      subagentAllowed: false,
+      backgroundAllowed: false,
+      publicMeshAllowed: false,
+    };
+  }
+  return null;
+}
+
+function openComputerUsePolicies(): Record<string, ToolPolicy> {
+  const out: Record<string, ToolPolicy> = {};
+  for (const name of [...OPEN_COMPUTER_USE_READ_TOOLS, ...OPEN_COMPUTER_USE_ACTION_TOOLS]) {
+    const policy = openComputerUsePolicy(name);
+    if (policy) out[name] = policy;
+  }
+  return out;
+}
+
 /** Unknown enabled MCP tools fail closed for sub-agents/background/public mesh and ask first on the main turn. */
 export function defaultToolPolicy(name: string): ToolPolicy {
   if (name.startsWith("agent__")) {
@@ -323,15 +369,15 @@ export function defaultToolPolicy(name: string): ToolPolicy {
 }
 
 export function toolPolicy(name: string): ToolPolicy {
-  return BUILTIN_POLICIES[name] ?? appleNotesPolicy(name) ?? defaultToolPolicy(name);
+  return BUILTIN_POLICIES[name] ?? openComputerUsePolicy(name) ?? appleNotesPolicy(name) ?? defaultToolPolicy(name);
 }
 
 export function allBuiltinToolPolicies(): Record<string, ToolPolicy> {
-  return { ...BUILTIN_POLICIES };
+  return { ...BUILTIN_POLICIES, ...openComputerUsePolicies() };
 }
 
 export function policyDefaultAskFirstNames(): string[] {
-  return Object.values(BUILTIN_POLICIES)
+  return Object.values({ ...BUILTIN_POLICIES, ...openComputerUsePolicies() })
     .filter((p) => p.approval === "required")
     .map((p) => p.name)
     .sort();
