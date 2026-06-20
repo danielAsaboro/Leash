@@ -4,14 +4,16 @@
  *   npm run warm:media        (online, one-time; minutes — GB-scale)
  *
  * Uses `downloadAsset` (caches weights WITHOUT loading them into memory), so it doesn't
- * OOM or disturb the running `qvac serve`. After this, vision + the MedGemma specialist
+ * OOM or disturb the running `qvac serve`. After this, vision + the QVAC MedPsy specialist
  * can be served on demand. SmolVLM2-500M is the small/fast vision option; swap to
  * QWEN3VL_2B for higher quality (bigger download).
  */
-import { downloadAsset, close, MEDGEMMA_4B_IT_Q4_1, SMOLVLM2_500M_MULTIMODAL_Q8_0, MMPROJ_SMOLVLM2_500M_MULTIMODAL_Q8_0 } from "@qvac/sdk";
+import { downloadAsset, close, SMOLVLM2_500M_MULTIMODAL_Q8_0, MMPROJ_SMOLVLM2_500M_MULTIMODAL_Q8_0 } from "@qvac/sdk";
+
+const MEDPSY_4B_Q4_K_M_IMAT = "https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-q4_k_m-imat.gguf";
 
 const ASSETS: [string, unknown][] = [
-  ["MedGemma 4B IT Q4_1 (P4 health specialist)", MEDGEMMA_4B_IT_Q4_1],
+  ["QVAC MedPsy 4B Q4_K_M (health specialist)", MEDPSY_4B_Q4_K_M_IMAT],
   ["SmolVLM2 500M (vision base)", SMOLVLM2_500M_MULTIMODAL_Q8_0],
   ["SmolVLM2 500M mmproj (vision projector)", MMPROJ_SMOLVLM2_500M_MULTIMODAL_Q8_0],
 ];
@@ -34,7 +36,7 @@ async function main(): Promise<void> {
     } as any);
     console.log(`   ✅ cached: ${label}`);
   }
-  console.log("\n🎉 media weights cached — vision + MedGemma can now be served.");
+  console.log("\n🎉 media weights cached — vision + QVAC MedPsy can now be served.");
   await close();
 }
 

@@ -53,23 +53,15 @@ const SERVER_CMD = process.env.LEASH_SERVER_CMD ?? "";
 const RUNTIME_SRC = process.env.LEASH_RUNTIME_SRC ?? "";
 const QVAC_CONFIG_SRC = process.env.LEASH_QVAC_CONFIG_SRC ?? REPO_ROOT;
 const DB_TEMPLATE = process.env.LEASH_DB_TEMPLATE ?? join(REPO_ROOT, "apps", "desktop", "resources", "newsroom-template.db");
-// Committed built-in skills (apps/web/builtin-skills). Packaged: staged into the standalone next to
-// server.js (stage-launcher step 4); dev: read straight from the repo. Seeded per-user on bootstrap.
-const BUILTIN_SKILLS_SRC =
-  RUNTIME_SRC && existsSync(join(RUNTIME_SRC, "apps", "web", "builtin-skills"))
-    ? join(RUNTIME_SRC, "apps", "web", "builtin-skills")
-    : existsSync(join(here, "builtin-skills"))
-      ? join(here, "builtin-skills")
-      : join(REPO_ROOT, "apps", "web", "builtin-skills");
-// Committed built-in agents (apps/web/builtin-agents) — Phase A ships the `leash` default-agent def here.
-// The chat route reads leash.md via lib/leash/main-agent.ts; in the packaged standalone the bundled route
-// module can't resolve the source path, so we resolve the dir HERE and inject it as LEASH_BUILTIN_AGENTS_DIR.
-const BUILTIN_AGENTS_SRC =
-  RUNTIME_SRC && existsSync(join(RUNTIME_SRC, "apps", "web", "builtin-agents"))
-    ? join(RUNTIME_SRC, "apps", "web", "builtin-agents")
-    : existsSync(join(here, "builtin-agents"))
-      ? join(here, "builtin-agents")
-      : join(REPO_ROOT, "apps", "web", "builtin-agents");
+// Shared Brain built-ins. Web/desktop seed them into each user scope, but the source of truth is
+// package-owned so mobile, daemons, and future clients share the same agents/skills.
+const BRAIN_ASSETS_ROOT =
+  RUNTIME_SRC && existsSync(join(RUNTIME_SRC, "packages", "brain"))
+    ? join(RUNTIME_SRC, "packages", "brain")
+    : join(REPO_ROOT, "packages", "brain");
+const BUILTIN_SKILLS_SRC = join(BRAIN_ASSETS_ROOT, "builtin-skills");
+// The chat route reads leash.md via lib/leash/main-agent.ts; in packaged standalone we inject this.
+const BUILTIN_AGENTS_SRC = join(BRAIN_ASSETS_ROOT, "builtin-agents");
 const DEFAULT_STANDALONE = join(here, ".next", "standalone");
 
 // ── active.json + registry ────────────────────────────────────────────────────────────
@@ -204,7 +196,7 @@ function seedConstitution(scope) {
 }
 
 /**
- * Seed the committed built-in skills (apps/web/builtin-skills) into the user's skill store
+ * Seed the shared Brain built-in skills into the user's skill store
  * (`<dataDir>/leash-skills/<slug>`). Built-ins ship enabled-by-default and carry
  * `metadata.builtin`; the store reads them exactly like user-authored skills. Built-ins are
  * app-owned seed content, so refresh their folders from the committed source on startup.
@@ -227,7 +219,7 @@ function seedBuiltinSkills(scope) {
 }
 
 /**
- * Seed the committed built-in AGENTS (apps/web/builtin-agents) into the user's agent store
+ * Seed the shared Brain built-in agents into the user's agent store
  * (`<dataDir>/leash-agents/<slug>.md`), parallel to seedBuiltinSkills. These are the SPECIALIST
  * delegates (Health/Researcher/Summarizer/Coder) Leash can call. We SKIP `leash.md` — Leash is the
  * main orchestrator (read directly via lib/leash/main-agent.ts), never a delegate of itself.

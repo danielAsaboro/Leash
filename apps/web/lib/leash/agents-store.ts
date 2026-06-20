@@ -24,7 +24,7 @@ export {
 export type { Agent } from "@mycelium/leash-core/agents-store";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const BUILTIN_AGENTS_DIR = process.env["LEASH_BUILTIN_AGENTS_DIR"] ?? join(here, "..", "..", "builtin-agents");
+const BUILTIN_AGENTS_DIR = process.env["LEASH_BUILTIN_AGENTS_DIR"] ?? join(here, "..", "..", "..", "..", "packages", "brain", "builtin-agents");
 
 function parseMaxTurns(raw: string | undefined, fallback: number): number {
   const n = raw ? Number.parseInt(raw, 10) : NaN;

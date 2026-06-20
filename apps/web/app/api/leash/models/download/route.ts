@@ -5,6 +5,7 @@
  */
 import { readCatalog, readDownload, listDownloads, downloadPidAlive } from "../../../../../lib/leash/models.ts";
 import { spawnHelperScript } from "../../../../../lib/leash/runtime.ts";
+import { modelAssetForName } from "@mycelium/brain";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,9 +22,11 @@ export async function GET(req: Request): Promise<Response> {
 
 export async function POST(req: Request): Promise<Response> {
   const { name } = (await req.json()) as { name?: string };
-  if (!name || !/^[A-Z0-9_]+$/.test(name)) return Response.json({ error: "name must be an SDK constant (e.g. QWEN3_600M_INST_Q4)" }, { status: 400 });
+  if (!name || !/^[A-Za-z0-9._-]+$/.test(name)) return Response.json({ error: "name must be an SDK constant or shared Brain asset" }, { status: 400 });
   const catalog = await readCatalog();
-  if (!catalog.some((c) => c.name === name)) return Response.json({ error: `"${name}" is not in the SDK catalog` }, { status: 404 });
+  if (!catalog.some((c) => c.name === name) && !modelAssetForName(name)) {
+    return Response.json({ error: `"${name}" is not in the SDK catalog or shared Brain assets` }, { status: 404 });
+  }
 
   const existing = await readDownload(name);
   if (existing && (existing.state === "downloading" || existing.state === "starting") && downloadPidAlive(existing.pid)) {

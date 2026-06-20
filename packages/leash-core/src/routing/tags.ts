@@ -11,8 +11,8 @@ const ALIAS_TAGS: Record<string, CapabilityTags> = {
   "qwen3-4b": { modality: "text", paramClass: "small", specialist: "general" },
   "qwen3-1.7b": { modality: "text", paramClass: "tiny", specialist: "general" },
   "qwen3vl": { modality: "vision", paramClass: "mid", specialist: "vision" },
-  medpsy: { modality: "text", paramClass: "small", specialist: "health" },
-  "gte-large": { modality: "text", paramClass: "tiny", specialist: "general" },
+  health: { modality: "text", paramClass: "small", specialist: "health" },
+  embed: { modality: "text", paramClass: "tiny", specialist: "general" },
 };
 
 const FALLBACK: CapabilityTags = { modality: "text", paramClass: "unknown", specialist: "general" };

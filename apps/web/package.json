@@ -15,6 +15,7 @@
     "@ai-sdk/mcp": "^1.0.46",
     "@ai-sdk/openai-compatible": "^2.0.48",
     "@ai-sdk/react": "^3.0.198",
+    "@mycelium/brain": "*",
     "@mycelium/db": "*",
     "@qvac/ai-sdk-provider": "^0.2.2",
     "@radix-ui/react-use-controllable-state": "^1.2.3",

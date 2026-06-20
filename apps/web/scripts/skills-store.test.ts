@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const builtinSkills = join(here, "..", "builtin-skills");
+const builtinSkills = join(here, "..", "..", "..", "packages", "brain", "builtin-skills");
 
 function manifest(name: string, extra = ""): string {
   return `---\nname: ${name}\ndescription: Valid description\n${extra}---\n\nBody`;

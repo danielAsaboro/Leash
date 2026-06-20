@@ -8,6 +8,7 @@
  */
 import "server-only";
 import { join } from "node:path";
+import { BRAIN_ALWAYS_ON_TOOL_GROUPS, BRAIN_MCP_TOOL_GROUPS } from "@mycelium/brain";
 import { REPO_ROOT } from "@mycelium/leash-core/paths";
 import type { ServiceName } from "./services.ts";
 import type { McpServerEntry, McpTransport } from "./mcp-config.ts";
@@ -25,20 +26,7 @@ const OPEN_COMPUTER_USE_BIN = join(REPO_ROOT, "node_modules", ".bin", process.pl
  * They SHARE `service: "leash-tools-mcp"`, so the daemon is reference-counted: it starts when
  * the first group turns on and stops when the last turns off (see mcp-lifecycle.ts).
  */
-const TOOLS_MCP_GROUPS: { id: string; name: string; description: string }[] = [
-  { id: "home-assistant", name: "Home Assistant", description: "Control smart-home devices (lights, switches, fans, covers, scenes) over Home Assistant's LAN API." },
-  { id: "feed", name: "Feed", description: "Search the user's auto-written on-device daily paper (The Understory)." },
-  { id: "memory", name: "Memory", description: "Save and recall typed memories about the user (preferences, facts, goals, people, routines)." },
-  { id: "tasks", name: "TODOs", description: "Create, list, and update TODOs on the user's TODO list." },
-  { id: "context", name: "Context", description: "Search the user's private context graph (Apple Notes, files, memories, past chats) and read their live screen activity." },
-  { id: "photos", name: "Photos", description: "List the user's images and their on-device auto-tags." },
-  { id: "image", name: "Image", description: "Generate images from text, fully on-device." },
-  { id: "research", name: "Research", description: "Run a deep, multi-source WEB research run in the background (needs network)." },
-  { id: "skills", name: "Skills", description: "Load the user's skills on demand and run their bundled scripts (read_skill, read_skill_file, run_skill_script)." },
-  { id: "files", name: "Files", description: "Sandboxed read-only file retrieval (grep/find/cat/jq) over a snapshot of the user's files." },
-  { id: "mcp-admin", name: "MCP", description: "Install and register OTHER MCP servers from a URL or by hand (install_mcp_repo, upsert_mcp_server)." },
-  { id: "scheduler", name: "Scheduler", description: "Let the assistant schedule its own future actions — recurring reminders and allowlisted maintenance jobs (no arbitrary commands, no cloud AI tasks)." },
-];
+const TOOLS_MCP_GROUPS = BRAIN_MCP_TOOL_GROUPS;
 
 export interface McpBuiltin {
   /** Stable id (also the key under `builtins` in the store). */
@@ -74,7 +62,7 @@ export interface McpBuiltin {
  * heartbeat and local-file skill work out of the box. The heavier / privileged / setup-requiring
  * groups (home-assistant, photos, image, research, computer, mcp-admin, skills) stay opt-in.
  */
-const ALWAYS_ON_GROUPS = new Set(["context", "files", "memory", "tasks", "feed"]);
+const ALWAYS_ON_GROUPS = new Set<string>(BRAIN_ALWAYS_ON_TOOL_GROUPS);
 
 export const MCP_BUILTINS: McpBuiltin[] = [
   {

@@ -15,8 +15,8 @@ const skillsDir = await mkdtemp(join(tmpdir(), "psy-skills-"));
 process.env["LEASH_AGENTS_DIR"] = agentsDir;
 process.env["LEASH_SKILLS_DIR"] = skillsDir;
 
-await cp(join(here, "..", "apps", "web", "builtin-skills", "health-safety"), join(skillsDir, "health-safety"), { recursive: true });
-await cp(join(here, "..", "apps", "web", "builtin-skills", "context-grounding"), join(skillsDir, "context-grounding"), { recursive: true });
+await cp(join(here, "..", "packages", "brain", "builtin-skills", "health-safety"), join(skillsDir, "health-safety"), { recursive: true });
+await cp(join(here, "..", "packages", "brain", "builtin-skills", "context-grounding"), join(skillsDir, "context-grounding"), { recursive: true });
 
 const { getUserAgent, saveAgent } = await import("../packages/leash-core/src/agents-store.ts");
 const { getSkill } = await import("../packages/leash-core/src/skills-store.ts");
@@ -24,7 +24,7 @@ const { splitFrontmatter, parseToolList } = await import("../packages/leash-core
 const { tagsForAlias } = await import("../packages/leash-core/src/routing/index.ts");
 const { toolPolicyDecision } = await import("../packages/leash-core/src/tool-policy.ts");
 
-const healthRaw = await readFile(join(here, "..", "apps", "web", "builtin-agents", "health.md"), "utf8");
+const healthRaw = await readFile(join(here, "..", "packages", "brain", "builtin-agents", "health.md"), "utf8");
 const healthDoc = splitFrontmatter(healthRaw);
 assert.ok(healthDoc, "health builtin frontmatter parses");
 await saveAgent({
@@ -43,9 +43,9 @@ await saveAgent({
 const joy = await getUserAgent("health");
 assert.ok(joy, "Joy health agent loads");
 assert.equal(joy!.name, "Joy");
-assert.equal(joy!.model, "medpsy");
+assert.equal(joy!.model, "health");
 assert.deepEqual(joy!.tools, ["search_graph", "recall", "active_context", "activity_recent"], "Joy gets only read-only context tools");
-assert.deepEqual(tagsForAlias("medpsy").specialist, "health", "medpsy is tagged as health specialist");
+assert.deepEqual(tagsForAlias("health").specialist, "health", "health is tagged as health specialist");
 
 const safety = await getSkill("health-safety");
 assert.ok(safety?.enabled, "health-safety skill loads");

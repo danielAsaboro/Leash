@@ -9,7 +9,7 @@ const options: RouteOption[] = [
   { tier: "device", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), pricePerKiloToken: 0, inflight: 4 },
   { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-fast", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
   { tier: "public", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-public", meshId: "mesh-public", pricePerKiloToken: 1, inflight: 0 },
-  { tier: "private", alias: "medpsy", tags: tagsForAlias("medpsy"), peerKey: "peer-joy", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
+  { tier: "private", alias: "health", tags: tagsForAlias("health"), peerKey: "peer-joy", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
 ];
 
 const privateRanked = rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options });
@@ -23,7 +23,7 @@ const publicOnlyRanked = rankRoutes({ bar: { modality: "text", minParamClass: "s
 assert.equal(publicOnlyRanked[0]!.tier, "public", "shareable route may use public when private cannot clear");
 
 const healthRanked = rankRoutes({ bar: { modality: "text", minParamClass: "small", specialist: "health" }, sensitivity: "private", options });
-assert.equal(healthRanked[0]!.alias, "medpsy", "health route selects health specialist");
+assert.equal(healthRanked[0]!.alias, "health", "health route selects health specialist");
 assert.equal(healthRanked[0]!.tier, "private", "health specialist stays private");
 
 console.log("smoke:p2p-routing PASS");

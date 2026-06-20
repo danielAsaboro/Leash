@@ -51,7 +51,7 @@ const QVAC_ROUTED_OPENAI_URL = process.env["LEASH_ROUTED_OPENAI_URL"] ?? `${HYPH
 
 /** Served model aliases — must match keys in `qvac.config.base.json` → `serve.models`. */
 export const CHAT_MODEL = process.env["LEASH_CHAT_MODEL"] ?? "qwen3-4b";
-export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "gte-large";
+export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "embed";
 /** Vision-language model (Qwen3VL) for image turns — via the forked serve's image-content support. */
 export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
 /**
@@ -160,7 +160,7 @@ export function visionModel(): LanguageModel {
   });
 }
 
-/** The embedding model (GTE-large) for `search_graph` retrieval — tagged INLINE priority. */
+/** The embedding model for `search_graph` retrieval — tagged INLINE priority. */
 export function embeddingModel() {
   return qvacInline.textEmbeddingModel(EMBED_MODEL);
 }

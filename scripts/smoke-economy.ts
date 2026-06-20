@@ -13,7 +13,7 @@ const MINI = "0xMini00000000000000000000000000000000Cafe";
 const ALICE = "0xA11ce0000000000000000000000000000000Face";
 
 const earn = (tx: string, amt: number, tok: number, at: string): EconomyReceipt =>
-  ({ sessionId: tx, alias: "medpsy", actualTokens: tok, actualAmount: amt, asset: "USDT0", txHash: tx, status: "settled", payerAddress: ALICE, providerAddress: ME, providerId: "PSELF", settledAt: at, completedAt: at, networkId: "eip155:9746" });
+  ({ sessionId: tx, alias: "health", actualTokens: tok, actualAmount: amt, asset: "USDT0", txHash: tx, status: "settled", payerAddress: ALICE, providerAddress: ME, providerId: "PSELF", settledAt: at, completedAt: at, networkId: "eip155:9746" });
 const spend = (tx: string, amt: number, tok: number, at: string): EconomyReceipt =>
   ({ sessionId: tx, alias: "qwen3-4b", actualTokens: tok, actualAmount: amt, asset: "USDT0", txHash: tx, status: "settled", payerAddress: ME, providerAddress: MINI, providerId: "PMINI", settledAt: at, completedAt: at, networkId: "eip155:9746" });
 

@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url)); // apps/web/scripts
 const web = join(here, "..");
+const repoRoot = join(web, "..", "..");
 const standalone = join(web, ".next", "standalone");
 const dst = join(standalone, "apps", "web"); // monorepo standalone layout
 
@@ -41,19 +42,18 @@ for (const s of ["leash-model-catalog.mts", "leash-model-download.mts"]) {
   cpSync(join(web, "scripts", s), join(dst, "scripts", s));
 }
 
-// 4. the committed built-in skills — shipped read-only, seeded into each user's skill store on
+// 4. the shared Brain built-ins — shipped read-only, seeded into each user's skill/agent stores on
 //    first launch (see server-launch.mjs bootstrapScopeDir). Next standalone never traces them
-//    (they're data, not imported), so they'd be absent without this and a fresh install would have
-//    zero skills until the user authored some.
-if (existsSync(join(web, "builtin-skills"))) {
-  cpSync(join(web, "builtin-skills"), join(dst, "builtin-skills"), { recursive: true });
+//    (they're data, not imported), so package the shared source tree explicitly.
+const brainSrc = join(repoRoot, "packages", "brain");
+const brainDst = join(standalone, "packages", "brain");
+if (existsSync(join(brainSrc, "builtin-skills"))) {
+  mkdirSync(brainDst, { recursive: true });
+  cpSync(join(brainSrc, "builtin-skills"), join(brainDst, "builtin-skills"), { recursive: true });
+}
+if (existsSync(join(brainSrc, "builtin-agents"))) {
+  mkdirSync(brainDst, { recursive: true });
+  cpSync(join(brainSrc, "builtin-agents"), join(brainDst, "builtin-agents"), { recursive: true });
 }
 
-// 5. the committed built-in agents — same rationale as the skills above: data, not imported, so Next
-//    standalone never traces them. Without this the chat route can't read leash.md in the packaged app
-//    and silently falls back to the hardcoded default prompt.
-if (existsSync(join(web, "builtin-agents"))) {
-  cpSync(join(web, "builtin-agents"), join(dst, "builtin-agents"), { recursive: true });
-}
-
-console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + built-in skills + built-in agents into the standalone bundle");
+console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + shared Brain built-ins into the standalone bundle");

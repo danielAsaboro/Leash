@@ -543,13 +543,13 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
     config.serve.models[alias] = { model: modelName, preload: true, ...(hasDefault ? {} : { default: true }), ...(cfg ? { config: cfg } : {}) };
     // Co-wire the default embedding when adding a CHAT model with none configured. Skills activation
     // (semantic routing) and RAG/search_graph need an embedding model; without one they SILENTLY
-    // degrade to lexical-only. Non-destructive (only when absent, and never overwrites a `gte-large`
+    // degrade to lexical-only. Non-destructive (only when absent, and never overwrites an `embed`
     // alias); the weight auto-downloads from the registry on first preload (offline-after-warm).
     const catOf = (name: string | undefined): string | undefined => (name ? catalog.find((c) => c.name === name)?.endpointCategory : undefined);
     if (catOf(modelName) === "chat") {
       const hasEmbedding = Object.values(config.serve.models).some((m) => catOf(typeof m === "string" ? m : m.model) === "embedding");
-      if (!hasEmbedding && !config.serve.models["gte-large"] && catalog.some((c) => c.name === "GTE_LARGE_FP16")) {
-        config.serve.models["gte-large"] = { model: "GTE_LARGE_FP16", preload: true };
+      if (!hasEmbedding && !config.serve.models["embed"] && catalog.some((c) => c.name === "GTE_LARGE_FP16")) {
+        config.serve.models["embed"] = { model: "GTE_LARGE_FP16", preload: true };
       }
     }
     await writeJson(QVAC_CONFIG_FILE, config);
@@ -561,21 +561,24 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
 /**
  * Wire the whole Assistant Kit's aliases into qvac.config.base.json in one atomic edit.
  *
- * Validates EVERY referenced SKU (each role's primary weight + the vision mmproj projection)
- * exists in the SDK catalog first — all-or-nothing — so a half-resolved kit never writes a broken
- * alias. The vision role's `projectionModelSrc` is computed from the projection SKU's on-disk cache
- * filename (`~/.qvac/models/<cacheFile>`), which is exactly the bare-mmproj wiring the kit exists to
- * fix. The `chat` role becomes the served default UNLESS the user already has a default configured
- * (non-destructive, mirroring addModelToConfig). Weights are downloaded separately (the dashboard
- * queues them via /models/download); this only edits the config the serve loads on its next restart.
+ * Validates every SDK-catalog-backed SKU (each role's primary weight + the vision mmproj projection)
+ * before writing. Explicit QVAC GGUF roles use the CLI's `{ src, type }` serve shape, which is how
+ * the health role points at the QVAC MedPsy collection even when the installed SDK has no exported
+ * MedPsy constant. The vision role's `projectionModelSrc` is computed from the projection SKU's
+ * on-disk cache filename (`~/.qvac/models/<cacheFile>`), which is exactly the bare-mmproj wiring the
+ * kit exists to fix. The `chat` role becomes the served default UNLESS the user already has a default
+ * configured (non-destructive, mirroring addModelToConfig). Weights are downloaded separately (the
+ * dashboard queues them via /models/download); this only edits the config the serve loads on its next
+ * restart.
  */
 export async function addModelKit(roles: KitRole[] = ASSISTANT_KIT): Promise<{ ok: boolean; error?: string }> {
   const catalog = await readCatalog();
   const has = (n: string): boolean => catalog.some((c) => c.name === n);
   for (const r of roles) {
     if (!/^[a-z0-9][a-z0-9-]{0,32}$/.test(r.alias)) return { ok: false, error: `bad kit alias "${r.alias}"` };
-    if (!has(r.model)) return { ok: false, error: `"${r.model}" is not in the SDK catalog` };
+    if (r.model && !has(r.model)) return { ok: false, error: `"${r.model}" is not in the SDK catalog` };
     if (r.projection && !has(r.projection)) return { ok: false, error: `"${r.projection}" is not in the SDK catalog` };
+    if (!r.model && (!r.src || !r.type)) return { ok: false, error: `kit role "${r.role}" needs either model or src+type` };
   }
   return withConfigLock(async () => {
     const config = await readJson<QvacConfig>(QVAC_CONFIG_FILE, {});
@@ -584,12 +587,14 @@ export async function addModelKit(roles: KitRole[] = ASSISTANT_KIT): Promise<{ o
     for (const r of roles) {
       // Per-use-case defaults (chat → ctx_size 32768; speech → the required ttsEngine config), then
       // the role's own config wins, then the computed mmproj projection path.
-      const cfg: Record<string, unknown> = { ...defaultModelConfig(catalog, r.model), ...(r.config ?? {}) };
+      const cfg: Record<string, unknown> = { ...(r.model ? defaultModelConfig(catalog, r.model) : {}), ...(r.config ?? {}) };
       if (r.projection) {
         const mm = catalog.find((c) => c.name === r.projection);
         if (mm?.cacheFile) cfg["projectionModelSrc"] = `~/.qvac/models/${mm.cacheFile}`;
       }
-      config.serve.models[r.alias] = { model: r.model, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) };
+      config.serve.models[r.alias] = r.model
+        ? { model: r.model, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) }
+        : { src: r.src, type: r.type, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) };
     }
     // chat becomes the default only if nothing in the final config already claims it (preserve user intent).
     const anyDefault = Object.values(config.serve.models).some((m) => m && typeof m === "object" && (m as ServeModelEntry).default);

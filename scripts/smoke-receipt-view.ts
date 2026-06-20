@@ -17,7 +17,7 @@ function main(): void {
   assert.equal(modalityOf("parakeet"), "stt", "parakeet → stt");
   assert.equal(modalityOf("supertonic"), "tts", "supertonic → tts");
   assert.equal(modalityOf("qwen3-4b"), "chat", "qwen3-4b → chat (default)");
-  assert.equal(modalityOf("medpsy"), "chat", "medpsy → chat");
+  assert.equal(modalityOf("health"), "chat", "health → chat");
 
   // 2. filterReceipts — each facet, and AND-composition.
   const data = [

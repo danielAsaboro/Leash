@@ -33,7 +33,7 @@ export function modelType(entry: ModelTypeEntry, cat?: ModelTypeCatalog): Modali
   // A VLM with a projection model (e.g. qwen3vl) is VISION — checked first, since its catalog
   // entry also reads as endpointCategory "chat".
   if (entry.config && "projectionModelSrc" in entry.config) return "vision";
-  // Custom-GGUF completion model (e.g. medpsy: a `.src` path with type "…completion", no catalog).
+  // Custom-GGUF completion model (e.g. QVAC MedPsy: a `.src` path with type "…completion", no catalog).
   if (entry.src && (entry.type ?? "").includes("completion")) return "chat";
 
   const engine = cat?.engine ?? "";
@@ -50,7 +50,7 @@ export function modelType(entry: ModelTypeEntry, cat?: ModelTypeCatalog): Modali
   if (/SUPERTONIC|CHATTERBOX|TTS[_-]|_TTS\b/.test(name)) return "tts";
   if (/GTE[_-]|EMBED|BGE[_-]|\bE5[_-]/.test(name)) return "embedding";
   if (/VL[_-]|VISION|MULTIMODAL|MMPROJ|LLAVA/.test(name)) return "vision";
-  if (/QWEN|LLAMA|GEMMA|MISTRAL|PHI|MEDGEMMA/.test(name)) return "chat";
+  if (/QWEN|LLAMA|GEMMA|MISTRAL|PHI|MEDPSY/.test(name)) return "chat";
   return null;
 }
 

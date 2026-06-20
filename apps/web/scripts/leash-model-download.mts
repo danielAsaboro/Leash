@@ -2,7 +2,7 @@
  * Download one SDK model asset into the local cache, reporting progress to a status
  * file — `data/leash-downloads/<NAME>.json`.
  *
- *   npx tsx apps/web/scripts/leash-model-download.mts <SDK_CONSTANT_NAME>
+ *   npx tsx apps/web/scripts/leash-model-download.mts <SDK_CONSTANT_OR_BRAIN_ASSET_NAME>
  *
  * Spawned DETACHED by `POST /api/leash/models/download` (and runnable by hand): the
  * web process never imports the SDK, and the download survives Next dev restarts —
@@ -12,6 +12,7 @@
 import { writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { modelAssetForName } from "@mycelium/brain";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore — SDK model constants are runtime exports absent from the .d.ts surface
 import * as sdk from "@qvac/sdk";
@@ -58,15 +59,16 @@ function writeStatus(s: Status): void {
 }
 
 async function main(): Promise<void> {
-  if (!name || !/^[A-Z0-9_]+$/.test(name)) {
-    console.error("usage: leash-model-download.mts <SDK_CONSTANT_NAME>");
+  if (!name || !/^[A-Za-z0-9._-]+$/.test(name)) {
+    console.error("usage: leash-model-download.mts <SDK_CONSTANT_OR_BRAIN_ASSET_NAME>");
     process.exit(2);
   }
   const constant = (sdk as Record<string, unknown>)[name];
   const isModelConstant = constant !== null && typeof constant === "object" && "src" in (constant as object) && "addon" in (constant as object);
+  const brainAsset = isModelConstant ? undefined : modelAssetForName(name);
   const status: Status = { name, state: "starting", percentage: 0, downloaded: 0, total: 0, pid: process.pid, startedAt: Date.now(), updatedAt: Date.now() };
-  if (!isModelConstant) {
-    writeStatus({ ...status, state: "error", error: `unknown SDK model constant "${name}"` });
+  if (!isModelConstant && !brainAsset) {
+    writeStatus({ ...status, state: "error", error: `unknown SDK model constant or Brain asset "${name}"` });
     process.exit(1);
   }
   writeStatus(status);
@@ -76,7 +78,7 @@ async function main(): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore — downloadAsset is a runtime export
     await sdk.downloadAsset({
-      assetSrc: constant,
+      assetSrc: isModelConstant ? constant : brainAsset!.assetSrc,
       onProgress: (p: { percentage: number; downloaded: number; total: number }) => {
         const now = Date.now();
         if (now - lastWrite < 500 && p.percentage < 100) return; // throttle ~2 writes/s

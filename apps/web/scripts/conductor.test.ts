@@ -22,6 +22,7 @@ import type { RouteOption } from "@mycelium/leash-core/routing";
 
 const catalog: RouterCatalogModel[] = [
   { name: "TEXT_SMALL", endpointCategory: "chat", params: "4B" },
+  { name: "HEALTH_SMALL", endpointCategory: "chat", params: "4B" },
   { name: "VISION_SMALL", endpointCategory: "chat", params: "2B" },
   { name: "EMBED", endpointCategory: "embedding", params: "1B" },
 ];
@@ -40,6 +41,11 @@ const config: RouterQvacConfig = {
         preload: true,
         config: { ctx_size: 8192, projectionModelSrc: "~/.qvac/models/mmproj.gguf" },
       },
+      health: {
+        model: "HEALTH_SMALL",
+        preload: true,
+        config: { ctx_size: 8192, tools: true, toolsMode: "dynamic" },
+      },
       embed: "EMBED",
     },
   },
@@ -51,7 +57,7 @@ const inventory = buildConfiguredModelInventory({
   live: { up: true, ready: ["general", "vision", "classifier"] },
 });
 
-assert.equal(inventory.length, 4, "reads configured aliases plus live-only aliases");
+assert.equal(inventory.length, 5, "reads configured aliases plus live-only aliases");
 const general = inventory.find((m) => m.alias === "general");
 assert.equal(general?.sdkModelName, "TEXT_SMALL", "joins alias to SDK model name");
 assert.equal(general?.endpointCategory, "chat", "joins catalog endpoint category");
@@ -93,7 +99,7 @@ assert.equal(
 const healthInventory = buildConfiguredModelInventory({
   config,
   catalog,
-  live: { up: true, ready: ["general", "medpsy", "classifier"] },
+  live: { up: true, ready: ["general", "health", "classifier"] },
 });
 const healthNeed = deterministicRouteNeed("I have chest pain and shortness of breath");
 assert.equal(isHealthIntent("Can I take this medication with my allergy?"), true, "medication/allergy is health intent");
@@ -102,7 +108,7 @@ assert.equal(healthNeed.needsHealth, true, "health prompts carry a health flag")
 assert.equal(healthNeed.needsMemory, true, "health prompts stay private/context-capable");
 assert.equal(
   pickInventoryRouteAlias({ inventory: healthInventory, conductorAlias: "classifier", selectedModel: null, need: healthNeed }),
-  "medpsy",
+  "health",
   "health prompts prefer the health specialist alias over the default general model",
 );
 assert.deepEqual(

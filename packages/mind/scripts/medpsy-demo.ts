@@ -6,7 +6,7 @@
  * Proves a real specialized-model workflow end-to-end, on-device, via @qvac/sdk:
  *   1. Ingest a folder of PRIVATE health records (synthetic fixtures) into a
  *      dedicated `health-records` RAG workspace (gte-large embeddings).
- *   2. Load the MedPsy model (MedGemma 4B — the `medpsy` alias).
+ *   2. Load the QVAC MedPsy 4B model; Leash serves the same model through the `health` capability alias.
  *   3. Ask a health question → runMedPsyConsult grounds the answer in the records
  *      via search_graph, cites [Source N], verifies the claims, and guarantees a
  *      non-diagnostic disclaimer.
@@ -32,7 +32,7 @@ import {
   unloadEmbeddings,
   ingestNodes,
   searchGraph,
-  MEDGEMMA_4B_IT_Q4_1,
+  MEDPSY_4B_Q4_K_M_IMAT,
   type Hit,
 } from "@mycelium/senses";
 import { runMedPsyConsult } from "../src/index.ts";
@@ -62,9 +62,9 @@ try {
   const chunks = await ingestNodes({ embModelId: embId, workspace: WORKSPACE, nodes: store.all(), audit });
   console.log(`📁 Ingested ${store.all().length} health records → ${chunks} chunks in workspace "${WORKSPACE}".\n`);
 
-  // 2. Load the MedPsy model (MedGemma 4B; the `medpsy` alias), native tools on, 8k ctx (per serve config).
-  medpsyId = await loadModel({ modelSrc: MEDGEMMA_4B_IT_Q4_1, modelType: "llm", modelConfig: { ctx_size: 8192, tools: true }, onProgress: () => {} });
-  audit.record({ event: "model_load", modelSrc: MEDGEMMA_4B_IT_Q4_1, modelId: medpsyId });
+  // 2. Load the QVAC MedPsy 4B GGUF, native tools on, 8k ctx.
+  medpsyId = await loadModel({ modelSrc: MEDPSY_4B_Q4_K_M_IMAT, modelType: "llm", modelConfig: { ctx_size: 8192, tools: true }, onProgress: () => {} });
+  audit.record({ event: "model_load", modelSrc: MEDPSY_4B_Q4_K_M_IMAT, modelId: medpsyId });
 
   const runSearch = (query: string, topK: number): Promise<Hit[]> => searchGraph({ embModelId: embId!, workspace: WORKSPACE, query, topK, audit });
 

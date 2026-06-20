@@ -17,8 +17,8 @@ const FALLBACK: MainAgentBase = { body: CHAT_SYSTEM_PROMPT, model: "", name: "Le
 const here = dirname(fileURLToPath(import.meta.url));
 // In the packaged standalone build the bundled route module can't resolve the source tree, so
 // server-launch.mjs injects LEASH_BUILTIN_AGENTS_DIR. Dev/tsx/tests fall back to the source-relative
-// path (apps/web/lib/leash → apps/web/builtin-agents).
-const BUILTIN_AGENTS_DIR = process.env["LEASH_BUILTIN_AGENTS_DIR"] ?? join(here, "..", "..", "builtin-agents");
+// path fallback for direct Next runs; normal launch injects the shared Brain asset dir.
+const BUILTIN_AGENTS_DIR = process.env["LEASH_BUILTIN_AGENTS_DIR"] ?? join(here, "..", "..", "..", "..", "packages", "brain", "builtin-agents");
 const BUILTIN_LEASH_AGENT_MD = join(BUILTIN_AGENTS_DIR, "leash.md");
 
 /**

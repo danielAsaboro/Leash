@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { tmpdir } from "node:os";
 
 const here = dirname(fileURLToPath(import.meta.url)); // apps/web/scripts
-const SRC = join(here, "..", "builtin-agents");
+const SRC = join(here, "..", "..", "..", "packages", "brain", "builtin-agents");
 
 async function main() {
   const dir = mkdtempSync(join(tmpdir(), "specialists-"));
@@ -17,12 +17,12 @@ async function main() {
   process.env["LEASH_AGENTS_DIR"] = dir;
   process.env["LEASH_SKILLS_DIR"] = skillsDir;
   for (const f of readdirSync(SRC)) if (f !== "leash.md") copyFileSync(join(SRC, f), join(dir, f));
-  cpSync(join(here, "..", "builtin-skills", "health-safety"), join(skillsDir, "health-safety"), { recursive: true });
+  cpSync(join(here, "..", "..", "..", "packages", "brain", "builtin-skills", "health-safety"), join(skillsDir, "health-safety"), { recursive: true });
   const { getUserAgent } = await import("@mycelium/leash-core/agents-store");
   const { getSkill } = await import("@mycelium/leash-core/skills-store");
 
   const expected: Record<string, { name: string; model: string }> = {
-    health: { name: "Joy", model: "medpsy" },
+    health: { name: "Joy", model: "health" },
     researcher: { name: "Ruth", model: "" },
     summarizer: { name: "Bree", model: "" },
     coder: { name: "Grace", model: "" },

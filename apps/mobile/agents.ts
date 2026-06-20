@@ -1,9 +1,7 @@
 /**
- * The agent roster shown in Brain → Agents — the SAME built-in agents as the desktop
- * (apps/web/builtin-agents): Leash, the main orchestrator that runs on THIS device, plus the
- * specialists it delegates to. On the phone this list is informational: the specialists do their
- * work with tools (web, files, code) that live on a paired desktop, so there's no run/edit surface
- * here. Not a fabricated catalog (Rule 4) — these are the real agent definitions, name + domain.
+ * The agent roster shown in Brain → Agents — the same shared Brain agents as desktop. The phone is
+ * a first-class runtime: it executes what it can locally and delegates roles/tools that are
+ * unavailable or too heavy to a paired mesh device.
  */
 export type AgentEntry = { name: string; role: string; description: string; main?: boolean };
 

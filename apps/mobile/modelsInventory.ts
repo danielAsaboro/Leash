@@ -15,6 +15,17 @@ import {
   TTS_EN_SUPERTONIC_Q8_0,
   type ModelProgressUpdate,
 } from "@qvac/sdk";
+import { modelProfileForDevice } from "@mycelium/brain";
+
+const PHONE_BRAIN_PROFILE = modelProfileForDevice("phone");
+const role = (name: string) => {
+  const found = PHONE_BRAIN_PROFILE.roles.find((r) => r.role === name);
+  if (!found) throw new Error(`phone Brain profile is missing ${name}`);
+  return found;
+};
+const PHONE_CHAT = role("chat");
+const PHONE_STT = role("speech_to_text");
+const PHONE_TTS = role("text_to_speech");
 
 export type ModelKey = "chat" | "stt" | "tts";
 export type ModelState = "loaded" | "cached" | "not-downloaded" | "unknown";
@@ -31,9 +42,9 @@ export type ModelEntry = {
 };
 
 export const MODELS: ModelEntry[] = [
-  { key: "chat", alias: "qwen3-1.7b", label: "Qwen3 · 1.7B", role: "Chat · the press", kind: "text", assetSrc: QWEN3_1_7B_INST_Q4, name: (QWEN3_1_7B_INST_Q4 as any).name },
-  { key: "stt", alias: "whisper-small-en", label: "Whisper · small (EN)", role: "Voice → text", kind: "speech", assetSrc: WHISPER_EN_SMALL_Q8_0, name: (WHISPER_EN_SMALL_Q8_0 as any).name },
-  { key: "tts", alias: "supertonic-en", label: "Supertonic · EN (F1)", role: "Text → voice", kind: "speech", assetSrc: TTS_EN_SUPERTONIC_Q8_0, name: (TTS_EN_SUPERTONIC_Q8_0 as any).name },
+  { key: "chat", alias: PHONE_CHAT.alias, label: "Qwen3 · 1.7B", role: PHONE_CHAT.powers, kind: "text", assetSrc: QWEN3_1_7B_INST_Q4, name: (QWEN3_1_7B_INST_Q4 as any).name },
+  { key: "stt", alias: PHONE_STT.alias, label: "Whisper · EN", role: PHONE_STT.powers, kind: "speech", assetSrc: WHISPER_EN_SMALL_Q8_0, name: (WHISPER_EN_SMALL_Q8_0 as any).name },
+  { key: "tts", alias: PHONE_TTS.alias, label: "Supertonic · EN (F1)", role: PHONE_TTS.powers, kind: "speech", assetSrc: TTS_EN_SUPERTONIC_Q8_0, name: (TTS_EN_SUPERTONIC_Q8_0 as any).name },
 ];
 
 export type ModelStatus = ModelEntry & { state: ModelState; sizeBytes: number | null };
@@ -103,7 +114,7 @@ export const CHAT_MODELS: ChatModelEntry[] = [
   { chatKey: "llama-1b", alias: "llama-3.2-1b", label: "Llama 3.2 · 1B", assetSrc: LLAMA_3_2_1B_INST_Q4_0, name: (LLAMA_3_2_1B_INST_Q4_0 as any).name },
 ];
 
-export const DEFAULT_CHAT_KEY = "qwen3-1.7b";
+export const DEFAULT_CHAT_KEY = PHONE_CHAT.alias;
 
 /** Resolve a chat-model entry by key, falling back to the default (never undefined). */
 export function chatEntry(key: string | null | undefined): ChatModelEntry {

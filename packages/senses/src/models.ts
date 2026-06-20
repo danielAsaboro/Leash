@@ -15,7 +15,7 @@
 import type { LoadModelOptions } from "@qvac/sdk";
 // prettier-ignore
 // @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts.
-import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, MEDGEMMA_4B_IT_Q4_1 as _MEDGEMMA_4B_IT_Q4_1, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0, OCR_LATIN_RECOGNIZER_1 as _OCR_LATIN_RECOGNIZER_1, TTS_EN_SUPERTONIC_Q8_0 as _TTS_EN_SUPERTONIC_Q8_0, PARAKEET_TDT_0_6B_V3_Q8_0 as _PARAKEET_TDT_0_6B_V3_Q8_0, PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 as _PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 } from "@qvac/sdk";
+import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0, OCR_LATIN_RECOGNIZER_1 as _OCR_LATIN_RECOGNIZER_1, TTS_EN_SUPERTONIC_Q8_0 as _TTS_EN_SUPERTONIC_Q8_0, PARAKEET_TDT_0_6B_V3_Q8_0 as _PARAKEET_TDT_0_6B_V3_Q8_0, PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 as _PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 } from "@qvac/sdk";
 
 export type ModelSrc = LoadModelOptions["modelSrc"];
 
@@ -25,8 +25,8 @@ export const GTE_LARGE_FP16: ModelSrc = _GTE_LARGE_FP16;
 export const QWEN3_600M_INST_Q4: ModelSrc = _QWEN3_600M_INST_Q4;
 /** Council proposer/critic — Mac-class, reliable tool-calling; runs on the hub. */
 export const QWEN3_4B_INST_Q4_K_M: ModelSrc = _QWEN3_4B_INST_Q4_K_M;
-/** MedPsy — medical-specialized Gemma 4B (Q4_1); the `medpsy` alias. Health-record RAG proposer. */
-export const MEDGEMMA_4B_IT_Q4_1: ModelSrc = _MEDGEMMA_4B_IT_Q4_1;
+/** QVAC MedPsy 4B Q4_K_M GGUF — health capability model. */
+export const MEDPSY_4B_Q4_K_M_IMAT: ModelSrc = "https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-q4_k_m-imat.gguf";
 /** Speech-to-text (voice ingestion); loaded with modelType:"whisper". */
 export const WHISPER_BASE_Q8_0: ModelSrc = _WHISPER_BASE_Q8_0;
 /** Photo OCR recognizer (Latin/English); loaded with modelType:"ocr". Auto-pairs the

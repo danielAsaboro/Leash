@@ -13,7 +13,7 @@
           "ctx_size": 32768
         }
       },
-      "gte-large": {
+      "embed": {
         "model": "GTE_LARGE_FP16",
         "preload": true
       },
@@ -24,8 +24,9 @@
           "ctx_size": 8192
         }
       },
-      "medpsy": {
-        "model": "MEDGEMMA_4B_IT_Q4_1",
+      "health": {
+        "src": "https://huggingface.co/qvac/MedPsy-4B-GGUF/resolve/main/medpsy-4b-q4_k_m-imat.gguf",
+        "type": "llamacpp-completion",
         "preload": true,
         "config": {
           "tools": true,

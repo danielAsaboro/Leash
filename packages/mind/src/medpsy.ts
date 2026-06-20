@@ -1,8 +1,8 @@
 /**
  * MedPsy health-record consult (Layer 3 — Mind · Psy Models track).
  *
- * A real specialized-model workflow, not a keyword model-swap: the MedPsy model
- * (MedGemma 4B, the `medpsy` alias) answers a health question **grounded in the
+ * A real specialized-model workflow, not a keyword model-swap: the QVAC MedPsy
+ * model served through the `health` capability alias answers a health question **grounded in the
  * user's own private health records**, retrieved over RAG, with [Source N]
  * citations, a claim-verification pass (the council's critic), an always-present
  * non-diagnostic disclaimer, and an emergency / red-flag escalation banner.
@@ -33,7 +33,7 @@ const RED_FLAG_RE =
 const hasCaveat = (s: string): boolean => /clinician|\bdoctor\b|professional|not a substitute|medical advice/i.test(s);
 
 export interface MedPsyDeps {
-  /** A loaded MedPsy/MedGemma model id (the `medpsy` alias). */
+  /** A loaded QVAC MedPsy model id (normally the `health` capability alias). */
   llmModelId: string;
   /** Retrieves the user's health records (search_graph over the `health-records` workspace). */
   runSearch: (query: string, topK: number) => Promise<Hit[]>;
@@ -62,7 +62,7 @@ export interface MedPsyResult {
 
 /**
  * Run one MedPsy consult: retrieve the user's records, ground + cite, verify, and
- * safety-wrap. `deps.llmModelId` must be a loaded MedPsy/MedGemma model; `deps.runSearch`
+ * safety-wrap. `deps.llmModelId` must be a loaded QVAC MedPsy model; `deps.runSearch`
  * should target the user's private `health-records` RAG workspace.
  */
 export async function runMedPsyConsult({ deps, question }: { deps: MedPsyDeps; question: string }): Promise<MedPsyResult> {

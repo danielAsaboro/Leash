@@ -15,7 +15,7 @@ import { Agent, fetch as undiciFetch } from "undici";
 /** Where `qvac serve openai` listens. 11435 (not Ollama's 11434). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 /** Embedding alias — must match `qvac.config.base.json` → `serve.models`. */
-export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "gte-large";
+export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "embed";
 /** Served image model alias. */
 export const IMAGE_MODEL = process.env["LEASH_IMAGE_MODEL"] ?? "sd";
 /** Vision-language model alias (Qwen3VL), kept for shared-core callers that need image perception. */
@@ -33,7 +33,7 @@ const patientFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Paramete
 const qvacInline = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: patientFetch, headers: { "x-leash-priority": "inline" } });
 const qvac = createQvac({ baseURL: QVAC_OPENAI_URL, apiKey: "qvac", fetch: patientFetch, headers: { "x-leash-priority": "interactive" } });
 
-/** The embedding model (GTE-large) for `search_graph` retrieval — tagged INLINE priority. */
+/** The embedding model for `search_graph` retrieval — tagged INLINE priority. */
 export function embeddingModel() {
   return qvacInline.textEmbeddingModel(EMBED_MODEL);
 }

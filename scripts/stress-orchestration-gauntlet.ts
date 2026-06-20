@@ -70,11 +70,11 @@ const options: RouteOption[] = [
   { tier: "device", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), pricePerKiloToken: 0, inflight: 6 },
   { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-private", pricePerKiloToken: 0, inflight: 0 },
   { tier: "public", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-public", pricePerKiloToken: 1, inflight: 0 },
-  { tier: "private", alias: "medpsy", tags: tagsForAlias("medpsy"), peerKey: "peer-health", pricePerKiloToken: 0, inflight: 0 },
+  { tier: "private", alias: "health", tags: tagsForAlias("health"), peerKey: "peer-health", pricePerKiloToken: 0, inflight: 0 },
   { tier: "private", alias: "qwen3vl", tags: tagsForAlias("qwen3vl"), peerKey: "peer-vision", pricePerKiloToken: 0, inflight: 0 },
 ];
 assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options })[0]!.peerKey, "peer-private");
-assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small", specialist: "health" }, sensitivity: "private", options })[0]!.alias, "medpsy");
+assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small", specialist: "health" }, sensitivity: "private", options })[0]!.alias, "health");
 assert.equal(rankRoutes({ bar: { modality: "vision", minParamClass: "small", specialist: "vision" }, sensitivity: "private", options })[0]!.alias, "qwen3vl");
 assert.ok(rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options }).every((r) => r.tier !== "public"));
 

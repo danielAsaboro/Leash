@@ -556,7 +556,7 @@ export function ModelsPanel({ inventory, serve, catalog: initialCatalog, downloa
         </div>
         <ul className="flex flex-col gap-1.5">
           {ASSISTANT_KIT.map((r) => {
-            const skus = r.projection ? [r.model, r.projection] : [r.model];
+            const skus = [r.model, r.projection, r.downloadName].filter((s): s is string => typeof s === "string" && s.length > 0);
             const present = skus.every((s) => presentSkus.has(s));
             const inFlight = skus.some((s) => downloadingSkus.has(s));
             const wired = inventory.configured.some((c) => c.alias === r.alias);
