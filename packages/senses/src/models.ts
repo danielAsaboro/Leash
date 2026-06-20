@@ -3,7 +3,7 @@
  *
  * The SDK ships these as runtime exports, but its published root `.d.ts` does NOT
  * surface the LLM/embedding model constants (only the diffusion/upscale ones) — a
- * type-packaging gap in @qvac/sdk@0.11.0 (they live behind a ~16k-line `models`
+ * type-packaging gap in @qvac/sdk (they live behind a ~16k-line `models`
  * tuple in models.d.ts). A direct `import { GTE_LARGE_FP16 } from "@qvac/sdk"`
  * therefore fails `tsc` even though it resolves at runtime (the spike proves it;
  * `tsx` skips type-checking, so this never surfaced in the spike scripts).
@@ -14,7 +14,7 @@
  */
 import type { LoadModelOptions } from "@qvac/sdk";
 // prettier-ignore
-// @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts (the gap persists in 0.12.1 — verified TS2305).
+// @ts-ignore — present at runtime in @qvac/sdk; absent from its root .d.ts.
 import { GTE_LARGE_FP16 as _GTE_LARGE_FP16, QWEN3_600M_INST_Q4 as _QWEN3_600M_INST_Q4, QWEN3_4B_INST_Q4_K_M as _QWEN3_4B_INST_Q4_K_M, MEDGEMMA_4B_IT_Q4_1 as _MEDGEMMA_4B_IT_Q4_1, WHISPER_BASE_Q8_0 as _WHISPER_BASE_Q8_0, OCR_LATIN_RECOGNIZER_1 as _OCR_LATIN_RECOGNIZER_1, TTS_EN_SUPERTONIC_Q8_0 as _TTS_EN_SUPERTONIC_Q8_0, PARAKEET_TDT_0_6B_V3_Q8_0 as _PARAKEET_TDT_0_6B_V3_Q8_0, PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 as _PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0 } from "@qvac/sdk";
 
 export type ModelSrc = LoadModelOptions["modelSrc"];
@@ -33,7 +33,7 @@ export const WHISPER_BASE_Q8_0: ModelSrc = _WHISPER_BASE_Q8_0;
  * CRAFT text detector at load, so only this constant is referenced in code. */
 export const OCR_LATIN_RECOGNIZER_1: ModelSrc = _OCR_LATIN_RECOGNIZER_1;
 
-// ── 0.12.0 additions ──────────────────────────────────────────────────────────
+// ── Audio / image additions ───────────────────────────────────────────────────
 /** Text-to-speech (GGML Supertonic, English, 44.1 kHz, baked-in voices). Loaded with
  * modelType:"tts" + modelConfig.ttsEngine:"supertonic". The SDK example passes the
  * constant's `.src` string for TTS, so we re-export that form (still a valid ModelSrc). */

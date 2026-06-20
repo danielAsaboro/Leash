@@ -42,7 +42,7 @@ export async function transcribeFile({ sttModelId, audioPath, audit }: Transcrib
   return text;
 }
 
-// ── 0.12.0: Parakeet diarization (who-spoke-when) ───────────────────────────────
+// ── Parakeet diarization (who-spoke-when) ───────────────────────────────────────
 // Two-step flow (per the SDK's `transcription/parakeet-sortformer` example): Sortformer
 // diarizes the audio into speaker segments, then TDT transcribes each segment. Both load
 // with `modelType:"parakeet"`. Whisper (above) stays the default single-speaker path; the
@@ -76,7 +76,7 @@ export interface SpeakerSegment {
   text: string;
 }
 
-/** Seconds from a Sortformer timestamp — `HH:MM:SS.mmm` (the 0.12.1 form) or `12.3s`. */
+/** Seconds from a Sortformer timestamp — `HH:MM:SS.mmm` or `12.3s`. */
 function tsToSeconds(ts: string): number {
   const hms = ts.match(/(\d+):(\d+):([\d.]+)/);
   if (hms) return +hms[1]! * 3600 + +hms[2]! * 60 + +hms[3]!;
@@ -85,7 +85,7 @@ function tsToSeconds(ts: string): number {
 }
 
 /**
- * Parse Sortformer output into ordered segments. 0.12.1 emits
+ * Parse Sortformer output into ordered segments. The SDK emits
  * `Speaker N: HH:MM:SS.mmm - HH:MM:SS.mmm`; we also accept the older `Xs - Ys` form.
  */
 function parseDiarization(text: string): Array<{ speaker: number; start: number; end: number }> {

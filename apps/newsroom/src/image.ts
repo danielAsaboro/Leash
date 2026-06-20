@@ -3,7 +3,7 @@
  * offline once the GGUFs are warm. The model is loaded lazily on first use and reused
  * across the run (it's the heaviest load).
  *
- * 0.12.0 flagship: **FLUX.2 [klein]** (Metal "matches MLX"). Flux is a *split-layout,
+ * FLUX.2 [klein] (Metal "matches MLX"). Flux is a *split-layout,
  * flow-matching* model — the diffusion GGUF is the `modelSrc`, and the LLM text-encoder
  * + VAE are passed via `modelConfig.{llmModelSrc,vaeModelSrc}`. Unlike SD 2.x it does
  * **not** take `prediction: "v"`; it uses `guidance` + a low `cfg_scale` (per the SDK's

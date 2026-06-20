@@ -1,11 +1,12 @@
 ---
 title: "Evidence & reproducibility"
-description: "Spike gates with real numbers, JSONL audit records, airplane-mode acceptance, and licensing — with pointers into submission/."
+description: "Spike gates with real numbers, JSONL audit records, airplane-mode acceptance, hardware, and licensing."
 ---
 
-This page summarizes the verification evidence and points at where it lives. Per the repo's
-docs/evidence boundary, the raw bundle stays in `submission/`; the numbers below are quoted from
-`submission/SPIKE_RESULTS.md` (run 2026-05-31 on `@qvac/sdk@0.11.0`, Apple-Silicon Mac, Metal GPU).
+This page summarizes the verification evidence that ships with the repo. The numbers below come
+from the de-risking spike (`spike/*.ts`) and its committed audit artifacts under `spike/logs/`.
+The current app line is
+`@qvac/sdk@^0.13.5` + `@qvac/cli@^0.7.0`.
 
 ## Mandatory submission artifacts
 
@@ -16,16 +17,16 @@ are shipped and documented vs. submission-packaging steps still open:
 |---|---|---|
 | QVAC SDK for all inference/embeddings/RAG/multimodal | Shipped | [QVAC-only proof](/hackathon/qvac-only-proof) |
 | Apache-2.0 license | Shipped | root `LICENSE` + every `package.json` |
-| Public GitHub repo | Pushed & current; **make public before judging** | `github.com/danielAsaboro/Leash` |
+| Public GitHub repo | Published source artifact | `github.com/danielAsaboro/Leash` |
 | Reproducibility / out-of-the-box run path | Shipped | [Quickstart](/quickstart), [macOS install](/install/macos) |
-| Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL) | `spike/lib/audit-log.ts`, `submission/evidence/` |
-| Hardware specs + reproducible capture | Filed | [Hardware setup](#hardware-setup) below |
-| Structured remote-API-call disclosure file | Filed | [Remote network calls](/hackathon/network-disclosure) |
-| Demo video (≤5 min, unlisted) | **Pending** (final cut) | script in `submission/submission-video-script.md` |
+| Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL) | `spike/lib/audit-log.ts`, `spike/logs/*.jsonl`, `evidence/medpsy-demo.jsonl` |
+| Hardware specs + reproducible capture | Filed in docs; screenshot uploads are form-level artifacts | [Hardware setup](#hardware-setup) below |
+| Structured remote-API-call disclosure file | Filed | `evidence/remote-api-calls.json`, [Remote network calls](/hackathon/network-disclosure) |
+| Demo video (≤5 min, unlisted) | External submission artifact | DoraHacks / YouTube link |
 
 <Warning>
-Pages in this section never claim a pending artifact as done. The underlying *capability* is shipped
-and documented; the "pending" rows are the final packaging steps tracked in `submission/`.
+Pages in this section distinguish runtime evidence from external submission-form uploads. The code,
+logs, and structured disclosures needed to audit the runtime are in this repo.
 </Warning>
 
 ## Hardware setup
@@ -43,21 +44,28 @@ is a **Mac mini (Apple M4, 24 GB)** — comfortably inside the track ceiling. Th
 **optional delegation peer**, not part of the RAM budget: the mesh passes whole completions between
 independent devices and never pools their memory, so each device satisfies its own ≤32 GB budget.
 
-| Field | **GP primary — Mac mini** | Delegation peer — MacBook Pro | Mobile — iPhone 12 Pro Max |
-|---|---|---|---|
-| Chip | Apple **M4** | Apple M3 Pro | Apple A14 Bionic |
-| Unified memory | **24 GB** (≤32 GB ✓) | 36 GB | 6 GB |
-| GPU | Apple M4 — **Metal** | Apple M3 Pro — **Metal** | Apple A14 GPU — **Metal** |
-| Model identifier | Mac mini (M4) | `Mac15,7` | iPhone13,4 |
-| Cores | M4 (capture on device) | 12 (6P + 6E) | A14 (capture on device) |
-| macOS / iOS | capture on device | 26.5.1 (25F80) | capture on device |
+| Device | Role in demo | Chip / GPU | RAM | Notes |
+|---|---|---|---|---|
+| **Mac mini (M4)** | **General Purpose primary** | Apple M4 / Metal | **24 GB** | Declared track device; runs the full stack inside the ≤32 GB envelope. |
+| MacBook Pro `Mac15,7` | Delegation peer | Apple M3 Pro, 12-core CPU / 18-core GPU / Metal | 36 GB | Optional peer; disclosed, not pooled with the primary. |
+| mac3 MacBook Pro | Optional second paid provider | Apple silicon / Metal | device-local | Used as a cheaper peer in economy/routing tests; not required for the GP primary proof. |
+| iPhone 12 Pro Max `iPhone13,4` | Mobile client | Apple A14 Bionic / Metal | 6 GB | Runs the mobile client and on-device voice path. |
 
-The mini's GPU/memory ceiling is independently evidenced in
-`submission/evidence/tier2c-wan/spike-result.txt` (`recommendedMaxWorkingSetSize = 19069.67 MB`
-≈ 75 % of 24 GB unified). The benchmark numbers below were measured on Apple-Silicon Macs with
-Metal acceleration. Capture the exact identifier / core count on each device with the command below
-and attach the output (the `capture on device` cells are filled from the machine that is travelling
-with the operator).
+The M3 Pro delegation peer was live-captured on 2026-06-20:
+
+```text
+Model Identifier: Mac15,7
+Chip: Apple M3 Pro
+Cores: 12 CPU (6 performance, 6 efficiency) / 18 GPU
+Memory: 36 GB
+OS: macOS 26.5.1 (25F80)
+Storage: 460 GiB internal SSD + 466 GiB /Volumes/Development
+```
+
+The declared **General Purpose primary** remains the **24 GB M4 Mac mini**. The 36 GB peer is
+disclosed because it appears in the mesh demo, but it is not pooled memory and is not the primary
+track device. Each machine runs its own single QVAC serve; the mesh passes whole completions between
+independent devices.
 
 ### Capture the spec on any device
 
@@ -74,7 +82,8 @@ sw_vers   # macOS product version + build
 |---|---|
 | Node.js | 24.x (24.13–24.16 across the mesh machines) |
 | npm | 11.x |
-| `@qvac/sdk` | `^0.13.0` (the spike below ran on `0.11.0`) |
+| `@qvac/sdk` | `^0.13.5` |
+| `@qvac/cli` | `^0.7.0` (must dedupe to the same 0.13.x SDK line; no nested `@qvac/sdk`) |
 | Runner | `tsx` for TypeScript entrypoints; the SDK runs on Node, Bare, and Expo |
 
 ### Storage and the model cache
@@ -118,8 +127,8 @@ product work. All four passed.
 Every spike and runtime flow emits **JSONL** audit records (`mycelium/spike/lib/audit-log.ts`),
 capturing at least what the hackathon requires — model loads/unloads and per-call performance:
 timestamp, source, event, `modelId`, `device`, `prompt`, `tokens`, `ttftMs`, `tokensPerSecond`,
-`durationMs`. Records land under `spike/logs/` and per-app `logs/`. Worked examples are in
-`submission/evidence/` (e.g. the KV-cache session log and the cross-host settlement records).
+`durationMs`. Records land under `spike/logs/` and per-app `logs/`. Committed examples include the
+spike JSONL records and `evidence/medpsy-demo.jsonl`.
 
 ## Airplane-mode acceptance
 
@@ -138,10 +147,8 @@ default `~/.qvac` cache without edits.
 
 ## Demo video and licensing
 
-- **Demo video:** the capture plan and script live in `submission/submission-video-script.md` and
-  `submission/submission-video-capture.md`, with a raw delegated-compute take in
-  `submission/evidence/`. The final ≤5-minute unlisted cut is a tracked submission step
-  **(hold link until uploaded).**
+- **Demo video:** the ≤5-minute unlisted video link belongs in the DoraHacks submission form; it is
+  not needed to reproduce the code path from the repo.
 - **License:** **Apache-2.0** across the workspace (root `LICENSE` and every `package.json`).
 
 For the full milestone history, see [the changelog](/reference/changelog).

@@ -50,15 +50,15 @@ multi-GPU engine. Every device still satisfies its track's RAM constraint on its
 
 Vision needed one fix. The stock `qvac serve` OpenAI-compatible endpoint rejected multimodal
 content arrays, so images never reached the vision model. Leash carries a **patch-package** fork
-of `@qvac/cli` (`mycelium/patches/@qvac+cli+0.6.0.patch`) that:
+of `@qvac/cli` (`mycelium/patches/@qvac+cli+0.7.0.patch`) that:
 
 - accepts array content (`text` + `image_url` parts) on chat messages,
 - decodes each base64 image to a temp file and attaches it via the native completion
   `attachments` contract (PNG/JPEG; unsupported formats degrade to text rather than aborting),
 - adds a `kvCache` passthrough for delegated KV-cache reuse.
 
-This extends QVAC's own serve — it does not route around it. The change is written up for upstream
-in `submission/qvac-vision-pr.md`.
+This extends QVAC's own serve — it does not route around it. The change is applied in-repo via
+`patches/@qvac+cli+0.7.0.patch` and upstreamed as `tetherto/qvac#2459`.
 
 ## The only remote calls are non-AI
 

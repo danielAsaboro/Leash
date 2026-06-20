@@ -18,6 +18,6 @@
   "dependencies": {
     "@mycelium/shared": "*",
     "@mycelium/senses": "*",
-    "@qvac/sdk": "^0.13.0"
+    "@qvac/sdk": "^0.13.5"
   }
 }

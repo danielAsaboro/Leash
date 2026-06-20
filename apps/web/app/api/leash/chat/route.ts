@@ -661,7 +661,7 @@ export async function POST(req: Request): Promise<Response> {
   let activeModelForRun = "";
   // The plan pipeline halts BETWEEN steps when the client stopped (`req.signal`) OR a follow-up is
   // waiting to interject — this gate decides whether the NEXT step launches. An in-flight decode is
-  // now also cancelled on `req.signal` via the agent's abortSignal (safe on 0.13.1); interject still
+  // now also cancelled on `req.signal` via the agent's abortSignal (safe on the current 0.13.x SDK line); interject still
   // halts cleanly between steps rather than mid-decode so the queued follow-up runs on a clean turn.
   const planTool = buildPlanTool({
     registry: baseTools,
@@ -1091,7 +1091,7 @@ export async function POST(req: Request): Promise<Response> {
   // on every completion) fires `cancel({ requestId })` — the decode stops and the GPU
   // frees immediately. This was historically withheld (verified 2026-06-05: one aborted
   // request wedged every later generation) because the 0.11-era engine wedged on a
-  // mid-decode cancel; SDK 0.13.1 cancels safely (spike/abort-safety-inproc.ts), so it
+  // mid-decode cancel; the current 0.13.x SDK line cancels safely (spike/abort-safety-inproc.ts), so it
   // is now re-enabled. The partial answer still persists: `createUIMessageStream`'s
   // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
   const laneBudget = deriveLaneBudget({ imageTurn, planMode, filesTurn, computerTurn, declaredSkillTools, cfg });

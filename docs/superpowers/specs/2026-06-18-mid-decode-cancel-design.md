@@ -18,9 +18,10 @@ because of an empirically-observed upstream bug, recorded verbatim in
 > client disconnects mid-generation (verified 2026-06-05: one aborted request → every later
 > generation hangs at zero tokens until the serve restarts; upstream SDK bug)."*
 
-That bug was real on the 0.11-era SDK. The project now runs **`@qvac/sdk@0.13.1`** (declared
-`^0.13.0`; reference clone `resources/qvac` is at 0.13.3 and is now a full, current clone —
-the CLAUDE.md "broken partial clone" note is stale and must be corrected).
+That bug was real on the old SDK line. The project now runs **`@qvac/sdk@^0.13.5`**
+with **`@qvac/cli@^0.7.0`** so the app-side SDK and serve runtime stay on the same
+0.13.x line. The reference clone in `resources/qvac` is the current upstream source
+reference for serve, provider, and CLI internals.
 
 ### What changed in the SDK
 

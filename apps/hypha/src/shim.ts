@@ -10,7 +10,7 @@
  *   POST /pair/submit-pin {pin} · POST /pair/cancel
  *
  * Cancel discipline: on client disconnect / TTFB-timeout / auth-stop a delegated decode is
- * cancelled via `cancel({ requestId })` (safe on SDK 0.13.1 — see spike/abort-safety-inproc.ts),
+ * cancelled via `cancel({ requestId })` (safe on the current 0.13.x SDK line — see spike/abort-safety-inproc.ts),
  * which stops the provider's decode and frees its slot. Draining the remaining tokens is the
  * FALLBACK only when no requestId is available. Mid-stream failures are surfaced (an SSE error
  * frame), never silent-caught. The warm pool is read through a getter because the mesh comes
@@ -1075,7 +1075,7 @@ export function createShim(deps: ShimDeps): http.Server {
             if (!clientOpen) break; // client gone — stop paying for more (we'll cancel below)
           }
           if (authStopped || !clientOpen) {
-            // Stop paying / free the provider's slot: cancel the decode (safe on 0.13.1).
+            // Stop paying / free the provider's slot: cancel the decode (safe on the current 0.13.x SDK line).
             // Drain only as a fallback when no requestId is available.
             if (run.requestId) void cancel({ requestId: run.requestId }).catch(() => {});
             else void (async () => { for (let n = await restIt.next(); !n.done; n = await restIt.next()) { /* drain fallback */ } })().catch(() => {});
@@ -1161,7 +1161,7 @@ export function createShim(deps: ShimDeps): http.Server {
       clearTimeout(ttfbTimer);
       if (first === "ttfb-timeout") {
         // Drop the warm entry (the 5s reconcile tick re-warms fresh) and CANCEL the dead decode
-        // (safe on 0.13.1) so the provider frees its slot; drain only if no requestId is available.
+        // (safe on the current 0.13.x SDK line) so the provider frees its slot; drain only if no requestId is available.
         if (!sessionGrant && warm.modelId) router.dropWarm(warm.modelId);
         if (run.requestId) void cancel({ requestId: run.requestId }).catch(() => {});
         else void (async () => {

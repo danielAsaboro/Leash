@@ -12,11 +12,23 @@
 > **QVAC Hackathon I — "Unleash Edge AI"** (Tether). No cloud AI is ever in the loop.
 > License: **Apache-2.0**.
 
-**Status (2026-06-17):** ✅ Spike gate **PASSED** (all four primitives GO) · all five
+**Status (2026-06-20):** ✅ Spike gate **PASSED** (all four primitives GO) · all five
 product layers **built for real** · running live across **three Macs + an iPhone**, with
-**paid, metered, on-chain-settled delegated inference** between them. Evidence +
-reproduction: [`docs/hackathon/`](docs/hackathon/) and the committed audit log in
-[`evidence/`](evidence/). **No stubs, no mocks** — only working QVAC-backed code ships.
+**paid, metered delegated inference** between them. Evidence and reproduction are inside
+this repo: [`docs/hackathon/`](docs/hackathon/), [`evidence/`](evidence/), and
+[`spike/logs/`](spike/logs/). **No stubs, no mocks** — only working QVAC-backed code ships.
+
+## Judge fast path
+
+| Requirement | Where to verify |
+|---|---|
+| QVAC-only AI, no cloud LLM calls | [`docs/hackathon/qvac-only-proof.mdx`](docs/hackathon/qvac-only-proof.mdx), [`docs/hackathon/network-disclosure.mdx`](docs/hackathon/network-disclosure.mdx), [`evidence/remote-api-calls.json`](evidence/remote-api-calls.json) |
+| Apache-2.0 open source | [`LICENSE`](LICENSE), every tracked `package.json` |
+| General Purpose hardware fit | [`docs/hackathon/overview.mdx`](docs/hackathon/overview.mdx), [`docs/hackathon/evidence-and-reproducibility.mdx`](docs/hackathon/evidence-and-reproducibility.mdx) |
+| Reproducible local run | [Quickstart](#quickstart), [Reproduce the proofs](#reproduce-the-proofs), [`docs/quickstart.mdx`](docs/quickstart.mdx) |
+| Structured audit logs | [`spike/logs/*.jsonl`](spike/logs/), [`evidence/medpsy-demo.jsonl`](evidence/medpsy-demo.jsonl), [`docs/reference/audit-log.mdx`](docs/reference/audit-log.mdx) |
+| Judging criteria map | [`docs/hackathon/how-we-meet-the-criteria.mdx`](docs/hackathon/how-we-meet-the-criteria.mdx) |
+| Honest limitations | [`docs/hackathon/known-issues.mdx`](docs/hackathon/known-issues.mdx) |
 
 ---
 
@@ -529,7 +541,7 @@ The judging framework rewards transparency; the single source of truth is
   not a hosted compute market.
 - **Pending — airplane-mode re-run on the final build.** Proven in Week 1; must be re-run on the
   shipped build before we call it *passing* (until then: *expected to pass*).
-- **Resolved (was broken).** On-device TTS (`supertonic`, ≥ 0.12.2) and **cross-mesh vision
+- **Resolved (was broken).** On-device TTS (`supertonic`, current 0.13.5 runtime) and **cross-mesh vision
   delegation** now work — the serve's `/v1/chat/completions` accepts OpenAI multimodal `image_url`
   content (upstreamed as **tetherto/qvac#2459**, applied in-tree via
   [`patches/`](patches/)), so a consumer can borrow a peer's GPU for an *image* turn.

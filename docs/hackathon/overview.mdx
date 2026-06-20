@@ -55,10 +55,14 @@ After a one-time warm-cache (first run downloads the GGUF weights and bootstraps
 
 ## Where the evidence lives
 
-Per the repo's docs/evidence boundary, this section *summarizes and links* — it does not copy the evidence bundle. The detail lives in `submission/`:
+This repo is the judge-facing artifact. The evidence is intentionally reachable without parent
+directories:
 
 - [How we meet the criteria](/hackathon/how-we-meet-the-criteria) — feature-to-criterion mapping.
 - [QVAC-only proof](/hackathon/qvac-only-proof) — every AI path through `@qvac/sdk`.
 - [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) — spike gates, audit logs, offline acceptance, and licensing.
+- `spike/logs/*.jsonl` — representative JSONL audit records for inference, RAG, P2P, LoRA, and mesh.
+- `evidence/remote-api-calls.json` — structured outbound-call disclosure.
+- `evidence/medpsy-demo.jsonl` — committed MedPsy health-record RAG audit run.
 
 The project is licensed **Apache-2.0** and the engineering history is in [the changelog](/reference/changelog).

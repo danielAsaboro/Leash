@@ -8,7 +8,7 @@
  */
 import type { LoadModelOptions } from "@qvac/sdk";
 // prettier-ignore
-// @ts-ignore — present at runtime; absent from @qvac/sdk's root .d.ts (gap persists in 0.12.1).
+// @ts-ignore — present at runtime; absent from @qvac/sdk's root .d.ts.
 import { SD_V2_1_1B_Q8_0 as _SD_V2_1_1B_Q8_0, FLUX_2_KLEIN_4B_Q4_0 as _FLUX_2_KLEIN_4B_Q4_0, FLUX_2_KLEIN_4B_VAE as _FLUX_2_KLEIN_4B_VAE, QWEN3_4B_Q4_K_M as _QWEN3_4B_Q4_K_M, REALESRGAN_X4PLUS_ANIME_6B as _REALESRGAN_X4PLUS_ANIME_6B, WAN2_1_T2V_1_3B_FP16 as _WAN2_1_T2V_1_3B_FP16, UMT5_XXL_FP16 as _UMT5_XXL_FP16, WAN_2_1_COMFYUI_REPACKAGED_VAE as _WAN_2_1_COMFYUI_REPACKAGED_VAE } from "@qvac/sdk";
 
 export type ModelSrc = LoadModelOptions["modelSrc"];
@@ -17,7 +17,7 @@ export type ModelSrc = LoadModelOptions["modelSrc"];
  * Kept as the fallback engine after the Flux2-klein swap. */
 export const SD_V2_1_1B_Q8_0: ModelSrc = _SD_V2_1_1B_Q8_0;
 
-// ── 0.12.0: FLUX.2 [klein] hero images (split-layout) ─────────────────────────
+// ── FLUX.2 [klein] hero images (split-layout) ─────────────────────────────────
 // Flux is flow-matching (NOT v-prediction). Load the diffusion GGUF as modelSrc and
 // pass the LLM text-encoder + VAE via modelConfig.{llmModelSrc,vaeModelSrc}.
 /** FLUX.2 [klein] 4B diffusion model (Q4_0, ~2.46 GB). Metal "matches MLX" in 0.12. */
@@ -30,7 +30,7 @@ export const QWEN3_4B_Q4_K_M: ModelSrc = _QWEN3_4B_Q4_K_M;
 /** RealESRGAN x4 upscaler — optional GPU upscale paired with a diffusion model. */
 export const REALESRGAN_X4PLUS_ANIME_6B: ModelSrc = _REALESRGAN_X4PLUS_ANIME_6B;
 
-// ── 0.12.0: Wan 2.1 text-to-video (split-layout, Tier 2c — env-gated) ─────────
+// ── Wan 2.1 text-to-video (split-layout, Tier 2c — env-gated) ─────────────────
 // Needs ≥16 GB VRAM / 20 GB unified memory; slow on Metal — spike before shipping.
 /** Wan 2.1 T2V 1.3B diffusion model (FP16). Loaded modelType:"diffusion", mode:"video". */
 export const WAN2_1_T2V_1_3B_FP16: ModelSrc = _WAN2_1_T2V_1_3B_FP16;

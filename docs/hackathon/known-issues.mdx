@@ -28,15 +28,13 @@ the other pages or in the demo claims a capability that contradicts this list.
 - **Airplane-mode acceptance re-run.** "Works in airplane mode" is our release gate. It was proven
   in Week 1; it must be **re-run on the final build** and the clean session log attached before we
   call it done. Until that re-run, we describe it as *expected to pass*, not *passing*.
-- **Repository visibility.** The code is pushed and current on `github.com/danielAsaboro/Leash`;
-  the repo must be **made public** before judging (it is the one remaining hard-gate action).
 
 ## Resolved (previously reported broken)
 
 These were broken earlier in the build and are now fixed — listed so older notes that still say
 "broken" are not mistaken for current state:
 
-- **TTS (`supertonic`)** — now works on-device (fixed 2026-06-16, `@qvac/sdk` ≥ 0.12.2).
+- **TTS (`supertonic`)** — now works on-device on the current `@qvac/sdk@^0.13.5` runtime.
 - **On-device vision (single device)** — works end-to-end via the image-attachment path.
 - **Cross-mesh vision (image delegation)** — now works: borrowing a peer's GPU for an *image* turn
   was previously blocked because the serve's `/v1/chat/completions` accepted only **string** message
@@ -44,11 +42,9 @@ These were broken earlier in the build and are now fixed — listed so older not
   accept OpenAI **multimodal `content`** (a `text` + `image_url` array), decode the base64 data URL
   to bytes, and materialize a temp file on the **provider** at the `completion()` call. Upstreamed as
   **[tetherto/qvac#2459](https://github.com/tetherto/qvac/pull/2459)** and applied in-tree via
-  `patches/@qvac+cli+0.6.0.patch`; the hypha shim forwards the image over the encrypted mesh
+  `patches/@qvac+cli+0.7.0.patch`; the hypha shim forwards the image over the encrypted mesh
   (`apps/hypha/src/chat-attachments.ts`). Only **PNG/JPEG** data URLs are accepted (the formats the
   inference image loader reliably decodes); unsupported inputs fail fast with a 400.
-- **Repo push** — local `main` is fully pushed (`origin/main`); only the public-visibility flip
-  remains.
 
 ## Working (for contrast)
 

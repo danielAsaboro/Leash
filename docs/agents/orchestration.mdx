@@ -28,7 +28,7 @@ Both orchestration surfaces converge on the same pipeline: an ordered list of at
 
 - **One atomic sub-task per step**, each with its own bounded step budget (tool → report).
 - **Results fed forward** — earlier results are injected into the next step's system prompt.
-- **Step cancellation** — `maxRetries: 0` (a retry re-pays a decode still in flight); mid-decode cancel is safe on `@qvac/sdk@0.13.1`; cancellation is checked **between** steps for the orchestration path, marking remaining steps skipped.
+- **Step cancellation** — `maxRetries: 0` (a retry re-pays a decode still in flight); mid-decode cancel is safe on the current `@qvac/sdk@^0.13.5` line; cancellation is checked **between** steps for the orchestration path, marking remaining steps skipped.
 - **Sub-agents get a filtered toolset** — declared tools minus any disabled or approval-gated (a non-streaming `generateText` can't pause on an approval card) and minus `run_skill` (no nesting).
 
 <Note>

@@ -697,10 +697,10 @@ export default function App(): React.JSX.Element {
     // On-device agent loop: abort the AI SDK stream so a multi-step turn stops promptly.
     agentAbortRef.current?.abort();
     // Borrowed (forward) chat: cancel the provider's decode — the worklet sends a forward-control
-    // cancel so the provider aborts its local serve fetch (cancel-bridge; safe on 0.13.1) — and unblock
+    // cancel so the provider aborts its local serve fetch (cancel-bridge; safe on 0.13.5) — and unblock
     // the phone. (Requires the forward worklet bundle rebuilt from forward-worklet.mjs.)
     abortMeshForward();
-    // Prefer a targeted cancel of the active single-shot turn's requestId (safe on 0.13.1);
+    // Prefer a targeted cancel of the active single-shot turn's requestId (safe on 0.13.5);
     // fall back to the broad per-model cancel for the multi-step native loop (no single requestId).
     const rid = activeRequestIdRef.current;
     const id = modelIdRef.current;

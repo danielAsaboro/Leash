@@ -7,12 +7,11 @@
 # via electron-builder extraResources). Re-run when @qvac/cli or @qvac/sdk changes.
 set -euo pipefail
 
-CLI_VER="${QVAC_CLI_VERSION:-0.6.0}"
-# @qvac/cli@0.6.0 pins @qvac/sdk ^0.12.0, but we run the whole runtime coherently on SDK_VER via an
-# npm `override` below (forces the cli's nested SDK + engines to the same version — no split). 0.13.1
-# is the floor that fixes vision (0.12.1 tokenizes the image then 500s); matches the app side.
-SDK_VER="${QVAC_SDK_VERSION:-0.13.1}"
-PROVIDER_VER="${QVAC_PROVIDER_VERSION:-0.2.1}"   # @qvac/ai-sdk-provider — the model catalog (allModels) source
+CLI_VER="${QVAC_CLI_VERSION:-0.7.0}"
+# Keep the packaged runtime on the same 0.13.x line as the workspace install.
+# @qvac/cli@0.7.0 dedupes to @qvac/sdk@0.13.5, so the serve and app-side SDK agree.
+SDK_VER="${QVAC_SDK_VERSION:-0.13.5}"
+PROVIDER_VER="${QVAC_PROVIDER_VERSION:-0.2.2}"   # @qvac/ai-sdk-provider — the model catalog (allModels) source
 ARCH_KEEP="${QVAC_PREBUILD_ARCH:-darwin-arm64}"
 
 here="$(cd "$(dirname "$0")/.." && pwd)"   # apps/desktop
@@ -22,7 +21,7 @@ echo "[qvac-runtime] building @qvac/cli@$CLI_VER (+ sdk@$SDK_VER, tsx) → $out 
 rm -rf "$out"
 mkdir -p "$out"
 cat > "$out/package.json" <<JSON
-{ "name": "qvac-runtime", "private": true, "version": "0.0.0",
+{ "name": "qvac-runtime", "private": true, "version": "0.0.0", "license": "Apache-2.0",
   "dependencies": { "@qvac/cli": "$CLI_VER", "@qvac/sdk": "$SDK_VER", "@qvac/ai-sdk-provider": "$PROVIDER_VER", "tsx": "^4.19.2" },
   "overrides": { "@qvac/sdk": "$SDK_VER" } }
 JSON
@@ -35,15 +34,6 @@ JSON
 # patch-package's postinstall; the runtime is a SEPARATE install patch-package never sees, so apply it
 # here against the bundled cli. Version-matched to @qvac/cli $CLI_VER; --forward no-ops if already applied.
 #
-# NOTE on the 0.7.0 patch: a re-derived, validated patch for @qvac/cli 0.7.0 is staged at
-#   patches/@qvac+cli+0.7.0.patch.pending
-# It is deliberately NOT a live `.patch`: patch-package 8.x groups every patch file by package NAME
-# (not version), so two `@qvac+cli+*.patch` files become a SEQUENCE it tries to apply together —
-# the 0.7.0 patch then fails on the already-0.6.0-patched tree and breaks `npm install`. To ADOPT
-# 0.7.0 (a deliberate, separate step): bump the repo pin to ^0.7.0, set CLI_VER/QVAC_CLI_VERSION=0.7.0,
-# then `git mv patches/@qvac+cli+0.7.0.patch.pending patches/@qvac+cli+0.7.0.patch` AND
-# `git rm patches/@qvac+cli+0.6.0.patch` (only the installed version's patch may live in patches/),
-# then foreground `npm install`.
 repo="$(cd "$here/../.." && pwd)"
 cli_patch="$repo/patches/@qvac+cli+$CLI_VER.patch"
 if [ -f "$cli_patch" ] && [ -d "$out/node_modules/@qvac/cli" ]; then

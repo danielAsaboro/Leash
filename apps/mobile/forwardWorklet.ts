@@ -177,7 +177,7 @@ export function meshForward(opts: {
 /**
  * Abort the in-flight forward request: the worklet sends a forward-control cancel (`{ id, cancel: true }`)
  * so the PROVIDER aborts its local serve fetch (its cancel-bridge then cancels the decode — safe on
- * SDK 0.13.1), then drops the swarm connection so the phone unblocks immediately with the partial text.
+ * current 0.13.x SDK line), then drops the swarm connection so the phone unblocks immediately with the partial text.
  * (The cancel-on-abort behavior requires the worklet bundle rebuilt from forward-worklet.mjs.)
  */
 export function abortMeshForward(): void {

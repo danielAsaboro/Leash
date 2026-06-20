@@ -26,7 +26,7 @@ The serve can only decode one request per model context. The SDK queues same-mod
 
 ## Cancel-on-disconnect
 
-The 0.11-era rule was "never abort; drain in the background" because mid-decode aborts could wedge the serve. SDK 0.13.1 changed the equation: targeted cancellation is safe and was verified with abort-safety probes.
+The old rule was "never abort; drain in the background" because mid-decode aborts could wedge the serve. The current `@qvac/sdk@^0.13.5` line changed the equation: targeted cancellation is safe and was verified with abort-safety probes.
 
 Current rule:
 

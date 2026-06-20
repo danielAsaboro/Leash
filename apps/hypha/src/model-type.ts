@@ -4,7 +4,7 @@
  * can be BORROWED over the mesh.
  *
  * Borrowability (empirically gated):
- *  - Phase-0 (spike/07): `@qvac/sdk@0.12.1` delegation carries `completion()` only — embed/transcribe/
+ *  - Phase-0 (spike/07): SDK delegation carries `completion()` only — embed/transcribe/
  *    textToSpeech throw "delegated model … cannot be accessed directly" → embeddings/STT/TTS local-only.
  *  - LIVE two-Mac test (2026-06-11): VISION (qwen3vl) borrows TEXT fine, but IMAGES don't cross — SDK
  *    `attachments` are PATH-only and the path is resolved on the PROVIDER, which can't read the

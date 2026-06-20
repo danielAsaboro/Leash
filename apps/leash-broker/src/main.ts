@@ -14,7 +14,7 @@
  *     background request's effective priority rises with wait time)
  *   · CANCEL-ON-DISCONNECT, centralized — on client disconnect it aborts the upstream
  *     fetch, so the serve's cancel-bridge cancels the decode and frees the slot (safe on
- *     0.13.1); the read loop drains only bytes already in flight, never the whole decode
+ *     current 0.13.x SDK line); the read loop drains only bytes already in flight, never the whole decode
  *   · NO upstream timeout — the broker is what lets long decodes survive
  *
  * Non-preemptive priority scheduling (the serve is a non-preemptible black box), modeled
@@ -181,7 +181,7 @@ async function overflowReason(alias: string): Promise<"shed" | "availabilityRout
  *   · "fallthrough" — peer couldn't serve before any byte → caller serves locally (never drop)
  *   · "midstream"   — broke after bytes were sent → ended truthfully (can't re-route)
  * On client disconnect the upstream fetch is aborted (via `signal`), so hypha's shim cancels
- * its delegated decode rather than draining it — safe on 0.13.1.
+ * its delegated decode rather than draining it — safe on the current 0.13.x SDK line.
  */
 async function forwardToHypha(
   url: string,
@@ -263,7 +263,7 @@ const server = http.createServer(async (req, res) => {
   let clientOpen = true;
   // Abort the upstream serve fetch when the client leaves: the serve's cancel-bridge turns the
   // dropped connection into cancel({ requestId }), stopping the decode and freeing the slot
-  // (safe on SDK 0.13.1). Fires on normal end too — harmless once the body is fully read.
+  // (safe on the current 0.13.x SDK line). Fires on normal end too — harmless once the body is fully read.
   const clientGone = new AbortController();
   res.on("close", () => {
     clientOpen = false;
@@ -313,7 +313,7 @@ const server = http.createServer(async (req, res) => {
       ...(method === "GET" || method === "HEAD" ? {} : { body }),
       dispatcher,
       // Abort the serve fetch when the client leaves → the serve cancel-bridge cancels the
-      // decode and frees the slot (safe on 0.13.1). The read loop below is the fallback for
+      // decode and frees the slot (safe on the current 0.13.x SDK line). The read loop below is the fallback for
       // bytes already in flight before the abort lands.
       signal: clientGone.signal,
     });

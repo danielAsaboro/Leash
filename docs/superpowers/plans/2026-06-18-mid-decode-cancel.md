@@ -6,12 +6,12 @@
 
 **Architecture:** Thread the `requestId` that `completion()` already returns through each request path and call `cancel({ requestId })` on Stop / client-disconnect / TTFB-timeout. For forward/mesh, add a `cancel` control message so a provider cancels its own local serve and bills actual tokens. The leash-broker stays as the cross-process serializer; the SDK's in-process FIFO queue handles same-process same-model concurrency.
 
-**Tech Stack:** TypeScript (ESM, run via `tsx`), `@qvac/sdk@0.13.1`, Node 24, Vercel AI SDK (`ai` / `@ai-sdk/react`) for the web agent, React Native (JSC) for mobile, Hyperswarm/hyperdht for the mesh.
+**Tech Stack:** TypeScript (ESM, run via `tsx`), `@qvac/sdk@^0.13.5` with `@qvac/cli@^0.7.0`, Node 24, Vercel AI SDK (`ai` / `@ai-sdk/react`) for the web agent, React Native (JSC) for mobile, Hyperswarm/hyperdht for the mesh.
 
 ## Global Constraints
 
 - **All inference goes through `@qvac/sdk` only** — never a cloud AI API.
-- **SDK floor `@qvac/sdk@^0.13.0`** (installed 0.13.1). Cancel API: `completion(params): CompletionRun` exposes `run.requestId`; `cancel({ requestId })` (targeted) and `cancel({ modelId, kind })` (broad) are the only cancel surfaces. Both return after firing the registry abort.
+- **SDK floor `@qvac/sdk@^0.13.5`** with `@qvac/cli@^0.7.0`. Cancel API: `completion(params): CompletionRun` exposes `run.requestId`; `cancel({ requestId })` (targeted) and `cancel({ modelId, kind })` (broad) are the only cancel surfaces. Both return after firing the registry abort.
 - **No mocks/placeholders/stubs** — every committed change is real, working, QVAC-backed code. Test *fixtures* are fine; fake behavior is not.
 - **License Apache-2.0**; ESM + TypeScript; `packages/*` libraries, `apps/*` clients.
 - **Docs placement:** product docs only under `mycelium/docs/` (Mintlify `.mdx`); no other markdown scattered in `mycelium/` outside `docs/`. Probe scripts live in `spike/`, not repo root.
@@ -28,7 +28,7 @@
 - Modify: `spike/abort-safety-probe.mjs` (count `<think>` content; spawn its own serve)
 
 **Interfaces:**
-- Produces: confirmation that aborting an HTTP completion mid-decode does not wedge a freshly-spawned 0.13.1 serve. Gates Tasks 2–4.
+- Produces: confirmation that aborting an HTTP completion mid-decode does not wedge a freshly-spawned 0.13.5 serve. Gates Tasks 2–4.
 
 - [ ] **Step 1: Relocate both probe scripts out of repo root (Rule 6)**
 

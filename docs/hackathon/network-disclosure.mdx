@@ -5,8 +5,9 @@ sidebarTitle: "Network disclosure"
 ---
 
 The hackathon rules require a structured file listing every remote/outbound network call the
-system makes, classified as AI or non-AI. **This page is that file.** It is derived from an
-exhaustive grep of `apps/`, `packages/`, and `scripts/` (excluding `node_modules`, `.next`,
+system makes, classified as AI or non-AI. The machine-readable file is
+`evidence/remote-api-calls.json`; this page is the human-readable companion. Both are derived from
+an exhaustive grep of `apps/`, `packages`, and `scripts` (excluding `node_modules`, `.next`,
 `dist`), with each hit read and classified.
 
 **Headline: zero cloud-AI calls.** Every AI path — chat, embeddings, RAG, vision, STT, TTS, image

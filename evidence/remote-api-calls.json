@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "document": "Remote / outbound network-call disclosure for Leash (Mycelium)",
+  "generated": "2026-06-20",
+  "headline": "Zero cloud-AI calls. Every AI path goes through @qvac/sdk on a local or peer-owned device. Remote calls are non-AI, first-run warm-cache, LAN/localhost, or explicit opt-in features.",
+  "ai_chokepoint": {
+    "client": "apps/web/lib/leash/provider.ts",
+    "constant": "QVAC_OPENAI_URL",
+    "default": "http://127.0.0.1:11435/v1",
+    "note": "The default provider targets the local qvac serve endpoint. Mesh delegation targets a paired peer's QVAC serve over the encrypted mesh, not a cloud LLM API."
+  },
+  "summary": {
+    "cloud_ai_calls": 0,
+    "localhost_or_lan": 3,
+    "first_run_warm_cache": 3,
+    "opt_in_non_ai": 11
+  },
+  "calls": [
+    {
+      "name": "On-device inference, embeddings, RAG, vision, STT, TTS, image generation",
+      "host": "127.0.0.1:11435",
+      "ai": false,
+      "category": "localhost-only",
+      "trigger": "Every AI turn",
+      "code": "apps/web/lib/leash/provider.ts:QVAC_OPENAI_URL"
+    },
+    {
+      "name": "Local control plane",
+      "host": "127.0.0.1 ports 6801, 11436, 11437, 11439, 11440, 11448",
+      "ai": false,
+      "category": "localhost-only",
+      "trigger": "Dashboard, broker, hypha, MCP, scheduler, and daemon control",
+      "code": "apps/web/lib/leash/*.ts; apps/hypha/src/main.ts"
+    },
+    {
+      "name": "Pairing-page callback",
+      "host": "LAN / localhost pairing page URL",
+      "ai": false,
+      "category": "lan-only",
+      "trigger": "Mobile confirms a mesh pairing",
+      "code": "apps/mobile/mesh.ts:notifyPairing"
+    },
+    {
+      "name": "Mesh DHT bootstrap",
+      "host": "public HyperDHT bootstrap nodes",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "trigger": "First pair, mesh join, peer discovery",
+      "code": "apps/hypha/src/*control.ts; packages/mesh/src/*.ts"
+    },
+    {
+      "name": "Model weight download",
+      "host": "QVAC registry over Hypercore/DHT blobs",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "trigger": "First use of a model alias or explicit download",
+      "code": "apps/mobile/modelsInventory.ts; apps/mobile/voice.ts; apps/hypha/src/catalog.ts"
+    },
+    {
+      "name": "Desktop runtime/daemon fetch",
+      "host": "GitHub Release or LEASH_DEPS_URL",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "trigger": "First desktop launch / runtime install",
+      "code": "apps/desktop/src/main/deps.ts"
+    },
+    {
+      "name": "DuckDuckGo HTML search",
+      "host": "html.duckduckgo.com",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "User runs deep research / web search",
+      "code": "apps/web/lib/leash/search.ts"
+    },
+    {
+      "name": "SearXNG search",
+      "host": "LEASH_SEARXNG_URL",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "User configures SearXNG and runs deep research",
+      "code": "apps/web/lib/leash/search.ts"
+    },
+    {
+      "name": "Readable page fetch",
+      "host": "Search result URLs",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "User asks for web research",
+      "code": "apps/web/lib/leash/search.ts:fetchReadable"
+    },
+    {
+      "name": "GitHub skill / plugin import",
+      "host": "api.github.com / codeload.github.com",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "User imports a GitHub skill or plugin",
+      "code": "apps/web/app/api/leash/skills/import-github/route.ts; apps/web/lib/leash/plugin-sources/github.ts"
+    },
+    {
+      "name": "MCP server resolution",
+      "host": "registry.npmjs.org, raw.githubusercontent.com, github.com",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "User adds an MCP server by package or repo",
+      "code": "packages/leash-core/src/mcp-install.ts"
+    },
+    {
+      "name": "Plugin marketplace refresh",
+      "host": "User-supplied HTTPS marketplace URL",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "User adds a plugin marketplace",
+      "code": "apps/web/lib/leash/plugin-sources/marketplace.ts"
+    },
+    {
+      "name": "MCP server icon fetch",
+      "host": "Icon HTTPS URL advertised by an MCP server",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "Rendering an MCP server with a remote icon; cached inline afterward",
+      "code": "apps/web/lib/leash/mcp-icons.ts"
+    },
+    {
+      "name": "Economy settlement RPC",
+      "host": "HYPHA_ECONOMY_PLASMA_RPC_URL / HYPHA_ECONOMY_SOLANA_RPC_URL",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "Delegated-compute settlement when HYPHA_ECONOMY_ENABLED=1",
+      "code": "apps/hypha/src/config.ts; apps/hypha/src/main.ts"
+    },
+    {
+      "name": "Telegram Bot API",
+      "host": "api.telegram.org",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "Running the optional Telegram bridge",
+      "code": "apps/leash-telegram/src/telegram-api.ts"
+    },
+    {
+      "name": "Newsroom RSS poll",
+      "host": "hnrss.org",
+      "ai": false,
+      "category": "opt-in-feature",
+      "trigger": "Running the optional newsroom daemon",
+      "code": "apps/newsroom/src/feeds.ts; apps/newsroom/src/rss.ts"
+    }
+  ],
+  "verification": [
+    "rg -n \"api.openai.com|api.anthropic.com|generativelanguage.googleapis.com|openrouter.ai|api.groq.com|api.mistral.ai\" apps packages scripts",
+    "rg -n \"QVAC_OPENAI_URL\" apps packages",
+    "Run after warm-cache with network disabled; hot-path chat and RAG still complete.",
+    "Inspect JSONL audit records in spike/logs and evidence/."
+  ]
+}

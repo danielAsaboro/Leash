@@ -25,7 +25,7 @@ mkdir -p "$out/apps" "$out/node_modules/@mycelium"
 
 # 1. The EXTRA deps (everything the daemons/@mycelium need that the base runtime lacks — NOT @qvac, NOT tsx).
 cat > "$out/package.json" <<'JSON'
-{ "name": "leash-daemons", "private": true, "version": "0.0.0",
+{ "name": "leash-daemons", "private": true, "version": "0.0.0", "license": "Apache-2.0",
   "dependencies": {
     "hyperswarm": "4.17.0", "autobase": "^7.28", "corestore": "7.10.0", "hyperbee": "2.27.3",
     "blind-pairing": "^2.3", "b4a": "1.8.1", "bonjour-service": "^1.4.0", "jsonrepair": "^3.14.0",

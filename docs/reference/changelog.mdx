@@ -42,7 +42,7 @@ Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
 </Update>
 
 <Update label="June 18" description="Cancel-when-safe replaces the old drain discipline" tags={["Agent", "Mesh", "Mobile", "Economy"]}>
-  The old "never abort, always drain" rule was retired after SDK 0.13.1 abort-safety probes proved
+  The old "never abort, always drain" rule was retired after SDK 0.13.x abort-safety probes proved
   targeted cancellation no longer wedges the serve. Web and desktop now pass the client
   `abortSignal` through the agent call; the broker aborts upstream serve / hypha fetches on client
   disconnect; hypha cancels local delegated decodes on disconnect, TTFB timeout, or auth stop; and
@@ -122,7 +122,7 @@ Filter by tag, or read the engineering war-story in `submission/sawdust.md`.
   `f0cbbbc` supervise mcp-cron · `871125a` typed cron client · `75aa01c` schedules-store on mcp-cron ·
   `3288c77` seed default schedules · `66f1008` scheduler MCP group · `02bf729` retire leash-cron ·
   `cc7eae8` bundle mcp-cron in desktop · `db70dc5` 32768 default context · `78bf0f0` NL recall + TTS config ·
-  `7fd5b1a` SDK 0.13.1 + vision patch · `de67def` desktop runtime manifest · `46ffc72` Telegram channel
+  `7fd5b1a` SDK 0.13.x + vision patch · `de67def` desktop runtime manifest · `46ffc72` Telegram channel
 </Update>
 
 <Update label="June 14" description="Desktop app matures + a standalone tools server" tags={["Leash", "UI", "Skills"]}>

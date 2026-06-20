@@ -3,7 +3,7 @@ title: "How we meet the criteria"
 description: "A feature-to-criterion mapping against the QVAC Hackathon judging rubric."
 ---
 
-This page maps Leash's shipped surfaces to the hackathon's judging criteria. Each row points at the docs that explain the feature and, where relevant, the evidence in `submission/`.
+This page maps Leash's shipped surfaces to the hackathon's judging criteria. Each row points at the docs and in-repo evidence that explain the feature.
 
 <Note>
 Read this alongside the [Hackathon overview](/hackathon/overview) (what Leash is and which track it targets), the [QVAC-only proof](/hackathon/qvac-only-proof) (the hard gate every row depends on), and [Design decisions & tradeoffs](/hackathon/design-decisions) (the engineering judgment behind these rows — what we weighed, chose, and disproved).
@@ -31,14 +31,10 @@ These are pass/fail prerequisites, not scored dimensions:
 | **Model usage & coverage** | Six+ QVAC models in daily use — `qwen3-4b`, `gte-large`, `qwen3vl`, `parakeet` (STT), `supertonic` (TTS), `medpsy`/MedGemma — plus Flux2-klein image gen and OCR. | [Models and the catalog](/explanation/models-and-the-catalog), [Models reference](/reference/models-and-aliases) |
 | **Complexity & UX** | Tabbed dashboard (chat, Brain, Models, Tasks, Economy, Feed, Services, Settings), AI Elements chat, voice call mode, a desktop app, and a broadsheet landing site. | [Leash and its surfaces](/explanation/leash-and-its-surfaces) |
 | **Artifact quality** | Consistent JSONL audit evidence, smoke tests, a commit-mapped changelog, and a full Diataxis docs site. | [Changelog](/reference/changelog), [Scripts & smoke tests](/reference/scripts-and-smoke-tests) |
-| **Social engagement (build-in-public)** | A daily build-in-public log distilled into tweet drafts. | `submission/build-in-public.md` |
-
-## Early-bird bonus
-
-The hackathon awards an early-bird bonus for submissions before **June 17**. Leash's submission timeline targets that window; the submission checklist and status live in `submission/`.
+| **Social engagement (build-in-public)** | The product repo preserves the technical evidence; social posts/video links belong in the DoraHacks form and public channels, not the runtime. | Submission form |
 
 <Warning>
-A few submission-form artifacts are still tracked as tasks in `submission/` rather than claimed done here: the final ≤5-minute demo video cut/upload, and hardware-spec screenshots. (The structured remote-API-call disclosure is now filed — see [Remote network calls](/hackathon/network-disclosure).) The underlying capabilities are shipped and documented; the packaging of those remaining artifacts is the last submission step. **(hold final claims until done.)**
+A few submission-form artifacts are external to this repo by nature: the final ≤5-minute demo video URL, DoraHacks team fields, public social links, and hardware screenshots if the form asks for image uploads. The code and evidence required to audit the runtime are in-repo: `spike/logs/`, `evidence/`, and these Hackathon docs.
 </Warning>
 
 ## Related

@@ -55,7 +55,7 @@ The SDK's in-process request registry **queues** concurrent same-alias requests 
 ## Cancel on disconnect
 
 <Note>
-  Since `@qvac/sdk@0.13.1`, mid-decode cancellation is safe — aborting a llama.cpp decode no longer wedges the GPU. The broker's governing principle: **abort the serve on client disconnect** so the GPU is freed immediately. The serve ships a cancel-bridge: each completion is armed with `req.bindCancel(result.requestId)`; on `req.once('close')` it fires `cancel({ requestId })`. If a client gives up *while still queued*, the broker simply frees the slot without starting a decode — no tokens are burned on an abandoned request.
+  On the current `@qvac/sdk@^0.13.5` line, mid-decode cancellation is safe — aborting a llama.cpp decode no longer wedges the GPU. The broker's governing principle: **abort the serve on client disconnect** so the GPU is freed immediately. The serve ships a cancel-bridge: each completion is armed with `req.bindCancel(result.requestId)`; on `req.once('close')` it fires `cancel({ requestId })`. If a client gives up *while still queued*, the broker simply frees the slot without starting a decode — no tokens are burned on an abandoned request.
 </Note>
 
 ## Scheduling lineage

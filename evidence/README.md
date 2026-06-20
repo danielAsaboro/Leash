@@ -4,6 +4,18 @@ Committed verification artifacts for the QVAC Hackathon submission, so the audit
 requirement is checkable from a fresh clone (the per-run `logs/` directories are gitignored as
 per-device evidence — this is a captured, representative run).
 
+## `remote-api-calls.json`
+
+Machine-readable disclosure of every remote/outbound network surface in the repo, classified as:
+
+- `localhost-only`
+- `lan-only`
+- `first-run-warm-cache`
+- `opt-in-feature`
+
+It records **zero cloud-AI calls**. The companion human-readable explanation is
+`docs/hackathon/network-disclosure.mdx`.
+
 ## `medpsy-demo.jsonl`
 
 The structured audit log for one full **MedPsy health-record RAG** demo run
