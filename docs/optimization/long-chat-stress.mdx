@@ -1,0 +1,74 @@
+---
+title: "Long chat stress"
+description: "The 30-50 turn chat API stress run used to catch routing, tool, and compaction regressions."
+sidebarTitle: "Long chat stress"
+---
+
+The long-chat stress runner exercises the product path users actually use: repeated `POST /api/leash/chat` calls with normal chat messages. It mixes quick turns, tool turns, broker turns, health safety, file search, and continuity markers so the route has to survive a long conversation instead of one idealized request.
+
+## Scenarios covered
+
+| Scenario | What it exercises |
+| --- | --- |
+| Quick direct | No-model direct chat path. |
+| No-tool-word guard | Ensures lightweight prompts that mention tools do not force the full agent. |
+| Files date | Registered `bash` through chat and goal-run evidence. |
+| File-finder metadata | Skill metadata answer without disk search. |
+| File-finder search and no-result | Bounded read-only local search. |
+| Context broker | `context_run` graph search. |
+| Memory broker | Memory recall/read broker. |
+| Tasks broker | Task list/read broker. |
+| Daily paper broker | `understory_today` broker action. |
+| Health route | Read-only health context with non-diagnostic answer. |
+| Continuity turns | Long-tail chat after previous tool calls. |
+
+## Latest 50-turn run
+
+Latest report: `logs/stress-long-chat-mqmm8twb.json`.
+
+| Metric | Result |
+| --- | --- |
+| Completed turns | 50/50 |
+| Routes observed | `chat`, `direct`, `files`, `health` |
+| Skills observed | `context-grounding`, `daily-paper`, `file-finder`, `health-safety`, `memory-keeper`, `task-manager` |
+| Tools observed | `bash`, `context_run`, `memory_run`, `recall`, `search_graph`, `tasks_run` |
+| Total wall time | 15.741 s |
+| p50 turn latency | 17 ms |
+| p95 turn latency | 1.541 s |
+| Max turn latency | 9.820 s |
+
+The max latency was the first cold MCP registry/tool initialization on the files-date turn. Warm deterministic and broker turns are much lower.
+
+## Scenario averages
+
+| Scenario | Average |
+| --- | --- |
+| Quick direct | 1.773 s cold compile path |
+| No-tool-word guard | 30 ms |
+| Files date | 9.820 s cold MCP init |
+| File-finder metadata | 18 ms |
+| File-finder search | 646 ms |
+| File-finder no-result | 654 ms |
+| Context broker | 1.541 s |
+| Memory broker | 64 ms |
+| Tasks broker | 60 ms |
+| Daily paper broker | 64 ms |
+| Health route | 365 ms |
+| Continuity after tools | 29 ms |
+| Long-tail continuity | 18 ms |
+
+## Before and after
+
+| Area | Before | After |
+| --- | --- | --- |
+| File-finder live probe | Around 17 minutes in the worst probe. | Around 646-654 ms in the latest 50-turn chat run. |
+| Files `date` | Around 168 s before the direct registered-tool path. | Around 623-711 ms warm; 9.820 s with cold MCP registry initialization. |
+| Broker turns | Around 10-11 s through full agent routing. | Around 64 ms to 1.541 s, depending on action and cache state. |
+| Health safety | Around 94 s through model routing. | Around 365-433 ms through read-only health fast path. |
+| Long-tail continuity | Around 16-62 ms after direct routing work. | Around 15-30 ms in the latest runs. |
+
+Earlier reports used while tightening the system: `logs/stress-long-chat-mqmm592x.json` and `logs/stress-long-chat-mqmm4nhn.json`.
+
+## Acceptance bar
+
+A run is only useful if it proves the chat surface held together. The runner checks HTTP success, `text/event-stream`, conductor metadata, observed routes, observed skills, and observed tools. Internal helper scripts can isolate failures, but the long stress run is the product-path proof.

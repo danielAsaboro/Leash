@@ -19,6 +19,11 @@ assertBuiltinToolPolicyCoverage();
 assert.equal(policyRequiresApproval("type_text"), true, "computer text entry requires approval");
 assert.equal(policyRequiresApproval("install_mcp_repo"), true, "MCP install requires approval");
 assert.equal(policyRequiresApproval("search_graph"), false, "private read context does not ask first");
+assert.equal(policyRequiresApproval("files_run"), false, "files broker is read-only");
+assert.equal(policyRequiresApproval("memory_run"), false, "memory broker follows low-risk memory behavior");
+assert.equal(policyRequiresApproval("tasks_run"), false, "tasks broker follows low-risk task behavior");
+assert.equal(policyRequiresApproval("context_run"), false, "context broker is read-only");
+assert.equal(policyRequiresApproval("mcp_run"), true, "MCP broker requires approval");
 assert.equal(policyRequiresApproval("search-notes"), false, "Apple Notes search is read-only");
 assert.equal(policyRequiresApproval("create-note"), true, "Apple Notes writes require approval");
 assert.equal(policyRequiresApproval("export-notes-json"), true, "Apple Notes bulk export requires approval");
@@ -32,6 +37,10 @@ assert.equal(toolPolicyDecision("get_app_state", { route: "computer" }).ok, true
 assert.equal(toolPolicyDecision("get_app_state", { route: "agent", subagent: true }).ok, false, "sub-agent cannot inspect local app state");
 assert.equal(toolPolicyDecision("recall", { route: "chat", publicMesh: true }).ok, false, "private context cannot go public mesh");
 assert.equal(toolPolicyDecision("agent__demo__reviewer", { route: "chat" }).ok, true, "delegate tool allowed on main chat route");
+assert.equal(toolPolicyDecision("files_run", { route: "chat" }).ok, true, "chat can use files broker");
+assert.equal(toolPolicyDecision("files_run", { route: "files" }).ok, false, "files lane keeps raw bash, not broker");
+assert.equal(toolPolicyDecision("context_run", { route: "health" }).ok, false, "health lane keeps raw health tools, not broker");
+assert.equal(toolPolicyDecision("mcp_run", { route: "chat", publicMesh: true }).ok, false, "MCP broker never runs on public mesh");
 
 const context = { route: "computer" as const, runId: "run-1", stepId: "step-1" };
 const binding = approvalBinding("type_text", { app: "TextEdit", text: "hello" }, context);

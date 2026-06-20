@@ -6,29 +6,7 @@
  */
 import "server-only";
 import { homedir } from "node:os";
-
-/** Open Computer Use MCP tools — the `computer` route narrows the turn to exactly these. */
-export const COMPUTER_TOOL_NAMES: ReadonlySet<string> = new Set([
-  "list_apps",
-  "get_app_state",
-  "click",
-  "perform_secondary_action",
-  "scroll",
-  "drag",
-  "type_text",
-  "press_key",
-  "set_value",
-]);
-
-/** The Files group's tool — the `files` route narrows the turn to exactly this. */
-export const BASH_TOOL_NAMES: ReadonlySet<string> = new Set(["bash"]);
-
-/** The Health route's read-only tools: private records/memory/current context, no actions or web. */
-export const HEALTH_TOOL_NAMES: ReadonlySet<string> = new Set(["search_graph", "recall", "active_context", "activity_recent"]);
-
-/** The MCP-admin group's tools — kept OUT of the always-on chat lane (skill-gated via the
- *  `mcp-installer` skill), so MCP management costs 0 schema slots until that skill activates. */
-export const MCP_ADMIN_TOOL_NAMES: ReadonlySet<string> = new Set(["install_mcp_repo", "upsert_mcp_server"]);
+export { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, HEALTH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lane-names.ts";
 
 /** Where the sandboxed `bash` snapshots from (cosmetic dashboard note). */
 const BASH_ROOT = process.env["LEASH_BASH_ROOT"] ?? homedir();

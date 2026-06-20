@@ -1,0 +1,39 @@
+---
+title: "Chat API resilience"
+description: "How Leash keeps the normal chat endpoint stable when local inference or tools fail."
+sidebarTitle: "Chat API resilience"
+---
+
+Users enter Leash through chat. Optimisation work is therefore verified through `POST /api/leash/chat`, not only through internal scripts. The stress runner sends the same message shape as the UI: a conversation id, `trigger: "submit-message"`, and a user message with text parts.
+
+## Boundary contract
+
+`/api/leash/chat` should stream `text/event-stream` for ordinary chat turns. A deterministic tool turn, a direct answer, a local model answer, and a graceful local-inference failure all use the same streaming boundary.
+
+The endpoint may still fail closed for explicit invalid contracts, such as a user selecting a model alias that is not live. But a transient conductor or local model failure should not turn the normal chat surface into an unexplained JSON 502.
+
+## What changed
+
+| Case | Previous behavior | Current behavior |
+| --- | --- | --- |
+| Simple direct turn | Could enter the full conductor path. | Answers before QVAC when the prompt is clearly simple. |
+| Deterministic file/tool turn | Could wait on a full agent decode. | Streams a real tool-backed result through chat. |
+| Conductor cannot reach local QVAC | JSON error for normal chat. | SSE answer explains local inference is unavailable and no cloud fallback was used. |
+| No live local or mesh route | JSON failure for many user turns. | SSE answer asks the user to start/reload local model serve. |
+
+The failure text is intentionally explicit: Leash did not send the request to any cloud service.
+
+## QVAC-down probes
+
+With QVAC serve stopped and the web app still running:
+
+| Probe | Result |
+| --- | --- |
+| Normal chat request asking the sandboxed `bash` tool to run `date` | `200 OK`, `text/event-stream`, real `bash` goal run completed. |
+| Normal chat request asking "Explain what QVAC is in one sentence" | `200 OK`, `text/event-stream`, local-inference-unavailable message with the connection error. |
+
+This proves deterministic tool paths can continue when local inference is offline, while non-deterministic model work fails transparently and offline-safe.
+
+## What this does not hide
+
+Leash still reports real failures. It does not invent a model answer when QVAC is down, does not call a cloud model, and does not silently ignore disabled tools or approval policy.

@@ -13,6 +13,18 @@ Leash is optimised around one constraint: the agent must feel capable while ever
   <Card title="Context and prompts" icon="brackets-curly" href="/optimization/context-and-prompts">
     Dynamic prompt assembly, focused tools, compaction, sampling, and continuation experiments.
   </Card>
+  <Card title="Tool context bloat" icon="sitemap" href="/optimization/tool-context-bloat">
+    Capability gates, keepalive compatibility, broker tools, and lane budgets.
+  </Card>
+  <Card title="Deterministic fast paths" icon="bolt" href="/optimization/deterministic-fast-paths">
+    Direct answers, registered-tool shortcuts, broker calls, and health safety paths.
+  </Card>
+  <Card title="Chat API resilience" icon="message-circle-warning" href="/optimization/chat-api-resilience">
+    Product-path streaming behavior when tools work, QVAC is down, or routing fails.
+  </Card>
+  <Card title="Long chat stress" icon="chart-no-axes-combined" href="/optimization/long-chat-stress">
+    The 30-50 turn chat stress suite and the latest before/after measurements.
+  </Card>
   <Card title="Inference runtime" icon="gauge-high" href="/optimization/inference-runtime">
     Broker scheduling, cancel-on-disconnect, queue aging, schema caps, and diagnostics.
   </Card>
@@ -36,9 +48,10 @@ Leash handles those limits in the harness:
 | Pressure | Optimisation |
 | --- | --- |
 | Too many possible skills | Select one likely skill with lexical + semantic routing. |
-| Too many tools | Compute active tools per turn and cap schema counts. |
+| Too many tools | Gate by capability, broker many MCP actions, and keep sentinel tools inert. |
 | Long conversations | Compact only the model input; keep the full transcript intact. |
 | Slow or abandoned decodes | Cancel safely on disconnect and serialize through the broker. |
+| Simple or deterministic turns | Answer early or call a narrow registered tool through the chat API. |
 | Weak local hardware | Route to local, private mesh, or public mesh by capability and sensitivity. |
 | Repeated delegated history | Reuse KV cache only when the prefix is proven identical. |
 | Phone limits | Use JSC, curated model choices, smaller contexts, and mesh borrowing. |

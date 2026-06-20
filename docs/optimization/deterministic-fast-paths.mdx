@@ -1,0 +1,41 @@
+---
+title: "Deterministic fast paths"
+description: "The narrow chat paths that avoid expensive local inference while still using real tools and policy."
+sidebarTitle: "Fast paths"
+---
+
+Some turns do not need a full local agent decode. Leash now handles those turns before the conductor or immediately after the conductor chooses a simple capability. These paths are intentionally narrow: if a prompt does not match a known safe shape, it falls back to normal routing.
+
+## Implemented paths
+
+| Turn shape | Path | Runtime behavior |
+| --- | --- | --- |
+| Greeting, marker, continuity check | Direct answer | Streams an SSE answer without QVAC or tools. |
+| File-finder metadata | Direct answer | Explains the installed file-finder capability without searching disk. |
+| "Run date" | Files fast path | Calls the registered `bash` tool through policy and goal-run evidence. |
+| File search | File-finder fast path | Uses bounded local search through the files capability. |
+| Context grounding | Broker fast path | Calls `context_run` with a validated graph-search action. |
+| Memory keeper | Broker fast path | Calls `memory_run` or recall read actions. |
+| Task manager | Broker fast path | Calls `tasks_run` for list/read actions. |
+| Daily paper | Broker fast path | Calls `context_run` with the `understory_today` action. |
+| Health safety check | Health fast path | Reads recall/context and returns clinician-question guidance, not diagnosis. |
+
+The files path deliberately uses the registered tool stack instead of a test-only shortcut. That keeps user-visible chat, tool policy, and audit evidence aligned.
+
+## Safety rules
+
+Fast paths are not broad command parsers. The `bash` path maps only simple known requests such as `date`; arbitrary shell text is left for normal routing and approval policy. File searches are bounded and read-only. Health responses stay non-diagnostic and ask the user to work with a clinician for medication changes.
+
+Every tool-backed fast path still goes through:
+
+| Layer | Why it matters |
+| --- | --- |
+| MCP registry | The same callable tools the app uses in normal chat. |
+| Capability filtering | Disabled or mismatched tool groups stay unavailable. |
+| Tool policy | Approval, read/write boundaries, and allowed actions stay centralized. |
+| Goal-run evidence | Chat can show real tool steps instead of opaque server shortcuts. |
+| SSE streaming | The UI receives the same stream shape as a normal chat turn. |
+
+## Fallback behavior
+
+If a deterministic path cannot prove it owns the prompt, it returns `null` and the chat route continues through the conductor. That keeps the optimization conservative and prevents the fast path from swallowing complex work.

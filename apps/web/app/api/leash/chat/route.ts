@@ -10,7 +10,7 @@
  * client disconnect still saves. Server-side message IDs keep stored threads stable —
  * which the future "dreaming"/consolidation pass relies on.
  */
-import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse } from "ai";
+import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse, type ToolSet } from "ai";
 import { z } from "zod";
 import { VISION_MODEL, COMPUTER_MODEL, QVAC_OPENAI_URL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
@@ -24,6 +24,13 @@ import { buildAgentTools } from "../../../../lib/leash/agent-runner.ts";
 import { listAgents } from "../../../../lib/leash/agents-store.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { KEEPALIVE_TOOLS } from "../../../../lib/leash/keepalive-tool.ts";
+import { deriveLaneBudget } from "../../../../lib/leash/lane-budget.ts";
+import { runFileFinderFastPath, shouldRunFileFinderFastPath } from "../../../../lib/leash/file-finder-fast-path.ts";
+import { directBashCommandForSimpleTurn, runDirectBashCommand } from "../../../../lib/leash/bash-command-fast-path.ts";
+import { directBrokerCallForSimpleTurn, runDirectBrokerCall } from "../../../../lib/leash/broker-fast-path.ts";
+import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, localInferenceUnavailableAnswer } from "../../../../lib/leash/direct-answer.ts";
+import { directHealthSafetyCallForSimpleTurn, runDirectHealthSafetyCall } from "../../../../lib/leash/health-fast-path.ts";
+import { buildCapabilityBrokers } from "../../../../lib/leash/tool-brokers.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { loadMainAgentBase } from "../../../../lib/leash/main-agent.ts";
@@ -230,8 +237,11 @@ function isComputerIntent(messages: LeashUIMessage[]): boolean {
  */
 const FILES_RE =
   /\b(?:grep|ripgrep|\brg\b|glob)\b|\b(?:search|find|look(?:ing)?|list|show|read|cat|explore|scan|locate|count|summari[sz]e)\b[\s\S]{0,30}\b(?:files?|notes?|docs?|documents?|folders?|director(?:y|ies)|code(?:base)?|repo(?:sitor(?:y|ies)|s)?|projects?|workspace|markdown|\.(?:md|txt|json|csv|ya?ml))\b|\bin (?:my|the|this) (?:files?|notes?|docs?|code(?:base)?|folder|director(?:y|ies)|projects?|repo(?:sitor(?:y|ies)|s)?|workspace)\b/i;
+const BASH_EXEC_RE =
+  /\b(?:use|call|invoke)\b[\s\S]{0,40}\b(?:sandboxed\s+)?(?:bash|shell)\b|\b(?:bash|shell)\s+(?:tool|command)\b|\b(?:run|execute)\b[\s\S]{0,30}\b(?:in|with|using|via)\s+(?:sandboxed\s+)?(?:bash|shell)\b/i;
 function isFilesIntent(messages: LeashUIMessage[]): boolean {
-  return FILES_RE.test(lastUserText(messages));
+  const text = lastUserText(messages);
+  return FILES_RE.test(text) || BASH_EXEC_RE.test(text);
 }
 
 const HYPHA_BASE = process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11437";
@@ -314,18 +324,6 @@ function routeFailure(status: number, error: string, extra?: Record<string, unkn
   return Response.json({ ok: false, error, ...(extra ?? {}) }, { status });
 }
 
-/** Step budget for computer-use turns — a GUI loop is app state → act → app state → verify. */
-const COMPUTER_STEPS = 10;
-/** Step budget for files turns — a retrieval loop is grep → read → grep → answer. */
-const FILES_STEPS = 8;
-/**
- * Step budget for a turn an ACTIVE skill drives with its own toolset (skillTools). Skill
- * workflows chain many tool calls (e.g. MCP install: inspect → clone/build → patch →
- * register), so they get the most headroom regardless of the effort tier.
- */
-const SKILL_TOOL_STEPS = 12;
-/** Plan-mode agent budget: submit_plan call (pauses for approval) → execute → present the result. */
-const PLAN_STEPS = 4;
 function latestMessage(messages: LeashUIMessage[]): LeashUIMessage | undefined {
   return messages[messages.length - 1];
 }
@@ -403,6 +401,76 @@ async function streamConductorAnswer(input: { chatId: string; messages: LeashUIM
   return createUIMessageStreamResponse({ stream });
 }
 
+async function streamEarlyDeterministicToolTurn(input: {
+  chatId: string;
+  messages: LeashUIMessage[];
+  route: ToolRoute;
+  alias: string;
+  reason: string;
+  skill?: { slug: string; name: string };
+  registry: "base" | "brokers";
+  run: (tools: ToolSet) => Promise<string | null>;
+}): Promise<Response> {
+  const goalRunId = createIdGenerator({ prefix: "run", size: 16 })();
+  const title = lastUserText(input.messages) || "Leash turn";
+  const goalRun = await createGoalRun({
+    id: goalRunId,
+    chatId: input.chatId,
+    title,
+    route: input.route,
+    sensitivity: "private",
+  });
+  const mainStep = await startGoalRunStep(goalRunId, {
+    title: "Run deterministic tool path",
+    route: input.route,
+    model: input.alias,
+    contextCapsule: title.slice(0, 6000),
+    contextTokensEstimate: Math.ceil(title.length / 4),
+  });
+
+  const baseTools = { ...leashTools, ...(await leashMcpTools()) };
+  const selectedTools = input.registry === "brokers" ? buildCapabilityBrokers(baseTools) : baseTools;
+  const enabledTools = await filterEnabledTools(selectedTools);
+  const policyTools = enforceToolPolicy(enabledTools, { route: input.route, runId: goalRunId, stepId: mainStep.id, publicMesh: false });
+
+  const stream = createUIMessageStream<LeashUIMessage>({
+    originalMessages: input.messages,
+    generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+    execute: async ({ writer }) => {
+      writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: input.alias, effort: "quick" satisfies EffortTier } });
+      writer.write({ type: "data-conductor", data: { tier: "device", alias: input.alias, reason: input.reason, viaFastPath: true } });
+      writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(goalRun) });
+      if (input.skill) writer.write({ type: "data-skill", data: { mode: "automatic", skills: [input.skill] } });
+
+      let text: string;
+      try {
+        const out = await input.run(policyTools);
+        if (out === null) throw new Error(`${input.alias} unavailable`);
+        text = out || "(no output)";
+        await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text.slice(0, 1200) });
+        await finishGoalRun(goalRunId, "completed", text);
+      } catch (e) {
+        text = `The deterministic tool path failed: ${e instanceof Error ? e.message : String(e)}`;
+        await updateGoalRunStep(goalRunId, mainStep.id, { status: "failed", error: text });
+        await appendGoalRunError(goalRunId, text);
+        await finishGoalRun(goalRunId, "failed", text);
+      }
+
+      const finalRun = await getGoalRun(goalRunId);
+      if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
+      writer.write({ type: "text-start", id: "deterministic-tool-out" });
+      writer.write({ type: "text-delta", id: "deterministic-tool-out", delta: text });
+      writer.write({ type: "text-end", id: "deterministic-tool-out" });
+      writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+    },
+    onFinish: ({ messages: finalMessages }) => {
+      void saveChat({ chatId: input.chatId, messages: finalMessages as LeashUIMessage[] });
+    },
+  });
+
+  return createUIMessageStreamResponse({ stream });
+}
+
 type ChatPostBody = { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string };
 
 export async function POST(req: Request): Promise<Response> {
@@ -441,6 +509,90 @@ export async function POST(req: Request): Promise<Response> {
   const conductorText = lastUserText(messages);
   const requestedComputer = isComputerIntent(messages);
   const conductorBypass = conductorBypassReason({ messages, plan });
+  const directAnswer = !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSimpleTurn(conductorText) : null;
+  if (directAnswer) {
+    return streamConductorAnswer({
+      chatId: id,
+      messages,
+      alias: "direct",
+      answer: directAnswer,
+      reason: "deterministic direct answer",
+    });
+  }
+  const directSkillMetadataAnswer = !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSkillMetadataTurn(conductorText) : null;
+  if (directSkillMetadataAnswer) {
+    return streamConductorAnswer({
+      chatId: id,
+      messages,
+      alias: "direct",
+      answer: directSkillMetadataAnswer,
+      reason: "deterministic skill metadata answer",
+    });
+  }
+  if (!conductorBypass && !chosenModel && !requestedComputer && conductorText.trim()) {
+    const directBashCommand = directBashCommandForSimpleTurn(conductorText);
+    if (directBashCommand) {
+      return streamEarlyDeterministicToolTurn({
+        chatId: id,
+        messages,
+        route: "files",
+        alias: "bash",
+        reason: "deterministic bash command fast path",
+        registry: "base",
+        run: (tools) => runDirectBashCommand(directBashCommand, tools),
+      });
+    }
+
+    if (/\bfile-finder\b/i.test(conductorText) && shouldRunFileFinderFastPath(conductorText)) {
+      return streamEarlyDeterministicToolTurn({
+        chatId: id,
+        messages,
+        route: "files",
+        alias: "bash",
+        reason: "deterministic file-finder fast path",
+        skill: { slug: "file-finder", name: "file-finder" },
+        registry: "base",
+        run: async (tools) => {
+          const out = await runFileFinderFastPath(conductorText, tools);
+          return out?.text.trim() || "No matching local file results were found.";
+        },
+      });
+    }
+
+    const directBrokerCall = directBrokerCallForSimpleTurn(conductorText);
+    if (directBrokerCall) {
+      const skillByBroker: Record<string, { slug: string; name: string }> = {
+        context_run: directBrokerCall.action === "understory_today" ? { slug: "daily-paper", name: "daily-paper" } : { slug: "context-grounding", name: "context-grounding" },
+        memory_run: { slug: "memory-keeper", name: "memory-keeper" },
+        tasks_run: { slug: "task-manager", name: "task-manager" },
+      };
+      return streamEarlyDeterministicToolTurn({
+        chatId: id,
+        messages,
+        route: "chat",
+        alias: directBrokerCall.broker,
+        reason: `deterministic broker fast path: ${directBrokerCall.action}`,
+        skill: skillByBroker[directBrokerCall.broker],
+        registry: "brokers",
+        run: (tools) => runDirectBrokerCall(directBrokerCall, tools),
+      });
+    }
+
+    const directHealthCall = directHealthSafetyCallForSimpleTurn(conductorText);
+    if (directHealthCall) {
+      return streamEarlyDeterministicToolTurn({
+        chatId: id,
+        messages,
+        route: "health",
+        alias: "health-safety",
+        reason: "deterministic health-safety fast path",
+        skill: { slug: "health-safety", name: "health-safety" },
+        registry: "base",
+        run: (tools) => runDirectHealthSafetyCall(directHealthCall, tools),
+      });
+    }
+  }
+
   let conductorRoute: ConductorRoute | null = null;
   let forcedModelAlias: string | undefined = chosenModel;
   if (!conductorBypass && conductorText.trim()) {
@@ -463,9 +615,12 @@ export async function POST(req: Request): Promise<Response> {
 
     if (!conductorResult.ok) {
       recordConductorTurnDecision(conductorResult, false);
-      return routeFailure(502, `Conductor routing failed: ${conductorResult.failureReason}; refusing to fallback.`, {
-        conductorAlias: conductorResult.conductorAlias,
-        ...(conductorResult.raw ? { rawPreview: conductorResult.raw.slice(0, 300) } : {}),
+      return streamConductorAnswer({
+        chatId: id,
+        messages,
+        alias: conductorResult.conductorAlias,
+        answer: localInferenceUnavailableAnswer(`Conductor routing failed: ${conductorResult.failureReason}`),
+        reason: "conductor routing failed; streamed local-only failure",
       });
     }
 
@@ -494,6 +649,7 @@ export async function POST(req: Request): Promise<Response> {
   // Capability tools (search_graph, ha_*, remember/recall, tasks, photos, image, feed) now
   // arrive via `leashMcpTools()` from the toggleable leash-tools-mcp groups, not in-process.
   const baseTools = { ...leashTools, ...(await leashMcpTools()) };
+  const baseBrokers = buildCapabilityBrokers(baseTools);
   // Plan mode (`submit_plan`): built unconditionally so stored plan-mode threads validate on any
   // turn; only handed to the AGENT when this turn is in plan mode (below). `getTask`/`getWriter` are
   // getters because the tool is built before the task text + response writer exist; `execute` (which
@@ -519,7 +675,7 @@ export async function POST(req: Request): Promise<Response> {
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
   // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
-  const tools = { ...baseTools, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool, ...KEEPALIVE_TOOLS };
+  const tools = { ...baseTools, ...baseBrokers, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool, ...KEEPALIVE_TOOLS };
 
   // Validate stored+new messages against current tool/metadata schemas; fall back to raw on drift.
   let validated: LeashUIMessage[] = messages;
@@ -563,7 +719,13 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const allConductorOptions = await fetchRouteOptions();
     if (!allConductorOptions.length) {
-      return routeFailure(503, "No live local or mesh QVAC routes are available; refusing to fallback to config.");
+      return streamConductorAnswer({
+        chatId: id,
+        messages,
+        alias: "local-qvac",
+        answer: localInferenceUnavailableAnswer("No live local or mesh QVAC routes are available"),
+        reason: "no live qvac routes; streamed local-only failure",
+      });
     }
     const conductorOptions = forcedModelAlias ? allConductorOptions.filter((o) => o.alias === forcedModelAlias) : allConductorOptions;
     if (forcedModelAlias && !conductorOptions.length) {
@@ -625,8 +787,12 @@ export async function POST(req: Request): Promise<Response> {
     }
   } catch (err) {
     console.error("leash[conductor]: error while ranking route options; refusing fallback:", err);
-    return routeFailure(502, "Routing failed before the model call; refusing to fallback.", {
-      detail: err instanceof Error ? err.message : String(err),
+    return streamConductorAnswer({
+      chatId: id,
+      messages,
+      alias: "local-qvac",
+      answer: localInferenceUnavailableAnswer(`Routing failed before the model call: ${err instanceof Error ? err.message : String(err)}`),
+      reason: "route ranking failed; streamed local-only failure",
     });
   }
   console.log(`leash[conductor]: route=${conductorDecision.route.tier}/${conductorDecision.route.alias} sensitivity=${conductorDecision.sensitivity} reason="${conductorDecision.reason}"`);
@@ -785,6 +951,13 @@ export async function POST(req: Request): Promise<Response> {
   const pipeline = !imageTurn && !planMode ? activeSkills?.pipeline ?? null : null;
   const callRoute: LeashCallOptions["route"] = imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : healthTurn ? "health" : "chat";
   const runRoute: ToolRoute = pipeline ? "skill" : planMode ? "plan" : callRoute;
+  const directFileFinder =
+    !imageTurn &&
+    !planMode &&
+    !pipeline &&
+    activeSkills?.skills.some((s) => s.slug === "file-finder") === true &&
+    shouldRunFileFinderFastPath(lastText) &&
+    typeof (enabledTools as Record<string, unknown>)["bash"] === "object";
   const goalRun = await createGoalRun({
     id: goalRunId,
     chatId: id,
@@ -839,6 +1012,61 @@ export async function POST(req: Request): Promise<Response> {
     return createUIMessageStreamResponse({ stream: pipeStream });
   }
 
+  if (directFileFinder) {
+    let unsubscribeFileFinder: (() => void) | undefined;
+    const fileFinderStream = createUIMessageStream<LeashUIMessage>({
+      originalMessages: validated,
+      generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+      execute: async ({ writer }) => {
+        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: "bash", ...(tier ? { effort: tier } : {}) } });
+        writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(goalRun) });
+        unsubscribeFileFinder = subscribeElicitations((ev) => {
+          try {
+            writer.write({ type: "data-elicitation", data: ev, transient: true });
+          } catch {
+            /* stream already closed */
+          }
+        });
+        writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: true } });
+        writer.write({ type: "data-skill", data: { mode: activeSkills?.mode ?? "automatic", skills: activeSkills?.skills ?? [{ slug: "file-finder", name: "file-finder" }] } });
+        const mainStep = await startGoalRunStep(goalRunId, {
+          title: "Search local files",
+          route: "skill",
+          model: "bash",
+          contextCapsule: lastText.slice(0, 6000),
+          contextTokensEstimate: Math.ceil(lastText.length / 4),
+        });
+        let text: string;
+        try {
+          const out = await runFileFinderFastPath(lastText, enabledTools);
+          text = out?.text.trim() || "No matching local file results were found.";
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text.slice(0, 1200) });
+          await finishGoalRun(goalRunId, "completed", text);
+        } catch (e) {
+          text = `The file-finder fast path failed: ${e instanceof Error ? e.message : String(e)}`;
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "failed", error: text });
+          await appendGoalRunError(goalRunId, text);
+          await finishGoalRun(goalRunId, "failed", text);
+        } finally {
+          const finalRun = await getGoalRun(goalRunId);
+          if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
+          release();
+        }
+        const tid = "file-finder-out";
+        writer.write({ type: "text-start", id: tid });
+        writer.write({ type: "text-delta", id: tid, delta: text });
+        writer.write({ type: "text-end", id: tid });
+        writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+      },
+      onFinish: ({ messages: finalMessages }) => {
+        unsubscribeFileFinder?.();
+        release();
+        void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
+      },
+    });
+    return createUIMessageStreamResponse({ stream: fileFinderStream });
+  }
+
   // NOTE on serve-side kvCache: the forked serve accepts a `kv_cache` body field (see
   // patches/@qvac+cli) and hypha's shim caches delegated sessions — but THIS route does
   // not send a key. Every text tier runs tools-ON (the TOOLLESS-HANG guard in effort.ts),
@@ -866,15 +1094,16 @@ export async function POST(req: Request): Promise<Response> {
   // mid-decode cancel; SDK 0.13.1 cancels safely (spike/abort-safety-inproc.ts), so it
   // is now re-enabled. The partial answer still persists: `createUIMessageStream`'s
   // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
+  const laneBudget = deriveLaneBudget({ imageTurn, planMode, filesTurn, computerTurn, declaredSkillTools, cfg });
   const callOptions: LeashCallOptions = {
     route: callRoute,
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.
-    steps: imageTurn || !cfg ? null : planMode ? PLAN_STEPS : declaredSkillTools.length ? SKILL_TOOL_STEPS : filesTurn ? FILES_STEPS : computerTurn ? COMPUTER_STEPS : cfg.steps,
-    maxOutputTokens: imageTurn || !cfg ? null : cfg.maxOutputTokens,
+    steps: laneBudget.steps,
+    maxOutputTokens: laneBudget.maxOutputTokens,
     ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
-    ...(tier === "quick" && callRoute === "chat" && !planMode && declaredSkillTools.length === 0 ? { leanTools: true } : {}),
+    ...(laneBudget.leanTools && callRoute === "chat" ? { leanTools: true } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
     // Text-route model alias chosen by the conductor or explicit picker.
@@ -903,7 +1132,94 @@ export async function POST(req: Request): Promise<Response> {
     publicMesh: conductorDecision.route.tier === "public",
   } satisfies Parameters<typeof enforceToolPolicy>[1];
   const policyTools = enforceToolPolicy(enabledTools, policyContext);
-  const approvedTools = planMode ? policyTools : withApprovalGates(policyTools);
+  const directBrokerCall = callRoute === "chat" && !planMode && !pipeline ? directBrokerCallForSimpleTurn(lastText) : null;
+  const directBrokerTool = directBrokerCall ? (policyTools as Record<string, { execute?: unknown }>)[directBrokerCall.broker] : undefined;
+  if (directBrokerCall && typeof directBrokerTool?.execute === "function") {
+    const directBrokerStream = createUIMessageStream<LeashUIMessage>({
+      originalMessages: validated,
+      generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+      execute: async ({ writer }) => {
+        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: directBrokerCall.broker, ...(tier ? { effort: tier } : {}) } });
+        writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: directBrokerCall.broker, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: `deterministic broker fast path: ${directBrokerCall.action}`, viaFastPath: true } });
+        const runNow = await getGoalRun(goalRunId);
+        if (runNow) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(runNow) });
+        if (activeSkills?.skills.length) writer.write({ type: "data-skill", data: { mode: activeSkills.mode, skills: activeSkills.skills } });
+
+        let text: string;
+        try {
+          const out = await runDirectBrokerCall(directBrokerCall, policyTools as ToolSet);
+          if (out === null) throw new Error(`${directBrokerCall.broker} unavailable`);
+          text = out || "(no output)";
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text.slice(0, 1200) });
+          await finishGoalRun(goalRunId, "completed", text);
+        } catch (e) {
+          text = `The broker fast path failed: ${e instanceof Error ? e.message : String(e)}`;
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "failed", error: text });
+          await appendGoalRunError(goalRunId, text);
+          await finishGoalRun(goalRunId, "failed", text);
+        } finally {
+          const finalRun = await getGoalRun(goalRunId);
+          if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
+          release();
+        }
+
+        writer.write({ type: "text-start", id: "direct-broker-out" });
+        writer.write({ type: "text-delta", id: "direct-broker-out", delta: text });
+        writer.write({ type: "text-end", id: "direct-broker-out" });
+        writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+      },
+      onFinish: ({ messages: finalMessages }) => {
+        release();
+        void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
+      },
+    });
+    return createUIMessageStreamResponse({ stream: directBrokerStream });
+  }
+  const directBashCommand = callRoute === "files" && !planMode && !pipeline ? directBashCommandForSimpleTurn(lastText) : null;
+  const directBashTool = directBashCommand ? (policyTools as Record<string, { execute?: unknown }>)["bash"] : undefined;
+  if (directBashCommand && typeof directBashTool?.execute === "function") {
+    const directBashStream = createUIMessageStream<LeashUIMessage>({
+      originalMessages: validated,
+      generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+      execute: async ({ writer }) => {
+        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: "bash", ...(tier ? { effort: tier } : {}) } });
+        writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: "bash", ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: "deterministic bash command fast path", viaFastPath: true } });
+        const runNow = await getGoalRun(goalRunId);
+        if (runNow) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(runNow) });
+        if (activeSkills?.skills.length) writer.write({ type: "data-skill", data: { mode: activeSkills.mode, skills: activeSkills.skills } });
+
+        let text: string;
+        try {
+          const out = await runDirectBashCommand(directBashCommand, policyTools as ToolSet);
+          if (out === null) throw new Error("bash tool unavailable");
+          text = out || "(no output)";
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text.slice(0, 1200) });
+          await finishGoalRun(goalRunId, "completed", text);
+        } catch (e) {
+          text = `The bash fast path failed: ${e instanceof Error ? e.message : String(e)}`;
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "failed", error: text });
+          await appendGoalRunError(goalRunId, text);
+          await finishGoalRun(goalRunId, "failed", text);
+        } finally {
+          const finalRun = await getGoalRun(goalRunId);
+          if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
+          release();
+        }
+
+        writer.write({ type: "text-start", id: "direct-bash-out" });
+        writer.write({ type: "text-delta", id: "direct-bash-out", delta: text });
+        writer.write({ type: "text-end", id: "direct-bash-out" });
+        writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+      },
+      onFinish: ({ messages: finalMessages }) => {
+        release();
+        void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
+      },
+    });
+    return createUIMessageStreamResponse({ stream: directBashStream });
+  }
+  const brokeredPolicyTools = planMode ? policyTools : { ...policyTools, ...buildCapabilityBrokers(policyTools) };
+  const approvedTools = planMode ? brokeredPolicyTools : withApprovalGates(brokeredPolicyTools);
   const agent = buildLeashAgent(approvedTools, () => interjectRequested(id), conductorModel);
   const result = await agent.stream({ messages: modelInput, options: callOptions, abortSignal: req.signal });
 

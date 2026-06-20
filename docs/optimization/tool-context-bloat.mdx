@@ -1,0 +1,49 @@
+---
+title: "Tool context bloat"
+description: "How Leash keeps tool schemas out of the prompt until a turn actually needs them."
+sidebarTitle: "Tool context bloat"
+---
+
+Local tools are useful only while they fit the local model's prompt budget. Leash avoids exposing the whole registry to every chat turn. It routes first, opens only the capability group that matches the turn, and keeps compatibility tools separate from real affordances.
+
+## The problem
+
+QVAC serves `qwen3-4b` with `tools:true` and `toolsMode:"dynamic"` so the model can call tools without paying the full schema cost every time. SDK 0.13.x has a regression where dynamic-tool requests can fail when the request carries an empty tools array. The direct fix is inside the SDK, but Leash still needs a product-side guard: never make a general chat turn see 50+ schemas just to avoid the empty-tools failure.
+
+## The shape Leash uses
+
+| Pattern | What it does |
+| --- | --- |
+| Two-stage routing | A tiny conductor classifies the turn before any large agent prompt is assembled. Quick/direct turns avoid QVAC entirely when they can. |
+| Hard no-tool path | Greetings, continuity markers, and skill metadata questions answer without loading the agent or exposing schemas. |
+| Capability gates | Files, memory, tasks, context, health, computer, research, and MCP admin expose separate tool groups. General chat does not see all of them. |
+| Keepalive sentinel | `leash_keepalive` exists only to satisfy dynamic-tools compatibility when a model request must carry at least one schema. |
+| Tool brokers | `context_run`, `memory_run`, `tasks_run`, and related brokers compress many MCP actions behind a small validated action enum. |
+| Lane budgets | Quick chat, files, brokered read-only calls, health, and deep agent turns have different step and token budgets. |
+
+The keepalive tool is policy-marked as inert. It is not a user capability and should not appear as a useful operation in prompts.
+
+## Capability exposure
+
+| Lane | Exposed surface |
+| --- | --- |
+| Direct answer | No model and no tool schema. |
+| Lean chat | Keepalive only when a dynamic-tools model call needs a non-empty tools array. |
+| Files | A narrow files capability, currently backed by registered `bash` for bounded read/search operations. |
+| Context and daily paper | `context_run` broker actions such as graph search and `understory_today`. |
+| Memory | `memory_run` and recall-oriented read actions. |
+| Tasks | `tasks_run` list/read actions. |
+| Health safety | Read-only recall/context search plus a non-diagnostic response policy. |
+| Computer use | OCU tools only when the turn requests computer interaction. |
+
+This is why the agent can still use a versatile executor like `bash` without making every chat completion carry a shell schema.
+
+## Why brokers beat raw schema explosion
+
+A raw MCP registry can easily become the largest part of the prompt. Brokers keep the model-facing contract small while the server validates action names, arguments, policy, and capability enablement internally.
+
+The broker layer also gives Leash one place to enforce approvals and audit records. A prompt can ask for `tasks_run` with `list_tasks`; it does not need to learn every backing task API method.
+
+## Guardrail
+
+The routing guard treats intent semantically. Lightweight prompts avoid phrases such as "no tools" as routing control text, because keyword matching on the word `tool` can accidentally promote a simple chat turn into a full agent turn.

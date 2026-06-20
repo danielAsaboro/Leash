@@ -248,7 +248,9 @@ function aliasUnavailable(row: ConfiguredModelSpec): boolean {
 
 const FILES_MEMORY_RE =
   /\b(?:search|find|look(?:ing)?|list|show|read|cat|open|scan|summari[sz]e|grep|locate)\b[\s\S]{0,50}\b(?:my\s+)?(?:notes?|files?|docs?|documents?|folders?|director(?:y|ies)|repos?|code(?:base)?|workspace|journal|memory|memories)\b|\b(?:my|the|this)\s+(?:notes?|files?|docs?|documents?|folders?|director(?:y|ies)|repos?|code(?:base)?|workspace|journal|memory|memories)\b/i;
-const ACTION_RE = /\b(?:write|edit|create|delete|save|download|install|run|execute|open|click|browse|research|look up|check|send|schedule|remind|remember|recall)\b/i;
+const ACTION_RE = /\b(?:write|edit|create|delete|save|download|install|execute|open|click|browse|research|look up|send|schedule|remind|remember|recall)\b/i;
+const TOOL_USE_RE = /\b(?:use|call|invoke)\b[\s\S]{0,40}\b(?:tools?|bash|shell|grep|find)\b|\b(?:bash|shell|grep)\b/i;
+const NEGATED_TOOL_USE_RE = /\b(?:do not|don't|dont|without)\s+(?:use|call|invoke|mention)\s+(?:the\s+)?tools?\b/i;
 const CURRENT_RE = /\b(?:latest|current|today|yesterday|tomorrow|now|news|weather|price|stock|score|schedule|exchange rate|verify|fact.?check)\b/i;
 const CODE_RE = /\b(?:debug|fix|implement|refactor|test|compile|typescript|javascript|python|repo|codebase|stack trace|error log)\b/i;
 const HEALTH_RE =
@@ -261,7 +263,7 @@ export function isHealthIntent(text: string): boolean {
 export function deterministicRouteNeed(text: string): DeterministicRouteNeed {
   const q = (text ?? "").trim();
   const filesMemory = FILES_MEMORY_RE.test(q);
-  const action = ACTION_RE.test(q);
+  const action = ACTION_RE.test(q) || (TOOL_USE_RE.test(q) && !NEGATED_TOOL_USE_RE.test(q));
   const current = CURRENT_RE.test(q);
   const code = CODE_RE.test(q);
   const health = isHealthIntent(q);

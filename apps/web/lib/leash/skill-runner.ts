@@ -29,6 +29,7 @@ import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { LeashSource } from "./tools.ts";
 import { buildSkillStepSystemPrompt, buildSkillSubtaskSystemPrompt } from "./prompt.ts";
+import { runFileFinderFastPath } from "./file-finder-fast-path.ts";
 import { enforceToolPolicy, filterToolNamesForContext } from "@mycelium/leash-core/tool-policy";
 import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
 import { getGoalRun, startGoalRunStep, updateGoalRunStep, recordGoalRunModelTrace, type GoalRunRoute } from "@mycelium/leash-core/goal-runs";
@@ -185,6 +186,13 @@ export function buildSkillRunner(registry: ToolSet): ToolSet {
         const note = skipped.length ? ` (note: ${skipped.join(", ")} need approval and were skipped here — invoke them on the main turn if needed.)` : "";
 
         try {
+          if (s.slug === "file-finder") {
+            const fast = await runFileFinderFastPath(task, subTools);
+            if (fast) {
+              return { text: fast.text + note, sources: fast.sources as LeashSource[] };
+            }
+          }
+
           // DETERMINISTIC PIPELINE when the skill declares an ordered plan; else single-shot free-run.
           let text: string;
           if (s.steps.length > 0) {

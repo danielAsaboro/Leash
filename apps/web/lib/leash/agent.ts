@@ -37,12 +37,8 @@ import { chatModel, visionModel, computerModel } from "./provider.ts";
 import { repairLeashToolCall } from "./json-repair.ts";
 import { DATA_DIR } from "./json-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
-import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, HEALTH_TOOL_NAMES, MCP_ADMIN_TOOL_NAMES } from "./tool-lanes.ts";
 import { buildContinuationNudge } from "./prompt.ts";
-import { KEEPALIVE_TOOL_NAME } from "./keepalive-tool.ts";
-
-/** A skill can't reintroduce the 4096-ctx overflow: its declared toolset is truncated here. */
-const SKILL_TOOLS_CAP = 18;
+import { resolveActiveToolNames } from "./tool-exposure.ts";
 
 /** Per-turn inputs the route derives server-side (validated by the agent at call time). */
 export const leashCallOptionsSchema = z.object({
@@ -81,50 +77,6 @@ export type LeashCallOptions = z.infer<typeof leashCallOptionsSchema>;
  *  provider doesn't support it (it dropped the value and logged an AI SDK warning every turn). */
 function samplingFor(thinking: boolean | undefined): { temperature: number; topP: number } {
   return thinking ? { temperature: 0.6, topP: 0.95 } : { temperature: 0.7, topP: 0.8 };
-}
-
-/**
- * Skill-system tools — kept available even when an active skill overrides the toolset, so a
- * skill can COMPOSE: load another skill (read_skill), read a skill's reference (read_skill_file),
- * or run a skill's bundled script (run_skill_script) mid-turn. This is what lets one active skill
- * reach for another instead of the harness pre-loading them all.
- */
-const SKILL_SYSTEM_NAMES = new Set(["read_skill", "read_skill_file", "run_skill_script", "run_skill"]);
-
-/**
- * The ACTIVE toolset for a turn, over the live (gated+filtered) registry `names`.
- *
- * Precedence:
- *   1. vision → no tools (qwen3vl isn't tools-enabled).
- *   2. An ACTIVE skill's declared `tools:` (skillTools) → EXACTLY those names that exist in
- *      the registry, capped at SKILL_TOOLS_CAP (log + truncate so a skill can't re-overflow
- *      the 4096-ctx prompt). If that intersection is empty (all disabled/unknown) we ignore
- *      it and fall through to the route default — never ship a tool-less request (hang guard).
- *   3. route default: `computer`/`files` lanes narrow to their own group; every other text
- *      turn gets everything BUT the computer tools and the SKILL-GATED MCP-admin tools (so
- *      MCP costs 0 always-on schema slots until its skill activates). `bash` (read-only) is
- *      always-on — the shell is the default executor for time/file reads.
- */
-function resolveActiveTools(names: string[], options: LeashCallOptions): string[] {
-  if (options.route === "vision") return [];
-  if (options.leanTools) return names.includes(KEEPALIVE_TOOL_NAME) ? [KEEPALIVE_TOOL_NAME] : names.slice(0, 1);
-
-  const declared = options.skillTools ?? [];
-  if (declared.length > 0) {
-    // The skill's declared tools PLUS the always-available skill-system tools (so it can compose
-    // by loading another skill mid-turn). De-duped, capped to stay bounded.
-    let active = names.filter((n) => declared.includes(n) || SKILL_SYSTEM_NAMES.has(n));
-    if (active.length > SKILL_TOOLS_CAP) {
-      console.warn(`leash: skill declared ${active.length} tools (> cap ${SKILL_TOOLS_CAP}) — truncating: dropped ${active.slice(SKILL_TOOLS_CAP).join(", ")}`);
-      active = active.slice(0, SKILL_TOOLS_CAP);
-    }
-    if (active.length > 0) return active; // else fall through (no live tools matched)
-  }
-
-  if (options.route === "files") return names.filter((n) => BASH_TOOL_NAMES.has(n));
-  if (options.route === "computer") return names.filter((n) => COMPUTER_TOOL_NAMES.has(n));
-  if (options.route === "health") return names.filter((n) => HEALTH_TOOL_NAMES.has(n));
-  return names.filter((n) => n !== KEEPALIVE_TOOL_NAME && !COMPUTER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n));
 }
 
 /** Schema-count guard (LEASH_DEBUG_TOOLS=1): log the active toolset so a route can be checked against the ~22-schema cap. */
@@ -179,7 +131,7 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
     // returning only overrides drops the messages → "prompt or messages must be
     // defined" (caught live 2026-06-07).
     prepareCall: ({ options, ...settings }) => {
-      const activeTools = resolveActiveTools(names, options);
+      const activeTools = resolveActiveToolNames(names, options);
       debugActiveTools(options.route, activeTools);
       currentSystem = options.system;
       currentRoute = options.route;
