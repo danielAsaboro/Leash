@@ -53,7 +53,7 @@ export default async function HomePage() {
   const watcherFresh = watchMs !== null && Date.now() - watchMs < 10 * 60 * 1000;
 
   return (
-    <DashShell kicker="Leash · Overview" title="Home" lede="Your exocortex at a glance — serve, newsroom, watcher, tasks, models.">
+    <DashShell kicker="Leash · Overview" title="Home" lede="Your exocortex at a glance — serve, newsroom, watcher, TODOs, models.">
       <LiveRefresh seconds={5} />
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -112,17 +112,17 @@ export default async function HomePage() {
           )}
         </DashCard>
 
-        {/* Tasks */}
+        {/* Activity */}
         <DashCard
-          title="Tasks"
+          title="Activity"
           action={
-            <Link href="/tasks" className="kicker transition-opacity hover:opacity-60" style={{ color: "var(--color-sage-deep)" }}>
-              All tasks →
+            <Link href="/activity" className="kicker transition-opacity hover:opacity-60" style={{ color: "var(--color-sage-deep)" }}>
+              All activity →
             </Link>
           }
         >
           <div className="flex gap-8">
-            <Stat label="Open" value={tasks.open} accent={tasks.open > 0} />
+            <Stat label="Open TODOs" value={tasks.open} accent={tasks.open > 0} />
             <Stat label="In progress" value={tasks.inProgress} />
             <Stat label="Done" value={tasks.done} />
           </div>

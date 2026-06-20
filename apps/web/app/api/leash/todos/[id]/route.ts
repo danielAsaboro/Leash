@@ -1,4 +1,4 @@
-/** `PATCH /api/leash/tasks/[id]` (update) · `DELETE` (remove). Writes go to the local store AND
+/** `PATCH /api/leash/todos/[id]` (update) · `DELETE` (remove). Writes go to the local store AND
  *  write-through to the mesh (best-effort) so edits/deletes replicate to the user's other devices. */
 import { updateTask, deleteTask, type TaskPatch } from "../../../../../lib/leash/tasks-store.ts";
 import { syncTaskToMesh, deleteTaskFromMesh } from "../../../../../lib/leash/tasks-client.ts";
@@ -12,7 +12,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const task = await updateTask(id, patch);
   if (!task) return Response.json({ error: "not found" }, { status: 404 });
   await syncTaskToMesh(task); // best-effort replicate the edit to the mesh
-  return Response.json({ task });
+  return Response.json({ todo: task });
 }
 
 export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }): Promise<Response> {

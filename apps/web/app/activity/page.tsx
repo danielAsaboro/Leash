@@ -1,7 +1,7 @@
 /**
- * `/tasks` — every TASK (a unit of work that runs, finishes, exits), grouped by
+ * `/activity` — every unit of work that runs, finishes, exits, grouped by
  * producer:
- *   · Mine     — human to-dos (user / assistant / dream / cron created)
+ *   · TODOs    — human to-dos (user / assistant / dream / cron created)
  *   · Newsroom — pipeline articles as tasks (stage = task state)
  *   · Runs     — executed work records from the services (newsroom runs + cron runs)
  * Daemon/process management lives on /services — this page is about the work.
@@ -13,13 +13,14 @@ import { getPipeline, getPipelineFacets, getDaemons } from "../../lib/queries.ts
 import { cronRuns } from "../../lib/leash/schedules-store.ts";
 import { listAllDownloads } from "../../lib/leash/models.ts";
 import { DashShell } from "../../components/dash.tsx";
-import { TasksPanel } from "../../components/TasksPanel.tsx";
+import { ActivityPanel } from "../../components/ActivityPanel.tsx";
 import { listGoalRuns } from "@mycelium/leash-core/goal-runs";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["mine", "newsroom", "runs"] as const;
+const TABS = ["todo", "newsroom", "runs"] as const;
 type Tab = (typeof TABS)[number];
+const TAB_LABEL: Record<Tab, string> = { todo: "TODOs", newsroom: "Newsroom", runs: "Runs" };
 const SOURCES: TaskSource[] = ["user", "assistant", "dream", "cron", "research", "evolve"];
 
 function fmtTime(d: Date | string | number | null | undefined): string {
@@ -43,18 +44,18 @@ function FilterChip({ href, label, active }: { href: string; label: string; acti
   );
 }
 
-export default async function TasksPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function ActivityPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
-  const tab: Tab = TABS.includes(one(params["tab"]) as Tab) ? (one(params["tab"]) as Tab) : "mine";
+  const tab: Tab = TABS.includes(one(params["tab"]) as Tab) ? (one(params["tab"]) as Tab) : "todo";
 
   return (
-    <DashShell kicker="Leash · Work" title="Tasks" lede="Every unit of work — yours, the newsroom's, and the scheduler's.">
+    <DashShell kicker="Leash · Activity" title="Activity" lede="Live system activity, user TODOs, newsroom work, and run evidence.">
       <div className="mb-5 flex gap-2">
         {TABS.map((t) => (
           <Link
             key={t}
-            href={t === "mine" ? "/tasks" : `/tasks?tab=${t}`}
+            href={t === "todo" ? "/activity" : `/activity?tab=${t}`}
             className="kicker border px-3 py-1.5 transition-opacity hover:opacity-70"
             style={
               tab === t
@@ -63,21 +64,21 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
             }
             aria-current={tab === t ? "page" : undefined}
           >
-            {t[0]?.toUpperCase() + t.slice(1)}
+            {TAB_LABEL[t]}
           </Link>
         ))}
       </div>
 
-      {tab === "mine" && <TasksTab params={params} />}
+      {tab === "todo" && <TodosTab params={params} />}
       {tab === "newsroom" && <PipelineTab params={params} />}
       {tab === "runs" && <RunsTab params={params} />}
     </DashShell>
   );
 }
 
-/* ── Tasks tab ───────────────────────────────────────────────────────────────── */
+/* ── TODOs tab ───────────────────────────────────────────────────────────────── */
 
-async function TasksTab({ params }: { params: Record<string, string | string[] | undefined> }) {
+async function TodosTab({ params }: { params: Record<string, string | string[] | undefined> }) {
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
   const status = TASK_STATUSES.includes(one(params["status"]) as TaskStatus) ? (one(params["status"]) as TaskStatus) : undefined;
   const source = SOURCES.includes(one(params["source"]) as TaskSource) ? (one(params["source"]) as TaskSource) : undefined;
@@ -90,7 +91,7 @@ async function TasksTab({ params }: { params: Record<string, string | string[] |
     if (s) p.set("status", s);
     if (src) p.set("source", src);
     const str = p.toString();
-    return str ? `/tasks?${str}` : "/tasks";
+    return str ? `/activity?${str}` : "/activity";
   };
 
   return (
@@ -111,7 +112,7 @@ async function TasksTab({ params }: { params: Record<string, string | string[] |
           <FilterChip key={s} href={qs({ source: s })} label={s} active={source === s} />
         ))}
       </div>
-      <TasksPanel tasks={tasks} downloads={downloads} statusFilter={status} sourceFilter={source} />
+      <ActivityPanel tasks={tasks} downloads={downloads} statusFilter={status} sourceFilter={source} />
     </>
   );
 }
@@ -129,7 +130,7 @@ async function PipelineTab({ params }: { params: Record<string, string | string[
       const v = k === key ? value : filter[k];
       if (v) p.set(k, v);
     }
-    return `/tasks?${p.toString()}`;
+    return `/activity?${p.toString()}`;
   };
 
   const facetRow = (label: string, key: "stage" | "date" | "section" | "origin", values: { value: string; count: number }[]) => (
@@ -268,7 +269,7 @@ async function RunsTab({ params }: { params: Record<string, string | string[] | 
     const ok = "ok" in next ? next.ok : okFilter;
     if (src) p.set("runsource", src);
     if (ok !== undefined) p.set("ok", ok);
-    return `/tasks?${p.toString()}`;
+    return `/activity?${p.toString()}`;
   };
 
   return (

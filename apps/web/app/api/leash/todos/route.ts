@@ -1,4 +1,4 @@
-/** `GET /api/leash/tasks` (filterable list) · `POST` (create) — the dashboard's task CRUD.
+/** `GET /api/leash/todos` (filterable list) · `POST` (create) — the Activity dashboard's TODO CRUD.
  *  The MESH is the synced source of truth (via hypha); the local store is the offline fallback.
  *  Reads merge local∪mesh (LWW); writes go to the local store AND write-through to the mesh. */
 import { createTask, type TaskStatus, type TaskSource, type TaskPriority } from "../../../../lib/leash/tasks-store.ts";
@@ -15,7 +15,7 @@ export async function GET(req: Request): Promise<Response> {
     tag: url.searchParams.get("tag") ?? undefined,
     q: url.searchParams.get("q") ?? undefined,
   });
-  return Response.json({ tasks });
+  return Response.json({ todos: tasks });
 }
 
 export async function POST(req: Request): Promise<Response> {
@@ -23,5 +23,5 @@ export async function POST(req: Request): Promise<Response> {
   if (!body.title?.trim()) return Response.json({ error: "title is required" }, { status: 400 });
   const task = await createTask({ title: body.title, detail: body.detail, priority: body.priority, tags: body.tags, source: "user" });
   await syncTaskToMesh(task); // best-effort replicate to the mesh (no-op if hypha is down)
-  return Response.json({ task }, { status: 201 });
+  return Response.json({ todo: task }, { status: 201 });
 }

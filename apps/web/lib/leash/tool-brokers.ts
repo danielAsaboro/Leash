@@ -10,7 +10,7 @@ interface BrokerSpec {
 export const BROKER_SPECS: BrokerSpec[] = [
   { name: "files_run", label: "Files", tools: ["bash"] },
   { name: "memory_run", label: "Memory", tools: ["remember", "recall"] },
-  { name: "tasks_run", label: "Tasks", tools: ["create_task", "list_tasks", "update_task"] },
+  { name: "tasks_run", label: "TODOs", tools: ["create_task", "list_tasks", "update_task"] },
   { name: "context_run", label: "Context", tools: ["search_graph", "active_context", "activity_recent", "understory_search", "understory_today"] },
   { name: "mcp_run", label: "MCP admin", tools: ["install_mcp_repo", "upsert_mcp_server"] },
 ];

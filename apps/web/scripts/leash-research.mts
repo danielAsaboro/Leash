@@ -116,7 +116,7 @@ interface TaskRow {
 }
 
 /** Drop a `source:"research"` follow-up onto the shared task store so a finished (or failed)
- *  background run lands on the /tasks dashboard instead of vanishing into a file. Lenient read +
+ *  background run lands on the /activity dashboard instead of vanishing into a file. Lenient read +
  *  atomic tmp/rename (the dream.mts cross-process discipline); best-effort — a task-write failure
  *  must never fail the research run itself. */
 function addResearchTask(t: { title: string; detail?: string }): void {

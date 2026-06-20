@@ -73,9 +73,9 @@ const LOADING_LABEL: Record<string, string> = {
   understory_search: "Searching the paper…",
   now: "Checking the time…",
   generate_image: "Painting your image (on-device)…",
-  list_tasks: "Reading your todo list…",
-  create_task: "Adding a todo…",
-  update_task: "Updating a todo…",
+  list_tasks: "Reading your TODO list…",
+  create_task: "Adding a TODO…",
+  update_task: "Updating a TODO…",
   doctor: "Checking Apple Notes access…",
   "search-notes": "Searching Apple Notes…",
   "list-notes": "Listing Apple Notes…",
@@ -97,9 +97,9 @@ const DONE_LABEL: Record<string, string> = {
   understory_search: "Searched the paper",
   now: "Checked the time",
   generate_image: "Generated an image",
-  list_tasks: "Listed your todos",
-  create_task: "Created a todo",
-  update_task: "Updated a todo",
+  list_tasks: "Listed your TODOs",
+  create_task: "Created a TODO",
+  update_task: "Updated a TODO",
   doctor: "Checked Apple Notes access",
   "search-notes": "Searched Apple Notes",
   "list-notes": "Listed Apple Notes",
@@ -277,12 +277,12 @@ function TaskCard({ output }: { output: { tasks?: TaskRow[]; task?: TaskRow; tex
   if (rows.length === 0) {
     return (
       <div className="tool-card">
-        <span className="tool-card-kicker kicker kicker-sage">✓ Todos</span>
+        <span className="tool-card-kicker kicker kicker-sage">✓ TODOs</span>
         {output.text ? <span className="tool-note-snip">{output.text}</span> : null}
       </div>
     );
   }
-  const title = rows.length === 1 ? rows[0]!.title : `${rows.length} todos`;
+  const title = rows.length === 1 ? rows[0]!.title : `${rows.length} TODOs`;
   return (
     <Task defaultOpen>
       <TaskTrigger title={title}>

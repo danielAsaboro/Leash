@@ -29,7 +29,7 @@ const TOOLS_MCP_GROUPS: { id: string; name: string; description: string }[] = [
   { id: "home-assistant", name: "Home Assistant", description: "Control smart-home devices (lights, switches, fans, covers, scenes) over Home Assistant's LAN API." },
   { id: "feed", name: "Feed", description: "Search the user's auto-written on-device daily paper (The Understory)." },
   { id: "memory", name: "Memory", description: "Save and recall typed memories about the user (preferences, facts, goals, people, routines)." },
-  { id: "tasks", name: "Todos", description: "Create, list, and update todos on the user's todo list." },
+  { id: "tasks", name: "TODOs", description: "Create, list, and update TODOs on the user's TODO list." },
   { id: "context", name: "Context", description: "Search the user's private context graph (Apple Notes, files, memories, past chats) and read their live screen activity." },
   { id: "photos", name: "Photos", description: "List the user's images and their on-device auto-tags." },
   { id: "image", name: "Image", description: "Generate images from text, fully on-device." },

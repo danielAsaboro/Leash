@@ -182,7 +182,7 @@ function GoalRunStep({ event }: { event: GoalRunEvent }) {
             {e}
           </div>
         ))}
-        <a href={`/tasks?tab=runs&run=${event.id}`} className="inline-block pt-1 underline decoration-dotted underline-offset-4">
+        <a href={`/activity?tab=runs&run=${event.id}`} className="inline-block pt-1 underline decoration-dotted underline-offset-4">
           Run evidence
         </a>
       </div>
@@ -902,36 +902,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 >
                   <ListChecksIcon className="size-4" />
                 </button>
-                {/* Model picker — choose which configured model drives this conversation (per-turn,
-                    persisted per chat). Empty list = serve down / nothing configured. */}
-                {chatModels.length > 0 ? (
-                  <select
-                    value={chatModelAlias}
-                    onChange={(e) => pickChatModel(e.target.value)}
-                    aria-label="Chat model"
-                    title="Chat model for this conversation"
-                    className="chat-mic chat-icon-btn"
-                    style={{ width: "auto", padding: "0 0.5rem", fontFamily: "var(--font-mono)", fontSize: "0.72rem" }}
-                  >
-                    {chatModels.map((m) => (
-                      <option key={m.alias} value={m.alias}>
-                        {m.alias}
-                        {m.loaded ? "" : " · load"}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  // No CHAT model configured (e.g. only an mmproj/embedding present) — point the user
-                  // at where to fix it instead of silently offering nothing.
-                  <a
-                    href="/brain?tab=models"
-                    title="No chat model configured — add one in Brain → Models"
-                    className="chat-mic chat-icon-btn"
-                    style={{ width: "auto", padding: "0 0.5rem", fontFamily: "var(--font-mono)", fontSize: "0.72rem", color: "var(--color-brick)" }}
-                  >
-                    no chat model · add ↗
-                  </a>
-                )}
+                {/* Model picker/feed temporarily hidden from the chat composer. */}
                 {/* Context-window meter (on-device, no cost) — shows how full the model's 32k
                     window is, from the latest turn's token count. */}
                 {usedTokens > 0 && (

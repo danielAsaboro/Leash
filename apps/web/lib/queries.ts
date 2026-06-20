@@ -155,7 +155,7 @@ export async function getSectionCounts(date: string): Promise<Record<string, num
   return out;
 }
 
-/** Filterable, read-only pipeline view for the /tasks Pipeline tab. */
+/** Filterable, read-only pipeline view for the /activity Newsroom tab. */
 export async function getPipeline(filter: { stage?: string; date?: string; section?: string; origin?: string }, take = 100) {
   return prisma.article.findMany({
     where: {
@@ -170,7 +170,7 @@ export async function getPipeline(filter: { stage?: string; date?: string; secti
   });
 }
 
-/** Distinct filter values present in the pipeline (drives the /tasks filter chips). */
+/** Distinct filter values present in the pipeline (drives the /activity filter chips). */
 export async function getPipelineFacets() {
   const [stages, dates, sections, origins] = await Promise.all([
     prisma.article.groupBy({ by: ["stage"], _count: { _all: true } }),
@@ -186,7 +186,7 @@ export async function getPipelineFacets() {
   };
 }
 
-/** Daemon state + recent runs for the /tasks Daemons tab. */
+/** Daemon state + recent runs for the /activity Runs tab. */
 export async function getDaemons(takeRuns = 30) {
   const [state, runs] = await Promise.all([
     prisma.daemonState.findUnique({ where: { id: 1 } }),

@@ -12,7 +12,7 @@ export interface FilterChip {
  * A row of filter chips (SAGE-fill active, ruled-outline inactive) — these are FILTERS, not
  * navigation, so the active chip is green; the black/ink fill is reserved for the page's main
  * TAB nav. Used for the Models browser's facet rows. Optional `label` names the field being
- * filtered (e.g. "Status" / "Kind"), like the /tasks filters. `active` is the selected key;
+ * filtered (e.g. "Status" / "Kind"), like the /activity filters. `active` is the selected key;
  * clicking a chip calls `onChange(key)`. Optional `counts` render as a muted trailing number so
  * the user can see how many rows each facet would show before clicking it.
  */

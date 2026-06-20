@@ -98,7 +98,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
     <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--color-rule)" }}>
       <div className="mb-2 flex items-center gap-3">
         <span className="kicker" style={{ color: "var(--color-faint)" }}>
-          Schedules — jobs and recurring tasks this service fires
+          Schedules — jobs and recurring TODOs this service fires
         </span>
         <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
         {!adding && (
@@ -117,7 +117,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
         <div className="mb-3 flex flex-wrap items-center gap-2 border p-3" style={{ borderColor: "var(--color-rule-strong)" }}>
           <select value={draft.kind} onChange={(e) => setDraft((d) => ({ ...d, kind: e.target.value as "job" | "task" }))} aria-label="Kind" className={`kicker ${input}`} style={inputStyle}>
             <option value="job">job</option>
-            <option value="task">task</option>
+            <option value="task">TODO</option>
           </select>
           {draft.kind === "job" ? (
             <>
@@ -133,7 +133,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
               )}
             </>
           ) : (
-            <input value={draft.taskTitle} onChange={(e) => setDraft((d) => ({ ...d, taskTitle: e.target.value }))} placeholder="Task title to create…" aria-label="Task title" className={`min-w-[200px] flex-1 ${input}`} style={inputStyle} />
+            <input value={draft.taskTitle} onChange={(e) => setDraft((d) => ({ ...d, taskTitle: e.target.value }))} placeholder="TODO title to create…" aria-label="TODO title" className={`min-w-[200px] flex-1 ${input}`} style={inputStyle} />
           )}
           <select value={draft.shapeType} onChange={(e) => setDraft((d) => ({ ...d, shapeType: e.target.value as typeof draft.shapeType }))} aria-label="Schedule type" className={`kicker ${input}`} style={inputStyle}>
             <option value="once">once</option>
@@ -184,7 +184,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
                 <input type="checkbox" checked={e.enabled} onChange={() => toggle(e)} disabled={busy} aria-label={`Enable ${e.name}`} />
                 <div className="min-w-0 flex-1">
                   <p style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem" }}>
-                    {e.name} <span className="kicker ml-1" style={{ color: "var(--color-faint)" }}>{e.kind === "job" ? (e.job?.script === "research" ? `research "${(e.job?.args?.[0] ?? "").slice(0, 40)}"` : `npm run ${e.job?.script}`) : `creates task "${e.task?.title}"`} · {describeShape(e)}</span>
+                    {e.name} <span className="kicker ml-1" style={{ color: "var(--color-faint)" }}>{e.kind === "job" ? (e.job?.script === "research" ? `research "${(e.job?.args?.[0] ?? "").slice(0, 40)}"` : `npm run ${e.job?.script}`) : `creates TODO "${e.task?.title}"`} · {describeShape(e)}</span>
                   </p>
                 </div>
                 <span className="kicker" style={{ color: "var(--color-faint)" }} suppressHydrationWarning>

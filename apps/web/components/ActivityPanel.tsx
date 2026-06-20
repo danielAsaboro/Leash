@@ -9,11 +9,11 @@ import { IconButton } from "./IconButton.tsx";
 import { toast } from "./Toast.tsx";
 import type { LeashTask, TaskStatus, TaskPriority, TaskSource } from "../lib/leash/tasks-store.ts";
 
-/* Live (system) rows that share the task list: downloads + services. A task with a different KIND. */
+/* Live activity rows that share this surface: downloads + services. */
 type Dl = { name: string; kind?: "model" | "system"; label?: string; state: "starting" | "downloading" | "done" | "error" | "cancelled"; percentage: number; downloaded: number; total: number; error?: string; updatedAt: number };
 type Svc = { name: string; label: string; state: "running" | "external" | "stopped" | "starting" | "ready" | "unhealthy"; detail: string };
 
-/* Downloads/services ARE tasks with a kind — give them a task status so the page's status filter
+/* Downloads/services get task-like statuses so the page's status filter
  * applies to them too (a cancelled/failed download → "dropped" + retryable; an active one →
  * "in_progress"; a finished one → "done"). */
 const dlStatus = (s: Dl["state"]): TaskStatus => (s === "done" ? "done" : s === "error" || s === "cancelled" ? "dropped" : "in_progress");
@@ -29,10 +29,10 @@ const SVC_VIEW: Record<Svc["state"], { text: string; tone: string } | null> = {
 const fmtBytes = (n: number): string => (n >= 1 << 30 ? `${(n / (1 << 30)).toFixed(1)} GB` : n >= 1 << 20 ? `${(n / (1 << 20)).toFixed(0)} MB` : `${(n / 1024).toFixed(0)} KB`);
 
 /**
- * The interactive task list (client): inline create, status cycling, priority,
+ * The interactive TODO list (client): inline create, status cycling, priority,
  * delete, and multi-select bulk actions (mark done/open, delete). Server filters via
- * query params (the page re-reads the store); mutations go through /api/leash/tasks
- * and refresh the server component. Bulk ops fan out over the existing per-task
+ * query params (the page re-reads the store); mutations go through /api/leash/todos
+ * and refresh the server component. Bulk ops fan out over the existing per-TODO
  * endpoints (the store's write mutex serializes them) and report partial failures.
  */
 
@@ -51,7 +51,7 @@ function relTime(ms: number): string {
   return new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function TasksPanel({
+export function ActivityPanel({
   tasks,
   downloads: initialDownloads = [],
   statusFilter,
@@ -111,7 +111,7 @@ export function TasksPanel({
             const now = Date.now();
             if (now - lastMeshToast.current > 10_000) {
               lastMeshToast.current = now;
-              toast.info("Tasks synced from the mesh");
+              toast.info("TODOs synced from the mesh");
             }
           }
         } catch {
@@ -200,15 +200,15 @@ export function TasksPanel({
   };
 
   const bulkStatus = (status: TaskStatus, label: string) =>
-    void bulk(label, (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status }) }));
+    void bulk(label, (id) => fetchWithTimeout(`/api/leash/todos/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ status }) }));
 
   const bulkDelete = async () => {
     const n = listedSelected.length;
-    if (!(await appConfirm(`Delete ${n} selected task${n === 1 ? "" : "s"}? This can't be undone.`, { confirmLabel: "Delete", destructive: true }))) return;
-    void bulk("deleted", (id) => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }));
+    if (!(await appConfirm(`Delete ${n} selected TODO${n === 1 ? "" : "s"}? This can't be undone.`, { confirmLabel: "Delete", destructive: true }))) return;
+    void bulk("deleted", (id) => fetchWithTimeout(`/api/leash/todos/${id}`, { method: "DELETE" }));
   };
 
-  const call = async (fn: () => Promise<Response>, success = "Task updated") => {
+  const call = async (fn: () => Promise<Response>, success = "TODO updated") => {
     setBusy(true);
     setError(null);
     try {
@@ -236,7 +236,7 @@ export function TasksPanel({
     setBusy(true);
     setError(null);
     try {
-      const res = await fetchWithTimeout("/api/leash/tasks", {
+      const res = await fetchWithTimeout("/api/leash/todos", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title, ...(detail.trim() ? { detail } : {}) }),
@@ -244,9 +244,9 @@ export function TasksPanel({
       if (res.ok) {
         setTitle("");
         setDetail("");
-        toast.success("Task created");
+        toast.success("TODO created");
       } else {
-        const msg = `Couldn't create the task (${res.status}).`;
+        const msg = `Couldn't create the TODO (${res.status}).`;
         setError(msg);
         toast.error(msg);
       }
@@ -261,11 +261,11 @@ export function TasksPanel({
   };
 
   const patch = (id: string, body: Record<string, unknown>) =>
-    call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), "Task updated");
+    call(() => fetchWithTimeout(`/api/leash/todos/${id}`, { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }), "TODO updated");
 
   const del = async (id: string) => {
-    if (!(await appConfirm("Delete this task?", { confirmLabel: "Delete", destructive: true }))) return;
-    void call(() => fetchWithTimeout(`/api/leash/tasks/${id}`, { method: "DELETE" }), "Task deleted");
+    if (!(await appConfirm("Delete this TODO?", { confirmLabel: "Delete", destructive: true }))) return;
+    void call(() => fetchWithTimeout(`/api/leash/todos/${id}`, { method: "DELETE" }), "TODO deleted");
   };
 
   return (
@@ -275,8 +275,8 @@ export function TasksPanel({
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="New task…"
-          aria-label="New task title"
+          placeholder="New TODO…"
+          aria-label="New TODO title"
           className="min-w-[220px] flex-1 border bg-transparent px-3 py-2"
           style={{ borderColor: "var(--color-rule-strong)", fontFamily: "var(--font-body)", fontSize: "0.95rem" }}
         />
@@ -284,15 +284,15 @@ export function TasksPanel({
           value={detail}
           onChange={(e) => setDetail(e.target.value)}
           placeholder="Detail (optional)"
-          aria-label="New task detail"
+          aria-label="New TODO detail"
           className="min-w-[220px] flex-[2] border bg-transparent px-3 py-2"
           style={{ borderColor: "var(--color-rule)", fontFamily: "var(--font-body)", fontSize: "0.95rem" }}
         />
         <button
           type="submit"
           disabled={busy || !title.trim()}
-          title="Add task"
-          aria-label="Add task"
+          title="Add TODO"
+          aria-label="Add TODO"
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded transition-opacity hover:opacity-80 disabled:opacity-40"
           style={{ background: "var(--color-sage-deep)", color: "var(--color-cream)" }}
         >
@@ -317,7 +317,7 @@ export function TasksPanel({
           <IconButton title="Mark open" disabled={busy} onClick={() => bulkStatus("open", "marked open")}>
             <RotateCcwIcon size={15} />
           </IconButton>
-          <IconButton title="Delete selected" danger disabled={busy} onClick={() => void bulkDelete()}>
+          <IconButton title="Delete selected TODOs" danger disabled={busy} onClick={() => void bulkDelete()}>
             <Trash2Icon size={15} />
           </IconButton>
           <span className="h-4 w-px" style={{ background: "var(--color-rule-strong)" }} />
@@ -330,11 +330,11 @@ export function TasksPanel({
       {/* List */}
       {tasks.length === 0 && visibleDownloads.length === 0 && visibleServices.length === 0 ? (
         <p className="kicker py-8 text-center" style={{ color: "var(--color-faint)" }}>
-          No tasks match — add one above, or ask Leash to &ldquo;remind me to…&rdquo; in chat.
+          No TODOs match — add one above, or ask Leash to &ldquo;remind me to…&rdquo; in chat.
         </p>
       ) : (
         <ul>
-          {/* Live rows — a download/service is a task with a different KIND (same row style). */}
+          {/* Live activity rows — downloads/services use the same row style as TODOs. */}
           {visibleDownloads.map((d) => {
             const key = `${d.kind ?? "model"}:${d.name}`;
             const label = d.label ?? d.name;
@@ -412,15 +412,15 @@ export function TasksPanel({
           })}
           {tasks.length > 0 && (
             <li className="flex items-center gap-3 border-b py-2" style={{ borderColor: "var(--color-rule)" }}>
-              <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={busy} aria-label="Select all listed tasks" />
+              <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} disabled={busy} aria-label="Select all listed TODOs" />
               <span className="kicker" style={{ color: "var(--color-faint)" }}>
-                Select all ({tasks.length} listed)
+                Select all listed TODOs ({tasks.length})
               </span>
             </li>
           )}
           {tasks.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-3 border-b py-3" style={{ borderColor: "var(--color-rule)", opacity: t.status === "done" || t.status === "dropped" ? 0.55 : 1 }}>
-              <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} disabled={busy} aria-label={`Select task: ${t.title}`} />
+              <input type="checkbox" checked={selected.has(t.id)} onChange={() => toggleSelect(t.id)} disabled={busy} aria-label={`Select TODO: ${t.title}`} />
               <select
                 value={t.status}
                 onChange={(e) => void patch(t.id, { status: e.target.value })}
@@ -472,7 +472,7 @@ export function TasksPanel({
                 ))}
               </select>
 
-              <IconButton title="Delete task" danger disabled={busy} onClick={() => void del(t.id)}>
+              <IconButton title="Delete TODO" danger disabled={busy} onClick={() => void del(t.id)}>
                 <Trash2Icon size={15} />
               </IconButton>
             </li>

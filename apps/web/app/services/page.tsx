@@ -3,7 +3,7 @@
  * daemon): Model Serve · Screen Watcher · Newsroom · Cron. Each card: live state,
  * start/stop/restart, log tail. The Cron card hosts the Schedules CRUD — the
  * scheduler's configuration is part of its service. Tasks the services produce live
- * on /tasks; this page is about the daemons.
+ * on /activity; this page is about the daemons.
  */
 import Link from "next/link";
 import { TelescopeIcon } from "lucide-react";

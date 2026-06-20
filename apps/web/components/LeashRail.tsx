@@ -10,9 +10,9 @@ import { toast } from "./Toast.tsx";
  * The Leash shell's left rail — the app's primary nav.
  *
  * Leash is the project's full dashboard. Surfaces: **Home** (overview — serve, daemons,
- * tasks, disk), **Chat** (the assistant), **Paper** (The Understory broadsheet),
+ * activity, disk), **Chat** (the assistant), **Paper** (The Understory broadsheet),
  * **Brain** (memory · skills · tools · prompts · models — everything the assistant is
- * made of), **Tasks** (tasks · pipeline · daemons). Every entry is a real, working
+ * made of), **Activity** (TODOs · pipeline · runs · live system activity). Every entry is a real, working
  * page — no disabled placeholders. Fixed-position; the layout offsets the main content
  * by the rail width so the 100dvh reader sits beside it untouched.
  */
@@ -49,7 +49,7 @@ function BrainIcon() {
     </svg>
   );
 }
-function TasksIcon() {
+function ActivityIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" aria-hidden>
       <path d="m3.5 6 1.5 1.5L8 4.5M3.5 12.5 5 14l3-3M3.5 19l1.5 1.5 3-3" strokeLinecap="round" strokeLinejoin="round" />
@@ -111,7 +111,7 @@ const ITEMS: { href: string; label: string; Icon: () => React.JSX.Element; isAct
   { href: "/chat", label: "Chat", Icon: ChatIcon, isActive: (p) => p.startsWith("/chat") },
   { href: "/feed", label: "Feed", Icon: PaperIcon, isActive: (p) => p.startsWith("/feed") },
   { href: "/brain", label: "Brain", Icon: BrainIcon, isActive: (p) => p.startsWith("/brain") },
-  { href: "/tasks", label: "Tasks", Icon: TasksIcon, isActive: (p) => p.startsWith("/tasks") },
+  { href: "/activity", label: "Activity", Icon: ActivityIcon, isActive: (p) => p.startsWith("/activity") },
   { href: "/notifications", label: "Alerts", Icon: BellIcon, isActive: (p) => p.startsWith("/notifications") },
   { href: "/economy", label: "Economy", Icon: EconomyIcon, isActive: (p) => p.startsWith("/economy") },
   { href: "/mesh", label: "Mesh", Icon: MeshIcon, isActive: (p) => p.startsWith("/mesh") },

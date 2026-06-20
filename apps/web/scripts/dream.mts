@@ -6,7 +6,7 @@
  * Reads every stored chat (`data/leash-chats/*.json`), asks the on-device model to
  * distill a handful of concrete "things to work on", and appends them as
  * source:"dream" tasks to `data/leash-tasks.json` — the dashboard's task store
- * (/tasks page, chat tray "To work on", create_task/list_tasks chat tools). Dedupes
+ * (/activity page, chat tray "To work on", create_task/list_tasks chat tools). Dedupes
  * by title against existing tasks so a nightly run never re-adds what's already
  * tracked. Pure HTTP to the local QVAC server; on-device; no cloud.
  *
@@ -105,7 +105,7 @@ function readTasks(): TaskRow[] {
   }
 }
 
-/** Atomic write (tmp+rename) — the web process reads this file on every /tasks view. */
+/** Atomic write (tmp+rename) — the web process reads this file on every /activity view. */
 function writeTasks(tasks: TaskRow[]): void {
   mkdirSync(dirname(TASKS_FILE), { recursive: true });
   const tmp = join(dirname(TASKS_FILE), `.dream-${Date.now()}.tmp`);

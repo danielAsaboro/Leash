@@ -7,7 +7,7 @@
  * assistant's chat tools + the leash-tools-mcp Tasks group still write). So:
  *   - reads  → {@link listTasksMerged}: local ∪ mesh, LWW by `updatedAt`, mesh tombstones applied.
  *   - writes → {@link syncTaskToMesh}/{@link deleteTaskFromMesh}: best-effort write-through from the
- *     existing `/api/leash/tasks*` routes (which keep writing local synchronously). Hypha down →
+ *     existing `/api/leash/todos*` routes (which keep writing local synchronously). Hypha down →
  *     the write-through is a no-op and the local store still serves the page (honest degraded mode).
  *
  * `MeshTask` is a superset of `LeashTask` — identical except `chatIds` (which the mesh/phone don't

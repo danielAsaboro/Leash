@@ -1,6 +1,6 @@
 /**
  * Shared dashboard primitives for the Leash management pages (/home /models /brain
- * /tasks) — light broadsheet styling (cream/paper/rule tokens), server-renderable.
+ * /activity) — light broadsheet styling (cream/paper/rule tokens), server-renderable.
  * Mission Control keeps its own dark "control room" look; these pages live in the
  * paper's world.
  */
