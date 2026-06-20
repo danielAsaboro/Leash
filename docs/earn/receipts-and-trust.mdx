@@ -1,0 +1,54 @@
+---
+title: "Receipts and trust"
+description: "How Leash records economy evidence for free and paid delegated inference."
+---
+
+Receipts make delegated compute auditable. They give the consumer, provider, and operator a shared record of what was selected, what was authorized, what was streamed, and what was settled.
+
+## Receipt fields
+
+A complete run can record:
+
+- Mesh class: `private` or `public`.
+- Provider identity and advertised name.
+- Model alias and modality.
+- Rate in micro-units per thousand tokens.
+- Token cap and metered usage.
+- Authorization id for paid routes.
+- Settlement transaction for paid routes.
+- Zero-cost close marker for free routes.
+- Timing data such as TTFT and total duration.
+
+Private mesh receipts use the same shape with a forced zero rate. That keeps history, analytics, and UI rendering consistent without charging personal devices.
+
+## Trust inputs
+
+Public routing uses more than price. A cheap provider can still lose if it is slow, unreliable, or has poor history.
+
+| Signal | Why it matters |
+|---|---|
+| Identity | Prevents anonymous capacity from blending into trusted private peers. |
+| Reputation | Lets successful sessions improve future ranking. |
+| Receipts | Proves what was charged or why a run was free. |
+| Settlement result | Confirms paid runs closed on the expected rail. |
+| Self-dealing checks | Detects when the same operator controls both sides of a paid route. |
+
+## Paid evidence
+
+Paid runs should leave two layers of evidence:
+
+- **Runtime evidence** in the Leash and Hypha logs: quote, authorization, stream, meter, close.
+- **Settlement evidence** on the configured payment rail: the final transaction or facilitator result.
+
+The provider earns only after the metered close succeeds.
+
+## Free evidence
+
+Free runs still matter. They prove routing selected a public provider but did not charge:
+
+- Public provider advertised a `0` rate.
+- Consumer skipped payment authorization.
+- Completion streamed normally.
+- Receipt closed at `0`.
+
+This is important for public providers that want to donate spare compute or build reputation before charging.

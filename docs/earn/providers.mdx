@@ -1,0 +1,75 @@
+---
+title: "Start earning"
+description: "Configure a Hypha provider so public mesh consumers can use your local QVAC models."
+---
+
+A provider is a machine running Hypha plus a local QVAC serve. It advertises model aliases, rate information, and a payment identity to public mesh consumers.
+
+<Warning>
+  All model work must go through `@qvac/sdk`. Do not add cloud AI fallback routes for paid or free providers.
+</Warning>
+
+## Provider checklist
+
+- QVAC serve is running with the model aliases you want to offer.
+- Hypha is running on the provider device.
+- The provider has a distinct wallet identity.
+- Public economy mode is enabled.
+- Each public model alias has a rate, including `0` if the provider is free.
+- The device is joined to the public mesh where it should advertise.
+
+## Environment
+
+Use the existing economy environment variables for the provider process. Values vary by network, but the shape is:
+
+```bash
+HYPHA_ECONOMY_ROLE=provider
+HYPHA_ECONOMY_ENABLED=1
+HYPHA_ECONOMY_PROVIDER_NAME=desk-provider
+HYPHA_ECONOMY_WALLET_MNEMONIC="quote multi word mnemonics"
+HYPHA_ECONOMY_RPC_URL=http://127.0.0.1:8545
+HYPHA_ECONOMY_CHAIN_ID=9746
+HYPHA_ECONOMY_DEFAULT_RATE_MICRO_USDT0_PER_KTOK=1000
+```
+
+Set the default rate to `0` for a free public provider:
+
+```bash
+HYPHA_ECONOMY_DEFAULT_RATE_MICRO_USDT0_PER_KTOK=0
+```
+
+Private mesh routes ignore paid settlement even when these fields exist. They are forced to a zero-rate policy.
+
+## Publish rates
+
+Rates are attached to advertised public capacity. A provider can expose the same model in different ways:
+
+| Alias | Mesh | Rate | Meaning |
+|---|---|---:|---|
+| `qwen3-4b` | Private | `0` | Personal device mesh, never charged |
+| `qwen3-4b` | Public | `0` | Public free capacity |
+| `qwen3-4b-fast` | Public | `1000` | Paid public capacity |
+
+The router treats price as one input, alongside model fit, latency, availability, confidence, and reputation.
+
+## Keep it online
+
+For a provider to earn, both services must stay reachable:
+
+```bash
+npm run qvac
+npm run hypha
+```
+
+On a multi-device setup, run Hypha in a session that keeps local network permissions alive. The provider cannot earn if public consumers cannot dial it.
+
+## Related runbooks
+
+<CardGroup cols={2}>
+  <Card title="Economy platform guide" icon="coins" href="/platforms/economy">
+    Full environment knobs, facilitator settings, and smoke-test commands.
+  </Card>
+  <Card title="Local settlement on anvil" icon="flask-conical" href="/help/local-settlement-anvil">
+    Run the paid settlement loop against the local anvil fork.
+  </Card>
+</CardGroup>

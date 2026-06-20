@@ -67,6 +67,22 @@
         ]
       },
       {
+        "tab": "Earn",
+        "icon": "coins",
+        "groups": [
+          {
+            "group": "Earn",
+            "pages": [
+              "earn/overview",
+              "earn/how-it-works",
+              "earn/providers",
+              "earn/receipts-and-trust",
+              "earn/rules-and-limits"
+            ]
+          }
+        ]
+      },
+      {
         "tab": "Channels",
         "icon": "comments",
         "groups": [

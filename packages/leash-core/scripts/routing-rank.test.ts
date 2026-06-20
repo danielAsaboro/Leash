@@ -1,7 +1,7 @@
 /**
  * tsx assertion script (repo idiom). Verifies rankRoutes: privacy gate drops public for
- * sensitive turns; capability filter drops under-powered local; cheapest-that-clears wins;
- * a saturated local loses to a free peer; empty-after-filter returns [].
+ * sensitive turns; capability filter drops under-powered local; private mesh is zero-rate;
+ * public is considered only after private cannot clear the bar; empty-after-filter returns [].
  * Run: npx tsx packages/leash-core/scripts/routing-rank.test.ts
  */
 import assert from "node:assert";
@@ -9,7 +9,7 @@ import { rankRoutes } from "../src/routing/rank.ts";
 import type { RouteOption, CapabilityBar } from "../src/routing/types.ts";
 
 const local4b: RouteOption = { tier: "device", alias: "qwen3-4b", tags: { modality: "text", paramClass: "small", specialist: "general" }, pricePerKiloToken: 0, inflight: 0 };
-const peerBig: RouteOption = { tier: "private", alias: "qwen3-32b", peerKey: "PK_PRO", meshId: "primary", modelSrc: "src://big", tags: { modality: "text", paramClass: "large", specialist: "general" }, pricePerKiloToken: 500, inflight: 0 };
+const peerBig: RouteOption = { tier: "private", alias: "qwen3-32b", peerKey: "PK_PRO", meshId: "primary", modelSrc: "src://big", tags: { modality: "text", paramClass: "large", specialist: "general" }, pricePerKiloToken: 0, inflight: 0 };
 const publicBig: RouteOption = { tier: "public", alias: "qwen3-32b", peerKey: "PK_PUB", meshId: "open", tags: { modality: "text", paramClass: "large", specialist: "general" }, pricePerKiloToken: 10, inflight: 0 };
 
 function main() {
@@ -30,13 +30,22 @@ function main() {
   assert.ok(r.every((x) => x.tier !== "public"), "private sensitivity must exclude public tier");
   assert.equal(r[0]?.peerKey, "PK_PRO", "sensitive hard turn → private peer, not cheaper public");
 
-  // 4. Shareable hard turn MAY use the cheaper public peer.
+  // 4. Shareable hard turn keeps the zero-rate private route ahead of cheaper public market routes.
   r = rankRoutes({ bar: hardBar, sensitivity: "shareable", options: [peerBig, publicBig] });
-  assert.equal(r[0]?.peerKey, "PK_PUB", "shareable turn should take the cheaper public peer");
+  assert.equal(r[0]?.peerKey, "PK_PRO", "shareable turn should prefer private when private clears");
+
+  // 4b. Shareable hard turn may use public when no private route clears the bar.
+  r = rankRoutes({ bar: hardBar, sensitivity: "shareable", options: [local4b, publicBig] });
+  assert.equal(r[0]?.peerKey, "PK_PUB", "shareable turn may use public when private cannot clear");
+
+  // 4c. Stale private prices are normalized to zero by policy.
+  r = rankRoutes({ bar: hardBar, sensitivity: "shareable", options: [{ ...peerBig, pricePerKiloToken: 500 }, publicBig] });
+  assert.equal(r[0]?.peerKey, "PK_PRO", "private mesh rate is policy-zero even if a stale price is supplied");
+  assert.equal(r[0]?.pricePerKiloToken, 0, "ranked private route exposes zero price");
 
   // 5. Saturated local loses to a free peer on an easy turn (load offload).
   const busyLocal = { ...local4b, inflight: 3 };
-  const freePeerSmall: RouteOption = { tier: "private", alias: "qwen3-4b", peerKey: "PK_FREE", meshId: "primary", modelSrc: "src://s", tags: { modality: "text", paramClass: "small", specialist: "general" }, pricePerKiloToken: 100, inflight: 0 };
+  const freePeerSmall: RouteOption = { tier: "private", alias: "qwen3-4b", peerKey: "PK_FREE", meshId: "primary", modelSrc: "src://s", tags: { modality: "text", paramClass: "small", specialist: "general" }, pricePerKiloToken: 0, inflight: 0 };
   r = rankRoutes({ bar: easyBar, sensitivity: "private", options: [busyLocal, freePeerSmall] });
   assert.equal(r[0]?.peerKey, "PK_FREE", "saturated local should offload to a free peer");
 

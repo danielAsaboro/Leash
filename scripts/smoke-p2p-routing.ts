@@ -7,9 +7,9 @@ import { rankRoutes, tagsForAlias, type RouteOption } from "../packages/leash-co
 
 const options: RouteOption[] = [
   { tier: "device", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), pricePerKiloToken: 0, inflight: 4 },
-  { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-fast", meshId: "mesh-private", pricePerKiloToken: 500, inflight: 0 },
+  { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-fast", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
   { tier: "public", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-public", meshId: "mesh-public", pricePerKiloToken: 1, inflight: 0 },
-  { tier: "private", alias: "medpsy", tags: tagsForAlias("medpsy"), peerKey: "peer-joy", meshId: "mesh-private", pricePerKiloToken: 1000, inflight: 0 },
+  { tier: "private", alias: "medpsy", tags: tagsForAlias("medpsy"), peerKey: "peer-joy", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
 ];
 
 const privateRanked = rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options });
@@ -17,7 +17,10 @@ assert.ok(privateRanked.every((r) => r.tier !== "public"), "private sensitivity 
 assert.equal(privateRanked[0]!.peerKey, "peer-fast", "saturated local loses to less-loaded private peer");
 
 const shareableRanked = rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "shareable", options });
-assert.equal(shareableRanked[0]!.tier, "public", "shareable low-cost public route can win");
+assert.equal(shareableRanked[0]!.tier, "private", "shareable route still prefers zero-rate private when it clears");
+
+const publicOnlyRanked = rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "shareable", options: options.filter((o) => o.tier !== "private" && o.tier !== "device") });
+assert.equal(publicOnlyRanked[0]!.tier, "public", "shareable route may use public when private cannot clear");
 
 const healthRanked = rankRoutes({ bar: { modality: "text", minParamClass: "small", specialist: "health" }, sensitivity: "private", options });
 assert.equal(healthRanked[0]!.alias, "medpsy", "health route selects health specialist");

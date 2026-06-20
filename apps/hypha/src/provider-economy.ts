@@ -5,6 +5,7 @@ import { signProviderPayload, digestAuthorization, type ActiveSessionRecord, typ
 import type { PlasmaSettlementService, PlasmaVerifiedBudget } from "./plasma-settlement.ts";
 import { appendRung, initMeteredState, isIdleExpired, rungToSettle, settleTokensAtClose, settleTokensAtCutoff } from "./metered.ts";
 import { ProviderEconomyStore } from "./provider-economy-store.ts";
+import { paidSessionValidationError } from "./mesh-economy-policy.ts";
 
 interface MeshParticipant {
   visibility: Visibility;
@@ -482,7 +483,8 @@ export class ProviderEconomyService {
   private async validateMeshBinding(meshId: string, consumerWriterKey: string, consumerPublicKey: string): Promise<MeshParticipant> {
     const participant = await this.deps.resolveMeshParticipant(meshId, consumerWriterKey);
     if (!participant) throw new Error("consumer is not a member of the requested mesh");
-    if (participant.visibility !== "private") throw new Error("public meshes never participate in compute settlement");
+    const visibilityError = paidSessionValidationError(participant.visibility);
+    if (visibilityError) throw new Error(visibilityError);
     if (participant.consumerPublicKey !== consumerPublicKey) throw new Error("consumer public key does not match the mesh capability");
     return participant;
   }

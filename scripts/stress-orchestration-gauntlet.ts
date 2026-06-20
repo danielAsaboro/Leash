@@ -68,10 +68,10 @@ assert.equal(approvalMatches(binding, "type_text", { app: "TextEdit", text: "mut
 // P2P load/sensitivity routing.
 const options: RouteOption[] = [
   { tier: "device", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), pricePerKiloToken: 0, inflight: 6 },
-  { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-private", pricePerKiloToken: 500, inflight: 0 },
+  { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-private", pricePerKiloToken: 0, inflight: 0 },
   { tier: "public", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-public", pricePerKiloToken: 1, inflight: 0 },
-  { tier: "private", alias: "medpsy", tags: tagsForAlias("medpsy"), peerKey: "peer-health", pricePerKiloToken: 1000, inflight: 0 },
-  { tier: "private", alias: "qwen3vl", tags: tagsForAlias("qwen3vl"), peerKey: "peer-vision", pricePerKiloToken: 300, inflight: 0 },
+  { tier: "private", alias: "medpsy", tags: tagsForAlias("medpsy"), peerKey: "peer-health", pricePerKiloToken: 0, inflight: 0 },
+  { tier: "private", alias: "qwen3vl", tags: tagsForAlias("qwen3vl"), peerKey: "peer-vision", pricePerKiloToken: 0, inflight: 0 },
 ];
 assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options })[0]!.peerKey, "peer-private");
 assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small", specialist: "health" }, sensitivity: "private", options })[0]!.alias, "medpsy");

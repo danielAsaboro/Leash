@@ -10,6 +10,7 @@ export const PARAM_ORDER: Record<ParamClass, number> = { unknown: -1, tiny: 0, s
 
 const INFLIGHT_PENALTY = 400; // ≈ one paid request — lets a saturated local lose to a free peer
 const TIER_BIAS: Record<RouteOption["tier"], number> = { device: 0, private: 50, public: 150 };
+const policyPrice = (o: RouteOption): number => (o.tier === "private" || o.tier === "device" ? 0 : o.pricePerKiloToken);
 
 function clearsBar(o: RouteOption, bar: CapabilityBar): boolean {
   if (o.tags.modality !== bar.modality) return false;
@@ -27,10 +28,11 @@ export function rankRoutes(input: { bar: CapabilityBar; sensitivity: Sensitivity
   // (3) Rank by cost + load + privacy bias.
   return eligible
     .map((o) => {
-      const score = o.pricePerKiloToken + o.inflight * INFLIGHT_PENALTY + TIER_BIAS[o.tier];
+      const pricePerKiloToken = policyPrice(o);
+      const score = pricePerKiloToken + o.inflight * INFLIGHT_PENALTY + TIER_BIAS[o.tier];
       const where = o.peerKey ? `peer ${o.alias}@${o.tier}` : `local ${o.alias}`;
-      const reason = `${where} · ${o.pricePerKiloToken}µ/ktok · inflight ${o.inflight} · score ${score}`;
-      return { ...o, score, reason };
+      const reason = `${where} · ${pricePerKiloToken}µ/ktok · inflight ${o.inflight} · score ${score}`;
+      return { ...o, pricePerKiloToken, score, reason };
     })
     .sort((a, b) => a.score - b.score);
 }

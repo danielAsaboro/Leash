@@ -54,6 +54,7 @@
     "smoke:model-rows": "tsx scripts/smoke-model-rows.ts",
     "smoke:storage-paging": "tsx scripts/smoke-storage-paging.ts",
     "smoke:mesh-entry": "tsx scripts/smoke-mesh-entry.ts",
+    "smoke:mesh-economy-policy": "tsx scripts/smoke-mesh-economy-policy.ts",
     "smoke:model-type": "tsx scripts/smoke-model-type.ts",
     "smoke:chat-attachments": "tsx scripts/smoke-chat-attachments.ts",
     "smoke:chat-attachments-text": "tsx scripts/smoke-chat-attachments-text.ts",

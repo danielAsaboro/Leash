@@ -12,9 +12,10 @@
  * — the shim does raw `completion()` (no tool execution; the TOOLLESS-HANG guard), and the
  * broker, not the SDK, is the fallback (SDK-local fallback would duplicate model RAM here).
  */
-import type { AuditLog, DeviceCapability, SettlementEndpoint } from "@mycelium/shared";
+import type { AuditLog, DeviceCapability, SettlementEndpoint, Visibility } from "@mycelium/shared";
 import { liveProviders, loadDelegated } from "@mycelium/mesh";
 import { descriptorFor } from "./catalog.ts";
+import { advertisedPriceForMesh, requiresPaidSessionForMesh } from "./mesh-economy-policy.ts";
 
 interface WarmEntry {
   peerKey: string;
@@ -76,6 +77,8 @@ export interface ReputationRanker {
 export interface WarmPoolDeps {
   /** Read every device's latest replicated capability. */
   caps: () => Promise<DeviceCapability[]>;
+  /** Mesh visibility drives economy semantics: private is always free; public may be free or paid. */
+  visibility: Visibility;
   /** This device's own provider/consumer public key (excluded from peer selection). */
   selfKey: string;
   staleMs: number;
@@ -98,8 +101,11 @@ export interface WarmPoolDeps {
 
 const key = (peerKey: string, modelSrc: string): string => `${peerKey}::${modelSrc}`;
 const uptoRail = (cap: DeviceCapability): SettlementEndpoint | undefined =>
-  (cap.settlements ?? (cap.settlement ? [cap.settlement] : [])).find((rail) => rail.network === "plasma" && rail.x402?.scheme === "upto");
-export const isPaidSessionPeer = (cap: DeviceCapability): boolean => uptoRail(cap) !== undefined;
+  (cap.settlements ?? (cap.settlement ? [cap.settlement] : [])).find((rail) => rail.network === "plasma" && rail.x402?.scheme === "upto" && (rail.x402.pricePerKiloToken ?? 0) > 0);
+export const isPaidSessionPeer = (cap: DeviceCapability, visibility: Visibility = "public"): boolean => {
+  const rail = uptoRail(cap);
+  return requiresPaidSessionForMesh(visibility, rail?.x402?.pricePerKiloToken ?? 0, rail !== undefined);
+};
 
 export class WarmPool {
   private readonly warm = new Map<string, WarmEntry>();
@@ -152,7 +158,7 @@ export class WarmPool {
     for (const peer of live) {
       const pk = peer.providerPublicKey;
       if (!pk) continue;
-      if (isPaidSessionPeer(peer)) {
+      if (isPaidSessionPeer(peer, this.deps.visibility)) {
         // Pre-warm the payment-control connection (not the model — paid models load on-demand).
         this.deps.onPaidPeer?.(pk);
         continue;
@@ -205,7 +211,7 @@ export class WarmPool {
       .filter((e) => e.alias === alias)
       .map((e) => ({ peerKey: e.peerKey, inflight: inflightOf(e.peerKey), modelId: e.modelId, modelSrc: e.modelSrc } satisfies DelegationTarget));
     const paidCandidates = this.livePeers(this.lastCaps)
-      .filter((c) => isPaidSessionPeer(c))
+      .filter((c) => isPaidSessionPeer(c, this.deps.visibility))
       .flatMap((c) => {
         const peerKey = c.providerPublicKey;
         if (!peerKey) return [];
@@ -259,7 +265,7 @@ export class WarmPool {
   /** Advertised price/kilo-token for a paid peer (0 = free/warm, sorts first). */
   private priceOf(peerKey: string): number {
     const cap = this.lastCaps.find((c) => c.providerPublicKey === peerKey);
-    return cap ? uptoRail(cap)?.x402?.pricePerKiloToken ?? 0 : 0;
+    return cap ? advertisedPriceForMesh(this.deps.visibility, uptoRail(cap)?.x402?.pricePerKiloToken ?? 0) : 0;
   }
 
   /**
@@ -293,7 +299,7 @@ export class WarmPool {
   warmAliases(): Set<string> {
     const aliases = new Set([...this.warm.values()].map((e) => e.alias));
     for (const peer of this.livePeers(this.lastCaps)) {
-      if (!isPaidSessionPeer(peer)) continue;
+      if (!isPaidSessionPeer(peer, this.deps.visibility)) continue;
       for (const model of peer.models ?? []) if (model.borrowable !== false) aliases.add(model.alias);
     }
     return aliases;
@@ -317,7 +323,7 @@ export class WarmPool {
       .filter((c) => c.isProvider && c.providerPublicKey && c.providerPublicKey !== this.deps.selfKey)
       .map((c) => {
         const warmSet = warmByPeer.get(c.providerPublicKey!) ?? new Set<string>();
-        const price = uptoRail(c)?.x402?.pricePerKiloToken;
+        const price = advertisedPriceForMesh(this.deps.visibility, uptoRail(c)?.x402?.pricePerKiloToken ?? 0);
         const rep = this.deps.reputation;
         return {
           deviceId: c.deviceId,
@@ -337,8 +343,8 @@ export class WarmPool {
           settlement: c.settlement,
           settlements: c.settlements,
           shareModels: c.shareModels ?? true,
-          ...(price != null ? { pricePerKiloToken: price } : {}),
-          ...(rep ? { reputationScore: rep.score(c.providerPublicKey!), effectiveCost: rep.effectiveCost(c.providerPublicKey!, price ?? 0) } : {}),
+          pricePerKiloToken: price,
+          ...(rep ? { reputationScore: rep.score(c.providerPublicKey!), effectiveCost: rep.effectiveCost(c.providerPublicKey!, price) } : {}),
         } satisfies PeerView;
       });
   }

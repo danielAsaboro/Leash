@@ -12,7 +12,7 @@
  * peers to gossip to or serve, so none of this is needed until it pairs.
  */
 import { AuditLog, makeCapability } from "@mycelium/shared";
-import type { DeviceCapability, DeviceIdentityProof } from "@mycelium/shared";
+import type { DeviceCapability, DeviceIdentityProof, Visibility } from "@mycelium/shared";
 import { listSkills } from "@mycelium/leash-core/skills-store";
 import { unionAllowedConsumers } from "@mycelium/mesh";
 import type { MeshGraph } from "@mycelium/mesh";
@@ -22,6 +22,7 @@ import type { Inflight } from "./shim.ts";
 import type { DeviceProvider } from "./device-provider.ts";
 import type { SettlementManager } from "./settlement-manager.ts";
 import { COMPUTE_CLASS, DEVICE_NAME, HEARTBEAT_MS, POWER_STATE, RAM_MB, STALE_MS, WARM_TICK_MS } from "./config.ts";
+import { paidRailsForMesh } from "./mesh-economy-policy.ts";
 
 export interface MeshRuntime {
   meshId: string;
@@ -40,6 +41,8 @@ export interface MeshRuntime {
 export interface StartMeshServicesDeps {
   /** Local mesh handle (the namespace id). */
   meshId: string;
+  /** Mesh visibility drives economy semantics: private is always zero-rate; public may be free or paid. */
+  visibility: Visibility;
   /** The device-global provider that owns the single SDK provider + union firewall. */
   provider: DeviceProvider;
   /** Optional agentic-economy settlement rails advertised in this device's caps. */
@@ -72,7 +75,7 @@ export interface StartMeshServicesDeps {
  * firewall, and run the consumer warm pool. The SDK provider is the DeviceProvider's job.
  */
 export async function startMeshServices(graph: MeshGraph, deps: StartMeshServicesDeps): Promise<MeshRuntime> {
-  const { meshId, provider, inflight, audit, settlement } = deps;
+  const { meshId, visibility, provider, inflight, audit, settlement } = deps;
   const isForgotten = deps.isForgotten ?? (() => false);
   const selfKey = await provider.ensureStarted();
   const aliases = localAliases();
@@ -83,7 +86,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
     return caps;
   };
 
-  const payouts = settlement?.payoutEndpoints() ?? [];
+  const payouts = paidRailsForMesh(visibility, settlement?.payoutEndpoints() ?? []);
   // Phase 4 — the wallet↔provider-key binding is STATIC (key + wallet don't change), so sign it ONCE
   // and splice it into every heartbeat cap. undefined = not computed yet; null = none (flag off / no rail).
   let identityProof: DeviceIdentityProof | null | undefined;
@@ -168,7 +171,7 @@ export async function startMeshServices(graph: MeshGraph, deps: StartMeshService
   const fwTimer = setInterval(() => void reconcileFirewall(), HEARTBEAT_MS);
   if (typeof fwTimer.unref === "function") fwTimer.unref();
 
-  const pool = new WarmPool({ caps: liveCaps, selfKey, staleMs: STALE_MS, tickMs: WARM_TICK_MS, audit, ...(deps.onPaidPeer ? { onPaidPeer: deps.onPaidPeer } : {}), ...(deps.reputation ? { reputation: deps.reputation } : {}) });
+  const pool = new WarmPool({ caps: liveCaps, visibility, selfKey, staleMs: STALE_MS, tickMs: WARM_TICK_MS, audit, ...(deps.onPaidPeer ? { onPaidPeer: deps.onPaidPeer } : {}), ...(deps.reputation ? { reputation: deps.reputation } : {}) });
   pool.start();
 
   console.log(`🧠 mesh ${meshId} online — key ${selfKey.slice(0, 16)}… · serving ${aliases.length} alias(es): ${aliases.map((a) => a.alias).join(", ") || "(none)"}`);

@@ -1,24 +1,46 @@
-/**
- * Regression test for the MeshRouter paid-target propagation bug.
- * A paid (registry-session) peer's target has requiresSession=true + modelSrc but NO modelId.
- * route() must propagate requiresSession + modelSrc so the shim takes the paid-session path.
- * Before the fix, route() dropped both → shim non-session path → undefined modelId → failure.
- */
 import { MeshRouter, type RouterMesh } from "../apps/hypha/src/mesh-router.ts";
+import { isPaidSessionPeer } from "../apps/hypha/src/warm-pool.ts";
 
-const paidTarget = { peerKey: "PROVIDERKEY", inflight: 0, modelSrc: "src://qwen3-4b", requiresSession: true };
-const cap = { settlements: [{ network: "plasma", mint: "0xUSDT", x402: { scheme: "upto" } }] };
-const fakePool = {
-  targetForAlias: (_alias: string) => paidTarget,
-  capabilityForProviderKey: (_k: string) => cap,
-} as unknown as RouterMesh["pool"];
-const mesh = { meshId: "primary", label: "Primary", tier: 0, visibility: "private", selfWriterKey: "SELF", pool: fakePool } as RouterMesh;
+const paidRail = { network: "plasma", mint: "0xUSDT", x402: { scheme: "upto", pricePerKiloToken: 500 } };
+const paidCap = { settlements: [paidRail] };
 
-const router = new MeshRouter(() => [mesh]);
-const hit = router.route({ alias: "qwen3-4b", sensitivity: "private" });
-console.log("route() hit:", JSON.stringify(hit));
+if (isPaidSessionPeer(paidCap as never, "private" as never)) {
+  console.error("❌ FAIL — private mesh capability with a stale rail must not be classified as paid");
+  process.exit(1);
+}
+if (!isPaidSessionPeer(paidCap as never, "public" as never)) {
+  console.error("❌ FAIL — public mesh capability with a nonzero rail must be classified as paid");
+  process.exit(1);
+}
 
-const ok = !!hit && hit.requiresSession === true && hit.modelSrc === "src://qwen3-4b" && hit.peerKey === "PROVIDERKEY";
-console.log(ok ? "✅ PASS — requiresSession + modelSrc propagated (paid-session path will fire)"
-              : "❌ FAIL — paid fields dropped (shim falls to non-session path → 'no delegated model is ready')");
+function mesh(visibility: "private" | "public", target: { requiresSession?: boolean; peerKey: string }, cap = { settlements: [paidRail] }): RouterMesh {
+  const fakePool = {
+    targetForAlias: (_alias: string) => target,
+    capabilityForProviderKey: (_k: string) => cap,
+  } as unknown as RouterMesh["pool"];
+  return { meshId: visibility, label: visibility, tier: visibility === "private" ? 0 : 1, visibility, selfWriterKey: "SELF", autobaseKey: `base-${visibility}`, pool: fakePool } as RouterMesh;
+}
+
+const privateRouter = new MeshRouter(() => [mesh("private", { peerKey: "PRIVATE", inflight: 0, modelSrc: "src://qwen3-4b" })]);
+const privateHit = privateRouter.route({ alias: "qwen3-4b", sensitivity: "private" });
+console.log("private route() hit:", JSON.stringify(privateHit));
+if (!privateHit || privateHit.requiresSession === true || privateHit.peerKey !== "PRIVATE" || privateHit.settlements !== undefined || privateHit.settlement !== undefined) {
+  console.error("❌ FAIL — private mesh route must stay free even if a stale paid rail exists");
+  process.exit(1);
+}
+
+const publicFreeRouter = new MeshRouter(() => [mesh("public", { peerKey: "PUBLIC_FREE", inflight: 0, modelSrc: "src://qwen3-4b" }, { settlements: [] })]);
+const publicFreeHit = publicFreeRouter.route({ alias: "qwen3-4b", sensitivity: "shareable" });
+console.log("public free route() hit:", JSON.stringify(publicFreeHit));
+if (!publicFreeHit || publicFreeHit.requiresSession === true || publicFreeHit.peerKey !== "PUBLIC_FREE") {
+  console.error("❌ FAIL — public zero-price route must not require a paid session");
+  process.exit(1);
+}
+
+const publicPaidRouter = new MeshRouter(() => [mesh("public", { peerKey: "PUBLIC_PAID", inflight: 0, modelSrc: "src://qwen3-4b", requiresSession: true })]);
+const publicPaidHit = publicPaidRouter.route({ alias: "qwen3-4b", sensitivity: "shareable" });
+console.log("public paid route() hit:", JSON.stringify(publicPaidHit));
+const ok = !!publicPaidHit && publicPaidHit.requiresSession === true && publicPaidHit.modelSrc === "src://qwen3-4b" && publicPaidHit.peerKey === "PUBLIC_PAID";
+console.log(ok ? "✅ PASS — private/free routes stay free; public paid route propagates session contract"
+              : "❌ FAIL — public paid fields dropped (shim would miss paid-session path)");
 process.exit(ok ? 0 : 1);

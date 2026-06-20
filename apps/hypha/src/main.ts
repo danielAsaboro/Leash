@@ -95,6 +95,7 @@ import { ProviderEconomyService } from "./provider-economy.ts";
 import { PaymentControlClient, PaymentControlServer } from "./payment-control.ts";
 import { ForwardControlServer, ForwardControlClient } from "./forward-control.ts";
 import { createForwardProvider } from "./forward-provider.ts";
+import { membershipLimitError } from "./mesh-economy-policy.ts";
 
 /** One membership row persisted in meshes.json — the device's local record of a mesh it belongs to. */
 interface MeshRecord {
@@ -453,6 +454,12 @@ async function runDaemon(): Promise<void> {
     try { writeFileSync(MESHES_FILE, JSON.stringify([...meshMeta.values()], null, 2)); } catch { /* best effort */ }
   };
   const nextTier = (): number => { const ts = [...meshMeta.values()].map((m) => m.tier); return (ts.length ? Math.max(...ts) : 0) + 1; };
+  const membershipRecords = (): Array<{ meshId: string; visibility: Visibility }> =>
+    [...meshMeta.values()].map((m) => ({ meshId: m.meshId, visibility: m.visibility }));
+  const assertMembershipSlot = (visibility: Visibility, currentMeshId?: string): void => {
+    const error = membershipLimitError(membershipRecords(), visibility, currentMeshId);
+    if (error) throw new Error(error);
+  };
 
   // One MeshHost owns the root corestore + shared swarm; created lazily so a fresh device stays
   // mesh-less (never founds a store) until it actually pairs/founds.
@@ -467,7 +474,7 @@ async function runDaemon(): Promise<void> {
   const bringMeshOnline = async (meshId: string, g: MeshGraph, meta: MeshRecord): Promise<MeshRuntime> => {
     // Leader seniority: stamp the first-online epoch once, persist it, and advertise it every heartbeat.
     if (typeof meta.joinedAt !== "number") meta.joinedAt = Date.now();
-    const m = await startMeshServices(g, { meshId, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, joinedAt: meta.joinedAt, ...(meta.label ? { meshLabel: meta.label } : {}), ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
+    const m = await startMeshServices(g, { meshId, visibility: meta.visibility, provider, settlement, inflight, audit, isForgotten, shareModels: () => shareModels, unsharedAliases: () => unsharedModels, joinedAt: meta.joinedAt, ...(meta.label ? { meshLabel: meta.label } : {}), ...(onPaidPeer ? { onPaidPeer } : {}), ...(HYPHA_REPUTATION ? { reputation } : {}), ...(HYPHA_ECONOMY_IDENTITY_BINDING ? { bindIdentity: true } : {}) });
     runtimes.set(meshId, m);
     meshMeta.set(meshId, meta);
     saveMeshRecords(); // persist joinedAt (and the membership) on every online path
@@ -506,6 +513,7 @@ async function runDaemon(): Promise<void> {
 
   /** Found a brand-new private mesh of your own devices. Returns its local meshId. */
   const foundMesh = async (label: string): Promise<string> => {
+    assertMembershipSlot("private");
     const h = await ensureHost();
     const meshId = randomUUID();
     const meta: MeshRecord = { meshId, label, visibility: "private", reach: "local", tier: nextTier(), creator: true };
@@ -521,9 +529,10 @@ async function runDaemon(): Promise<void> {
    * pairing path and the paste-invite fallback.
    */
   const joinAsMembership = async (invite: string, label: string): Promise<string> => {
-    const h = await ensureHost();
     const isPrimary = !runtimes.has(PRIMARY_MESH_ID);
     const meshId = isPrimary ? PRIMARY_MESH_ID : randomUUID();
+    assertMembershipSlot("private", isPrimary ? PRIMARY_MESH_ID : undefined);
+    const h = await ensureHost();
     const meta: MeshRecord = isPrimary ? { ...primaryRecord(), label } : { meshId, label, visibility: "private", reach: "local", tier: nextTier(), creator: false };
     try {
       const { graph } = await h.pairMesh({ meshId, invite, timeoutMs: 45_000 });
@@ -560,6 +569,7 @@ async function runDaemon(): Promise<void> {
    */
   const joinPublicCell = async (cellId: string, label: string): Promise<void> => {
     if (publicMeshes.has(cellId)) return;
+    assertMembershipSlot("public", cellId);
     const storeDir = join(HYPHA_DATA_DIR, "public", cellId.replace(/[^a-zA-Z0-9_-]/g, "_"));
     const m = await PublicMesh.open({ storeDir, cellId, masterSeed: seed, audit });
     const discovery = startCellDiscovery(cellId, m.feedKey, HYPHA_PAIR_PORT, (feedKey) => m.addPeerFeed(feedKey));

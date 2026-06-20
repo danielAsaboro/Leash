@@ -102,8 +102,7 @@ export class MeshRouter {
       peerKey: r.peerKey,
       consumerWriterKey: mesh.selfWriterKey,
       ...(r.requiresSession ? { requiresSession: true } : {}),
-      settlement: cap?.settlement,
-      settlements: cap?.settlements,
+      ...(r.requiresSession ? { settlement: cap?.settlement, settlements: cap?.settlements } : {}),
     };
   }
 
@@ -150,7 +149,7 @@ export class MeshRouter {
         meshId: m.autobaseKey,
         consumerWriterKey: m.selfWriterKey,
         ...(modelSrc ? { modelSrc } : {}),
-        requiresSession: isPaidSessionPeer(cap),
+        requiresSession: isPaidSessionPeer(cap, m.visibility),
       };
     }
     return null;

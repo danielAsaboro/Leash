@@ -1,0 +1,53 @@
+---
+title: "How earning works"
+description: "The economy flow from route selection to metered settlement."
+---
+
+The economy is attached to delegation, not to chat itself. A local answer costs nothing. A private mesh answer costs nothing. A public mesh answer can be free or paid depending on the provider's advertised rate.
+
+## The flow
+
+1. **Classify the request.** Leash decides whether the turn is local-only, private-safe, or public-safe.
+2. **Rank available routes.** The router compares local capacity, private peers, public providers, model alias support, latency, price, and reputation.
+3. **Quote the provider.** Paid public providers return a maximum cost for the requested cap. Free providers quote `0`.
+4. **Pre-authorize spend.** Paid routes open an x402 Permit2 authorization for the maximum allowed spend before generation starts.
+5. **Stream the completion.** The provider streams tokens from its own local QVAC serve. No cloud AI is in the loop.
+6. **Meter actual work.** The session records usage by token rungs so long completions can settle once at close.
+7. **Settle or close free.** Paid sessions settle the metered amount on-chain. Free sessions close with a zero-cost receipt.
+
+## Price shape
+
+Rates are normalized as micro-units per thousand tokens:
+
+```text
+rate * billable_tokens / 1000 = settlement_amount
+```
+
+The same shape is used for every route so the UI does not need separate concepts for private, free public, and paid public runs.
+
+| Route | Rate | Authorization | Settlement |
+|---|---:|---|---|
+| Local device | `0` | No | No |
+| Private mesh | `0` | No | Zero-cost receipt |
+| Free public mesh | `0` | No | Zero-cost receipt |
+| Paid public mesh | Provider rate | Yes | Metered on-chain close |
+
+## Why pre-authorization exists
+
+Streaming inference does not know the final token count up front. The consumer authorizes a maximum, then the provider settles only the metered amount. If the run stops early, the close amount is lower than the cap.
+
+## Why public routing is gated
+
+Public mesh providers are outside your private trust boundary. Leash only considers them when the sensitivity and confidence filters say the request can leave the local/private path.
+
+Examples that should stay local or private:
+
+- Personal files, keys, credentials, medical notes, or financial records.
+- Tool calls that can mutate local state.
+- Low-confidence classifications where the router cannot prove the request is public-safe.
+
+Examples that may route public:
+
+- Generic coding explanations with no private repository context.
+- Public documentation questions.
+- General model tasks where the prompt has no private data.

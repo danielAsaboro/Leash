@@ -120,6 +120,7 @@ async function fetchHealth(): Promise<HealthResponse | null> {
 function rowToOptions(row: PeerRow): RouteOption[] {
   const peerKey = row.providerKey ?? row.peerId ?? row.deviceId.slice(0, 16);
   const tier = row.visibility === "public" ? "public" : "private";
+  const pricePerKiloToken = tier === "private" ? 0 : (row.pricePerKiloToken ?? 0);
   return row.models.map((alias) => ({
     tier,
     alias,
@@ -127,7 +128,7 @@ function rowToOptions(row: PeerRow): RouteOption[] {
     peerKey,
     meshId: row.meshId,
     // modelSrc is not serialised in /peers; omit (optional field in RouteOption)
-    pricePerKiloToken: row.pricePerKiloToken ?? 0,
+    pricePerKiloToken,
     inflight: row.inflight,
   }));
 }

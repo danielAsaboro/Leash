@@ -309,7 +309,7 @@ async function fetchRouteOptions(): Promise<RouteOption[]> {
           tags: tagsForAlias(alias),
           peerKey: row.providerKey,
           ...(row.meshId ? { meshId: row.meshId } : {}),
-          pricePerKiloToken: row.pricePerKiloToken ?? 0,
+          pricePerKiloToken: peerRouteTier(row, meshById) === "private" ? 0 : (row.pricePerKiloToken ?? 0),
           inflight: row.inflight ?? 0,
         });
       }

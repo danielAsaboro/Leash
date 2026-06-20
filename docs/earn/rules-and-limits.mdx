@@ -1,0 +1,61 @@
+---
+title: "Rules and limits"
+description: "The boundaries that keep private mesh delegation free and public mesh earning controlled."
+---
+
+The economy is intentionally bounded. It should make public compute useful without turning private delegation into a billing problem.
+
+## Mesh limits
+
+| Limit | Value |
+|---|---:|
+| Private meshes per user | `1` |
+| Public meshes per user | `15` |
+| Total mesh slots | `16` |
+
+The private mesh is the personal trust boundary. Public meshes are market boundaries.
+
+## Charging rules
+
+- Local device inference is always free.
+- Private mesh inference is always zero-rate.
+- Public mesh inference can be free or paid.
+- A public provider with rate `0` does not require payment authorization.
+- A public provider with a non-zero rate requires pre-authorization before streaming.
+- Settlement is based on metered usage, not just the maximum cap.
+
+## Safety gates
+
+The router can only move from private to public when the request passes its sensitivity and confidence filters.
+
+Public routing should be blocked when:
+
+- The prompt includes private files, credentials, secrets, or personal records.
+- The task requires local state mutation or privileged tools.
+- The classifier cannot confidently mark the turn public-safe.
+- The requested model or modality is not advertised by the provider.
+- The consumer's spend cap would be exceeded.
+
+## Spend controls
+
+Consumers should set explicit caps before public paid routing is enabled:
+
+- Maximum spend per request.
+- Maximum spend per session.
+- Maximum spend per provider.
+- Optional allowlist for trusted providers.
+- Optional preference for free public routes before paid routes.
+
+## Provider controls
+
+Providers should be able to choose how they participate:
+
+- Join no public meshes and serve only private capacity.
+- Join a public mesh with a `0` rate.
+- Join a public mesh with a paid rate.
+- Advertise only specific model aliases.
+- Stop advertising when local load is too high.
+
+## Current implementation note
+
+The runtime already models private zero-rate routes and public free-or-paid routes in the economy policy. Some public mesh UX surfaces are still WIP, so use the [Economy platform guide](/platforms/economy) and smoke tests when validating provider behavior.
