@@ -1,7 +1,7 @@
 /**
  * The phone's real model inventory — the standalone analogue of the desktop ModelsPanel. There is
- * no fabricated catalog: it is exactly the three @qvac/sdk models this app actually wires (chat,
- * speech-to-text, text-to-speech). Live state (loaded / cached / not-downloaded) and on-disk size
+ * no fabricated catalog: it is exactly the @qvac/sdk models this app actually wires (chat,
+ * OCR, speech-to-text, text-to-speech). Live state (loaded / cached / not-downloaded) and on-disk size
  * come straight from the SDK's getModelInfo, so a Models tab row reflects reality.
  */
 import {
@@ -11,6 +11,7 @@ import {
   QWEN3_1_7B_INST_Q4,
   QWEN3_4B_INST_Q4_K_M,
   LLAMA_3_2_1B_INST_Q4_0,
+  OCR_LATIN_RECOGNIZER_1,
   WHISPER_EN_SMALL_Q8_0,
   TTS_EN_SUPERTONIC_Q8_0,
   type ModelProgressUpdate,
@@ -24,10 +25,11 @@ const role = (name: string) => {
   return found;
 };
 const PHONE_CHAT = role("chat");
+const PHONE_OCR = role("ocr");
 const PHONE_STT = role("speech_to_text");
 const PHONE_TTS = role("text_to_speech");
 
-export type ModelKey = "chat" | "stt" | "tts";
+export type ModelKey = "chat" | "ocr" | "stt" | "tts";
 export type ModelState = "loaded" | "cached" | "not-downloaded" | "unknown";
 
 export type ModelEntry = {
@@ -43,6 +45,7 @@ export type ModelEntry = {
 
 export const MODELS: ModelEntry[] = [
   { key: "chat", alias: PHONE_CHAT.alias, label: "Qwen3 · 1.7B", role: PHONE_CHAT.powers, kind: "text", assetSrc: QWEN3_1_7B_INST_Q4, name: (QWEN3_1_7B_INST_Q4 as any).name },
+  { key: "ocr", alias: PHONE_OCR.alias, label: "OCR · Latin", role: PHONE_OCR.powers, kind: "ocr", assetSrc: OCR_LATIN_RECOGNIZER_1, name: (OCR_LATIN_RECOGNIZER_1 as any).name },
   { key: "stt", alias: PHONE_STT.alias, label: "Whisper · EN", role: PHONE_STT.powers, kind: "speech", assetSrc: WHISPER_EN_SMALL_Q8_0, name: (WHISPER_EN_SMALL_Q8_0 as any).name },
   { key: "tts", alias: PHONE_TTS.alias, label: "Supertonic · EN (F1)", role: PHONE_TTS.powers, kind: "speech", assetSrc: TTS_EN_SUPERTONIC_Q8_0, name: (TTS_EN_SUPERTONIC_Q8_0 as any).name },
 ];

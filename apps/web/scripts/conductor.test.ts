@@ -24,6 +24,7 @@ const catalog: RouterCatalogModel[] = [
   { name: "TEXT_SMALL", endpointCategory: "chat", params: "4B" },
   { name: "HEALTH_SMALL", endpointCategory: "chat", params: "4B" },
   { name: "VISION_SMALL", endpointCategory: "chat", params: "2B" },
+  { name: "OCR_LATIN_RECOGNIZER_1", endpointCategory: "ocr", params: "ONNX" },
   { name: "EMBED", endpointCategory: "embedding", params: "1B" },
 ];
 
@@ -46,6 +47,11 @@ const config: RouterQvacConfig = {
         preload: true,
         config: { ctx_size: 8192, tools: true, toolsMode: "dynamic" },
       },
+      ocr: {
+        model: "OCR_LATIN_RECOGNIZER_1",
+        preload: true,
+        config: { langList: ["en"], useGPU: true, magRatio: 1.5 },
+      },
       embed: "EMBED",
     },
   },
@@ -57,7 +63,7 @@ const inventory = buildConfiguredModelInventory({
   live: { up: true, ready: ["general", "vision", "classifier"] },
 });
 
-assert.equal(inventory.length, 5, "reads configured aliases plus live-only aliases");
+assert.equal(inventory.length, 6, "reads configured aliases plus live-only aliases");
 const general = inventory.find((m) => m.alias === "general");
 assert.equal(general?.sdkModelName, "TEXT_SMALL", "joins alias to SDK model name");
 assert.equal(general?.endpointCategory, "chat", "joins catalog endpoint category");
@@ -69,6 +75,7 @@ assert.equal(general?.isDefault, true, "reads default");
 assert.equal(general?.preload, true, "reads preload");
 assert.equal(general?.ready, true, "marks live ready aliases");
 assert.equal(inventory.find((m) => m.alias === "vision")?.endpointCategory, "vision", "projection config marks vision capability");
+assert.equal(inventory.find((m) => m.alias === "ocr")?.endpointCategory, "ocr", "OCR catalog entry marks OCR capability");
 assert.equal(inventory.find((m) => m.alias === "embed")?.ready, false, "reachable serve marks missing alias unavailable");
 assert.equal(inventory.find((m) => m.alias === "classifier")?.ready, true, "live-only conductor alias is available to the router");
 const prompt = buildConductorPrompt({
@@ -115,6 +122,11 @@ assert.deepEqual(
   barFromGuardedTurn({ tier: "quick", isImageTurn: false, text: "fever and rash" }),
   { modality: "text", minParamClass: "small", specialist: "health" },
   "health intent still builds a health bar even if effort is quick",
+);
+assert.deepEqual(
+  barFromGuardedTurn({ tier: "quick", isImageTurn: true, text: "read this lab results photo and explain the values" }),
+  { modality: "ocr", minParamClass: "tiny", specialist: "ocr" },
+  "text-heavy image turns build an OCR capability bar before health interpretation",
 );
 
 const validAnswer = parseConductorDecision('{"action":"answer","answer":"Hi."}', inventory);
@@ -188,6 +200,18 @@ const bar = capabilityBarFromConductorRoute({
 });
 assert.equal(bar.modality, "vision", "vision route builds a vision capability bar");
 assert.equal(bar.specialist, "vision", "vision route builds a vision specialist bar");
+
+const ocrBar = capabilityBarFromConductorRoute({
+  alias: "ocr",
+  reason: "document image",
+  needsTools: false,
+  needsVision: false,
+  needsMemory: false,
+  needsFiles: false,
+  sensitivity: "private",
+});
+assert.equal(ocrBar.modality, "ocr", "OCR route builds an OCR capability bar");
+assert.equal(ocrBar.specialist, "ocr", "OCR route builds an OCR specialist bar");
 
 const meshOptions = [
   {

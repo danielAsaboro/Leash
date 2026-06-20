@@ -1,8 +1,8 @@
 /**
  * Pure-logic smoke for the mesh model-type classifier (apps/hypha/src/model-type.ts) — the SP2
- * advertisement core. Proves classification of the six real serve entries (chat / vision /
- * embedding / stt / tts), the projection-beats-chat precedence, a catalog MISS falling back to the
- * model name (parakeet is absent from the cached catalog), and the borrowable set (chat+vision only).
+ * advertisement core. Proves classification of the real serve entries (chat / vision /
+ * embedding / ocr / stt / tts), the projection-beats-chat precedence, a catalog MISS falling back to
+ * the model name (parakeet is absent from the cached catalog), and the borrowable set.
  *   npm run smoke:model-type
  */
 import assert from "node:assert/strict";
@@ -16,6 +16,8 @@ assert.equal(modelType({ src: "/x/medpsy.gguf", type: "llamacpp-completion" }, u
 assert.equal(modelType({ model: "QWEN3VL_2B_MULTIMODAL_Q4_K", config: { projectionModelSrc: "/x/mmproj.gguf" } }, { endpointCategory: "chat", addon: "llm", engine: "llamacpp-completion" }), "vision");
 // embedding — gte-large
 assert.equal(modelType({ model: "GTE_LARGE_FP16" }, { endpointCategory: "embedding", addon: "embeddings", engine: "llamacpp-embedding" }), "embedding");
+// ocr — Latin recognizer
+assert.equal(modelType({ model: "OCR_LATIN_RECOGNIZER_1" }, { endpointCategory: "ocr", addon: "ocr", engine: "onnx-ocr" }), "ocr");
 // tts — supertonic (catalog: endpointCategory "speech", addon "tts")
 assert.equal(modelType({ model: "TTS_EN_SUPERTONIC_Q8_0" }, { endpointCategory: "speech", addon: "tts", engine: "tts-ggml" }), "tts");
 // stt — parakeet is ABSENT from the cached catalog → name fallback
@@ -30,8 +32,9 @@ assert.equal(modelType({ model: "SOMETHING_WEIRD_V2" }, undefined), null);
 assert.equal(isBorrowable("chat"), true);
 assert.equal(isBorrowable("vision"), true);
 assert.equal(isBorrowable("embedding"), true);
+assert.equal(isBorrowable("ocr"), true);
 assert.equal(isBorrowable("stt"), true);
 assert.equal(isBorrowable("tts"), true);
 assert.equal(isBorrowable(null), false);
 
-console.log("✅ model-type — chat/vision/embedding/stt/tts · projection-beats-chat · catalog-miss name fallback · borrowable=all-modalities — GO");
+console.log("✅ model-type — chat/vision/embedding/ocr/stt/tts · projection-beats-chat · catalog-miss name fallback · borrowable=all-modalities — GO");

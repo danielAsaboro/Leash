@@ -14,7 +14,7 @@
  *
  * No `@qvac/sdk`, no Node — pure, unit-tested by scripts/smoke-model-type.ts.
  */
-export type Modality = "chat" | "vision" | "embedding" | "stt" | "tts";
+export type Modality = "chat" | "vision" | "embedding" | "stt" | "tts" | "ocr";
 
 export interface ModelTypeEntry {
   model?: string;
@@ -41,6 +41,7 @@ export function modelType(entry: ModelTypeEntry, cat?: ModelTypeCatalog): Modali
   const addon = cat?.addon;
   if (ec === "chat" && (addon === "llm" || engine.startsWith("llamacpp"))) return "chat";
   if (ec === "embedding" || ec === "embeddings" || addon === "embeddings") return "embedding";
+  if (ec === "ocr" || addon === "ocr" || engine.includes("ocr")) return "ocr";
   if (ec === "speech" || addon === "tts" || engine.includes("tts")) return "tts";
   if (ec === "transcription" || addon === "parakeet" || addon === "whisper") return "stt";
 
@@ -48,6 +49,7 @@ export function modelType(entry: ModelTypeEntry, cat?: ModelTypeCatalog): Modali
   const name = (entry.model ?? "").toUpperCase();
   if (/PARAKEET|WHISPER|SORTFORMER/.test(name)) return "stt";
   if (/SUPERTONIC|CHATTERBOX|TTS[_-]|_TTS\b/.test(name)) return "tts";
+  if (/OCR[_-]|RECOGNIZER|DETECTOR/.test(name)) return "ocr";
   if (/GTE[_-]|EMBED|BGE[_-]|\bE5[_-]/.test(name)) return "embedding";
   if (/VL[_-]|VISION|MULTIMODAL|MMPROJ|LLAVA/.test(name)) return "vision";
   if (/QWEN|LLAMA|GEMMA|MISTRAL|PHI|MEDPSY/.test(name)) return "chat";

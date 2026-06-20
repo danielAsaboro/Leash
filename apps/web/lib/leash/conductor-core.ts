@@ -118,6 +118,7 @@ function effectiveEndpointCategory(entry: RouterServeModelEntry, catalog?: Route
   if (entry.type?.includes("embedding")) return "embedding";
   if (entry.type?.includes("completion")) return "chat";
   if (entry.type?.includes("transcription")) return "speech";
+  if (entry.type?.includes("ocr")) return "ocr";
   return catalog?.endpointCategory ?? null;
 }
 
@@ -125,6 +126,7 @@ function liveOnlyEndpointCategory(alias: string): string | null {
   const tags = tagsForAlias(alias);
   if (tags.modality === "vision") return "vision";
   if (tags.modality === "audio") return "audio";
+  if (tags.modality === "ocr") return "ocr";
   if (tags.modality === "text") return "chat";
   return null;
 }
@@ -255,9 +257,15 @@ const CURRENT_RE = /\b(?:latest|current|today|yesterday|tomorrow|now|news|weathe
 const CODE_RE = /\b(?:debug|fix|implement|refactor|test|compile|typescript|javascript|python|repo|codebase|stack trace|error log)\b/i;
 const HEALTH_RE =
   /\b(?:health|medical|medicine|medication|meds?|drug|prescription|rx|dose|dosage|symptoms?|diagnos(?:e|is|tic)?|treat(?:ment)?|therapy|therapist|anxiety|depress(?:ed|ion)?|suicid(?:al|e)|self[- ]?harm|overdose|panic attack|blood pressure|blood sugar|glucose|clinical|patient|doctor|clinician|nurse|urgent care|emergency|er|chest pain|short(?:ness)? of breath|trouble breathing|stroke|seizure|anaphylaxis|allerg(?:y|ic|ies)|lab results?|test results?|rash|fever|cough|nausea|vomit(?:ing)?|diarrhea|headache|migraine|dizzy|faint(?:ing)?|infection|injur(?:y|ed)|pain|pregnan(?:t|cy)|postpartum|child health|pediatric|sleep|nutrition)\b/i;
+const TEXT_HEAVY_IMAGE_RE =
+  /\b(?:ocr|read|extract|transcribe|scan|text|words?|numbers?|values?|results?|labs?|lab\s*results?|test\s*results?|prescription|rx|medication\s+label|bottle|label|document|paper|form|report|receipt|invoice|screenshot|pdf|chart|table|panel|print(?:ed)?|handwrit(?:ing|ten)|caption|letter)\b/i;
 
 export function isHealthIntent(text: string): boolean {
   return HEALTH_RE.test((text ?? "").trim());
+}
+
+export function isTextHeavyImageIntent(text: string): boolean {
+  return TEXT_HEAVY_IMAGE_RE.test((text ?? "").trim());
 }
 
 export function deterministicRouteNeed(text: string): DeterministicRouteNeed {
@@ -421,10 +429,11 @@ export function parseConductorDecision(raw: string, inventory: ConfiguredModelSp
 
 export function capabilityBarFromConductorRoute(route: ConductorRoute): CapabilityBar {
   const tags = tagsForAlias(route.alias);
-  const modality = route.needsVision ? "vision" : tags.modality === "vision" ? "vision" : "text";
+  const modality = tags.modality === "ocr" ? "ocr" : route.needsVision || tags.modality === "vision" ? "vision" : "text";
   const paramClass = tags.paramClass === "tiny" || tags.paramClass === "unknown" ? "small" : tags.paramClass;
-  const specialist = route.needsVision ? "vision" : tags.specialist !== "general" ? tags.specialist : undefined;
-  return { modality, minParamClass: paramClass, ...(specialist ? { specialist } : {}) };
+  const minParamClass = modality === "ocr" ? "tiny" : paramClass;
+  const specialist = modality === "ocr" ? "ocr" : route.needsVision ? "vision" : tags.specialist !== "general" ? tags.specialist : undefined;
+  return { modality, minParamClass, ...(specialist ? { specialist } : {}) };
 }
 
 export function publicMeshRouteBlocked(input: {
@@ -454,6 +463,7 @@ export interface ConductorRouteDecision {
 }
 
 export function barFromGuardedTurn(input: { tier: EffortTier; isImageTurn: boolean; text: string }): CapabilityBar {
+  if (input.isImageTurn && isTextHeavyImageIntent(input.text)) return { modality: "ocr", minParamClass: "tiny", specialist: "ocr" };
   if (input.isImageTurn) return { modality: "vision", minParamClass: "small", specialist: "vision" };
   if (isHealthIntent(input.text)) return { modality: "text", minParamClass: "small", specialist: "health" };
   return { modality: "text", minParamClass: input.tier === "deep" ? "mid" : "small" };

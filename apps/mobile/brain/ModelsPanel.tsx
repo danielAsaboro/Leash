@@ -98,8 +98,8 @@ export function ModelsPanel({ selectChatModel, currentChatKey }: { selectChatMod
         );
       })}
 
-      {/* ── STT / TTS models ─────────────────────────────────────── */}
-      <Text style={[styles.sectionHead, { marginTop: 20 }]}>SPEECH MODELS</Text>
+      {/* ── Media models ─────────────────────────────────────────── */}
+      <Text style={[styles.sectionHead, { marginTop: 20 }]}>MEDIA MODELS</Text>
       {models.filter((m) => m.key !== "chat").map((m) => {
         const isBusy = busy === m.key;
         const p = pct[m.key];

@@ -5,6 +5,7 @@ export type BrainModelRoleName =
   | "classifier"
   | "embed"
   | "vision"
+  | "ocr"
   | "health"
   | "speech_to_text"
   | "text_to_speech"
@@ -180,6 +181,40 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
       delegateWhen: "unavailable-or-too-heavy",
     },
   },
+  ocr: {
+    desktop: {
+      device: "desktop",
+      role: "ocr",
+      alias: "ocr",
+      model: "OCR_LATIN_RECOGNIZER_1",
+      config: { langList: ["en"], useGPU: true, magRatio: 1.5, defaultRotationAngles: [90, 180, 270], contrastRetry: false, lowConfidenceThreshold: 0.5, recognizerBatchSize: 1 },
+      bytes: 15_398_841,
+      powers: "Text extraction from photos, screenshots, forms, labels, and medical documents.",
+      localRequired: true,
+    },
+    phone: {
+      device: "phone",
+      role: "ocr",
+      alias: "ocr",
+      model: "OCR_LATIN_RECOGNIZER_1",
+      config: { langList: ["en"], useGPU: true, magRatio: 1.5, defaultRotationAngles: [90, 180, 270], contrastRetry: false, lowConfidenceThreshold: 0.5, recognizerBatchSize: 1 },
+      bytes: 15_398_841,
+      powers: "On-device text extraction from camera captures and screenshots.",
+      localRequired: false,
+      delegateWhen: "unavailable-or-too-heavy",
+    },
+    edge: {
+      device: "edge",
+      role: "ocr",
+      alias: "ocr",
+      model: "OCR_LATIN_RECOGNIZER_1",
+      config: { langList: ["en"], useGPU: true, magRatio: 1.5, defaultRotationAngles: [90, 180, 270], contrastRetry: false, lowConfidenceThreshold: 0.5, recognizerBatchSize: 1 },
+      bytes: 15_398_841,
+      powers: "Text extraction for delegated image/document intake.",
+      localRequired: false,
+      delegateWhen: "unavailable-or-too-heavy",
+    },
+  },
   health: {
     desktop: {
       device: "desktop",
@@ -284,7 +319,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
   },
 };
 
-const CAPABILITY_ORDER: BrainModelCapabilityName[] = ["chat", "classifier", "embed", "vision", "health", "speech_to_text", "text_to_speech"];
+const CAPABILITY_ORDER: BrainModelCapabilityName[] = ["chat", "classifier", "embed", "vision", "ocr", "health", "speech_to_text", "text_to_speech"];
 
 function rolesForDevice(device: DeviceModelProfileId): BrainModelRole[] {
   return CAPABILITY_ORDER.map((capability) => BRAIN_MODEL_VARIANTS[capability][device]);

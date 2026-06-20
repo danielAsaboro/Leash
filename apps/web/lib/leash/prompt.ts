@@ -247,13 +247,15 @@ export const CONDUCTOR_SYSTEM_PROMPT = [
   "Decision tree:",
   "A. If the turn asks to search, read, open, scan, summarize, compare, grep, or find Apple Notes/files/docs/code/workspace/memory, choose action=route.",
   "B. If the turn needs tools, actions, planning, research, code work, current facts, verification, health/safety care, private user context, named skills, plugins, agents, or multiple steps, choose action=route.",
-  "C. If the turn needs image or visual understanding, choose action=route with needsVision=true and a ready vision/multimodal alias when one exists.",
-  "D. If the turn has selectedModel and routing is needed, route to that selected alias when it is ready.",
-  "E. Only choose action=answer for greetings, thanks, very simple arithmetic, brief capability questions, or stable public no-context Q&A.",
+  "C. If an image turn is text-heavy (lab results, prescription label, document, form, screenshot, receipt, chart, table, or printed/handwritten text), choose action=route with a ready OCR alias when one exists; keep needsVision=false because OCR extracts text.",
+  "D. If the turn needs non-text visual understanding, choose action=route with needsVision=true and a ready vision/multimodal alias when one exists.",
+  "E. If the turn has selectedModel and routing is needed, route to that selected alias when it is ready.",
+  "F. Only choose action=answer for greetings, thanks, very simple arithmetic, brief capability questions, or stable public no-context Q&A.",
   "Route selection:",
   "- Prefer ready chat/general aliases for normal text agent work.",
   "- Prefer aliases with tools=true or toolsMode set when needsTools, needsMemory, or needsFiles is true.",
   "- Prefer default=true among otherwise suitable chat aliases.",
+  "- Prefer ready OCR aliases for text-heavy image extraction before health or chat interpretation.",
   "- Prefer ready vision or multimodal aliases when needsVision is true.",
   "- If no local inventory alias has the needed modality or strength, choose the best ready general/chat alias, set the need flags accurately, and explain the missing capability in reason; the conductor can then search device, private mesh, and public mesh options.",
   "- Do not choose embedding, speech, audio, or transcription aliases for chat routing.",
@@ -287,6 +289,9 @@ export function buildConductorExamplesSystemSection(inventory: ConfiguredModelSp
   const visionAlias =
     inventory.find((m) => m.alias !== conductorAlias && m.ready !== false && m.loaded !== false && (m.endpointCategory === "vision" || m.endpointCategory === "multimodal"))?.alias ??
     routeAlias;
+  const ocrAlias =
+    inventory.find((m) => m.alias !== conductorAlias && m.ready !== false && m.loaded !== false && m.endpointCategory === "ocr")?.alias ??
+    visionAlias;
   return [
     "Few-shot examples using aliases available in this turn:",
     'User: "hi"',
@@ -299,6 +304,8 @@ export function buildConductorExamplesSystemSection(inventory: ConfiguredModelSp
     `Output: {"action":"route","route":{"alias":${JSON.stringify(routeAlias)},"reason":"file reading needs full agent","needsTools":true,"needsVision":false,"needsMemory":false,"needsFiles":true,"sensitivity":"private"}}`,
     'User: "what is in this image?"',
     `Output: {"action":"route","route":{"alias":${JSON.stringify(visionAlias)},"reason":"visual understanding needs vision route","needsTools":false,"needsVision":true,"needsMemory":false,"needsFiles":false,"sensitivity":"private"}}`,
+    'User: "read this lab results photo and explain the values"',
+    `Output: {"action":"route","route":{"alias":${JSON.stringify(ocrAlias)},"reason":"lab photo is text-heavy and needs OCR extraction first","needsTools":false,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"private"}}`,
     'User: "compare public approaches to local-first RAG and outline tradeoffs"',
     `Output: {"action":"route","route":{"alias":${JSON.stringify(routeAlias)},"reason":"public research-style analysis can use mesh routing","needsTools":true,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"shareable"}}`,
   ].join("\n");
