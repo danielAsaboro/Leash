@@ -117,6 +117,7 @@
   },
   "dependencies": {
     "@mycelium/db": "*",
+    "@mycelium/senses": "*",
     "@qvac/ai-sdk-provider": "^0.2.0",
     "ai": "^6.0.204",
     "undici": "^8.3.0"

@@ -1,30 +1,26 @@
 /**
- * The private context graph for `search_graph` — a tiny in-memory RAG index over the
- * user's notes, the screen-watcher's activity trail, typed memories, AND past Leash
- * conversations, embedded through the QVAC embeddings endpoint (HTTP). Moved into
- * `@mycelium/leash-core` (web keeps a re-export shim) so the `leash-tools-mcp` Context group
- * runs the identical retrieval the web council uses.
- *
- * Keeping retrieval HTTP-only (AI SDK `embed`/`embedMany` against `qvac serve`) means
- * neither process needs native `@qvac/sdk`. Indexes are cache-invalidated by cheap
- * filesystem fingerprints (notes dir count+mtime; activity jsonl+tombstones mtime; chats
- * per-file mtime), so dashboard edits are live without a restart.
+ * The private context graph for `search_graph`: corpus collection from notes,
+ * screen activity, typed memories, and past Leash conversations, indexed through
+ * the shared QVAC SDK RAG workspace manager in `@mycelium/senses`.
  */
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, basename } from "node:path";
-import { embed, embedMany } from "ai";
-import { embeddingModel } from "./provider-core.ts";
+import {
+  defaultRagManifestPath,
+  loadEmbeddings,
+  loadRagManifest,
+  searchRagWorkspace,
+  syncRagWorkspace,
+  type RagSourceDoc,
+} from "@mycelium/senses";
 import { tombstonedSet, tombstonesMtime } from "./tombstones.ts";
 import { loadMemories, MEMORIES_FILE } from "./memories-store.ts";
-import { NOTES_DIR, ACTIVITY_LOG, CHATS_DIR } from "./paths.ts";
+import { DATA_DIR, NOTES_DIR, ACTIVITY_LOG, CHATS_DIR } from "./paths.ts";
 
 export { NOTES_DIR, ACTIVITY_LOG, CHATS_DIR };
 
-interface Chunk {
-  source: string;
-  text: string;
-  embedding: number[];
-}
+export const LEASH_RAG_WORKSPACE = "leash-context";
+export const LEASH_RAG_MANIFEST = process.env["LEASH_RAG_MANIFEST"] ?? join(DATA_DIR, "rag", "leash-context.manifest.json");
 
 /** One screen-watcher activity record (mirrors apps/leash-watch store.ts). */
 export interface ActivityRecord {
@@ -35,12 +31,7 @@ export interface ActivityRecord {
   tags: string[];
 }
 
-/** Notes index cache, keyed by a directory fingerprint (count + newest mtime). */
-let notesCache: { fingerprint: string; chunks: Chunk[] } | null = null;
-/** Activity index cache, keyed by (jsonl mtime, tombstones mtime). */
-let activityCache: { key: string; chunks: Chunk[] } | null = null;
-/** Typed-memories index cache, keyed by the store file's mtime. */
-let memoriesCache: { mtimeMs: number; chunks: Chunk[] } | null = null;
+let leashEmbModelId: string | undefined;
 
 /** Split a note into paragraph-ish chunks, dropping trivially short fragments. */
 export function chunkText(text: string): string[] {
@@ -57,39 +48,26 @@ function noteFiles(): string[] {
   return readdirSync(NOTES_DIR).filter((n) => n.endsWith(".md")).sort();
 }
 
-/** Cheap change detector for the notes dir: file count + newest mtime. */
-function notesFingerprint(files: string[]): string {
-  let maxMtime = 0;
+function collectNoteDocs(files: string[]): RagSourceDoc[] {
+  const docs: RagSourceDoc[] = [];
   for (const f of files) {
+    const path = join(NOTES_DIR, f);
+    let updatedAt: string | undefined;
     try {
-      maxMtime = Math.max(maxMtime, statSync(join(NOTES_DIR, f)).mtimeMs);
-    } catch {
-      /* raced a delete — the count still changes the fingerprint next round */
+      updatedAt = new Date(statSync(path).mtimeMs).toISOString();
+    } catch {}
+    const chunks = chunkText(readFileSync(path, "utf-8"));
+    for (let i = 0; i < chunks.length; i++) {
+      docs.push({
+        sourceId: `note:${f}:${i}`,
+        source: basename(f),
+        kind: "note",
+        content: chunks[i] as string,
+        updatedAt,
+      });
     }
   }
-  return `${files.length}:${maxMtime}`;
-}
-
-async function buildIndex(files: string[]): Promise<Chunk[]> {
-  const docs: { source: string; text: string }[] = [];
-  for (const f of files) {
-    for (const c of chunkText(readFileSync(join(NOTES_DIR, f), "utf-8"))) {
-      docs.push({ source: basename(f), text: c });
-    }
-  }
-  if (docs.length === 0) return [];
-  const { embeddings } = await embedMany({ model: embeddingModel(), values: docs.map((d) => d.text) });
-  return docs.map((d, i) => ({ ...d, embedding: embeddings[i] as number[] }));
-}
-
-/** The notes index, rebuilt whenever the directory fingerprint changes. */
-async function getIndex(): Promise<Chunk[]> {
-  const files = noteFiles();
-  const fingerprint = notesFingerprint(files);
-  if (notesCache && notesCache.fingerprint === fingerprint) return notesCache.chunks;
-  const chunks = await buildIndex(files);
-  notesCache = { fingerprint, chunks };
-  return chunks;
+  return docs;
 }
 
 /**
@@ -118,37 +96,25 @@ export async function readActivityRecords(): Promise<ActivityRecord[]> {
   return out;
 }
 
-/** Build (embed) one chunk per activity record: "<app> — <window>: <summary> [tags]". */
-async function buildActivityIndex(): Promise<Chunk[]> {
+/** Build one source doc per activity record: "<app> — <window>: <summary> [tags]". */
+async function collectActivityDocs(): Promise<RagSourceDoc[]> {
   const records = await readActivityRecords();
-  if (records.length === 0) return [];
-  const docs = records.map((r) => {
+  return records.map((r) => {
     const d = new Date(r.ts);
     const hhmm = Number.isNaN(d.getTime())
       ? ""
       : ` ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
     const window = r.window ? ` — ${r.window}` : "";
     const tags = Array.isArray(r.tags) && r.tags.length ? ` [${r.tags.join(", ")}]` : "";
-    return { source: `activity · ${r.app}${hhmm}`, text: `${r.app}${window}: ${r.summary}${tags}` };
+    return {
+      sourceId: `activity:${r.ts}`,
+      source: `activity · ${r.app}${hhmm}`,
+      kind: "activity",
+      content: `${r.app}${window}: ${r.summary}${tags}`,
+      updatedAt: r.ts,
+      corpusFingerprint: `${r.ts}:${tombstonesMtime()}`,
+    };
   });
-  const { embeddings } = await embedMany({ model: embeddingModel(), values: docs.map((d) => d.text) });
-  return docs.map((d, i) => ({ ...d, embedding: embeddings[i] as number[] }));
-}
-
-/** The activity index, rebuilt when the JSONL or the tombstone file changes. */
-async function getActivityIndex(): Promise<Chunk[]> {
-  let jsonlMtime = 0;
-  try {
-    jsonlMtime = statSync(ACTIVITY_LOG).mtimeMs;
-  } catch {
-    activityCache = { key: "0:0", chunks: [] }; // no file yet
-    return [];
-  }
-  const key = `${jsonlMtime}:${tombstonesMtime()}`;
-  if (activityCache && activityCache.key === key) return activityCache.chunks;
-  const chunks = await buildActivityIndex();
-  activityCache = { key, chunks };
-  return chunks;
 }
 
 // ── Chats (recall memory) ──────────────────────────────────────────────────────
@@ -157,9 +123,6 @@ async function getActivityIndex(): Promise<Chunk[]> {
 const CHAT_EXCHANGES_PER_CHAT = 60;
 const CHAT_CHUNK_CAP = 600;
 const CHAT_SIDE_CAP = 700; // chars kept per side of an exchange
-
-/** Per-FILE chunk cache keyed by mtime — only a changed chat re-embeds, never the corpus. */
-const chatsCache = new Map<string, { mtimeMs: number; chunks: Chunk[] }>();
 
 interface StoredChatMessage {
   role?: string;
@@ -177,12 +140,12 @@ function messageText(m: StoredChatMessage): string {
 }
 
 /** One "You: … / Leash: …" chunk per user↔assistant exchange (newest kept when over cap). */
-function chatExchanges(rec: { title?: string; updatedAt?: number; messages?: StoredChatMessage[] }): { source: string; text: string }[] {
+function chatExchanges(file: string, rec: { title?: string; updatedAt?: number; messages?: StoredChatMessage[] }): RagSourceDoc[] {
   const messages = Array.isArray(rec.messages) ? rec.messages : [];
   const date = rec.updatedAt ? new Date(rec.updatedAt).toISOString().slice(0, 10) : "";
   const title = (rec.title ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
   const source = `chat · ${title || "untitled"}${date ? ` · ${date}` : ""}`;
-  const out: { source: string; text: string }[] = [];
+  const out: RagSourceDoc[] = [];
   for (let i = 0; i < messages.length; i++) {
     const m = messages[i] as StoredChatMessage;
     if (m.role !== "user") continue;
@@ -192,17 +155,24 @@ function chatExchanges(rec: { title?: string; updatedAt?: number; messages?: Sto
       assistant += (assistant ? " " : "") + messageText(messages[j] as StoredChatMessage);
     }
     const text = `You: ${user}\nLeash: ${assistant.slice(0, CHAT_SIDE_CAP)}`;
-    if (text.length > 40) out.push({ source, text });
+    if (text.length > 40) {
+      out.push({
+        sourceId: `chat:${file}:${i}`,
+        source,
+        kind: "chat",
+        content: text,
+        updatedAt: rec.updatedAt ? new Date(rec.updatedAt).toISOString() : undefined,
+      });
+    }
   }
   return out.slice(-CHAT_EXCHANGES_PER_CHAT);
 }
 
 /**
- * The conversations index. Incremental: each chat file's chunks are cached by its own
- * mtime, so a turn that updates ONE chat re-embeds only that chat's exchanges. Deleted
- * files are pruned. The merged index is capped at CHAT_CHUNK_CAP, newest chats first.
+ * The conversation corpus. Bounded by newest chat files first and newest exchanges
+ * per chat so sync cost stays finite.
  */
-async function getChatsIndex(): Promise<Chunk[]> {
+async function collectChatDocs(): Promise<RagSourceDoc[]> {
   let files: { name: string; mtimeMs: number }[];
   try {
     files = readdirSync(CHATS_DIR)
@@ -211,53 +181,38 @@ async function getChatsIndex(): Promise<Chunk[]> {
   } catch {
     return []; // no chats yet
   }
-  for (const key of chatsCache.keys()) if (!files.some((f) => f.name === key)) chatsCache.delete(key); // pruned on delete
   files.sort((a, b) => b.mtimeMs - a.mtimeMs); // newest first → they win the cap
-  const merged: Chunk[] = [];
+  const merged: RagSourceDoc[] = [];
   for (const f of files) {
     if (merged.length >= CHAT_CHUNK_CAP) break;
-    const cached = chatsCache.get(f.name);
-    if (cached && cached.mtimeMs === f.mtimeMs) {
-      merged.push(...cached.chunks.slice(0, CHAT_CHUNK_CAP - merged.length));
-      continue;
-    }
-    let docs: { source: string; text: string }[] = [];
+    let docs: RagSourceDoc[] = [];
     try {
-      docs = chatExchanges(JSON.parse(readFileSync(join(CHATS_DIR, f.name), "utf-8")));
+      docs = chatExchanges(f.name, JSON.parse(readFileSync(join(CHATS_DIR, f.name), "utf-8")));
     } catch {
       /* torn write / bad record — skip this chat, retry on its next mtime change */
     }
-    let chunks: Chunk[] = [];
-    if (docs.length > 0) {
-      const { embeddings } = await embedMany({ model: embeddingModel(), values: docs.map((d) => d.text) });
-      chunks = docs.map((d, i) => ({ ...d, embedding: embeddings[i] as number[] }));
-    }
-    chatsCache.set(f.name, { mtimeMs: f.mtimeMs, chunks });
-    merged.push(...chunks.slice(0, Math.max(0, CHAT_CHUNK_CAP - merged.length)));
+    merged.push(...docs.slice(0, Math.max(0, CHAT_CHUNK_CAP - merged.length)));
   }
   return merged;
 }
 
-/** The typed-memories index: one chunk per memory, rebuilt when the store file changes. */
-async function getMemoriesIndex(): Promise<Chunk[]> {
-  let mtimeMs = 0;
-  try {
-    mtimeMs = statSync(MEMORIES_FILE).mtimeMs;
-  } catch {
-    memoriesCache = { mtimeMs: 0, chunks: [] }; // no memories yet
-    return [];
-  }
-  if (memoriesCache && memoriesCache.mtimeMs === mtimeMs) return memoriesCache.chunks;
+/** The typed-memory corpus: one source doc per memory. */
+async function collectMemoryDocs(): Promise<RagSourceDoc[]> {
   const memories = await loadMemories();
-  if (memories.length === 0) {
-    memoriesCache = { mtimeMs, chunks: [] };
-    return [];
-  }
-  const docs = memories.map((m) => ({ source: `memory · ${m.type}`, text: m.text }));
-  const { embeddings } = await embedMany({ model: embeddingModel(), values: docs.map((d) => d.text) });
-  const chunks = docs.map((d, i) => ({ ...d, embedding: embeddings[i] as number[] }));
-  memoriesCache = { mtimeMs, chunks };
-  return chunks;
+  return memories.map((m) => ({
+    sourceId: `memory:${m.id}`,
+    source: `memory · ${m.type}`,
+    kind: "memory",
+    content: m.text,
+    updatedAt: new Date(m.updatedAt).toISOString(),
+    corpusFingerprint: `${m.updatedAt}`,
+  }));
+}
+
+export interface GraphHit {
+  source: string;
+  text: string;
+  score: number;
 }
 
 export function cosine(a: number[], b: number[]): number {
@@ -274,27 +229,40 @@ export function cosine(a: number[], b: number[]): number {
   return na && nb ? dot / (Math.sqrt(na) * Math.sqrt(nb)) : 0;
 }
 
-export interface GraphHit {
-  source: string;
-  text: string;
-  score: number;
+export async function collectLeashRagDocs(): Promise<RagSourceDoc[]> {
+  const files = noteFiles();
+  const notes = collectNoteDocs(files);
+  const activity = await collectActivityDocs();
+  const memories = await collectMemoryDocs();
+  const chats = await collectChatDocs();
+  return [...notes, ...activity, ...memories, ...chats];
 }
 
-/** Top-K most similar chunks for a query — notes + activity + typed memories + past chats, cosine over QVAC embeddings. */
+async function leashEmbeddingModelId(): Promise<string> {
+  if (leashEmbModelId) return leashEmbModelId;
+  leashEmbModelId = process.env["LEASH_RAG_EMB_MODEL_ID"] || (await loadEmbeddings());
+  return leashEmbModelId;
+}
+
+/** Top-K most similar chunks for a query — notes + activity + typed memories + past chats, via QVAC SDK RAG. */
 export async function searchNotes(query: string, topK = 3): Promise<GraphHit[]> {
-  // SEQUENTIAL builds, deliberately NOT Promise.all: the serve's embeddings endpoint
-  // 500s a request that arrives while another embed is in flight (single slot, no queue).
-  const notes = await getIndex();
-  const activity = await getActivityIndex();
-  const memories = await getMemoriesIndex();
-  const chats = await getChatsIndex();
-  const index = [...notes, ...activity, ...memories, ...chats];
-  if (index.length === 0) return [];
-  const { embedding } = await embed({ model: embeddingModel(), value: query });
-  return index
-    .map((c) => ({ source: c.source, text: c.text, score: cosine(embedding, c.embedding) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK);
+  const docs = await collectLeashRagDocs();
+  if (docs.length === 0) return [];
+  const embModelId = await leashEmbeddingModelId();
+  await syncRagWorkspace({
+    embModelId,
+    workspace: LEASH_RAG_WORKSPACE,
+    manifestPath: LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE),
+    docs,
+  });
+  const hits = await searchRagWorkspace({
+    embModelId,
+    workspace: LEASH_RAG_WORKSPACE,
+    manifestPath: LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE),
+    query,
+    topK: Math.max(1, Math.min(8, topK)),
+  });
+  return hits.map((hit) => ({ source: hit.source ?? "unknown", text: hit.content, score: hit.score }));
 }
 
 export interface IndexStats {
@@ -309,10 +277,12 @@ export interface IndexStats {
  * from the CACHES only (`null` = not built yet): stats must never trigger an embed pass.
  */
 export async function indexStats(): Promise<IndexStats> {
+  const manifest = loadRagManifest(LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE), LEASH_RAG_WORKSPACE);
+  const sources = Object.values(manifest.sources);
   return {
     noteFiles: noteFiles().length,
-    noteChunks: notesCache?.chunks.length ?? null,
+    noteChunks: sources.filter((s) => s.kind === "note").reduce((sum, s) => sum + s.chunks.length, 0),
     activityRecords: (await readActivityRecords()).length,
-    activityChunks: activityCache?.chunks.length ?? null,
+    activityChunks: sources.filter((s) => s.kind === "activity").reduce((sum, s) => sum + s.chunks.length, 0),
   };
 }

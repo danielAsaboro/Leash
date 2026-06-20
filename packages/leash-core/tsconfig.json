@@ -4,6 +4,6 @@
     "outDir": "./dist",
     "rootDir": "./src"
   },
-  "references": [{ "path": "../db" }],
+  "references": [{ "path": "../db" }, { "path": "../senses" }],
   "include": ["src/**/*.ts"]
 }

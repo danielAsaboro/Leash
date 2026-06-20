@@ -10,6 +10,24 @@ export type { GraphNode, GraphNodeInput } from "@mycelium/shared";
 export { loadEmbeddings, unloadEmbeddings } from "./embeddings.ts";
 export { ingestNodes, searchGraph } from "./rag-index.ts";
 export type { Hit, IngestNodesParams, SearchGraphParams } from "./rag-index.ts";
+export {
+  DEFAULT_RAG_CHUNK_POLICY,
+  defaultRagManifestPath,
+  loadRagManifest,
+  maintainRagWorkspace,
+  saveRagManifest,
+  searchRagWorkspace,
+  syncRagWorkspace,
+} from "./rag-workspace.ts";
+export type {
+  RagHit,
+  RagManifestChunk,
+  RagManifestSource,
+  RagSourceDoc,
+  RagSyncCounts,
+  RagWorkspaceManifest,
+  RagWorkspaceOps,
+} from "./rag-workspace.ts";
 export { ingestNotesDir, seedFromDataDir } from "./connectors.ts";
 export type { IngestNotesDirParams, SeedFromDataDirParams, AppendableGraph } from "./connectors.ts";
 export { embedDelta, loadEmbeddedIds, saveEmbeddedIds } from "./incremental.ts";

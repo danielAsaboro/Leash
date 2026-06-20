@@ -1,15 +1,14 @@
 /**
  * Vector RAG index over the context graph (Layer 2 — Senses).
  *
- * Wraps the proven `ragIngest` / `ragSearch` pattern from spike/02-rag.ts. The
- * graph's node text is the document set; the QVAC RAG workspace is the vector
- * index. This is the `search_graph` tool's backend (the Mind layer's proposer
- * calls `searchGraph`, which the orchestrator runs here).
+ * Uses the controlled QVAC SDK RAG workflow:
+ * ragChunk → embed → ragSaveEmbeddings → ragSearch, with a small local manifest
+ * keyed by deterministic chunk id so search results can be resolved back to graph
+ * sources.
  */
-import { ragIngest, ragSearch } from "@qvac/sdk";
-import { AuditLog, now } from "@mycelium/shared";
+import type { AuditLog } from "@mycelium/shared";
 import type { GraphNode } from "./graph-store.ts";
-import { GTE_LARGE_FP16 } from "./models.ts";
+import { defaultRagManifestPath, searchRagWorkspace, syncRagWorkspace } from "./rag-workspace.ts";
 
 /** A retrieved chunk from the graph: the text and its similarity score. */
 export interface Hit {
@@ -17,30 +16,36 @@ export interface Hit {
   id?: string;
   content: string;
   score: number;
+  sourceId?: string;
+  source?: string;
+  kind?: string;
 }
 
 export interface IngestNodesParams {
   embModelId: string;
   workspace: string;
   nodes: GraphNode[];
+  manifestPath?: string;
   audit?: AuditLog;
 }
 
 /** Embed + index every node's text into the workspace. Returns the chunk count. */
-export async function ingestNodes({ embModelId, workspace, nodes, audit }: IngestNodesParams): Promise<number> {
-  const documents = nodes.map((n) => n.text);
-  const t = now();
-  const result = await ragIngest({ modelId: embModelId, workspace, documents, chunk: true });
-  const chunks = result.processed.length;
-  audit?.record({
-    event: "rag_ingest",
-    modelSrc: GTE_LARGE_FP16,
-    modelId: embModelId,
-    tokens: chunks,
-    durationMs: now() - t,
-    extra: { workspace, nodes: nodes.length },
+export async function ingestNodes({ embModelId, workspace, nodes, manifestPath = defaultRagManifestPath(workspace), audit }: IngestNodesParams): Promise<number> {
+  const result = await syncRagWorkspace({
+    embModelId,
+    workspace,
+    manifestPath,
+    docs: nodes.map((node) => ({
+      sourceId: node.id,
+      source: node.source,
+      kind: node.kind,
+      content: node.text,
+      updatedAt: node.ts,
+      corpusFingerprint: node.meta ? JSON.stringify(node.meta) : node.ts,
+    })),
+    audit,
   });
-  return chunks;
+  return result.chunksSaved;
 }
 
 export interface SearchGraphParams {
@@ -48,19 +53,11 @@ export interface SearchGraphParams {
   workspace: string;
   query: string;
   topK?: number;
+  manifestPath?: string;
   audit?: AuditLog;
 }
 
 /** Retrieve the top-K most relevant chunks for a query. Emits a `rag_search` record. */
-export async function searchGraph({ embModelId, workspace, query, topK = 3, audit }: SearchGraphParams): Promise<Hit[]> {
-  const t = now();
-  const hits = (await ragSearch({ modelId: embModelId, workspace, query, topK })) as Hit[];
-  audit?.record({
-    event: "rag_search",
-    modelSrc: GTE_LARGE_FP16,
-    modelId: embModelId,
-    durationMs: now() - t,
-    extra: { workspace, query, topK, scores: hits.map((h) => h.score) },
-  });
-  return hits;
+export async function searchGraph({ embModelId, workspace, query, topK = 3, manifestPath = defaultRagManifestPath(workspace), audit }: SearchGraphParams): Promise<Hit[]> {
+  return searchRagWorkspace({ embModelId, workspace, manifestPath, query, topK, audit });
 }

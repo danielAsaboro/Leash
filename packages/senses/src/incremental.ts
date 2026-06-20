@@ -1,16 +1,14 @@
 /**
  * Incremental embedding (Layer 2 — Senses).
  *
- * Live CRDT sync means embedding only the DELTA — the nodes not yet in the vector
- * workspace — instead of the Week-1 destructive full re-embed. `ragIngest` is
- * append-only to a workspace, so we track embedded node ids and ingest only the new
- * ones. The id set persists to disk so we never re-embed across restarts, keeping
- * the workspace in lockstep with the durable Autobase view.
+ * Live CRDT sync means reconciling the durable graph view with the local QVAC RAG
+ * workspace. The manifest-backed sync detects added, changed, deleted, and
+ * unchanged source docs, deletes stale chunk ids, then embeds only current deltas.
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { GraphNode, AuditLog } from "@mycelium/shared";
-import { ingestNodes } from "./rag-index.ts";
+import { defaultRagManifestPath, syncRagWorkspace } from "./rag-workspace.ts";
 
 export interface EmbedDeltaParams {
   embModelId: string;
@@ -21,15 +19,35 @@ export interface EmbedDeltaParams {
   audit?: AuditLog;
 }
 
-/** Embed only the nodes whose id ∉ embedded. Mutates `embedded`. Returns counts. */
+/** Sync graph nodes into the RAG workspace. Mutates `embedded` for legacy diagnostics. */
 export async function embedDelta({ embModelId, workspace, nodes, embedded, audit }: EmbedDeltaParams): Promise<{ added: number; skipped: number; total: number }> {
-  const fresh = nodes.filter((n) => !embedded.has(n.id));
-  if (fresh.length > 0) {
-    await ingestNodes({ embModelId, workspace, nodes: fresh, audit });
-    for (const n of fresh) embedded.add(n.id);
-  }
-  audit?.record({ event: "graph_sync", extra: { added: fresh.length, skipped: nodes.length - fresh.length, total: nodes.length, direction: "replicated" } });
-  return { added: fresh.length, skipped: nodes.length - fresh.length, total: nodes.length };
+  const result = await syncRagWorkspace({
+    embModelId,
+    workspace,
+    manifestPath: defaultRagManifestPath(workspace),
+    docs: nodes.map((node) => ({
+      sourceId: node.id,
+      source: node.source,
+      kind: node.kind,
+      content: node.text,
+      updatedAt: node.ts,
+      corpusFingerprint: node.meta ? JSON.stringify(node.meta) : node.ts,
+    })),
+    audit,
+  });
+  embedded.clear();
+  for (const node of nodes) embedded.add(node.id);
+  audit?.record({
+    event: "graph_sync",
+    extra: {
+      added: result.added + result.changed,
+      skipped: result.unchanged,
+      deleted: result.deleted,
+      total: nodes.length,
+      direction: "replicated",
+    },
+  });
+  return { added: result.added + result.changed, skipped: result.unchanged, total: nodes.length };
 }
 
 /** Load the persisted embedded-id set (empty if absent or unreadable). */
