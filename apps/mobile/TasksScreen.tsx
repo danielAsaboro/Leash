@@ -15,20 +15,15 @@ import {
   type TaskStatus,
 } from "./tasks";
 import { meshStatus, onTasksChanged, type MeshStatus } from "./meshClient";
+import { ACTIVITY_TABS, type ActivityTab } from "./tabSets";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
- * TASKS — 1:1 with the desktop /tasks tabs: Mine · Newsroom · Runs. "Mine" is a real on-device task
- * list (full CRUD, status + priority, status filter chips) mirroring the web TasksPanel. Newsroom
+ * ACTIVITY — 1:1 with the desktop /activity tabs: TODOs · Newsroom · Runs. "TODOs" is a real on-device task
+ * list (full CRUD, status + priority, status filter chips) mirroring the web ActivityPanel. Newsroom
  * (the newsroom daemon + Prisma pipeline) and Runs (daemon run history) have no on-device backing,
  * so they show the honest DesktopNote rather than fake rows (Rule 4).
  */
-type Tab = "mine" | "newsroom" | "runs";
-const TABS: { key: Tab; label: string }[] = [
-  { key: "mine", label: "Mine" },
-  { key: "newsroom", label: "Newsroom" },
-  { key: "runs", label: "Runs" },
-];
-
 type Filter = TaskStatus | "all";
 const FILTERS: { key: Filter; label: string }[] = [
   { key: "all", label: "All" },
@@ -54,7 +49,7 @@ const PRIO_META: Record<TaskPriority, { label: string; color: string }> = {
 const PRIO_CYCLE: TaskPriority[] = ["low", "normal", "high"];
 
 export function TasksScreen({ onMenu, onPair }: { onMenu: () => void; onPair: () => void }) {
-  const [tab, setTab] = useState<Tab>("mine");
+  const [tab, setTab] = useState<ActivityTab>("mine");
   const [filter, setFilter] = useState<Filter>("all");
   const [tasks, setTasks] = useState<Task[]>([]);
   const [title, setTitle] = useState("");
@@ -116,8 +111,8 @@ export function TasksScreen({ onMenu, onPair }: { onMenu: () => void; onPair: ()
 
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
-      <ScreenHeader kicker="On this device" title="Tasks" onMenu={onMenu} />
-      <TabBar tabs={TABS} active={tab} onChange={setTab} />
+      <ScreenHeader kicker={SCREEN_COPY.activity.kicker} title={SCREEN_COPY.activity.title} onMenu={onMenu} />
+      <TabBar tabs={ACTIVITY_TABS} active={tab} onChange={setTab} />
 
       {tab === "mine" ? (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">

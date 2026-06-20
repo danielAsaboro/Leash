@@ -10,37 +10,25 @@ import { PromptsPanel } from "./brain/PromptsPanel";
 import { ModelsPanel } from "./brain/ModelsPanel";
 import { ProactivityPanel } from "./brain/ProactivityPanel";
 import { AgentsPanel } from "./brain/AgentsPanel";
+import { BRAIN_TABS, type BrainTab } from "./tabSets";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
- * BRAIN — matches the desktop /brain tab set: Memory · Skills · Agents · Tools · MCP · Prompts ·
+ * BRAIN — matches the desktop /brain tab set: Memory · Skills · Plugins · Agents · MCP · Prompts ·
  * Models · Growth · Forage · Proactivity. Memory, Prompts, Models, and Proactivity are real
  * on-device features (and Memory/Prompts/Proactivity edits feed the live chat via onChanged).
  * Agents shows the real roster read-only (Leash orchestrates on-device; the specialists' tools live
- * on a paired desktop). Skills / Tools / MCP / Growth / Forage need a tool-execution / LoRA / MCP
+ * on a paired desktop). Skills / Plugins / MCP / Growth / Forage need a tool-execution / LoRA / MCP
  * runtime the phone doesn't have, so they show the honest DesktopNote (Rule 4).
  */
-type Tab = "memory" | "skills" | "agents" | "tools" | "mcp" | "prompts" | "models" | "growth" | "forage" | "proactivity";
-const TABS: { key: Tab; label: string }[] = [
-  { key: "memory", label: "Memory" },
-  { key: "skills", label: "Skills" },
-  { key: "agents", label: "Agents" },
-  { key: "tools", label: "Tools" },
-  { key: "mcp", label: "MCP" },
-  { key: "prompts", label: "Prompts" },
-  { key: "models", label: "Models" },
-  { key: "growth", label: "Growth" },
-  { key: "forage", label: "Forage" },
-  { key: "proactivity", label: "Proactivity" },
-];
-
-const DESKTOP_COPY: Partial<Record<Tab, { title: string; line: string }>> = {
+const DESKTOP_COPY: Partial<Record<BrainTab, { title: string; line: string }>> = {
   skills: {
     title: "Skills run on your desktop.",
     line: "Skills are runnable procedures your desktop Leash executes with its tools. The phone has no tool-execution runtime — pair a device to browse and run them.",
   },
-  tools: {
-    title: "Tools run on your desktop.",
-    line: "Tool calling (filesystem, shell, connectors) is wired into the desktop Leash agent loop. Pair a device to manage and grant tools.",
+  plugins: {
+    title: "Plugins run on your desktop.",
+    line: "Plugins install desktop-side skills, tools, and integrations. This native app can use what your mesh exposes, but plugin installation lives on desktop Leash.",
   },
   mcp: {
     title: "MCP runs on your desktop.",
@@ -57,13 +45,13 @@ const DESKTOP_COPY: Partial<Record<Tab, { title: string; line: string }>> = {
 };
 
 export function BrainScreen({ onMenu, onChanged, onPair, selectChatModel, chatKey }: { onMenu: () => void; onChanged: () => void; onPair: () => void; selectChatModel: (key: string, onProgress?: (pct: number) => void) => Promise<void>; chatKey: string }) {
-  const [tab, setTab] = useState<Tab>("memory");
+  const [tab, setTab] = useState<BrainTab>("memory");
   const desktop = DESKTOP_COPY[tab];
 
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
-      <ScreenHeader kicker="On this device" title="Brain" onMenu={onMenu} />
-      <TabBar tabs={TABS} active={tab} onChange={setTab} />
+      <ScreenHeader kicker={SCREEN_COPY.brain.kicker} title={SCREEN_COPY.brain.title} onMenu={onMenu} />
+      <TabBar tabs={BRAIN_TABS} active={tab} onChange={setTab} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {tab === "memory" ? (
           <MemoryPanel onChanged={onChanged} onPair={onPair} />

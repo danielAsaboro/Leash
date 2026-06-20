@@ -8,6 +8,9 @@
     "start": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "ios": "expo run:ios --device",
+    "ipad": "expo run:ios --device",
+    "ipad:sim": "expo run:ios --simulator \"iPad Pro (11-inch) (M4)\"",
+    "ipad:prebuild": "expo prebuild --platform ios",
     "android": "expo run:android --device"
   },
   "dependencies": {

@@ -12,6 +12,7 @@ import {
   type Notification,
   type Tier,
 } from "./notifications";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
  * ALERTS — a single on-device notifications feed, 1:1 with the desktop /notifications page. The
@@ -42,8 +43,8 @@ export function AlertsScreen({ onMenu, onChanged }: { onMenu: () => void; onChan
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
       <ScreenHeader
-        kicker="On this device"
-        title="Alerts"
+        kicker={SCREEN_COPY.notifications.kicker}
+        title={SCREEN_COPY.notifications.title}
         onMenu={onMenu}
         right={
           unread > 0 ? (

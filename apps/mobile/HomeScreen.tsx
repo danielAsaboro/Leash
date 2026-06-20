@@ -7,10 +7,11 @@ import { ChatBubble, Phone, Plus } from "./icons";
 import { ago, listChats, type ChatSummary } from "./chats";
 import { taskCounts, type TaskCounts } from "./tasks";
 import { fmtBytes, listModels, totalDiskBytes, type ModelStatus } from "./modelsInventory";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
  * HOME — a real on-device dashboard mirroring the desktop's glanceable cards, every byte local:
- * a status line, Tasks counts, Model runtime + disk, recent conversations, and quick actions.
+ * a status line, Activity counts, Model runtime + disk, recent conversations, and quick actions.
  * No daemon, no server.
  */
 export function HomeScreen({
@@ -22,7 +23,7 @@ export function HomeScreen({
   onNewChat,
   onCall,
   onOpenChat,
-  onGoTasks,
+  onGoActivity,
   onGoModels,
 }: {
   onMenu: () => void;
@@ -33,7 +34,7 @@ export function HomeScreen({
   onNewChat: () => void;
   onCall: () => void;
   onOpenChat: (id: string) => void;
-  onGoTasks: () => void;
+  onGoActivity: () => void;
   onGoModels: () => void;
 }) {
   const [chats, setChats] = useState<ChatSummary[]>([]);
@@ -51,7 +52,7 @@ export function HomeScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
-      <ScreenHeader kicker="Today's edition" title="Home" onMenu={onMenu} />
+      <ScreenHeader kicker={SCREEN_COPY.home.kicker} title={SCREEN_COPY.home.title} onMenu={onMenu} />
       <ScrollView contentContainerStyle={styles.body}>
         {/* Status line — model + where it runs (all on-device unless mesh is engaged). */}
         <View style={styles.statusRow}>
@@ -79,9 +80,9 @@ export function HomeScreen({
           </Pressable>
         </View>
 
-        {/* Tasks + Model runtime cards — real on-device data. */}
+        {/* Activity + Model runtime cards — real on-device data. */}
         <View style={{ marginTop: 22 }}>
-          <Card title="Tasks" action={<CardAction label="OPEN ›" onPress={onGoTasks} />}>
+          <Card title="Activity" action={<CardAction label="OPEN ›" onPress={onGoActivity} />}>
             <View style={styles.statRow}>
               <Stat label="Open" value={counts ? String(counts.open) : "…"} />
               <Stat label="In progress" value={counts ? String(counts.in_progress) : "…"} accent={C.sageDeep} />

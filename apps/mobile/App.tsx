@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
@@ -68,8 +69,11 @@ import { getSelectedChatKey, setSelectedChatKey } from "./selectedModel";
 import { C, F, TRACKING_LABEL } from "./theme";
 import { LeashMark } from "./LeashMark";
 import { pickChatProvider, selfConsumerKey, type ChatOffloadTarget } from "./meshClient";
-import { NavDrawer, type Route } from "./NavDrawer";
+import { NavDrawer } from "./NavDrawer";
+import { TabletRail } from "./TabletRail";
+import type { Route } from "./tabs";
 import { HomeScreen } from "./HomeScreen";
+import { FeedScreen } from "./FeedScreen";
 import { MeshScreen } from "./MeshScreen";
 import { SettingsScreen } from "./SettingsScreen";
 import { TasksScreen } from "./TasksScreen";
@@ -77,7 +81,6 @@ import { AlertsScreen } from "./AlertsScreen";
 import { BrainScreen } from "./BrainScreen";
 import { EconomyScreen } from "./EconomyScreen";
 import { ServicesScreen } from "./ServicesScreen";
-import { DesktopScreen, type DesktopRoute } from "./DesktopScreen";
 import { initMesh } from "./meshClient";
 import { getPrompts, CHAT_SYSTEM_PROMPT, VOICE_RESPONSE_PROMPT } from "./prompts";
 import { DEFAULT_IMAGE_PROMPT, NO_THINK_DIRECTIVE } from "./prompt";
@@ -92,6 +95,7 @@ import { logChatTurn, summarizeParts } from "./lib/agent/chat-log";
 import { activeSkillForTurn, syncSkillsFromMesh } from "./lib/agent/skills";
 import { MessageParts } from "./ai-elements/MessageParts";
 import { reconnect as meshReconnect } from "./meshClient";
+import { isTabletLayout } from "./layout";
 
 const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
 
@@ -158,6 +162,8 @@ function telemetryLine(t: Telemetry): string {
 }
 
 export default function App(): React.JSX.Element {
+  const { width, height } = useWindowDimensions();
+  const tabletShell = isTabletLayout(width, height);
   const [fontsLoaded] = useFonts({
     Fraunces_400Regular,
     Fraunces_400Regular_Italic,
@@ -236,6 +242,9 @@ export default function App(): React.JSX.Element {
   const hasContent = input.trim().length > 0 || attachments.length > 0;
   const canSend = !!modelId && !isGenerating && hasContent;
   const MAX_ATTACH = 5;
+  const openMenu = useCallback(() => {
+    if (!tabletShell) setDrawerOpen(true);
+  }, [tabletShell]);
   const addAttachment = useCallback((a: { dataUrl: string; uri: string }) => {
     setAttachments((prev) => {
       if (prev.length >= MAX_ATTACH) {
@@ -929,6 +938,9 @@ export default function App(): React.JSX.Element {
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.cream} />
+      <View style={[styles.shell, tabletShell && styles.tabletShell]}>
+        {tabletShell ? <TabletRail route={route} unread={unread} onNavigate={setRoute} /> : null}
+        <View style={[styles.contentPane, tabletShell && styles.tabletContentPane]}>
       {route === "chat" ? (
       <KeyboardAvoidingView
         style={styles.safe}
@@ -938,12 +950,14 @@ export default function App(): React.JSX.Element {
         {/* ── Masthead ─────────────────────────────────────────────── */}
         <View style={styles.masthead}>
           <View style={styles.mastheadRow}>
-            <Pressable onPress={() => setDrawerOpen(true)} hitSlop={8} style={styles.markTile}>
-              <LeashMark size={26} mark={C.cream} cutout={C.ink} />
-            </Pressable>
+            {!tabletShell ? (
+              <Pressable onPress={openMenu} hitSlop={8} style={styles.markTile}>
+                <LeashMark size={26} mark={C.cream} cutout={C.ink} />
+              </Pressable>
+            ) : null}
             <View style={{ flex: 1 }}>
-              <Text style={styles.wordmark}>Leash</Text>
-              <Text style={styles.tagline}>your mind · on your own devices</Text>
+              <Text style={styles.wordmark}>{tabletShell ? "Chat" : "Leash"}</Text>
+              <Text style={styles.tagline}>{tabletShell ? "private · local · mesh-ready" : "your mind · on your own devices"}</Text>
             </View>
             <Pressable onPress={openHistory} hitSlop={10} style={styles.histBtn}>
               <Menu size={20} color={C.inkSoft} strokeWidth={2} />
@@ -1094,7 +1108,7 @@ export default function App(): React.JSX.Element {
       </KeyboardAvoidingView>
       ) : route === "home" ? (
         <HomeScreen
-          onMenu={() => setDrawerOpen(true)}
+          onMenu={openMenu}
           modelLabel={modelLabel}
           modelReady={!!modelId}
           meshOn={meshOnRef.current}
@@ -1108,17 +1122,28 @@ export default function App(): React.JSX.Element {
             void selectChat(id);
             setRoute("chat");
           }}
-          onGoTasks={() => setRoute("tasks")}
+          onGoActivity={() => setRoute("activity")}
           onGoModels={() => setRoute("brain")}
+        />
+      ) : route === "feed" ? (
+        <FeedScreen
+          onMenu={openMenu}
+          onOpenChat={(id) => {
+            void selectChat(id);
+            setRoute("chat");
+          }}
+          onGoActivity={() => setRoute("activity")}
+          onGoAlerts={() => setRoute("alerts")}
+          onGoServices={() => setRoute("services")}
         />
       ) : route === "mesh" ? (
         <MeshScreen
-          onMenu={() => setDrawerOpen(true)}
+          onMenu={openMenu}
           selfNote={`this device · consumer · ${modelLabel.toLowerCase()}`}
         />
       ) : route === "settings" ? (
         <SettingsScreen
-          onMenu={() => setDrawerOpen(true)}
+          onMenu={openMenu}
           modelLabel={modelLabel}
           onGoMesh={() => setRoute("mesh")}
           onClearedConversations={() => newChat()}
@@ -1130,30 +1155,34 @@ export default function App(): React.JSX.Element {
           }}
         />
       ) : route === "brain" ? (
-        <BrainScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshBrain} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
-      ) : route === "tasks" ? (
-        <TasksScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+        <BrainScreen onMenu={openMenu} onChanged={refreshBrain} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
+      ) : route === "activity" ? (
+        <TasksScreen onMenu={openMenu} onPair={() => setRoute("mesh")} />
       ) : route === "alerts" ? (
-        <AlertsScreen onMenu={() => setDrawerOpen(true)} onChanged={refreshUnread} />
+        <AlertsScreen onMenu={openMenu} onChanged={refreshUnread} />
       ) : route === "economy" ? (
         <EconomyScreen
-          onMenu={() => setDrawerOpen(true)}
+          onMenu={openMenu}
           onPair={() => setRoute("mesh")}
           mesh={{ on: meshOnRef.current, providerName: offload?.displayName, providerKey: offload?.providerPublicKey ?? "", status: meshOnRef.current ? "online" : "unset" }}
         />
       ) : route === "services" ? (
-        <ServicesScreen onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
+        <ServicesScreen onMenu={openMenu} onPair={() => setRoute("mesh")} selectChatModel={selectChatModel} chatKey={chatKey} />
       ) : (
-        <DesktopScreen route={route as DesktopRoute} onMenu={() => setDrawerOpen(true)} onPair={() => setRoute("mesh")} />
+        null
       )}
+        </View>
+      </View>
 
-      <NavDrawer
-        visible={drawerOpen}
-        route={route}
-        unread={unread}
-        onNavigate={setRoute}
-        onClose={() => setDrawerOpen(false)}
-      />
+      {!tabletShell ? (
+        <NavDrawer
+          visible={drawerOpen}
+          route={route}
+          unread={unread}
+          onNavigate={setRoute}
+          onClose={() => setDrawerOpen(false)}
+        />
+      ) : null}
 
       <AddToChat
         visible={addSheetOpen}
@@ -1256,6 +1285,14 @@ function MessageBlock({
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.cream },
   center: { alignItems: "center", justifyContent: "center" },
+  shell: { flex: 1, backgroundColor: C.cream },
+  tabletShell: { flexDirection: "row" },
+  contentPane: { flex: 1, minWidth: 0 },
+  tabletContentPane: {
+    backgroundColor: C.cream,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    borderLeftColor: C.rule,
+  },
 
   // Masthead
   masthead: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 10 },

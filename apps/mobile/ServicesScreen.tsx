@@ -6,6 +6,7 @@ import { Card } from "./Card";
 import { DesktopNote } from "./DesktopNote";
 import { Services } from "./icons";
 import { ModelsPanel } from "./brain/ModelsPanel";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
  * SERVICES — 1:1 with the desktop /services daemon cards. The phone's genuine analog of "Model
@@ -24,7 +25,7 @@ const DESKTOP_SERVICES: { title: string; line: string }[] = [
 export function ServicesScreen({ onMenu, onPair, selectChatModel, chatKey }: { onMenu: () => void; onPair: () => void; selectChatModel: (key: string, onProgress?: (pct: number) => void) => Promise<void>; chatKey: string }) {
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
-      <ScreenHeader kicker="On this device" title="Services" onMenu={onMenu} />
+      <ScreenHeader kicker={SCREEN_COPY.services.kicker} title={SCREEN_COPY.services.title} onMenu={onMenu} />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Card title="Model runtime">
           <Text style={styles.cardNote}>The phone's on-device serve — the models it runs, with live state.</Text>

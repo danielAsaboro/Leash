@@ -3,31 +3,20 @@ import { ScrollView, StyleSheet, View } from "react-native";
 import { C } from "./theme";
 import { ScreenHeader } from "./ScreenHeader";
 import { DesktopNote } from "./DesktopNote";
-import { Bell, Brain, Database, ListChecks, Newspaper, Services } from "./icons";
+import { Bell, Brain, Database, Services } from "./icons";
 
 type IconCmp = (p: { size?: number; color?: string; strokeWidth?: number }) => React.JSX.Element;
-export type DesktopRoute = "feed" | "brain" | "tasks" | "alerts" | "economy" | "services";
+export type DesktopRoute = "brain" | "alerts" | "economy" | "services";
 
 /**
- * Thin full-screen wrapper around DesktopNote, kept for the FEED route (which has no on-device
- * backing at all). The other five sections now have real screens that embed DesktopNote per-tab
- * only where a sub-feature is genuinely desktop/daemon-bound.
+ * Thin full-screen wrapper around DesktopNote for native screens that still need to explain
+ * desktop-only sub-features. Top-level iPad tabs now have native surfaces.
  */
 const COPY: Record<DesktopRoute, { Icon: IconCmp; title: string; line: string }> = {
-  feed: {
-    Icon: Newspaper,
-    title: "Feed lives on your desktop.",
-    line: "Feed is the newsroom daemon and its database — both run on your desktop Leash. Pair this phone to a device to read it here.",
-  },
   brain: {
     Icon: Brain,
     title: "Brain lives on your desktop.",
     line: "Brain is assembled on your desktop Leash from its on-disk store. Pair a device to browse it here.",
-  },
-  tasks: {
-    Icon: ListChecks,
-    title: "Tasks lives on your desktop.",
-    line: "Tasks, pipelines, and daemons are scheduled and run by your desktop Leash. Pair this phone to a device to track them here.",
   },
   alerts: {
     Icon: Bell,

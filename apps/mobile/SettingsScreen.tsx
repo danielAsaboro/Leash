@@ -13,6 +13,8 @@ import { clearAll as clearNotifications } from "./notifications";
 import { KNOWN_SECRETS, listSecretStatus, setSecret, deleteSecret, type SecretStatus } from "./secrets";
 import { type OffloadStatus } from "./mesh";
 import appJson from "./app.json";
+import { SETTINGS_TABS, type SettingsTab } from "./tabSets";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
  * SETTINGS — on-device, full 1:1 with the desktop /settings tab set: Account · Storage · Permissions
@@ -20,16 +22,6 @@ import appJson from "./app.json";
  * client was missing. Nothing here touches a server — the secret values live in the iOS Keychain and
  * are consumed by connectors on the paired desktop Leash.
  */
-type Tab = "account" | "storage" | "permissions" | "devices" | "secrets" | "about";
-const TABS: { key: Tab; label: string }[] = [
-  { key: "account", label: "Account" },
-  { key: "storage", label: "Storage" },
-  { key: "permissions", label: "Permissions" },
-  { key: "devices", label: "Devices" },
-  { key: "secrets", label: "Secrets" },
-  { key: "about", label: "About" },
-];
-
 type PermState = "granted" | "denied" | "undetermined";
 function permLabel(s: PermState): string {
   return s === "granted" ? "ALLOWED" : s === "denied" ? "DENIED" : "NOT ASKED";
@@ -59,7 +51,7 @@ export function SettingsScreen({
   mesh: { on: boolean; providerName?: string; providerKey: string; status: OffloadStatus };
   onResetDevice: () => void;
 }) {
-  const [tab, setTab] = useState<Tab>("account");
+  const [tab, setTab] = useState<SettingsTab>("account");
   const [count, setCount] = useState<number | null>(null);
   const [perms, setPerms] = useState<{ mic: PermState; camera: PermState; photos: PermState }>({
     mic: "undetermined",
@@ -174,8 +166,8 @@ export function SettingsScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
-      <ScreenHeader kicker="On this device" title="Settings" onMenu={onMenu} />
-      <TabBar tabs={TABS} active={tab} onChange={setTab} />
+      <ScreenHeader kicker={SCREEN_COPY.settings.kicker} title={SCREEN_COPY.settings.title} onMenu={onMenu} />
+      <TabBar tabs={SETTINGS_TABS} active={tab} onChange={setTab} />
 
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {tab === "account" && (

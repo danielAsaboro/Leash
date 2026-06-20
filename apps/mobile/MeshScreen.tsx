@@ -6,6 +6,7 @@ import { JoinMeshSheet } from "./JoinMeshSheet";
 import { Plus, MeshNodes, Incognito, LogOut, ChevronDown, ChevronRight, Cpu, Brain } from "./icons";
 import { meshStatus, peersList, leaveMesh, onTasksChanged, dedupePeers, type MeshStatus, type MeshPeer } from "./meshClient";
 import { listModels, stateLabel, fmtBytes, type ModelStatus } from "./modelsInventory";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
  * The MESH tab — your private-mesh MEMBERSHIPS (the meshes this phone syncs with, or an empty state),
@@ -111,8 +112,8 @@ export function MeshScreen(props: {
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
       <ScreenHeader
-        kicker="The Mesh"
-        title="Mesh"
+        kicker={SCREEN_COPY.mesh.kicker}
+        title={SCREEN_COPY.mesh.title}
         onMenu={onMenu}
         right={
           <Pressable onPress={() => setJoinOpen(true)} hitSlop={8} style={styles.plus} accessibilityLabel="Join a mesh">

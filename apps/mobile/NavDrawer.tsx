@@ -14,6 +14,7 @@ import {
   Services,
   Settings,
 } from "./icons";
+import { PRIMARY_TABS, SETTINGS_TAB, type PrimaryRoute, type Route } from "./tabs";
 
 /**
  * The mobile left-rail — a slide-in dashboard drawer porting apps/web's LeashRail. Full web
@@ -26,18 +27,6 @@ import {
  * installed) on the native driver.
  */
 
-export type Route =
-  | "home"
-  | "chat"
-  | "mesh"
-  | "settings"
-  | "feed"
-  | "brain"
-  | "tasks"
-  | "alerts"
-  | "economy"
-  | "services";
-
 type IconCmp = (p: { size?: number; color?: string; strokeWidth?: number }) => React.JSX.Element;
 
 /**
@@ -45,17 +34,22 @@ type IconCmp = (p: { size?: number; color?: string; strokeWidth?: number }) => R
  * gone — only FEED remains a pure desktop stand-in, kept low-key without a tag. The ALERTS row
  * carries an unread-count bell badge.
  */
-const ITEMS: { key: Route; label: string; Icon: IconCmp }[] = [
-  { key: "home", label: "Home", Icon: Home },
-  { key: "chat", label: "Chat", Icon: ChatBubble },
-  { key: "feed", label: "Feed", Icon: Newspaper },
-  { key: "brain", label: "Brain", Icon: Brain },
-  { key: "tasks", label: "Tasks", Icon: ListChecks },
-  { key: "alerts", label: "Alerts", Icon: Bell },
-  { key: "economy", label: "Economy", Icon: Database },
-  { key: "mesh", label: "Mesh", Icon: MeshNodes },
-  { key: "services", label: "Services", Icon: Services },
-];
+const ICONS: Record<PrimaryRoute, IconCmp> = {
+  home: Home,
+  chat: ChatBubble,
+  feed: Newspaper,
+  brain: Brain,
+  activity: ListChecks,
+  alerts: Bell,
+  economy: Database,
+  mesh: MeshNodes,
+  services: Services,
+};
+
+export const NAV_ITEMS: { key: PrimaryRoute; label: string; Icon: IconCmp }[] = PRIMARY_TABS.map((tab) => ({
+  ...tab,
+  Icon: ICONS[tab.key],
+}));
 
 const PANEL_W = 300;
 
@@ -96,7 +90,7 @@ export function NavDrawer({
 
   if (!mounted) return null;
 
-  const Row = ({ key, label, Icon }: (typeof ITEMS)[number]) => {
+  const Row = ({ key, label, Icon }: (typeof NAV_ITEMS)[number]) => {
     const active = route === key;
     const badge = key === "alerts" && unread > 0;
     return (
@@ -141,7 +135,7 @@ export function NavDrawer({
             <View style={styles.ruleStrong} />
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.navList}>
-              {ITEMS.map((it) => Row(it))}
+              {NAV_ITEMS.map((it) => Row(it))}
             </ScrollView>
 
             <View style={styles.rule} />
@@ -150,9 +144,9 @@ export function NavDrawer({
               return (
                 <Pressable
                   onPress={() => {
-                    onNavigate("settings");
-                    onClose();
-                  }}
+                  onNavigate(SETTINGS_TAB.key);
+                  onClose();
+                }}
                   style={({ pressed }) => [
                     styles.item,
                     styles.footItem,
@@ -162,7 +156,7 @@ export function NavDrawer({
                 >
                   {active && <View style={styles.activeBar} />}
                   <Settings size={22} color={active ? C.sageDeep : C.inkSoft} strokeWidth={1.7} />
-                  <Text style={[styles.itemLabel, active && styles.itemLabelActive]}>Settings</Text>
+                  <Text style={[styles.itemLabel, active && styles.itemLabelActive]}>{SETTINGS_TAB.label}</Text>
                 </Pressable>
               );
             })()}

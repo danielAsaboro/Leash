@@ -6,6 +6,7 @@ import { Card, Row, StateBadge } from "./Card";
 import { DesktopNote } from "./DesktopNote";
 import { Database } from "./icons";
 import { type OffloadStatus } from "./mesh";
+import { SCREEN_COPY } from "./screenCopy";
 
 /**
  * ECONOMY — the phone is a pure mesh consumer: no on-device ledger, wallet, or chain RPC. The page
@@ -37,7 +38,7 @@ export function EconomyScreen({
 
   return (
     <View style={{ flex: 1, backgroundColor: C.cream }}>
-      <ScreenHeader kicker="On this device" title="Economy" onMenu={onMenu} />
+      <ScreenHeader kicker={SCREEN_COPY.economy.kicker} title={SCREEN_COPY.economy.title} onMenu={onMenu} />
       <ScrollView contentContainerStyle={styles.body}>
         <Card title="Mesh offload" action={<StateBadge ok={mesh.on ? ok : null} label={stateLabel} />}>
           <Row label="Role" value="Consumer (this device)" mono={false} />
