@@ -1,7 +1,8 @@
 ---
-name: Smart Home
+name: smart-home
 description: Control the user's smart-home devices through Home Assistant — lights, switches, fans, covers/blinds, and scenes on their local network. Use this WHENEVER the user wants to check or change something physical in their home: "turn on/off…", "dim the…", "is the … on", "close the blinds", "set the … scene", "what lights are on". Requires Home Assistant to be reachable on the LAN.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: ha_list_entities ha_get_state ha_call_service
 when_to_use: |
   turn off the living room lights

@@ -11,6 +11,7 @@ import {
   capabilityBarFromConductorRoute,
   deterministicRouteNeed,
   isHealthIntent,
+  invalidConductorFallbackRoute,
   parseConductorDecision,
   pickInventoryRouteAlias,
   publicMeshRouteBlocked,
@@ -139,6 +140,25 @@ assert.equal(unavailableAlias.ok, false, "reachable-but-not-ready alias rejected
 
 const malformed = parseConductorDecision("not json", inventory);
 assert.equal(malformed.ok, false, "malformed conductor text is rejected");
+
+const echoedPrompt = parseConductorDecision('{"userPrompt":"tell me a short joke","turn":{"messageCount":1}}', inventory);
+const fallback = invalidConductorFallbackRoute({
+  parsed: echoedPrompt,
+  userPrompt: "tell me a short joke",
+  conductorAlias: "classifier",
+  inventory,
+  selectedModel: null,
+  raw: '{"userPrompt":"tell me a short joke","turn":{"messageCount":1}}',
+});
+assert.equal(fallback.ok, true, "invalid generic conductor JSON routes to full agent instead of 502");
+if (fallback.ok) {
+  assert.equal(fallback.decision.action, "route");
+  if (fallback.decision.action === "route") {
+    assert.equal(fallback.decision.route.alias, "general");
+    assert.equal(fallback.decision.route.needsTools, false);
+    assert.equal(fallback.decision.route.sensitivity, "shareable");
+  }
+}
 
 const extraJsonish = parseConductorDecision('```json\n{"action":"answer","answer":"Hi."}\n```\n{"action":"route"}', inventory);
 assert.equal(extraJsonish.ok, true, "first balanced valid conductor JSON is accepted even with extra text");

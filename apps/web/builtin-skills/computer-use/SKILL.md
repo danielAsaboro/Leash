@@ -1,7 +1,8 @@
 ---
-name: Computer Use
+name: computer-use
 description: See and operate THIS Mac — take a screenshot to perceive the screen, run shell commands against the real disk (approval-gated), and drive mouse/keyboard. Use this WHENEVER the user asks you to do something on their actual computer: open or control an app, click/type something, check or change a file on disk, run a command, automate a GUI task, or "look at my screen". This is the real machine, not a sandbox — act carefully.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: screenshot run_command computer
 when_to_use: |
   what's on my screen right now

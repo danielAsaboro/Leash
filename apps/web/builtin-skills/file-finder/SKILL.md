@@ -1,7 +1,8 @@
 ---
 name: file-finder
 description: Search and read the user's files through a sandboxed, read-only shell (grep, find, cat, jq, head, etc.) over a snapshot of their documents. Use this WHENEVER the user asks about the CONTENTS of their own files — "find the file where I…", "what did I write about X", "search my code/PDFs/text files for…", "show me the part of that doc that…" — anything that means locating or quoting their local files rather than the open web.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: bash
 when_to_use: |
   find the markdown file where I drafted the Q3 plan

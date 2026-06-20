@@ -1,7 +1,8 @@
 ---
 name: context-grounding
 description: Ground answers in the user's OWN private context — Apple Notes, files, saved memories, and past chats (a searchable knowledge graph), plus what's currently on their screen. Use this WHENEVER a question is about the user's own world ("what did I decide about…", "summarize Apple Notes on…", "what was I just doing", "based on my stuff…") rather than general knowledge or the open web. Search their context before answering so the reply is theirs, not generic.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: search_graph active_context activity_recent
 when_to_use: |
   what did I conclude about the pricing model in Apple Notes

@@ -1,7 +1,8 @@
 ---
-name: Deep Research
+name: deep-research
 description: Run a thorough, multi-source WEB research pass and answer with citations. Use this WHENEVER the user wants to investigate a topic, compare options, gather current/up-to-date information, find out "the latest" on something, vet a claim, or asks a question that one model answer can't reliably cover from memory — even if they don't say the word "research". Needs network. Prefer this over guessing from training data for anything time-sensitive, factual, or comparative.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: deep_research
 when_to_use: |
   what's the latest on the EU AI Act timeline

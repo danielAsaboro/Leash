@@ -323,6 +323,40 @@ export function pickInventoryRouteAlias(input: {
   return candidates[0]?.alias ?? null;
 }
 
+export function invalidConductorFallbackRoute(input: {
+  parsed: ParsedConductorDecision;
+  userPrompt: string;
+  conductorAlias: string;
+  inventory: ConfiguredModelSpec[];
+  selectedModel: string | null;
+  raw: string;
+}): ParsedConductorDecision {
+  if (input.parsed.ok) return input.parsed;
+  const need = deterministicRouteNeed(input.userPrompt);
+  const alias = pickInventoryRouteAlias({
+    inventory: input.inventory,
+    conductorAlias: input.conductorAlias,
+    selectedModel: input.selectedModel,
+    need,
+  });
+  if (!alias) return input.parsed;
+  return {
+    ok: true,
+    decision: {
+      action: "route",
+      route: {
+        alias,
+        reason: need.required ? `${need.reason}; conductor output invalid (${input.parsed.reason})` : `conductor output invalid (${input.parsed.reason}); routed to full agent`,
+        needsTools: need.required,
+        needsVision: need.needsVision,
+        needsMemory: need.needsMemory,
+        needsFiles: need.needsFiles,
+        sensitivity: need.needsMemory || need.needsFiles || need.needsHealth ? "private" : "shareable",
+      },
+    },
+  };
+}
+
 function validateConductorTurnDecision(parsed: unknown, inventory: ConfiguredModelSpec[], raw: string): ParsedConductorDecision {
   if (!parsed || typeof parsed !== "object") return { ok: false, reason: "conductor JSON was not an object", raw };
   const obj = parsed as Record<string, unknown>;

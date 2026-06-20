@@ -1,7 +1,8 @@
 ---
-name: Image Generator
+name: image-generator
 description: Generate images from a text description, fully on-device. Use this WHENEVER the user wants a picture made — "draw…", "generate an image of…", "make me a logo/illustration/wallpaper of…", "what would X look like" — anything that calls for creating visual art rather than finding or editing an existing file.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: generate_image
 when_to_use: |
   draw a watercolor fox sleeping under a maple tree

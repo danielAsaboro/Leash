@@ -7,6 +7,7 @@ import {
   buildConductorPrompt,
   buildConfiguredModelInventory,
   deterministicRouteNeed,
+  invalidConductorFallbackRoute,
   parseConductorDecision,
   pickInventoryRouteAlias,
   type ConductorTurnDecision,
@@ -106,41 +107,6 @@ function enforceDirectAnswerGuard(input: {
   };
 }
 
-function enforceInvalidRouteGuard(input: {
-  parsed: ParsedConductorDecision;
-  userPrompt: string;
-  conductorAlias: string;
-  inventory: ConfiguredModelSpec[];
-  selectedModel: string | null;
-  raw: string;
-}): ParsedConductorDecision {
-  if (input.parsed.ok) return input.parsed;
-  const need = deterministicRouteNeed(input.userPrompt);
-  if (!need.required) return input.parsed;
-  const alias = pickInventoryRouteAlias({
-    inventory: input.inventory,
-    conductorAlias: input.conductorAlias,
-    selectedModel: input.selectedModel,
-    need,
-  });
-  if (!alias) return input.parsed;
-  return {
-    ok: true,
-    decision: {
-      action: "route",
-      route: {
-        alias,
-        reason: `${need.reason}; conductor output invalid (${input.parsed.reason})`,
-        needsTools: need.needsTools,
-        needsVision: need.needsVision,
-        needsMemory: need.needsMemory,
-        needsFiles: need.needsFiles,
-        sensitivity: need.needsMemory || need.needsFiles ? "private" : "shareable",
-      },
-    },
-  };
-}
-
 export async function conductTurn(input: {
   userPrompt: string;
   metadata: ConductorTurnMetadata;
@@ -163,7 +129,7 @@ export async function conductTurn(input: {
       maxRetries: 0,
     });
     return resultFromParsed({
-      parsed: enforceInvalidRouteGuard({
+      parsed: invalidConductorFallbackRoute({
         parsed: enforceDirectAnswerGuard({
           parsed: parseConductorDecision(text, inventory),
           userPrompt: input.userPrompt,

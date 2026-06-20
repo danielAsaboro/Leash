@@ -1,7 +1,8 @@
 ---
-name: todo-manager
+name: task-manager
 description: Manage the user's todo list — create todos, list what's open or in progress, and update status/priority. Use this WHENEVER the user wants to track something to do: "remind me to…", "add a todo", "what's on my list", "mark that done", "what should I work on next". Capture commitments as todos so they don't get lost between conversations.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: create_task list_tasks update_task
 when_to_use: |
   remind me to renew the domain before Friday

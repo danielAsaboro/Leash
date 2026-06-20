@@ -1,7 +1,8 @@
 ---
-name: Photo Finder
+name: photo-finder
 description: Find the user's images by their on-device auto-tags. Use this WHENEVER the user wants to locate their OWN photos/pictures — "find my photos of…", "do I have any pictures of…", "show me images tagged…", "which photos have <subject> in them". This searches images they already have (tagged privately on-device); it does NOT create images.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: list_photos
 when_to_use: |
   find my photos of the beach trip

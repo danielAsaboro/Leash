@@ -1,7 +1,8 @@
 ---
-name: MCP Installer
+name: mcp-installer
 description: Install and register OTHER MCP servers so the assistant gains new tools — from a public repo/URL, or by hand from a command/URL the user provides. Use this WHENEVER the user wants to ADD a capability or integration that isn't built in: "install the GitHub MCP server", "add the Slack tools", "set up an MCP for Notion", "connect <service>", or points you at an MCP server's repo. This extends what the assistant can do.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: install_mcp_repo upsert_mcp_server
 when_to_use: |
   install the filesystem MCP server from modelcontextprotocol/servers

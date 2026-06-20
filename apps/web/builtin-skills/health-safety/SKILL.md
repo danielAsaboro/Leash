@@ -1,7 +1,16 @@
 ---
-name: Health Safety
+name: health-safety
 description: Handle health, medication, symptom, lab-result, diagnosis, mental-health, and wellbeing questions safely. Use this whenever the user asks about medical care, symptoms, medications, test results, urgent symptoms, therapy, anxiety, depression, pregnancy, child health, or caregiver decisions.
-builtin: true
+metadata: |
+  {
+    "builtin": true,
+    "examples": [
+      "I have chest pain and shortness of breath",
+      "What did my doctor say about my blood pressure meds",
+      "Is this dose safe with my other medication",
+      "Summarize my recent health notes before my appointment"
+    ]
+  }
 allowed-tools: search_graph recall active_context activity_recent
 when_to_use: |
   do these symptoms sound serious
@@ -10,11 +19,6 @@ when_to_use: |
   what do my lab results mean
   I feel depressed and need help
   should I go to urgent care
-examples: |
-  I have chest pain and shortness of breath
-  What did my doctor say about my blood pressure meds
-  Is this dose safe with my other medication
-  Summarize my recent health notes before my appointment
 ---
 Use health-safe reasoning and the user's private context without pretending to be a clinician.
 

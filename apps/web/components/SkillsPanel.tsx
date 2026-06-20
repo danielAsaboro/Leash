@@ -163,12 +163,13 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
 
   // Source filter — "built-in" = shipped with the app; "custom" = user-created or imported.
   const [filter, setFilter] = useState<Visibility>("all");
+  const menuSkills = skills.filter((s) => s.userInvocable !== false);
   const counts: Record<Visibility, number> = {
-    all: skills.length,
-    builtin: skills.filter((s) => s.builtin).length,
-    custom: skills.filter((s) => !s.builtin).length,
+    all: menuSkills.length,
+    builtin: menuSkills.filter((s) => s.builtin).length,
+    custom: menuSkills.filter((s) => !s.builtin).length,
   };
-  const visible = skills.filter((s) => (filter === "all" ? true : filter === "builtin" ? s.builtin : !s.builtin));
+  const visible = menuSkills.filter((s) => (filter === "all" ? true : filter === "builtin" ? s.builtin : !s.builtin));
 
   // VS Code open-editor state: which skill is open in VS Code, or showing its path
   const [vsCodeNotice, setVsCodeNotice] = useState<{ slug: string; path: string } | null>(null);
@@ -299,8 +300,8 @@ export function SkillsPanel({ skills }: { skills: Skill[] }) {
         <input
           value={draft.name}
           onChange={(e) => setDraft((d) => ({ ...d, name: e.target.value }))}
-          placeholder="Skill name (e.g. Trip planning)"
-          aria-label="Skill name"
+          placeholder="Skill package name (e.g. trip-planning)"
+          aria-label="Skill package name"
           className="border bg-transparent px-3 py-2"
           style={{ borderColor: "var(--color-rule-strong)", fontFamily: "var(--font-body)" }}
         />

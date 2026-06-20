@@ -54,23 +54,25 @@ export function splitFrontmatter(raw: string): { fields: Record<string, string>;
 }
 
 /**
- * Parse a `tools:` frontmatter value into a clean tool-name list. Accepts both the `[a, b, c]`
+ * Parse a tool-list frontmatter value into a clean tool-name list. Accepts both the `[a, b, c]`
  * array form and a bare `a, b, c` (comma/space-separated) string; strips brackets/quotes and keeps
  * only tool-name-shaped tokens (so prose can't smuggle in junk).
  */
 export function parseToolList(raw: string | undefined): string[] {
   if (!raw) return [];
-  return raw
-    .replace(/^\s*\[/, "")
-    .replace(/\]\s*$/, "")
-    .split(/[\s,]+/)
-    .map((t) => t.trim().replace(/^["']|["']$/g, ""))
-    .filter((t) => /^[a-zA-Z][a-zA-Z0-9_-]*$/.test(t));
+  const src = raw.replace(/^\s*\[/, "").replace(/\]\s*$/, "");
+  const out: string[] = [];
+  const tokenRe = /"([^"]+)"|'([^']+)'|[^\s,]+/g;
+  for (const m of src.matchAll(tokenRe)) {
+    const token = (m[1] ?? m[2] ?? m[0]).trim();
+    if (/^[a-zA-Z][a-zA-Z0-9_-]*(?:\([^)]*\))?$/.test(token)) out.push(token);
+  }
+  return out;
 }
 
 /**
  * Parse a block-scalar value into a clean line list — one item per line, any leading list marker
- * (`- `, `* `, `1. `) stripped, blanks dropped, bounded to `cap`. Used for `steps:`/`examples:`
+ * (`- `, `* `, `1. `) stripped, blanks dropped, bounded to `cap`. Used for multi-line
  * (skills) and any other multi-line frontmatter list. The block value is produced by the `|`/`>`
  * frontmatter parser above.
  */

@@ -1,7 +1,8 @@
 ---
-name: Memory Keeper
+name: memory-keeper
 description: Save and recall durable facts about the user — their preferences, stable facts, goals, the people in their life, and recurring routines. Use `recall` BEFORE answering anything that depends on who they are or how they like things; use `remember` WHENEVER they state something lasting about themselves, ask you to remember something, or correct you about themselves. This is how the assistant stays personal across conversations.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: remember recall
 when_to_use: |
   remember that I'm vegetarian and allergic to shellfish

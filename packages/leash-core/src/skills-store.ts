@@ -2,35 +2,32 @@
  * Skills (server-only) — instruction documents the assistant loads on demand,
  * agentskills.io-spec-shaped. A skill is a FOLDER:
  *
- *   data/leash-skills/<slug>/SKILL.md         ← frontmatter (name/description/enabled/…) + body
+ *   data/leash-skills/<slug>/SKILL.md         ← frontmatter (name/description/allowed-tools/…) + body
  *   data/leash-skills/<slug>/references/…     ← optional attachments (read_skill_file)
  *   data/leash-skills/<slug>/scripts/…        ← optional executable scripts (run_skill_script)
  *   data/leash-skills/<slug>/assets/…         ← optional templates/data files
  *
- * Nested attachment paths (≤3 segments, `safeRelPath`) are supported everywhere; legacy
- * flat `<slug>.md` files still READ correctly and MIGRATE to the folder shape on their
- * next save. Skills are SEPARATE from tools: a tool is executable; a skill is prose
- * (plus files) the model reads via `read_skill` when its description matches.
+ * Nested attachment paths (≤3 segments, `safeRelPath`) are supported everywhere. Skills are
+ * SEPARATE from tools: a tool is executable; a skill is prose (plus files) the model reads via
+ * `read_skill` when its description matches.
  *
- * ENABLE MODEL (Agent-Skills standard) — a skill is ENABLED unless its frontmatter says
- * `enabled: false`; an absent key ⇒ ON (the standard's default: skills are available, the
- * dashboard toggles one off by writing `enabled: false`). SECURITY: imported/dropped-in skills
- * are third-party prompt input (and may carry scripts), so the IMPORT flow writes `enabled: false`
- * to quarantine them for review — built-in/hand-authored skills ship enabled.
+ * ENABLE MODEL — enabled/disabled is Leash app state, not Agent Skills frontmatter. A skill is
+ * enabled unless `leash-skills-state.json` disables it. Imported skills land disabled in app state
+ * for review; built-in/hand-authored skills ship enabled.
  *
  * The frontmatter parser is hand-rolled (no YAML dep): `key: value` lines with optional
- * single/double quotes, `>`/`|` block scalars (incl. `-` chomping), and UNKNOWN KEYS
- * round-tripped via `extras` so spec fields (`license`, `compatibility`, `allowed-tools`,
- * …) survive dashboard edits.
+ * single/double quotes and `>`/`|` block scalars (incl. `-` chomping). Unknown top-level keys
+ * are rejected; supported standard/Claude fields round-trip via `extras`.
  */
 import { readFile, writeFile, readdir, rm, mkdir, stat, realpath } from "node:fs/promises";
-import { join, resolve, dirname, sep } from "node:path";
-import { DATA_DIR } from "./json-store.ts";
-import { parseFrontmatter, parseToolList, parseLineList } from "./frontmatter.ts";
+import { basename, join, resolve, dirname, sep } from "node:path";
+import { DATA_DIR, invalidateJsonCache, readJsonCached, writeJson } from "./json-store.ts";
+import { parseToolList, parseLineList, splitFrontmatter } from "./frontmatter.ts";
 import { parsePluginSlug } from "./plugin-manifest.ts";
 import { PLUGINS_DIR, pluginEnabled, pluginSkills } from "./plugins-store.ts";
 
 export const SKILLS_DIR = process.env["LEASH_SKILLS_DIR"] ?? join(DATA_DIR, "leash-skills");
+export const SKILLS_STATE_FILE = process.env["LEASH_SKILLS_STATE_FILE"] ?? join(DATA_DIR, "leash-skills-state.json");
 
 export interface Skill {
   slug: string;
@@ -40,7 +37,7 @@ export interface Skill {
   /** The markdown instruction body (without frontmatter). */
   body: string;
   /**
-   * Tool names this skill declares it needs (frontmatter `tools: [bash, run_command, …]`).
+   * Tool names this skill declares it needs (frontmatter `allowed-tools:`).
    * When the skill activates, the harness loads ONLY this toolset (progressive tool
    * disclosure — see agent.ts). Empty = inherit the route's default toolset.
    */
@@ -55,28 +52,27 @@ export interface Skill {
    */
   steps: string[];
   /**
-   * Example user utterances (frontmatter `examples:` block, one per line) that should route TO this
-   * skill. The matcher embeds each and routes by MAX similarity to any utterance (semantic-router
-   * style) — so a skill can be represented by several concrete phrasings, not just its one description.
-   * This is what lets a SPECIFIC skill out-rank a broad sibling on the intent it's actually for. Empty
-   * = the description alone represents the skill (existing behavior).
+   * Leash routing examples stored under standard `metadata.examples`, not as a custom top-level
+   * frontmatter field. These help separate nearby skills during automatic routing.
    */
   examples: string[];
   /**
-   * Agent-Skills-standard `when_to_use:` — trigger phrases/contexts for when to invoke. Feeds the
-   * matcher exactly like `examples:` (each line is a routing utterance), and is the standard's way to
-   * express triggers (the Claude Code / agentskills.io format the dashboard's skills follow).
+   * Agent-Skills-standard `when_to_use:` — trigger phrases/contexts for when to invoke.
    */
   whenToUse: string;
-  /** True for skills that ship with the app (frontmatter `builtin: true`) vs. user-created/imported. */
+  /** True for skills that ship with the app (`metadata.builtin: true`) vs. user-created/imported. */
   builtin: boolean;
+  /** False hides the skill in user-facing menus while still allowing model activation. */
+  userInvocable: boolean;
+  /** True excludes the skill from automatic model activation and catalog prompts. */
+  disableModelInvocation: boolean;
   /** Attachment paths relative to the skill folder (POSIX, e.g. `references/x.md`). */
   files: string[];
   /** Unknown frontmatter keys, round-tripped verbatim on save (spec fields survive edits). */
   extras: Record<string, string>;
 }
 
-const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** One path segment: starts alphanumeric (rejects dotfiles, `.`/`..`), sane charset. */
 const SEGMENT_RE = /^[A-Za-z0-9][A-Za-z0-9._ -]{0,80}$/;
 /** Attachment read cap — keeps a single tool result bounded. */
@@ -85,7 +81,11 @@ const FILE_CAP = 64 * 1024;
 const MAX_DEPTH = 3;
 const MAX_FILES = 200;
 
-/** "Trip planning!" → "trip-planning". */
+export function isValidSkillName(name: string): boolean {
+  return name.length >= 1 && name.length <= 64 && SLUG_RE.test(name);
+}
+
+/** "Trip planning!" → "trip-planning". Used for plugin ids and other stores, not skill names. */
 export function slugify(name: string): string {
   return name
     .toLowerCase()
@@ -122,7 +122,7 @@ export function skillRoot(slug: string): string {
 
 /** A slug the read paths accept: a user skill slug OR a namespaced plugin-skill slug. */
 function isReadableSlug(slug: string): boolean {
-  return SLUG_RE.test(slug) || parsePluginSlug(slug) !== null;
+  return isValidSkillName(slug) || parsePluginSlug(slug) !== null;
 }
 
 /**
@@ -158,46 +158,113 @@ async function containedPath(slug: string, rel: string): Promise<string | null> 
 
 // ── Frontmatter ────────────────────────────────────────────────────────────────
 
-const KNOWN_KEYS = new Set(["name", "description", "enabled"]);
+const STANDARD_KEYS = ["name", "description", "license", "compatibility", "metadata", "allowed-tools"] as const;
+const CLAUDE_EXTENSION_KEYS = [
+  "when_to_use",
+  "argument-hint",
+  "arguments",
+  "disable-model-invocation",
+  "user-invocable",
+  "disallowed-tools",
+  "model",
+  "effort",
+  "context",
+  "agent",
+  "paths",
+  "shell",
+  "hooks",
+] as const;
+const LEASH_EXTENSION_KEYS = ["steps"] as const;
+const KNOWN_KEYS = new Set<string>([...STANDARD_KEYS, ...CLAUDE_EXTENSION_KEYS, ...LEASH_EXTENSION_KEYS]);
+const CORE_KEYS = new Set(["name", "description"]);
 
 // `parseFrontmatter` / `parseToolList` / `parseLineList` now live in the shared `frontmatter.ts`
 // (lifted out so the agents store reuses the exact same YAML-subset parser — imported above).
 
-/** Parse one SKILL.md: frontmatter + body. Null on bad shape. `enabled` absent ⇒ DISABLED. */
-function parseSkill(slug: string, raw: string, files: string[]): Skill | null {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
-  if (!m) return null;
-  const fields = parseFrontmatter(m[1] as string);
-  const name = fields["name"];
-  if (!name) return null;
+interface SkillsState {
+  disabled?: string[];
+}
+
+async function readSkillsState(): Promise<SkillsState> {
+  return (await readJsonCached<SkillsState>(SKILLS_STATE_FILE, {})) ?? {};
+}
+
+async function skillEnabled(slug: string): Promise<boolean> {
+  return !new Set((await readSkillsState()).disabled ?? []).has(slug);
+}
+
+async function setSkillEnabled(slug: string, enabled: boolean): Promise<void> {
+  const cfg = await readSkillsState();
+  const disabled = new Set(cfg.disabled ?? []);
+  if (enabled) disabled.delete(slug);
+  else disabled.add(slug);
+  await writeJson(SKILLS_STATE_FILE, { ...cfg, disabled: [...disabled].sort() });
+  invalidateJsonCache(SKILLS_STATE_FILE);
+}
+
+function metadataObject(raw: string | undefined): Record<string, unknown> {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return !!parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return Object.fromEntries(
+      raw
+        .split(/\r?\n/)
+        .map((line) => /^([A-Za-z_][A-Za-z0-9_-]*):\s*(.+)$/.exec(line.trim()))
+        .filter((m): m is RegExpExecArray => m !== null)
+        .map((m) => [m[1] as string, (m[2] as string).trim()]),
+    );
+  }
+}
+
+function metadataFlag(raw: string | undefined, key: string): boolean {
+  const value = metadataObject(raw)[key];
+  return value === true || value === "true";
+}
+
+function metadataExamples(raw: string | undefined): string[] {
+  const value = metadataObject(raw)["examples"];
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === "string" && v.trim().length > 0).map((v) => v.trim()).slice(0, 12);
+  if (typeof value === "string") return parseLineList(value, 12);
+  return [];
+}
+
+/** Parse one SKILL.md: frontmatter + body. Null on invalid Agent Skills shape. */
+function parseSkill(slug: string, folderName: string, raw: string, files: string[], enabled: boolean): Skill | null {
+  const split = splitFrontmatter(raw);
+  if (!split) return null;
+  const fields = split.fields;
+  for (const k of Object.keys(fields)) if (!KNOWN_KEYS.has(k)) return null;
+  const name = fields["name"]?.trim() ?? "";
+  if (!isValidSkillName(name) || name !== folderName) return null;
+  const description = fields["description"]?.trim() ?? "";
+  if (!description || description.length > 1024) return null;
   const extras: Record<string, string> = {};
-  for (const [k, v] of Object.entries(fields)) if (!KNOWN_KEYS.has(k)) extras[k] = v;
+  for (const [k, v] of Object.entries(fields)) if (!CORE_KEYS.has(k)) extras[k] = v;
   return {
     slug,
     name,
-    description: fields["description"] ?? "",
-    // Agent-Skills standard: a skill is ENABLED unless explicitly turned off. Only `enabled: false`
-    // disables (the dashboard writes that to toggle one off); absent ⇒ on. (Imported skills are
-    // quarantined by the import flow writing `enabled: false`, not by an absent-key default.)
-    enabled: fields["enabled"] !== "false",
-    body: (m[2] as string).trim(),
-    // Standard `allowed-tools:` is the tool list (legacy `tools:` still honored). `when_to_use:` and
-    // `examples:` both feed the matcher. All round-tripped via `extras` (not KNOWN_KEYS) and surfaced parsed.
-    tools: parseToolList(fields["allowed-tools"] ?? fields["tools"]),
+    description,
+    enabled,
+    body: split.body,
+    tools: parseToolList(fields["allowed-tools"]),
     steps: parseLineList(fields["steps"], 12),
-    examples: parseLineList(fields["examples"], 12),
+    examples: metadataExamples(fields["metadata"]),
     whenToUse: fields["when_to_use"] ?? "",
-    builtin: fields["builtin"] === "true",
+    builtin: metadataFlag(fields["metadata"], "builtin"),
+    userInvocable: fields["user-invocable"] !== "false",
+    disableModelInvocation: fields["disable-model-invocation"] === "true",
     files,
     extras,
   };
 }
 
-function serializeSkill(s: { name: string; description: string; enabled: boolean; body: string; extras?: Record<string, string> }): string {
+function serializeSkill(s: { name: string; description: string; body: string; extras?: Record<string, string> }): string {
   const oneLine = (v: string): string => v.replace(/\s+/g, " ").trim();
-  let fm = `name: ${oneLine(s.name)}\ndescription: ${oneLine(s.description)}\nenabled: ${s.enabled}\n`;
+  let fm = `name: ${oneLine(s.name)}\ndescription: ${oneLine(s.description)}\n`;
   for (const [k, v] of Object.entries(s.extras ?? {})) {
-    if (KNOWN_KEYS.has(k) || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(k)) continue;
+    if (CORE_KEYS.has(k) || !KNOWN_KEYS.has(k) || !/^[A-Za-z_][A-Za-z0-9_-]*$/.test(k)) continue;
     fm += v.includes("\n") ? `${k}: |\n${v.split("\n").map((l) => `  ${l}`).join("\n")}\n` : `${k}: ${v}\n`;
   }
   return `---\n${fm}---\n\n${s.body.trim()}\n`;
@@ -234,8 +301,8 @@ async function skillFilesIn(absRoot: string): Promise<string[]> {
 /**
  * Read + parse one skill from an ABSOLUTE folder (folder shape only — no legacy flat fallback).
  * The single skill-folder reader, shared by `getSkill` (both user + plugin skills via the slug
- * dispatcher) and the plugin surfacer. `enabled` reflects the SKILL.md frontmatter; plugin
- * callers OVERRIDE it with the owning plugin's bit.
+ * dispatcher) and the plugin surfacer. User skills read enabled from app state; plugin callers
+ * override it with the owning plugin's bit.
  */
 export async function loadSkillFromDir(absDir: string, slug: string): Promise<Skill | null> {
   let raw: string;
@@ -244,14 +311,15 @@ export async function loadSkillFromDir(absDir: string, slug: string): Promise<Sk
   } catch {
     return null;
   }
-  return parseSkill(slug, raw, await skillFilesIn(absDir));
+  const folderName = parsePluginSlug(slug)?.name ?? basename(absDir);
+  return parseSkill(slug, folderName, raw, await skillFilesIn(absDir), await skillEnabled(slug));
 }
 
 /**
  * Load one skill by slug. A NAMESPACED plugin slug (`<id>:<name>`) resolves under the plugin tree
  * and has its `enabled` driven by the plugin's registry row (so disabling the plugin disables its
  * skill everywhere `getSkill` is consulted — run_skill, read_skill, …). A user slug reads the
- * folder shape first, then the legacy flat `<slug>.md`.
+ * folder shape only.
  */
 export async function getSkill(slug: string): Promise<Skill | null> {
   const plugin = parsePluginSlug(slug);
@@ -259,18 +327,12 @@ export async function getSkill(slug: string): Promise<Skill | null> {
     const skill = await loadSkillFromDir(skillRoot(slug), slug);
     return skill ? { ...skill, enabled: await pluginEnabled(plugin.id) } : null;
   }
-  if (!SLUG_RE.test(slug)) return null;
-  const folder = await loadSkillFromDir(join(SKILLS_DIR, slug), slug);
-  if (folder) return folder;
-  try {
-    return parseSkill(slug, await readFile(join(SKILLS_DIR, `${slug}.md`), "utf8"), []);
-  } catch {
-    return null;
-  }
+  if (!isValidSkillName(slug)) return null;
+  return loadSkillFromDir(join(SKILLS_DIR, slug), slug);
 }
 
 /**
- * All skills, name-sorted — the user's own skills (folder + legacy flat shapes under SKILLS_DIR)
+ * All skills, name-sorted — the user's own skill folders under SKILLS_DIR
  * CONCATENATED with the virtual skills of installed plugins (`pluginSkills()`, namespaced
  * `<id>:<name>`, enabled driven by the plugin row). The `:` namespace guarantees no slug collision.
  * `[]` when nothing is installed.
@@ -285,13 +347,10 @@ export async function listSkills(): Promise<Skill[]> {
   const slugs = new Set<string>();
   for (const e of entries) {
     if (e.startsWith(".")) continue;
-    if (e.endsWith(".md")) slugs.add(e.replace(/\.md$/, ""));
-    else {
-      try {
-        if ((await stat(join(SKILLS_DIR, e))).isDirectory()) slugs.add(e);
-      } catch {
-        /* raced */
-      }
+    try {
+      if ((await stat(join(SKILLS_DIR, e))).isDirectory()) slugs.add(e);
+    } catch {
+      /* raced */
     }
   }
   const [user, plugins] = await Promise.all([Promise.all([...slugs].map((slug) => getSkill(slug))), pluginSkills()]);
@@ -299,36 +358,45 @@ export async function listSkills(): Promise<Skill[]> {
 }
 
 /**
- * Create or replace a skill; slug defaults to slugify(name). Always writes the FOLDER
- * shape; a legacy flat file under the same slug is removed (the migration). `extras`
- * round-trips unknown frontmatter (pass the loaded skill's extras through on edits).
+ * Create or replace a skill. `name` must be the canonical folder slug; display names do not belong
+ * in Agent Skills frontmatter.
  */
 export async function saveSkill(input: { slug?: string; name: string; description: string; enabled: boolean; body: string; extras?: Record<string, string> }): Promise<Skill> {
-  const slug = input.slug?.trim() || slugify(input.name);
-  if (!SLUG_RE.test(slug)) throw new Error(`invalid skill slug "${slug}"`);
-  if (!input.name.trim()) throw new Error("skill name is required");
+  const slug = input.slug?.trim() || input.name.trim();
+  if (!isValidSkillName(slug)) throw new Error("skill name must be lowercase hyphenated, 1-64 chars, with no spaces, uppercase, or repeated/edge hyphens");
+  if (input.name.trim() !== slug) throw new Error(`skill name must exactly match its folder slug "${slug}"`);
+  const description = input.description.trim();
+  if (!description) throw new Error("skill description is required");
+  if (description.length > 1024) throw new Error("skill description must be 1024 characters or fewer");
+  for (const k of Object.keys(input.extras ?? {})) if (!KNOWN_KEYS.has(k)) throw new Error(`unsupported skill frontmatter field "${k}"`);
   await mkdir(join(SKILLS_DIR, slug), { recursive: true });
-  await writeFile(join(SKILLS_DIR, slug, "SKILL.md"), serializeSkill({ ...input, name: input.name.trim(), description: input.description.trim() }));
-  try {
-    await rm(join(SKILLS_DIR, `${slug}.md`)); // migrate away the legacy flat file
-  } catch {
-    /* none existed */
-  }
-  return { slug, name: input.name.trim(), description: input.description.trim(), enabled: input.enabled, body: input.body, tools: parseToolList(input.extras?.["allowed-tools"] ?? input.extras?.["tools"]), steps: parseLineList(input.extras?.["steps"], 12), examples: parseLineList(input.extras?.["examples"], 12), whenToUse: input.extras?.["when_to_use"] ?? "", builtin: input.extras?.["builtin"] === "true", files: await skillFilesIn(join(SKILLS_DIR, slug)), extras: input.extras ?? {} };
+  await writeFile(join(SKILLS_DIR, slug, "SKILL.md"), serializeSkill({ name: slug, description, body: input.body, extras: input.extras }));
+  await setSkillEnabled(slug, input.enabled);
+  return {
+    slug,
+    name: slug,
+    description,
+    enabled: input.enabled,
+    body: input.body,
+    tools: parseToolList(input.extras?.["allowed-tools"]),
+    steps: parseLineList(input.extras?.["steps"], 12),
+    examples: metadataExamples(input.extras?.["metadata"]),
+    whenToUse: input.extras?.["when_to_use"] ?? "",
+    builtin: metadataFlag(input.extras?.["metadata"], "builtin"),
+    userInvocable: input.extras?.["user-invocable"] !== "false",
+    disableModelInvocation: input.extras?.["disable-model-invocation"] === "true",
+    files: await skillFilesIn(join(SKILLS_DIR, slug)),
+    extras: input.extras ?? {},
+  };
 }
 
-/** Delete a skill — folder and/or legacy flat file (no-op if already gone). */
+/** Delete a skill folder (no-op if already gone). */
 export async function deleteSkill(slug: string): Promise<void> {
-  if (!SLUG_RE.test(slug)) return;
+  if (!isValidSkillName(slug)) return;
   try {
     await rm(join(SKILLS_DIR, slug), { recursive: true });
   } catch {
     /* no folder */
-  }
-  try {
-    await rm(join(SKILLS_DIR, `${slug}.md`));
-  } catch {
-    /* no flat file */
   }
 }
 
@@ -344,10 +412,10 @@ export async function importSkill(entries: Array<{ path: string; data: Uint8Arra
   const manifest = entries.find((e) => e.path === "SKILL.md");
   if (!manifest) throw new Error("the zip has no root SKILL.md");
   const rawManifest = Buffer.from(manifest.data).toString("utf8");
-  const parsed = parseSkill("import", rawManifest, []);
-  if (!parsed) throw new Error("SKILL.md is malformed (needs `---` frontmatter with a `name:`)");
-  const slug = slugify(parsed.name);
-  if (!SLUG_RE.test(slug)) throw new Error(`the skill name "${parsed.name}" doesn't make a valid slug`);
+  const split = splitFrontmatter(rawManifest);
+  const slug = split?.fields["name"]?.trim() ?? "";
+  const parsed = slug ? parseSkill(slug, slug, rawManifest, [], false) : null;
+  if (!parsed) throw new Error("SKILL.md is malformed (name must be lowercase hyphenated, match the package folder, and include a description)");
   if (await getSkill(slug)) {
     const err = new Error(`a skill "${slug}" already exists — delete it first to re-import`);
     (err as Error & { code?: string }).code = "exists";
@@ -361,7 +429,7 @@ export async function importSkill(entries: Array<{ path: string; data: Uint8Arra
     if (!rel || rel === "SKILL.md") throw new Error(`unsafe path in zip: "${e.path}"`);
     files.push({ rel, data: e.data });
   }
-  // SKILL.md is rewritten through the serializer with enabled forced FALSE (extras kept).
+  // SKILL.md is rewritten through the serializer; enabled is stored in Leash app state.
   await saveSkill({ slug, name: parsed.name, description: parsed.description, enabled: false, body: parsed.body, extras: parsed.extras });
   for (const f of files) {
     const abs = await containedPath(slug, f.rel);
@@ -397,10 +465,9 @@ export async function readSkillFile(slug: string, file: string): Promise<{ ok: t
 /** Create/replace one text attachment (nested paths ok — parents are created). */
 export async function writeSkillFile(slug: string, file: string, content: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const rel = safeRelPath(file);
-  if (!SLUG_RE.test(slug) || !rel || rel === "SKILL.md") return { ok: false, error: `invalid file path "${file}"` };
+  if (!isValidSkillName(slug) || !rel || rel === "SKILL.md") return { ok: false, error: `invalid file path "${file}"` };
   const skill = await getSkill(slug);
   if (!skill) return { ok: false, error: `no skill "${slug}"` };
-  // Ensure the folder shape (migrates a legacy flat skill on first attachment).
   await saveSkill({ slug, name: skill.name, description: skill.description, enabled: skill.enabled, body: skill.body, extras: skill.extras });
   const abs = await containedPath(slug, rel);
   if (!abs) return { ok: false, error: `invalid file path "${file}"` };
@@ -412,7 +479,7 @@ export async function writeSkillFile(slug: string, file: string, content: string
 /** Delete one attachment (nested paths ok; no-op if absent). */
 export async function deleteSkillFile(slug: string, file: string): Promise<void> {
   const rel = safeRelPath(file);
-  if (!SLUG_RE.test(slug) || !rel || rel === "SKILL.md") return;
+  if (!isValidSkillName(slug) || !rel || rel === "SKILL.md") return;
   const abs = await containedPath(slug, rel);
   if (!abs) return;
   try {

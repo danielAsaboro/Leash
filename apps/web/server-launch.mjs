@@ -205,10 +205,9 @@ function seedConstitution(scope) {
 
 /**
  * Seed the committed built-in skills (apps/web/builtin-skills) into the user's skill store
- * (`<dataDir>/leash-skills/<slug>`). Built-ins ship enabled-by-default and carry `builtin: true`;
- * the store reads them exactly like user-authored skills. Seed-if-ABSENT only — we never clobber a
- * slug the user already has, so editing or deleting a built-in sticks (an app update won't refresh
- * an already-seeded built-in; acceptable — fresh installs are the case that must have skills).
+ * (`<dataDir>/leash-skills/<slug>`). Built-ins ship enabled-by-default and carry
+ * `metadata.builtin`; the store reads them exactly like user-authored skills. Built-ins are
+ * app-owned seed content, so refresh their folders from the committed source on startup.
  */
 function seedBuiltinSkills(scope) {
   if (!existsSync(BUILTIN_SKILLS_SRC)) return;
@@ -218,7 +217,8 @@ function seedBuiltinSkills(scope) {
     const src = join(BUILTIN_SKILLS_SRC, slug);
     const dst = join(skillsDst, slug);
     try {
-      if (!statSync(src).isDirectory() || existsSync(dst)) continue;
+      if (!statSync(src).isDirectory()) continue;
+      rmSync(dst, { recursive: true, force: true });
       cpSync(src, dst, { recursive: true });
     } catch {
       /* skip a bad entry rather than abort the whole bootstrap */

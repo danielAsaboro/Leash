@@ -1,7 +1,8 @@
 ---
-name: Daily Paper
+name: daily-paper
 description: Read and search The Understory — the user's auto-written, on-device daily paper that summarizes their world. Use this WHENEVER the user asks about their paper or a recap of their own goings-on: "what's in my paper today", "what's new", "did anything happen about X", "catch me up", "search my feed for…". This is their personal paper, not the public news.
-builtin: true
+metadata: |
+  {"builtin":true}
 allowed-tools: understory_today understory_search
 when_to_use: |
   what's in my paper today

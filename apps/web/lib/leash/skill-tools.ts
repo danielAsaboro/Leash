@@ -105,7 +105,7 @@ export interface ActiveSkillsResult {
 
 interface SkillUtteranceEmbeddings {
   slug: string;
-  /** One embedding per utterance (the discovery text + each declared `examples:` line). */
+  /** One embedding per utterance (discovery text + `when_to_use` + metadata examples). */
   embeddings: number[][];
 }
 
@@ -120,9 +120,9 @@ let skillEmbeddingsPromise: Promise<SkillEmbeddingCache> | null = null;
  *  routes by MAX similarity to any of these (semantic-router style), so several concrete phrasings can
  *  represent the skill — not just its one description. */
 function skillUtterances(skill: { slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }): string[] {
-  // Routing utterances = discovery text + the standard `when_to_use:` lines + any legacy `examples:`.
+  // Routing utterances = discovery text + standard `when_to_use:` lines + Leash metadata examples.
   const whenLines = skill.whenToUse ? skill.whenToUse.split(/\r?\n/) : [];
-  return [discoveryText(skill), ...whenLines, ...(skill.examples ?? [])].map((u) => u.trim()).filter(Boolean).slice(0, 8);
+  return [discoveryText(skill), ...whenLines, ...(skill.examples ?? [])].map((u) => u.trim()).filter(Boolean).slice(0, 12);
 }
 
 function mentionsSkill(haystack: string, slug: string, name: string): boolean {
@@ -156,8 +156,8 @@ function tokenize(s: string): string[] {
 function lexicalScore(query: string, skill: { slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }): number {
   const q = new Set(tokenize(query));
   if (q.size === 0) return 0;
-  // when_to_use + examples are routing utterances — fold them into the lexical target so a skill's
-  // concrete phrasings (e.g. "mark it done") count toward keyword overlap, not just its description.
+  // when_to_use + metadata examples are routing utterances — fold them into the lexical target so
+  // concrete phrasings (e.g. "mark it done") count toward keyword overlap, not just the description.
   const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description} ${skill.whenToUse ?? ""} ${(skill.examples ?? []).join(" ")}`));
   if (target.size === 0) return 0;
   let hits = 0;
@@ -209,7 +209,7 @@ function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkil
  * an honest empty state, no boilerplate about a feature that has nothing in it.
  */
 export async function skillsSystemSection(): Promise<string> {
-  const enabled = (await listSkills()).filter((s) => s.enabled);
+  const enabled = (await listSkills()).filter((s) => s.enabled && !s.disableModelInvocation);
   return buildSkillsCatalogPrompt(enabled);
 }
 
@@ -229,14 +229,14 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
   }
 
   // Auto-selection (semantic-router + Reciprocal Rank Fusion). Each skill is represented by its discovery
-  // text PLUS its declared `examples:` utterances; the embedding score is the MAX cosine over those
+  // text PLUS its declared `when_to_use:` utterances and metadata examples; the embedding score is the MAX cosine over those
   // utterances — so a skill that lists the exact intent it's for out-scores a broad sibling on that intent
   // (this is what lets the SPECIFIC skill win, the gap a single-description embedding couldn't close).
   // Lexical and embedding rankings are then fused with RRF (rank-based, scale-free, rewards agreement
   // across BOTH signals) instead of comparing two differently-scaled scores via max(). A confidence FLOOR
   // still gates candidates (so general turns load no skill); RRF only ORDERS the ones that clear it. One
   // skill at a time keeps context lean — the model pulls in others mid-turn with read_skill.
-  const routable = enabled.filter((s) => skillEligibleForAutoActivation(query, s));
+  const routable = enabled.filter((s) => !s.disableModelInvocation && skillEligibleForAutoActivation(query, s));
   if (routable.length === 0) return null;
   const lex = new Map(routable.map((s) => [s.slug, lexicalScore(query, s)]));
   const emb = new Map<string, number>();
