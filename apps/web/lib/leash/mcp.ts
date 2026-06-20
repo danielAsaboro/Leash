@@ -326,6 +326,8 @@ export async function retryMcpServer(id?: string): Promise<void> {
 export interface McpServerStatus extends Omit<McpServerEntry, "headers" | "env" | "userIcon"> {
   connected: boolean;
   toolNames: string[];
+  /** Live tool inventory from the current MCP connection only; absent while disconnected/off. */
+  tools?: McpServerToolInfo[];
   /** Last connect error while disconnected (honest failure surface). */
   error?: string;
   /** Auth header names (values redacted). */
@@ -333,6 +335,12 @@ export interface McpServerStatus extends Omit<McpServerEntry, "headers" | "env" 
   /** stdio env var names (values redacted). */
   envNames?: string[];
   /** Effective icon as a cached data URI: user-chosen icon if set, else the server-advertised one; absent → placeholder. */
+  iconDataUri?: string;
+}
+
+export interface McpServerToolInfo {
+  name: string;
+  description: string;
   iconDataUri?: string;
 }
 
@@ -347,10 +355,16 @@ export async function mcpServerStatuses(): Promise<McpServerStatus[]> {
       const { headers, env, userIcon, ...safe } = s;
       // User-chosen icon wins (resolved to an offline-safe data URI); else the server-advertised one.
       const icon = (userIcon ? await resolveUserIcon(userIcon) : undefined) ?? conn?.iconDataUri;
+      const tools = conn?.toolNames.map((name) => ({
+        name,
+        description: ((conn.tools[name] as { description?: string } | undefined)?.description ?? "").slice(0, 240),
+        ...(conn.toolIcons?.[name] ? { iconDataUri: conn.toolIcons[name] } : {}),
+      }));
       return {
         ...safe,
         connected: !!conn,
         toolNames: conn?.toolNames ?? [],
+        ...(tools ? { tools } : {}),
         ...(headers && Object.keys(headers).length ? { headerNames: Object.keys(headers) } : {}),
         ...(env && Object.keys(env).length ? { envNames: Object.keys(env) } : {}),
         ...(!conn && s.enabled && failed ? { error: failed.error } : {}),
@@ -358,14 +372,6 @@ export async function mcpServerStatuses(): Promise<McpServerStatus[]> {
       };
     }),
   );
-}
-
-/** MCP-advertised tool icons (tool name → data URI) across every connected server — for Brain → Tools. */
-export async function mcpToolIcons(): Promise<Record<string, string>> {
-  await reconcile();
-  const out: Record<string, string> = {};
-  for (const conn of registry.connections.values()) Object.assign(out, conn.toolIcons ?? {});
-  return out;
 }
 
 /** Tool names belonging to the given MCP server NAMES (already-connected servers only). */

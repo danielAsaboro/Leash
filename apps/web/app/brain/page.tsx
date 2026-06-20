@@ -1,10 +1,11 @@
 /**
  * `/brain` — the assistant's configuration surface: Memory (notes + activity browser
- * with real forgetting), Skills (markdown instruction documents), Tools (registry
- * toggles), Prompts (chat/voice/health overrides), Models (inventory + lifecycle;
+ * with real forgetting), Skills (markdown instruction documents), MCP (integrations +
+ * tool controls), Prompts (chat/voice/health overrides), Models (inventory + lifecycle;
  * serve control lands with P5c).
  */
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { listSkills } from "../../lib/leash/skills-store.ts";
 import { listPlugins } from "../../lib/leash/plugins-store.ts";
 import { listAgents } from "../../lib/leash/agents-store.ts";
@@ -14,18 +15,17 @@ import { modelsInventory, catalogWithFit, listDownloads } from "../../lib/leash/
 import { forage } from "../../lib/leash/forage.ts";
 import { serveStatus } from "../../lib/leash/serve-control.ts";
 import { getPrompts } from "../../lib/leash/prompts-store.ts";
-import { disabledTools, askFirstOverrides, DEFAULT_ASK_FIRST } from "../../lib/leash/tool-config.ts";
-import { leashTools } from "../../lib/leash/tools.ts";
+import { askFirstOverrides, disabledTools, DEFAULT_ASK_FIRST } from "../../lib/leash/tool-config.ts";
+import { policyRequiresApproval } from "@mycelium/leash-core/tool-policy";
 import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES, bashScopeNote } from "../../lib/leash/tool-lanes.ts";
 import { computerModelInfo } from "../../lib/leash/computer-model.ts";
-import { leashMcpTools, mcpServerStatuses, mcpToolIcons } from "../../lib/leash/mcp.ts";
+import { mcpServerStatuses } from "../../lib/leash/mcp.ts";
 import { DashShell, DashCard, Stat, Row } from "../../components/dash.tsx";
 import { buildSeries } from "../../lib/leash/evolve.ts";
 import { GrowthChart } from "../../components/GrowthChart.tsx";
 import { SkillsPanel } from "../../components/SkillsPanel.tsx";
 import { PluginsPanel } from "../../components/PluginsPanel.tsx";
 import { AgentsPanel } from "../../components/AgentsPanel.tsx";
-import { ToolsPanel, type ToolRow } from "../../components/ToolsPanel.tsx";
 import { PromptsPanel } from "../../components/PromptsPanel.tsx";
 import { MemoryLanding } from "../../components/MemoryLanding.tsx";
 import { ModelsPanel } from "../../components/ModelsPanel.tsx";
@@ -37,26 +37,24 @@ import { loadMainAgentBase } from "../../lib/leash/main-agent.ts";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["memory", "skills", "plugins", "agents", "tools", "mcp", "prompts", "models", "growth", "forage", "proactivity"] as const;
+const TABS = ["memory", "skills", "plugins", "agents", "mcp", "prompts", "models", "growth", "forage", "proactivity"] as const;
 type Tab = (typeof TABS)[number];
 
-async function toolRows(): Promise<ToolRow[]> {
-  const [mcp, off, ask, computerNote, toolIcons] = await Promise.all([leashMcpTools(), disabledTools(), askFirstOverrides(), computerModelInfo(), mcpToolIcons()]);
-  // Capability tools (incl. Computer + Files) now arrive via the leash-tools-mcp groups in `mcp`.
-  const registry = { ...leashTools, ...mcp };
-  const mcpNames = new Set(Object.keys(mcp));
+async function mcpRows() {
+  const [servers, off, askFirst, computerNote] = await Promise.all([mcpServerStatuses(), disabledTools(), askFirstOverrides(), computerModelInfo()]);
   const bashNote = bashScopeNote();
-  return Object.entries(registry).map(([name, t]) => ({
-    name,
-    description: ((t as { description?: string }).description ?? "").slice(0, 240),
-    enabled: !off.has(name),
-    askFirst: ask[name] ?? DEFAULT_ASK_FIRST.has(name),
-    askFirstDefault: DEFAULT_ASK_FIRST.has(name),
-    // The computer-use rows show which model drives them; the bash rows note the sandbox scope.
-    ...(COMPUTER_TOOL_NAMES.has(name) ? { infoNote: computerNote } : BASH_TOOL_NAMES.has(name) ? { infoNote: bashNote } : {}),
-    // MCP tools get an icon slot; populate the real icon where the server advertised one.
-    ...(mcpNames.has(name) ? { mcp: true } : {}),
-    ...(toolIcons[name] ? { iconDataUri: toolIcons[name] } : {}),
+  return servers.map((server) => ({
+    ...server,
+    tools: server.tools?.map((tool) => {
+      const askFirstDefault = DEFAULT_ASK_FIRST.has(tool.name) || policyRequiresApproval(tool.name);
+      return {
+        ...tool,
+        enabled: !off.has(tool.name),
+        askFirst: policyRequiresApproval(tool.name) ? true : (askFirst[tool.name] ?? DEFAULT_ASK_FIRST.has(tool.name)),
+        askFirstDefault,
+        ...(COMPUTER_TOOL_NAMES.has(tool.name) ? { infoNote: computerNote } : BASH_TOOL_NAMES.has(tool.name) ? { infoNote: bashNote } : {}),
+      };
+    }),
   }));
 }
 
@@ -64,10 +62,11 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
   const params = await searchParams;
   const one = (v: string | string[] | undefined): string | undefined => (Array.isArray(v) ? v[0] : v);
   const raw = one(params["tab"]);
+  if (raw === "tools") redirect("/brain?tab=mcp");
   const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "memory";
 
   return (
-    <DashShell kicker="Leash · Brain" title="Brain" lede="What the assistant knows and how it behaves — memory, skills, tools, prompts.">
+    <DashShell kicker="Leash · Brain" title="Brain" lede="What the assistant knows and how it behaves — memory, skills, integrations, prompts.">
       <div className="mb-5 flex gap-2">
         {TABS.map((t) => (
           <Link
@@ -92,8 +91,7 @@ export default async function BrainPage({ searchParams }: { searchParams: Promis
       {tab === "skills" && <SkillsPanel skills={await listSkills()} />}
       {tab === "plugins" && <PluginsPanel plugins={await listPlugins()} />}
       {tab === "agents" && <AgentsPanel agents={await listAgents()} mainAgent={{ name: loadMainAgentBase().name }} />}
-      {tab === "tools" && <ToolsPanel tools={await toolRows()} />}
-      {tab === "mcp" && <McpPanel servers={await mcpServerStatuses()} />}
+      {tab === "mcp" && <McpPanel servers={await mcpRows()} />}
       {tab === "prompts" && <PromptsPanel prompts={await getPrompts()} />}
       {tab === "models" && <ModelsPanel inventory={await modelsInventory()} serve={await serveStatus()} catalog={await catalogWithFit()} downloads={await listDownloads()} />}
       {tab === "growth" && (() => {

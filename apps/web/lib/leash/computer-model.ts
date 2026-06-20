@@ -1,7 +1,7 @@
 /**
  * Computer-use model availability (server-only) — resolves which alias drives the
- * computer tools and where it can run right now (local serve / warm paired peer /
- * nowhere), for the Tools tab's info note. Degrades honestly: serve down and hypha
+ * computer tools and where they can run right now (local serve / warm paired peer /
+ * nowhere), for Brain → MCP's per-tool info note. Degrades honestly: serve down and hypha
  * down are each named, never silently hidden.
  */
 import "server-only";
