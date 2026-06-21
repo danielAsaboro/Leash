@@ -21,6 +21,7 @@ import { modelType, isBorrowable, type Modality } from "./model-type.ts";
 
 /** Expand a machine-neutral `~/` config path to THIS machine's home dir. */
 const expandHome = (p: string): string => (p.startsWith("~/") ? join(homedir(), p.slice(2)) : p);
+const URI_SCHEME_RE = /^[a-z][a-z0-9+.-]*:\/\//i;
 
 interface CatalogEntry {
   name: string;
@@ -91,6 +92,11 @@ export function localAliases(): AliasModel[] {
     if (!mt) continue; // unclassifiable → not advertised
     let modelSrc: string | undefined;
     if (entry.src) {
+      if (URI_SCHEME_RE.test(entry.src)) {
+        // The serve accepts loadable registry/HTTP model sources directly. Treating every src as
+        // a filesystem path made valid HTTPS-backed aliases disappear from mesh advertisements.
+        modelSrc = entry.src;
+      } else {
       // The gossiped modelSrc must be THIS machine's absolute path (the advertiser's own provider
       // loads it on a delegated request) — expand the config's `~/` prefix.
       const src = expandHome(entry.src);
@@ -101,6 +107,7 @@ export function localAliases(): AliasModel[] {
         continue;
       }
       modelSrc = src;
+      }
     } else if (catEntry?.registryPath) modelSrc = catEntry.registryPath;
     else if (name) modelSrc = name; // catalog miss → the registry constant name (descriptorFor resolves it)
     if (!modelSrc) continue;

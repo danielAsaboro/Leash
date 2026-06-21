@@ -119,7 +119,8 @@ export class MeshRouter {
     const out: string[] = [];
     for (const m of meshes) {
       if (req.pinMeshId && m.meshId !== req.pinMeshId) continue;
-      if (!req.pinMeshId && req.sensitivity !== "shareable" && m.visibility === "public") continue;
+      // A hard mesh pin narrows routing but cannot widen data eligibility.
+      if (req.sensitivity !== "shareable" && m.visibility === "public") continue;
       for (const peerKey of m.pool.forwardTargetsForAlias(req.alias)) {
         if (!seen.has(peerKey)) { seen.add(peerKey); out.push(peerKey); }
       }

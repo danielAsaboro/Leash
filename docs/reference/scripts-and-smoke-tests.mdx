@@ -51,6 +51,8 @@ These come from the root `package.json`.
 | `npm run mesh:smoke` | `packages/mesh` | mesh graph smoke |
 | `npm run test:mesh:tasks` | `packages/mesh` | task-sync convergence harness |
 | `npm run test:hypha:tasks` | `apps/hypha` | Hypha task-sync integration harness |
+| `npm run test:public-compute` | `packages/mesh` + `apps/hypha` | signed adverts, TTL, eligibility, ranking, replay protection |
+| `npm run test:public-compute:protocol` | `apps/hypha` | real Noise stream, identity pinning, bounds, overload, timeout and cancellation |
 
 ## Root smoke and probe scripts
 
@@ -102,6 +104,8 @@ Most are pure-logic (no serve/peers needed) and run instantly; a few marked **li
 | `npm run smoke:showcase-conversation` | curated multi-capability conversation proof |
 | `npm run smoke:forward-loopback` | forward transport round-trip over a real Hyperswarm in one process |
 | `npm run smoke:forward-provider` | provider-side forward proxy: chat SSE / embeddings JSON / speech binary framing |
+| `npm run smoke:public-offline-client` | **live, macOS** — denies WAN to the requester process, proves the denial, then requires a real prewarmed public QVAC job with correlated route evidence; its report explicitly does not claim a host-wide cut |
+| `npm run benchmark:public-compute` | **live** — sequential and concurrent public QVAC trials with p50/p95 latency, TTFT, tok/s, failure categories and provider-system RAM |
 | `npm run smoke:forward-metering` | forward-path billable accounting — each modality bills in its natural unit |
 | `npm run stress:long-chat-turn` | authenticated real `/api/leash/chat` long-run gauntlet |
 | `npm run stress:chat-orchestration-gauntlet` | authenticated orchestration stress gauntlet |

@@ -12,9 +12,12 @@
     "ipad:prebuild": "expo prebuild --platform ios",
     "android": "expo run:android --device",
     "android:release": "expo run:android --device --variant release",
-    "bundle:worklets:android": "bare-pack --target android-arm64 --linked --format bundle.cjs --out worklets/mesh-worklet.android.bundle.js worklets/mesh-worklet.mjs && bare-pack --target android-arm64 --linked --format bundle.cjs --out worklets/forward-worklet.android.bundle.js worklets/forward-worklet.mjs"
+    "bundle:worklets:android": "bare-pack --target android-arm64 --linked --format bundle.cjs --out worklets/mesh-worklet.android.bundle.js worklets/mesh-worklet.mjs && bare-pack --target android-arm64 --linked --format bundle.cjs --out worklets/forward-worklet.android.bundle.js worklets/forward-worklet.mjs && bare-pack --target android-arm64 --linked --format bundle.cjs --out worklets/public-forward-worklet.android.bundle.js worklets/public-forward-worklet.mjs",
+    "bundle:worklets:ios": "bare-pack --target ios-arm64 --linked --format bundle.cjs --out worklets/public-forward-worklet.bundle.js worklets/public-forward-worklet.mjs"
   },
   "dependencies": {
+    "@hyperswarm/secret-stream": "^6.9.1",
+    "bare-net": "^2.3.2",
     "@ai-sdk/openai-compatible": "^3.0.12",
     "@expo-google-fonts/fraunces": "^0.4.1",
     "@expo-google-fonts/ibm-plex-mono": "^0.4.1",

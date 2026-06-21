@@ -195,10 +195,12 @@ export class ForwardControlServer {
 
 /** Feeds one in-flight forwarded request's frames into its async-generator consumer. */
 interface StreamSink {
-  onChunk: (data: string) => void;
+  onChunk: (chunk: ForwardChunk) => void;
   onDone: (stats?: Record<string, unknown>) => void;
   onError: (err: Error) => void;
 }
+
+export type ForwardChunk = Extract<ForwardFrame, { type: "chunk" }>;
 
 /** One persistent, multiplexed connection to a single provider, keyed by its per-pair topic. */
 interface ProviderConn {
@@ -314,7 +316,7 @@ export class ForwardControlClient {
       const sink = pc.pending.get(frame.id);
       if (!sink) continue;
       if (frame.type === "chunk") {
-        sink.onChunk(frame.data);
+        sink.onChunk(frame);
       } else if (frame.type === "done") {
         pc.pending.delete(frame.id);
         sink.onDone(frame.stats);
@@ -413,19 +415,19 @@ export class ForwardControlClient {
    * Forward an OpenAI request to `providerKey` and yield its streamed response tokens. Throws on a
    * provider error frame, a dropped connection, or a stalled stream (first-frame / inter-frame budget).
    */
-  async *forward(providerKey: string, req: ForwardRequest): AsyncGenerator<string, Record<string, unknown> | undefined> {
+  async *forwardFrames(providerKey: string, req: ForwardRequest): AsyncGenerator<ForwardChunk, Record<string, unknown> | undefined> {
     const pc = await this.ensureConn(providerKey, CONNECT_ATTEMPTS);
     const stream = pc.conn;
     if (!stream) throw new Error("forward: connection unavailable");
 
-    const queue: string[] = [];
+    const queue: ForwardChunk[] = [];
     let done = false;
     let doneStats: Record<string, unknown> | undefined;
     let failure: Error | null = null;
     let notify: (() => void) | null = null;
     const wake = (): void => { const n = notify; notify = null; n?.(); };
     pc.pending.set(req.id, {
-      onChunk: (data) => { queue.push(data); wake(); },
+      onChunk: (chunk) => { queue.push(chunk); wake(); },
       onDone: (stats) => { done = true; doneStats = stats; wake(); },
       onError: (err) => { failure = err; wake(); },
     });
@@ -458,6 +460,16 @@ export class ForwardControlClient {
       }
     } finally {
       pc.pending.delete(req.id);
+    }
+  }
+
+  /** Legacy payload-only view used by embeddings/audio callers and transport smokes. */
+  async *forward(providerKey: string, req: ForwardRequest): AsyncGenerator<string, Record<string, unknown> | undefined> {
+    const frames = this.forwardFrames(providerKey, req);
+    for (;;) {
+      const next = await frames.next();
+      if (next.done) return next.value;
+      yield next.value.data;
     }
   }
 

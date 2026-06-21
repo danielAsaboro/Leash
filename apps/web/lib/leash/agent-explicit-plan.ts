@@ -103,7 +103,10 @@ export function planMandatedReadCalls(
   registry: ToolSet,
 ): PlannedReadCall[] | null {
   const unique = [...new Set(toolNames)];
-  if (unique.length === 0) return null;
+  // An explicit specialist request does not need to invent a read just to enter
+  // the deterministic delegation path. An empty batch is a valid plan: the
+  // specialist can answer from its bounded task/context packet in one decode.
+  if (unique.length === 0) return [];
   const calls: PlannedReadCall[] = [];
   for (const toolName of unique) {
     const definition = registry[toolName];

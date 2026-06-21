@@ -86,6 +86,7 @@ export type NativeTurnOpts = {
   history: Msg[]; // user/assistant turns (no system)
   tools?: ToolSet;
   maxSteps?: number;
+  generationParams?: NonNullable<Parameters<typeof completion>[0]["generationParams"]>;
   leadingParts?: Part[]; // e.g. a data-skill card prepended to the render
   onUpdate: (parts: Part[]) => void;
   isCancelled: () => boolean;
@@ -108,7 +109,13 @@ export async function runNativeTurn(opts: NativeTurnOpts): Promise<string> {
   for (let step = 0; step < maxSteps; step++) {
     if (opts.isCancelled()) break;
 
-    const run = completion({ modelId: opts.modelId, history: convo, stream: true, ...(sdkTools ? { tools: sdkTools } : {}) } as Parameters<typeof completion>[0]);
+    const run = completion({
+      modelId: opts.modelId,
+      history: convo,
+      stream: true,
+      ...(sdkTools ? { tools: sdkTools } : {}),
+      ...(opts.generationParams ? { generationParams: opts.generationParams } : {}),
+    } as Parameters<typeof completion>[0]);
 
     // Stream the PROVEN primitive: tokenStream yields raw tokens (incl. <think>). We accumulate and
     // split into reasoning + text on every tick — the exact approach the app shipped on, so plain

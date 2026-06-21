@@ -22,7 +22,8 @@
       }
     },
     "android": {
-      "package": "com.mycelium.leash"
+      "package": "com.mycelium.leash",
+      "usesCleartextTraffic": true
     },
     "plugins": [
       [

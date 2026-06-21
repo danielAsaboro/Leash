@@ -30,18 +30,19 @@ function hhmm(ts: string): string {
 export const contextGroup: ToolGroup = {
   id: "context",
   label: "Context",
-  description: "Search the user's private context graph (Apple Notes, files, memories, past chats) and read their live screen-activity trail.",
+  description: "Search the user's on-device text entries, memories, past chats, and screen-activity trail. Use the Files group for raw files.",
   tools: [
     defineTool({
       name: "search_graph",
       description:
-        "Search the user's private context graph (Apple Notes, files, voice memos, and past conversations with you) for passages relevant to a query. Call this whenever answering needs private facts about the user, their devices, projects, preferences, or what was said in an earlier chat — do not guess.",
+        "Search the user's on-device text entries, saved memories, screen activity, and past conversations for passages relevant to a query. This does not search raw files; use the Files group's bash tool for those. Call this whenever answering needs private facts about the user, their devices, projects, preferences, or what was said in an earlier chat — do not guess.",
       inputSchema: {
         query: z.string().describe("Natural-language description of the information needed."),
         topK: z.number().int().min(1).max(8).optional().describe("How many snippets to retrieve (default 3)."),
+        kinds: z.array(z.enum(["note", "memory", "activity", "chat"])).max(4).optional().describe("Optional source kinds to restrict retrieval to."),
       },
-      handler: async ({ query, topK }) => {
-        const hits = await searchNotes(query, topK ?? 3);
+      handler: async ({ query, topK, kinds }) => {
+        const hits = await searchNotes(query, topK ?? 3, kinds);
         const sources: LeashSource[] = hits.map((h) => ({ kind: "graph", title: `Context · ${h.source}`, snippet: oneLine(h.text).slice(0, 200) }));
         return {
           text: hits.length ? hits.map((h) => `(${h.source}) ${oneLine(h.text)}`).join("\n---\n") : "No matching passages in the user's private context.",

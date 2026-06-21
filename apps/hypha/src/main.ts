@@ -59,6 +59,8 @@ import {
   HYPHA_KV_TTL_MS,
   HYPHA_PAIR_PORT,
   HYPHA_PORT,
+  HYPHA_PUBLIC_DIRECTORY_HOST,
+  HYPHA_PUBLIC_DIRECTORY_PORT,
   HYPHA_REPUTATION,
   HYPHA_SHARE_MODELS,
   HYPHA_FORWARD,
@@ -76,6 +78,14 @@ import {
   HYPHA_RECONNECT_HEAL_COOLDOWN_MS,
   HYPHA_RECONNECT_ALLFAIL_THRESHOLD,
   HYPHA_RECONNECT_PROBE_TIMEOUT_MS,
+  HYPHA_PUBLIC_COMPUTE_DEFAULT,
+  HYPHA_PUBLIC_COMPUTE_MAX_CONCURRENT,
+  HYPHA_PUBLIC_COMPUTE_MAX_REQUEST_BYTES,
+  HYPHA_PUBLIC_COMPUTE_MAX_OUTPUT_TOKENS,
+  HYPHA_PUBLIC_COMPUTE_TIMEOUT_MS,
+  HYPHA_PUBLIC_COMPUTE_MIN_HEADROOM_MB,
+  HYPHA_PUBLIC_COMPUTE_LAN_PORT,
+  HYPHA_PUBLIC_COMPUTE_LAN_HOST,
 } from "./config.ts";
 import { DeviceProvider } from "./device-provider.ts";
 import { MeshRouter } from "./mesh-router.ts";
@@ -86,6 +96,7 @@ import { ReputationStore } from "./reputation.ts";
 import { verifyIdentityProof } from "./plasma-settlement.ts";
 import { PairingController, type MeshController } from "./pairing.ts";
 import { createShim, type Inflight, type MeshControl, type MeshSummary } from "./shim.ts";
+import { createPublicDirectoryServer } from "./public-directory.ts";
 import { meshBus } from "./mesh-events.ts";
 import { normalizeTask } from "./tasks.ts";
 import { SolanaSettlementService } from "./solana-settlement.ts";
@@ -96,6 +107,8 @@ import { PaymentControlClient, PaymentControlServer } from "./payment-control.ts
 import { ForwardControlServer, ForwardControlClient } from "./forward-control.ts";
 import { createForwardProvider } from "./forward-provider.ts";
 import { membershipLimitError } from "./mesh-economy-policy.ts";
+import { PublicComputeClient, PublicComputeServer, PublicReplayGuard } from "./public-compute-control.ts";
+import { PublicComputeMarket } from "./public-compute-market.ts";
 
 /** One membership row persisted in meshes.json — the device's local record of a mesh it belongs to. */
 interface MeshRecord {
@@ -220,9 +233,9 @@ async function runDaemon(): Promise<void> {
   const runtimes = new Map<string, MeshRuntime>();
   const meshMeta = new Map<string, MeshRecord>();
   let mesh: MeshRuntime | null = null;
-  // Public cells (spec §9 / direction B): broadcast-only, leaderless gossip meshes, auto-discovered
-  // over mDNS — kept SEPARATE from the private compute runtimes (no warm pool, no firewall, no
-  // delegation). Keyed by cellId.
+  // Public cells (spec §9 / direction B): leaderless gossip meshes auto-discovered over mDNS.
+  // They remain separate from private runtimes; signed capability adverts may lead to a dedicated,
+  // untrusted public-compute Noise session without granting private membership or mesh access.
   const publicMeshes = new Map<string, { cellId: string; label: string; mesh: PublicMesh; discovery: CellDiscoveryHandle }>();
   // Layer-4: share trained LoRA adapters over the PRIMARY mesh (publish local promotable ones,
   // fetch peers' newer ones). Started once the mesh is online; rides the same swarm.
@@ -269,6 +282,47 @@ async function runDaemon(): Promise<void> {
   // on this device's LOCAL serve. Joins the SAME per-pair firewall topics as payment-control (below).
   const forwardServer = HYPHA_FORWARD ? new ForwardControlServer({ seed, audit, handler: createForwardProvider({ audit }) }) : null;
   if (forwardServer) await forwardServer.ready();
+  // Public compute has a dedicated Noise identity and never contributes to the private SDK/forward
+  // allow-list. Listening is harmless while opted out: no provider ids are active and no adverts
+  // exist, so every unsolicited job fails authentication before inference.
+  let publicMarket: PublicComputeMarket | null = null;
+  const publicClient = new PublicComputeClient(seed, audit);
+  const publicServer = new PublicComputeServer({
+    seed,
+    audit,
+    handler: createForwardProvider({ audit }),
+    replay: new PublicReplayGuard(join(HYPHA_DATA_DIR, "public-compute-replay.json")),
+    providerIds: () => publicMarket?.config.enabled ? new Set([...publicMeshes.values()].map((p) => p.mesh.feedKey)) : new Set(),
+    validateCapability: (body) => publicMarket?.validateJob(body) ?? { ok: false, error: "public provider is not initialized" },
+    limits: () => ({
+      maxConcurrent: publicMarket?.config.maxConcurrent ?? HYPHA_PUBLIC_COMPUTE_MAX_CONCURRENT,
+      maxRequestBytes: publicMarket?.config.maxRequestBytes ?? HYPHA_PUBLIC_COMPUTE_MAX_REQUEST_BYTES,
+      timeoutMs: publicMarket?.config.timeoutMs ?? HYPHA_PUBLIC_COMPUTE_TIMEOUT_MS,
+      minHeadroomMb: publicMarket?.config.minHeadroomMb ?? HYPHA_PUBLIC_COMPUTE_MIN_HEADROOM_MB,
+    }),
+    onAvailabilityChange: () => publicMarket?.refreshAvailability(),
+    lanPort: HYPHA_PUBLIC_COMPUTE_LAN_PORT,
+    lanHost: HYPHA_PUBLIC_COMPUTE_LAN_HOST,
+  });
+  await publicServer.ready();
+  publicMarket = new PublicComputeMarket({
+    cells: () => [...publicMeshes.values()],
+    server: publicServer,
+    client: publicClient,
+    audit,
+    settingsFile: join(HYPHA_DATA_DIR, "public-compute.json"),
+    displayName: DEVICE_NAME,
+    defaults: {
+      enabled: HYPHA_PUBLIC_COMPUTE_DEFAULT,
+      maxConcurrent: HYPHA_PUBLIC_COMPUTE_MAX_CONCURRENT,
+      maxRequestBytes: HYPHA_PUBLIC_COMPUTE_MAX_REQUEST_BYTES,
+      maxOutputTokens: HYPHA_PUBLIC_COMPUTE_MAX_OUTPUT_TOKENS,
+      timeoutMs: HYPHA_PUBLIC_COMPUTE_TIMEOUT_MS,
+      minHeadroomMb: HYPHA_PUBLIC_COMPUTE_MIN_HEADROOM_MB,
+      priceMicrosPerKiloToken: HYPHA_ECONOMY_ENABLED ? HYPHA_ECONOMY_PRICE_PER_KTOK : 0,
+    },
+  });
+  publicMarket.start();
   // The ONE delegated-inference provider for this device + its union firewall (spec §4). Every
   // mesh contributes its paired consumers; the provider serves their union. Lazy: not started
   // until the first mesh comes online.
@@ -565,7 +619,7 @@ async function runDaemon(): Promise<void> {
   /**
    * Join a public, discoverable cell (spec §9 / B): a leaderless gossip mesh on its OWN per-cell
    * seeded store (identity unlinkable to the private mesh) + mDNS feed discovery (no pairing). Kept
-   * out of `runtimes` so it never touches compute/firewall/delegation — broadcast-only by construction.
+   * out of `runtimes` so public peers never gain private membership, memory, tools, or filesystem access.
    */
   const joinPublicCell = async (cellId: string, label: string): Promise<void> => {
     if (publicMeshes.has(cellId)) return;
@@ -954,6 +1008,7 @@ async function runDaemon(): Promise<void> {
     settlement,
     paymentControl,
     forward: forwardClient,
+    publicCompute: publicMarket,
     recordObservation: (providerId, ok, ttftMs) => reputation.recordObservation({ providerId, ok, ...(ttftMs ? { ttftMs } : {}) }),
     getReputation: () => reputation.snapshot(),
     getShareModels: () => shareModels,
@@ -963,6 +1018,9 @@ async function runDaemon(): Promise<void> {
     // Plugin distribution rides the PRIMARY mesh's writable graph (bring it online lazily, like adapters).
     getPrimaryGraph: async () => (await ensureMeshOnline()).graph,
   });
+  const publicDirectoryServer = publicMarket && HYPHA_PUBLIC_DIRECTORY_PORT > 0
+    ? createPublicDirectoryServer(publicMarket)
+    : null;
 
   // Feed reputation from the replicated settled receipts (read-only snapshot, refreshed on a tick).
   // Phase 4: also refresh the wallet↔key BINDING set from peers' caps — verify each `identityProof`
@@ -1099,6 +1157,9 @@ async function runDaemon(): Promise<void> {
     if (settlement.online()) console.log("💸 settlement enabled for delegated compute (Plasma first, Solana fallback)");
     console.log("✅ Hypha ready. Ctrl-C to stop.");
   });
+  publicDirectoryServer?.listen(HYPHA_PUBLIC_DIRECTORY_PORT, HYPHA_PUBLIC_DIRECTORY_HOST, () => {
+    console.log(`🌐 public-provider directory on ${HYPHA_PUBLIC_DIRECTORY_HOST}:${HYPHA_PUBLIC_DIRECTORY_PORT} (read-only)`);
+  });
 
   const quit = (): void => {
     void (async () => {
@@ -1109,10 +1170,14 @@ async function runDaemon(): Promise<void> {
       for (const m of runtimes.values()) await m.stop();
       for (const p of publicMeshes.values()) { p.discovery.stop(); await p.mesh.close().catch(() => undefined); }
       server.close();
+      publicDirectoryServer?.close();
       await paymentControl.close().catch(() => undefined);
       await paymentControlServer?.close().catch(() => undefined);
       await forwardClient?.close().catch(() => undefined);
       await forwardServer?.close().catch(() => undefined);
+      await publicMarket?.close().catch(() => undefined);
+      await publicClient.close().catch(() => undefined);
+      await publicServer.close().catch(() => undefined);
       try {
         await stopQVACProvider();
       } catch {

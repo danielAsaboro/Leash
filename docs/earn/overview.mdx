@@ -1,19 +1,26 @@
 ---
 title: "Earn overview"
-description: "How Leash lets devices earn for public mesh compute while private mesh delegation stays free."
+description: "Live zero-price public compute and the bounded settlement contract for paid providers."
 sidebarTitle: "Overview"
 ---
 
-Earn is the optional paid public-mesh layer for delegated inference. It lets a device serve compute to a public mesh, publish a price, stream a completion, and settle the actual work done.
+Earn documents the optional paid public-mesh contract: publish a price, meter a completion, and settle the work done.
+
+<Warning>
+  Zero-price public inference is live. Paid public inference remains a protocol and settlement
+  preview; a non-zero-price job is never silently treated as a free or local success.
+</Warning>
 
 The rule is simple:
 
 - **Local first.** If the device can answer locally, no mesh route is needed.
 - **Private mesh second.** Your private mesh is trusted personal infrastructure. Rates exist in the interface, but they are always `0`.
-- **Public mesh last.** Public mesh routes are only considered after the sensitivity and confidence filters pass. A public provider can be free or paid.
+- **Public compute by intent.** An opted-in provider publishes signed, expiring capabilities. A
+  shareable zero-price request can select it and stream a real QVAC response.
 
 <Note>
-  There are two mesh classes today: one private mesh per user, and up to 15 public meshes. That gives the runtime one private slot plus fifteen public slots without changing the routing shape.
+  Membership supports one private mesh plus up to fifteen public discovery cells. Public providers
+  stay untrusted and never gain private membership.
 </Note>
 
 ## What earns
@@ -44,13 +51,15 @@ Private mesh delegation stays free. The runtime forces private visibility to a z
 
 ## The routing ladder
 
-Leash only expands the route when it is allowed to:
+The route ladder is:
 
 ```text
 local device -> private mesh -> public mesh
 ```
 
-Public mesh is the market boundary. It is where identity, rate selection, payment rails, reputation, and receipts matter.
+Public mesh is the market boundary. Signed identity, eligibility, zero-price request transport, and
+correlated audits are live. Payment rails, reputation, and receipts are implemented and tested as
+subsystems, but non-zero-price settlement is not yet wired to the live public request transport.
 
 ## Related
 

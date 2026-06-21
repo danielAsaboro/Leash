@@ -19,6 +19,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { LeashUIMessage, ChatSummary } from "./types.ts";
+import { chatMessagesChanged } from "./chat-persistence.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/lib/leash → repo root → data/leash-chats. */
@@ -82,6 +83,9 @@ export async function loadChat(id: string): Promise<LeashUIMessage[]> {
 export async function saveChat({ chatId, messages }: { chatId: string; messages: LeashUIMessage[] }): Promise<void> {
   await ensureDir();
   const existing = await loadRecord(chatId);
+  // Reopening/hydrating a thread can cause clients to submit an idempotent snapshot. A read is not
+  // meaningful activity: preserve both the file mtime and the user-visible updatedAt ordering.
+  if (existing && !chatMessagesChanged(existing.messages, messages)) return;
   const now = Date.now();
   const record: ChatRecord = {
     id: chatId,
@@ -98,6 +102,7 @@ export async function saveChat({ chatId, messages }: { chatId: string; messages:
 export async function saveSummary(chatId: string, summary: string, summarizedThrough: number): Promise<void> {
   const rec = await loadRecord(chatId);
   if (!rec) return;
+  if (rec.summary === summary && rec.summarizedThrough === summarizedThrough) return;
   rec.summary = summary;
   rec.summarizedThrough = summarizedThrough;
   rec.updatedAt = Date.now();
@@ -138,7 +143,10 @@ export async function deleteChat(id: string): Promise<void> {
 export async function renameChat(id: string, title: string): Promise<void> {
   const rec = await loadRecord(id);
   if (!rec) return;
-  rec.title = title.trim().slice(0, 120);
+  const next = title.trim().slice(0, 120);
+  if (rec.title === next) return;
+  rec.title = next;
+  rec.updatedAt = Date.now();
   await writeFile(chatFile(id), JSON.stringify(rec, null, 2));
 }
 

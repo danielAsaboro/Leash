@@ -7,6 +7,7 @@
  * already-paired devices. Stopping tears down advertise + browse (mDNS "goodbye").
  */
 import Bonjour from "bonjour-service";
+import { spawn, type ChildProcess } from "node:child_process";
 
 /** The subset of a browsed mDNS service record we read (structurally compatible with the lib's Service). */
 interface BrowsedService {
@@ -58,6 +59,87 @@ export interface CellDiscoveryHandle {
   stop(): void;
 }
 
+const CELL_SERVICE_DNS_SD = "_hyphacell._tcp";
+
+/** Parse one macOS `dns-sd -B` row without ever passing LAN data through a shell. */
+export function parseDnsSdCellBrowseLine(line: string): string | null {
+  if (!/\sAdd\s/.test(line)) return null;
+  const marker = `${CELL_SERVICE_DNS_SD}.`;
+  const at = line.indexOf(marker);
+  if (at < 0) return null;
+  const instance = line.slice(at + marker.length).trim();
+  return instance.length > 0 && instance.length <= 200 ? instance : null;
+}
+
+/** Extract the capability-bearing TXT fields from `dns-sd -L`; all other output is ignored. */
+export function parseDnsSdCellResolve(text: string, expectedCell: string): string | null {
+  const cell = /(?:^|\s)cell=([^\s]+)/m.exec(text)?.[1];
+  const feed = /(?:^|\s)feed=([0-9a-f]{64})(?:\s|$)/im.exec(text)?.[1];
+  return cell === expectedCell && feed ? feed.toLowerCase() : null;
+}
+
+/**
+ * `bonjour-service` uses a raw multicast socket. On macOS that socket can receive only its own
+ * announcement after a process restart even though mDNSResponder still sees remote services.
+ * Browse the same public records through the OS DNS-SD service as a bounded additive fallback.
+ */
+function startMacOsCellDiscovery(cellId: string, onPeerFeed: (feedKey: string) => void): CellDiscoveryHandle | null {
+  if (process.platform !== "darwin") return null;
+  const resolvers = new Map<string, { child: ChildProcess; timer: ReturnType<typeof setTimeout> }>();
+  let browser: ChildProcess;
+  try {
+    browser = spawn("/usr/bin/dns-sd", ["-B", CELL_SERVICE_DNS_SD, "local."], { stdio: ["ignore", "pipe", "ignore"] });
+  } catch {
+    return null;
+  }
+  let browseBuffer = "";
+  const resolve = (instance: string): void => {
+    if (resolvers.has(instance) || resolvers.size >= 64) return;
+    const child = spawn("/usr/bin/dns-sd", ["-L", instance, CELL_SERVICE_DNS_SD, "local."], { stdio: ["ignore", "pipe", "ignore"] });
+    let output = "";
+    let finished = false;
+    const finish = (): void => {
+      if (finished) return;
+      finished = true;
+      const feed = parseDnsSdCellResolve(output, cellId);
+      if (feed) onPeerFeed(feed);
+      const entry = resolvers.get(instance);
+      if (entry) clearTimeout(entry.timer);
+      resolvers.delete(instance);
+      try { child.kill(); } catch { /* already exited */ }
+    };
+    child.stdout?.on("data", (chunk: Buffer) => {
+      if (output.length < 8192) output += chunk.toString("utf8");
+      if (parseDnsSdCellResolve(output, cellId)) finish();
+    });
+    child.once("error", () => finish());
+    child.once("exit", () => finish());
+    const timer = setTimeout(finish, 5_000);
+    timer.unref();
+    resolvers.set(instance, { child, timer });
+  };
+  browser.stdout?.on("data", (chunk: Buffer) => {
+    browseBuffer += chunk.toString("utf8");
+    const lines = browseBuffer.split("\n");
+    browseBuffer = (lines.pop() ?? "").slice(-4096);
+    for (const line of lines) {
+      const instance = parseDnsSdCellBrowseLine(line);
+      if (instance) resolve(instance);
+    }
+  });
+  browser.once("error", () => undefined);
+  return {
+    stop: () => {
+      try { browser.kill(); } catch { /* already exited */ }
+      for (const { child, timer } of resolvers.values()) {
+        clearTimeout(timer);
+        try { child.kill(); } catch { /* already exited */ }
+      }
+      resolvers.clear();
+    },
+  };
+}
+
 /**
  * Public-cell feed discovery over mDNS (spec §9 / direction B): advertise THIS device's gossip
  * feed key for `cellId`, and call `onPeerFeed(feedKey)` for every OTHER device announcing the same
@@ -81,8 +163,12 @@ export function startCellDiscovery(cellId: string, feedKey: string, port: number
     if (!peer || peer === feedKey) return; // skip self / untagged
     onPeerFeed(peer);
   });
+  const systemDiscovery = startMacOsCellDiscovery(cellId, (peer) => {
+    if (peer !== feedKey) onPeerFeed(peer);
+  });
   return {
     stop: () => {
+      systemDiscovery?.stop();
       try {
         service.stop?.();
       } catch {

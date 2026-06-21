@@ -12,7 +12,7 @@
  */
 import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse, generateText, isStepCount, tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { VISION_MODEL, COMPUTER_MODEL, QVAC_OPENAI_URL, chatModel, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
+import { VISION_MODEL, COMPUTER_MODEL, QVAC_OPENAI_URL, QVAC_SERVE_ROOT, chatModel, publicJobEvidence, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
 import { tagsForAlias, type RouteOption } from "@mycelium/leash-core/routing";
 import { leashTools } from "../../../../lib/leash/tools.ts";
@@ -33,7 +33,7 @@ import { planReasoningDraft, type ReasoningDraft } from "../../../../lib/leash/r
 import { policyForPlannedMode, type ReasoningPolicy } from "../../../../lib/leash/reasoning-policy.ts";
 import { runFileFinderFastPath, shouldRunFileFinderFastPath } from "../../../../lib/leash/file-finder-fast-path.ts";
 import { directBashCommandForSimpleTurn, runDirectBashCommand } from "../../../../lib/leash/bash-command-fast-path.ts";
-import { directBrokerCallForSimpleTurn, runDirectBrokerCall } from "../../../../lib/leash/broker-fast-path.ts";
+import { directBrokerCallForSimpleTurn, runDirectBrokerCall, type DirectBrokerResult } from "../../../../lib/leash/broker-fast-path.ts";
 import { needsChatBrokerLane } from "../../../../lib/leash/compound-route.ts";
 import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, directAnswerForVoiceConfirmation, localInferenceUnavailableAnswer } from "../../../../lib/leash/direct-answer.ts";
 import { directHealthSafetyCallForSimpleTurn, runDirectHealthSafetyCall } from "../../../../lib/leash/health-fast-path.ts";
@@ -62,7 +62,8 @@ import {
 import { beginGeneration } from "../../../../lib/leash/inflight.ts";
 import { subscribeElicitations } from "../../../../lib/leash/elicitations.ts";
 import { interjectRequested, clearInterject } from "../../../../lib/leash/interject-store.ts";
-import type { EffortTier, LeashUIMessage } from "../../../../lib/leash/types.ts";
+import type { EffortTier, LeashUIMessage, RouteIntent } from "../../../../lib/leash/types.ts";
+import { optionsForRouteIntent } from "../../../../lib/leash/route-intent.ts";
 import { AuditLog } from "@mycelium/shared";
 import { enforceToolPolicy, type ToolRoute } from "@mycelium/leash-core/tool-policy";
 import { parsePluginSlug } from "@mycelium/leash-core/plugin-manifest";
@@ -375,14 +376,27 @@ function peerRouteTier(row: PeerRow, meshById: Map<string, MeshMembership>): Rou
  */
 async function fetchRouteOptions(): Promise<RouteOption[]> {
   type ModelsBody = { data?: { id?: string }[] };
+  type BrokerStats = { aliases?: Record<string, { busy?: boolean; queued?: number }> };
   const options: RouteOption[] = [];
   try {
-    const modelsRes = await fetch(`${QVAC_OPENAI_URL}/models`, { signal: AbortSignal.timeout(1500), cache: "no-store" });
+    const brokerRoot = QVAC_OPENAI_URL.replace(/\/v1\/?$/, "");
+    const [modelsRes, statsRes] = await Promise.all([
+      fetch(`${QVAC_OPENAI_URL}/models`, { signal: AbortSignal.timeout(1500), cache: "no-store" }).catch(() => fetch(`${QVAC_SERVE_ROOT}/v1/models`, { signal: AbortSignal.timeout(1500), cache: "no-store" })),
+      fetch(`${brokerRoot}/__broker/stats`, { signal: AbortSignal.timeout(750), cache: "no-store" }).catch(() => null),
+    ]);
     if (modelsRes.ok) {
       const mb = (await modelsRes.json()) as ModelsBody;
+      const loads = statsRes?.ok ? ((await statsRes.json()) as BrokerStats).aliases ?? {} : {};
       for (const row of mb.data ?? []) {
         if (!row.id) continue;
-        options.push({ tier: "device", alias: row.id, tags: tagsForAlias(row.id), pricePerKiloToken: 0, inflight: 0 });
+        const load = loads[row.id];
+        options.push({
+          tier: "device",
+          alias: row.id,
+          tags: tagsForAlias(row.id),
+          pricePerKiloToken: 0,
+          inflight: Number(Boolean(load?.busy)) + (load?.queued ?? 0),
+        });
       }
     }
   } catch {
@@ -390,14 +404,12 @@ async function fetchRouteOptions(): Promise<RouteOption[]> {
   }
 
   try {
-    // TODO(mesh): Add a live cross-device smoke once Hypha is running on a non-solo mesh,
-    // so device -> private mesh -> public mesh delegation is verified end to end.
     const peersRes = await fetch(`${HYPHA_BASE}/peers`, { signal: AbortSignal.timeout(1500), cache: "no-store" });
     if (!peersRes.ok) return options;
     const pb = (await peersRes.json()) as { peers?: PeerRow[]; meshes?: MeshMembership[] };
     const meshById = new Map((pb.meshes ?? []).map((m) => [m.meshId, m]));
     for (const row of pb.peers ?? []) {
-      if (row.live === false || !row.providerKey) continue;
+      if (row.live !== true || !row.providerKey) continue;
       for (const alias of row.models ?? []) {
         options.push({
           tier: peerRouteTier(row, meshById),
@@ -413,6 +425,20 @@ async function fetchRouteOptions(): Promise<RouteOption[]> {
   } catch {
     /* hypha down: routing remains on this device */
   }
+  try {
+    const publicRes = await fetch(`${HYPHA_BASE}/public/compute`, { signal: AbortSignal.timeout(4_000), cache: "no-store" });
+    if (publicRes.ok) {
+      const body = await publicRes.json() as { providers?: Array<{ advert?: { providerId?: string; transportKey?: string; cellId?: string; availability?: { inflight?: number }; pricing?: { microsPerKiloToken?: number }; capabilities?: Array<{ alias?: string; task?: string; contextWindow?: number }> } }> };
+      for (const row of body.providers ?? []) {
+        const advert = row.advert;
+        if (!advert?.providerId || !advert.transportKey || !advert.cellId) continue;
+        for (const cap of advert.capabilities ?? []) {
+          if (!cap.alias || !["chat", "health", "vision"].includes(cap.task ?? "")) continue;
+          options.push({ tier: "public", alias: cap.alias, tags: { ...tagsForAlias(cap.alias), ...(cap.contextWindow ? { contextWindow: cap.contextWindow } : {}) }, peerKey: advert.transportKey, meshId: advert.cellId, pricePerKiloToken: advert.pricing?.microsPerKiloToken ?? 0, inflight: advert.availability?.inflight ?? 0 });
+        }
+      }
+    }
+  } catch { /* public discovery is additive; explicit public intent fails closed below when absent */ }
   return options;
 }
 
@@ -426,6 +452,11 @@ function latestMessage(messages: LeashUIMessage[]): LeashUIMessage | undefined {
 
 function userTurnCount(messages: LeashUIMessage[]): number {
   return messages.filter((m) => m.role === "user").length;
+}
+
+/** Only these pure, stateless operations may expose schemas on an untrusted public route. */
+function publicToolIntent(text: string): boolean {
+  return /\b(calculate|arithmetic|add|subtract|multiply|divide|power|convert|kilomet(?:er|re)|mile|metre|meter|feet|foot)\b/i.test(text);
 }
 
 /** Bounded text-only tail for specialists; keeps prior grounded answers without binary/UI payloads. */
@@ -519,7 +550,8 @@ async function streamEarlyDeterministicToolTurn(input: {
   reason: string;
   skill?: { slug: string; name: string };
   registry: "base" | "brokers";
-  run: (tools: ToolSet) => Promise<string | null>;
+  run: (tools: ToolSet) => Promise<string | DirectBrokerResult | null>;
+  visibleTool?: { name: string; input: unknown };
 }): Promise<Response> {
   const goalRunId = createIdGenerator({ prefix: "run", size: 16 })();
   const title = lastUserText(input.messages) || "Leash turn";
@@ -554,9 +586,12 @@ async function streamEarlyDeterministicToolTurn(input: {
 
       let text: string;
       try {
+        const callId = input.visibleTool ? createIdGenerator({ prefix: "call", size: 12 })() : null;
+        if (callId && input.visibleTool) writer.write({ type: "tool-input-available", toolCallId: callId, toolName: input.visibleTool.name, input: input.visibleTool.input });
         const out = await input.run(policyTools);
         if (out === null) throw new Error(`${input.alias} unavailable`);
-        text = out || "(no output)";
+        text = typeof out === "string" ? out || "(no output)" : out.text || "(no output)";
+        if (callId && typeof out !== "string") writer.write({ type: "tool-output-available", toolCallId: callId, output: out.output });
         await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text.slice(0, 1200) });
         await finishGoalRun(goalRunId, "completed", text);
       } catch (e) {
@@ -581,7 +616,7 @@ async function streamEarlyDeterministicToolTurn(input: {
   return createUIMessageStreamResponse({ stream });
 }
 
-type ChatPostBody = { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string };
+type ChatPostBody = { id: string; trigger?: string; messageId?: string; message?: LeashUIMessage; voice?: boolean; plan?: boolean; model?: string; routeIntent?: RouteIntent };
 
 export async function POST(req: Request): Promise<Response> {
   let body: ChatPostBody;
@@ -593,6 +628,8 @@ export async function POST(req: Request): Promise<Response> {
   const { id, trigger, messageId, message, voice, plan } = body;
   // User-chosen chat model alias from the input picker (validated against the regex in the schema).
   const chosenModel = typeof body.model === "string" && /^[a-z0-9][a-z0-9-]{0,40}$/.test(body.model) ? body.model : undefined;
+  const routeIntent: RouteIntent = ["local", "private", "public", "automatic"].includes(body.routeIntent ?? "") ? body.routeIntent! : "automatic";
+  const forceModelRoute = routeIntent === "private" || routeIntent === "public";
 
   // A fresh turn STARTS here: clear any interject flag so a follow-up that ended the PREVIOUS turn
   // doesn't immediately end this one (this turn IS that follow-up).
@@ -622,8 +659,8 @@ export async function POST(req: Request): Promise<Response> {
   const conductorBypass = conductorBypassReason({ messages, plan });
   const enabledAgents = (await listAgents()).filter((a) => a.enabled);
   const earlyAgentDisclosure = planAgentDisclosure(conductorText, enabledAgents);
-  const explicitAgentIntent = earlyAgentDisclosure.mode === "explicit";
-  const directVoiceConfirmation = voice && !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer
+  const explicitAgentIntent = earlyAgentDisclosure.mode === "explicit" && !(routeIntent === "public" && publicToolIntent(conductorText));
+  const directVoiceConfirmation = voice && !forceModelRoute && !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer
     ? directAnswerForVoiceConfirmation(conductorText)
     : null;
   if (directVoiceConfirmation) {
@@ -635,7 +672,7 @@ export async function POST(req: Request): Promise<Response> {
       reason: "deterministic persisted-transcript confirmation",
     });
   }
-  const directAnswer = !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSimpleTurn(conductorText) : null;
+  const directAnswer = !forceModelRoute && !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSimpleTurn(conductorText) : null;
   if (directAnswer) {
     return streamConductorAnswer({
       chatId: id,
@@ -645,7 +682,7 @@ export async function POST(req: Request): Promise<Response> {
       reason: "deterministic direct answer",
     });
   }
-  const directSkillMetadataAnswer = !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSkillMetadataTurn(conductorText) : null;
+  const directSkillMetadataAnswer = !forceModelRoute && !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSkillMetadataTurn(conductorText) : null;
   if (directSkillMetadataAnswer) {
     return streamConductorAnswer({
       chatId: id,
@@ -655,7 +692,7 @@ export async function POST(req: Request): Promise<Response> {
       reason: "deterministic skill metadata answer",
     });
   }
-  if (!explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer && conductorText.trim()) {
+  if (!forceModelRoute && !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer && conductorText.trim()) {
     const directBashCommand = directBashCommandForSimpleTurn(conductorText);
     if (directBashCommand) {
       return streamEarlyDeterministicToolTurn({
@@ -700,6 +737,7 @@ export async function POST(req: Request): Promise<Response> {
         reason: `deterministic broker fast path: ${directBrokerCall.action}`,
         skill: skillByBroker[directBrokerCall.broker],
         registry: "brokers",
+        visibleTool: { name: directBrokerCall.broker, input: { action: directBrokerCall.action, input: directBrokerCall.input } },
         run: (tools) => runDirectBrokerCall(directBrokerCall, tools),
       });
     }
@@ -733,7 +771,9 @@ export async function POST(req: Request): Promise<Response> {
   // language is evaluated before that carry. The same resolved value is reused below so routing
   // metadata and the executed pipeline cannot disagree.
   const earlyDetectedSkills =
-    preResolvedSkills !== undefined
+    routeIntent === "public"
+      ? null
+      : preResolvedSkills !== undefined
       ? preResolvedSkills
       : conductorText.trim()
         ? await activeSkillsSection(conductorText)
@@ -745,7 +785,10 @@ export async function POST(req: Request): Promise<Response> {
 
   let conductorRoute: ConductorRoute | null = null;
   let forcedModelAlias: string | undefined = chosenModel;
-  if (!conductorBypass && conductorText.trim()) {
+  // An explicit remote route must work from a constrained/unpaired requester even when it cannot
+  // run a local classifier decode. Automatic mode still uses the QVAC Conductor; forced
+  // private/public intent goes straight through deterministic capability/privacy selection.
+  if (!forceModelRoute && !conductorBypass && conductorText.trim()) {
     const releaseConductor = beginGeneration();
     let conductorResult: ConductorResult;
     try {
@@ -782,7 +825,7 @@ export async function POST(req: Request): Promise<Response> {
       const explicitModelOverride = isExplicitModelOverride(chosenModel, conductorResult);
       forcedModelAlias = explicitModelOverride ? chosenModel : undefined;
       if (conductorResult.decision.action === "answer") {
-        if (!explicitAgentIntent && !explicitModelOverride && !requestedComputer && !earlyActiveSkills) {
+        if (!forceModelRoute && !explicitAgentIntent && !explicitModelOverride && !requestedComputer && !earlyActiveSkills) {
           recordConductorTurnDecision(conductorResult, true);
           return streamConductorAnswer({
             chatId: id,
@@ -901,6 +944,13 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const allConductorOptions = await fetchRouteOptions();
     if (!allConductorOptions.length) {
+      if (routeIntent !== "automatic") {
+        return routeFailure(503, `No eligible ${routeIntent} QVAC route is currently live; refusing to execute on a different route.`, {
+          routeIntent,
+          failure: routeIntent === "public" ? "no_eligible_provider" : "capability_mismatch",
+          liveRoutes: [],
+        });
+      }
       return streamConductorAnswer({
         chatId: id,
         messages,
@@ -909,14 +959,24 @@ export async function POST(req: Request): Promise<Response> {
         reason: "no live qvac routes; streamed local-only failure",
       });
     }
-    const conductorOptions = forcedModelAlias ? allConductorOptions.filter((o) => o.alias === forcedModelAlias) : allConductorOptions;
+    const intentOptions = optionsForRouteIntent(allConductorOptions, routeIntent);
+    const conductorOptions = forcedModelAlias ? intentOptions.filter((o) => o.alias === forcedModelAlias) : intentOptions;
+    if (!conductorOptions.length) {
+      return routeFailure(503, `No eligible ${routeIntent} QVAC route is currently live; refusing to execute on a different route.`, { routeIntent, liveRoutes: allConductorOptions.map((o) => `${o.alias}@${o.tier}`) });
+    }
     if (forcedModelAlias && !conductorOptions.length) {
       return routeFailure(409, `Requested route alias "${forcedModelAlias}" is not live on this device or any visible mesh peer; refusing to fallback.`, {
         liveAliases: allConductorOptions.map((o) => `${o.alias}@${o.tier}`),
       });
     }
+    if (routeIntent === "public" && (explicitAgentIntent || earlyActiveSkills?.pipeline)) {
+      return routeFailure(409, "This capability requires requester-side orchestration and cannot run on an untrusted public provider. Choose local/private routing or send a plain shareable chat/tool request.", {
+        routeIntent,
+        capability: explicitAgentIntent ? "agent_orchestration" : earlyActiveSkills?.pipeline.slug,
+      });
+    }
     const preclassified = conductorRoute
-      ? { bar: capabilityBarFromConductorRoute(conductorRoute), sensitivity: conductorRoute.sensitivity, reason: conductorRoute.reason }
+      ? { bar: capabilityBarFromConductorRoute(conductorRoute), sensitivity: routeIntent === "public" ? "shareable" as const : conductorRoute.sensitivity, reason: conductorRoute.reason }
       : undefined;
     const publicBlock = preclassified ? publicMeshRouteBlocked({ bar: preclassified.bar, sensitivity: preclassified.sensitivity, options: conductorOptions }) : null;
     if (publicBlock && preclassified) {
@@ -963,13 +1023,13 @@ export async function POST(req: Request): Promise<Response> {
         reason: preclassified.reason,
       });
     } else {
-      conductorEffortTier = imageTurn ? null : await classifyEffort(lastUserText(validated));
+      conductorEffortTier = imageTurn ? null : forceModelRoute ? "standard" : await classifyEffort(lastUserText(validated));
       const guardedBar = barFromGuardedTurn({
         tier: conductorEffortTier ?? "standard",
         isImageTurn: imageTurn,
         text: lastUserText(validated),
       });
-      if (conductorEffortTier === "quick" && !imageTurn && guardedBar.specialist !== "health") {
+      if (conductorEffortTier === "quick" && !forceModelRoute && !imageTurn && guardedBar.specialist !== "health") {
         const local = pickLocalGeneral(conductorOptions, defaultAlias);
         conductorDecision = {
           modality: "text",
@@ -982,7 +1042,7 @@ export async function POST(req: Request): Promise<Response> {
       } else {
         conductorDecision = rankConductorRoute({
           bar: guardedBar,
-          sensitivity: "private",
+          sensitivity: routeIntent === "public" ? "shareable" : "private",
           options: conductorOptions,
         });
       }
@@ -1022,11 +1082,13 @@ export async function POST(req: Request): Promise<Response> {
   const activeModel = imageTurn ? VISION_MODEL : computerTurn ? COMPUTER_MODEL : conductorDecision.route.alias || defaultAlias;
   activeModelForRun = activeModel;
   const healthTurn = !imageTurn && !filesTurn && !computerTurn && conductorDecision.bar.specialist === "health";
+  const publicRoute = conductorDecision.route.tier === "public";
+  const publicJobIds = new Set<string>();
   // When the Conductor picked a peer route, build a routedChatModel that carries the body directive
   // so the hypha shim places the turn on the correct peer. Otherwise use the standard local chatModel.
   const conductorModel =
-    !imageTurn && !filesTurn && !computerTurn && conductorDecision.route.peerKey
-      ? routedChatModel({ alias: activeModel, sensitivity: conductorDecision.sensitivity, ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), peerKey: conductorDecision.route.peerKey })
+    !filesTurn && !computerTurn && conductorDecision.route.peerKey
+      ? routedChatModel({ alias: activeModel, sensitivity: conductorDecision.sensitivity, ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), peerKey: conductorDecision.route.peerKey, routeMode: conductorDecision.route.tier === "public" ? "public" : "private", ...(publicRoute ? { onRoutingResponse: ({ route, jobId }) => { if (route === "public" && jobId) publicJobIds.add(jobId); } } : {}) })
       : undefined;
 
   // Plan mode (user toggle): the GENERALIST chat turn becomes plan-then-execute. The model's only
@@ -1040,7 +1102,14 @@ export async function POST(req: Request): Promise<Response> {
   // (tools on/off, step cap, `/no_think`, token ceiling). A spoken turn must answer in seconds,
   // so voice always runs `/no_think`; text keeps full `<think>` reasoning on the `deep` tier.
   // Image turns are unchanged (the VLM handles one image-grounded turn, no tools/no /no_think).
-  const tier = imageTurn ? null : (conductorEffortTier ?? (await classifyEffort(lastUserText(validated))));
+  // Explicitly addressed specialists already have a deterministic lane and a
+  // bounded execution policy. A separate classifier decode adds no routing
+  // information and used to cost roughly one full TTFT before delegation began.
+  const tier = imageTurn
+    ? null
+    : explicitAgentIntent
+      ? "standard" satisfies EffortTier
+      : (conductorEffortTier ?? (await classifyEffort(lastUserText(validated))));
   const cfg = tier ? effortConfig(tier, !!voice) : null;
   const effortNoThink = !!cfg?.noThink;
 
@@ -1059,7 +1128,7 @@ export async function POST(req: Request): Promise<Response> {
     preferenceTexts(),
     getConstitution(),
   ]);
-  const activeSkills = explicitAgentIntent ? null : (detectedSkills ?? earlyActiveSkills);
+  const activeSkills = publicRoute || explicitAgentIntent ? null : (detectedSkills ?? earlyActiveSkills);
   const baseSystem = systemPrompt;
   // The constitution (soul + goals) makes EVERY turn goal-aware, not just heartbeats. Bounded by the
   // store's per-file cap. Trimmed so an unedited/empty file contributes nothing to the prompt.
@@ -1068,13 +1137,17 @@ export async function POST(req: Request): Promise<Response> {
   // Progressive tool disclosure: an active skill's declared `tools:` become the EXACT
   // toolset for this turn (agent.ts honors `skillTools`, overriding the route default).
   const declaredSkillTools = activeSkills?.tools ?? [];
-  const agentDisclosure = planAgentDisclosure(lastText, enabledAgents, { activeSkillTools: declaredSkillTools });
+  const agentDisclosure = publicRoute
+    ? { mode: "none" as const, selected: [], suppressRunSkill: true, directDelegate: false }
+    : planAgentDisclosure(lastText, enabledAgents, { activeSkillTools: declaredSkillTools });
   const selectedAgentTools = agentDisclosure.selected.map((agent) => agent.toolName);
   const agentTurn = selectedAgentTools.length > 0;
   const agentOverridesSkillLane = agentDisclosure.mode === "explicit";
   const effectiveDeclaredSkillTools = agentOverridesSkillLane ? [] : declaredSkillTools;
   const deterministicNeed = deterministicRouteNeed(lastText);
+  const publicNeedsTools = publicRoute && publicToolIntent(conductorText);
   const generalToolsNeeded =
+    publicNeedsTools ||
     planMode ||
     agentTurn ||
     !!activeSkills ||
@@ -1180,7 +1253,12 @@ export async function POST(req: Request): Promise<Response> {
   const CTX = Number(process.env["LEASH_CHAT_CTX"] ?? 32768);
   let modelMessages = validated;
   let summarySection = "";
-  if (!imageTurn) {
+  if (publicRoute) {
+    // Public execution is stateless by construction: only the explicitly submitted current turn
+    // crosses the trust boundary. Stored conversation history and compaction summaries stay local.
+    const latestUser = [...validated].reverse().find((m) => m.role === "user");
+    modelMessages = latestUser ? [latestUser] : [];
+  } else if (!imageTurn) {
     const c = await compact(id, validated, CTX, { summary: record?.summary, summarizedThrough: record?.summarizedThrough });
     if (c.tailFrom > 0 && c.tailFrom < validated.length) modelMessages = validated.slice(c.tailFrom);
     if (c.summary) summarySection = buildSummarySection(c.summary, c.tailFrom);
@@ -1189,7 +1267,10 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", reasoningPolicy?.mode === "draft" ? "" : availableSkillsSection, reasoningDraftSection, agentDisclosureNote, computerNote, filesNote, visionNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
+  const publicSystem = "You are answering one explicitly shareable, stateless turn on an untrusted public compute route. Use only the supplied turn and any public-safe tool results. Do not request or infer private memory, files, device state, credentials, or prior conversation.";
+  const system = (publicRoute
+    ? [baseSystem, publicSystem, thinkingNote, useNoThink ? NO_THINK_DIRECTIVE : ""]
+    : [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", reasoningPolicy?.mode === "draft" ? "" : availableSkillsSection, reasoningDraftSection, agentDisclosureNote, computerNote, filesNote, visionNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""])
     .filter(Boolean)
     .join(" ");
 
@@ -1202,7 +1283,7 @@ export async function POST(req: Request): Promise<Response> {
   // the 4B does one atomic sub-task per step and can't drop a dependent step (verified 2026-06-12:
   // pipeline 3/3 vs free-run ~1/3 on a dependent chain). The pipeline uses the skill's own declared
   // tools (approval-gated ones are skipped, like run_skill). Text turns only; image turns never match here.
-  const pipeline = !imageTurn && !planMode && !agentOverridesSkillLane ? activeSkills?.pipeline ?? null : null;
+  const pipeline = !publicRoute && !imageTurn && !planMode && !agentOverridesSkillLane ? activeSkills?.pipeline ?? null : null;
   const callRoute: LeashCallOptions["route"] = imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : healthTurn ? "health" : "chat";
   const runRoute: ToolRoute = pipeline ? "skill" : planMode ? "plan" : callRoute;
   const directFileFinder =
@@ -1210,6 +1291,7 @@ export async function POST(req: Request): Promise<Response> {
     !planMode &&
     !pipeline &&
     !agentOverridesSkillLane &&
+    !publicRoute &&
     activeSkills?.skills.some((s) => s.slug === "file-finder") === true &&
     shouldRunFileFinderFastPath(lastText) &&
     typeof (enabledTools as Record<string, unknown>)["bash"] === "object";
@@ -1365,14 +1447,15 @@ export async function POST(req: Request): Promise<Response> {
     // the most steps; else computer/files get their raised budgets, else the effort tier's.
     steps: callSteps,
     maxOutputTokens: callMaxOutputTokens,
-    ...(effectiveDeclaredSkillTools.length ? { skillTools: effectiveDeclaredSkillTools } : {}),
+    ...(publicNeedsTools ? { skillTools: ["public_calculate", "public_convert_units"] } : effectiveDeclaredSkillTools.length ? { skillTools: effectiveDeclaredSkillTools } : {}),
+    ...(publicRoute && !publicNeedsTools ? { noTools: true } : {}),
     ...(selectedAgentTools.length ? { agentTools: selectedAgentTools, suppressRunSkill: agentDisclosure.suppressRunSkill } : {}),
     ...(agentDisclosure.mode === "explicit" && selectedAgentTools.length === 1 ? { forcedAgentTool: selectedAgentTools[0] } : {}),
     // A completed draft has already established that this plain turn can be answered
     // from the supplied context. Keep only the QVAC keepalive schema (dynamic-tools
     // requires one non-empty schema) instead of exposing brokers/run_skill and inviting
     // an unrelated tool loop after the reasoning work is already done.
-    ...((laneBudget.leanTools || reasoningPolicy?.mode === "draft" || !generalToolsNeeded) && callRoute === "chat" && !agentTurn ? { leanTools: true } : {}),
+    ...(!publicRoute && (laneBudget.leanTools || reasoningPolicy?.mode === "draft" || !generalToolsNeeded) && callRoute === "chat" && !agentTurn ? { leanTools: true } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
     // Text-route model alias chosen by the conductor or explicit picker.
@@ -1419,21 +1502,25 @@ export async function POST(req: Request): Promise<Response> {
     : null;
   const plannedReadCalls = explicitAgentPlans
     ? planMandatedReadCalls(
-        lastText,
+        [
+          explicitAgentPlans.map((entry) => entry.task).join("\n"),
+          agentRuntimeCurrentUserTurn,
+          agentRuntimeRecentConversation,
+        ].filter(Boolean).join("\n").slice(-4_000),
         explicitAgentPlans.flatMap((entry) => entry.mandatedTools),
         sharedAgentRegistry,
       )
     : null;
   const selectedAgentDefinitions = explicitAgentPlans?.map((plan) => enabledAgents.find((agent) => agent.slug === plan.slug));
   const plannedLocalAgentTurn =
+    !publicRoute &&
     callRoute === "chat" &&
     !planMode &&
     !pipeline &&
     explicitAgentPlans !== null &&
     plannedReadCalls !== null &&
-    plannedReadCalls.length > 0 &&
     selectedAgentDefinitions?.every((agent, index) =>
-      !!agent && explicitAgentPlans[index]!.mandatedTools.length > 0 && explicitAgentPlans[index]!.mandatedTools.every((name) => agent.tools.includes(name)),
+      !!agent && explicitAgentPlans[index]!.mandatedTools.every((name) => agent.tools.includes(name)),
     );
 
   if (plannedLocalAgentTurn && explicitAgentPlans && plannedReadCalls) {
@@ -1520,7 +1607,7 @@ export async function POST(req: Request): Promise<Response> {
     });
     return createUIMessageStreamResponse({ stream: plannedStream });
   }
-  const directBrokerCall = callRoute === "chat" && !planMode && !pipeline ? directBrokerCallForSimpleTurn(lastText) : null;
+  const directBrokerCall = !publicRoute && callRoute === "chat" && !planMode && !pipeline ? directBrokerCallForSimpleTurn(lastText) : null;
   const directBrokerTool = directBrokerCall ? (policyTools as Record<string, { execute?: unknown }>)[directBrokerCall.broker] : undefined;
   if (directBrokerCall && typeof directBrokerTool?.execute === "function") {
     const directBrokerStream = createUIMessageStream<LeashUIMessage>({
@@ -1535,9 +1622,12 @@ export async function POST(req: Request): Promise<Response> {
 
         let text: string;
         try {
+          const callId = createIdGenerator({ prefix: "call", size: 12 })();
+          writer.write({ type: "tool-input-available", toolCallId: callId, toolName: directBrokerCall.broker, input: { action: directBrokerCall.action, input: directBrokerCall.input } });
           const out = await runDirectBrokerCall(directBrokerCall, policyTools as ToolSet);
           if (out === null) throw new Error(`${directBrokerCall.broker} unavailable`);
-          text = out || "(no output)";
+          writer.write({ type: "tool-output-available", toolCallId: callId, output: out.output });
+          text = out.text || "(no output)";
           await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", model: directBrokerCall.broker, summary: text.slice(0, 1200) });
           await finishGoalRun(goalRunId, "completed", text);
         } catch (e) {
@@ -1643,7 +1733,7 @@ export async function POST(req: Request): Promise<Response> {
         }
       });
       // Conductor decision — always emitted (even fast-path) so the UI has the route context.
-      writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath } });
+      writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: conductorDecision.route.alias, ...(conductorDecision.route.peerKey ? { peerKey: conductorDecision.route.peerKey } : {}), ...(conductorDecision.route.meshId ? { meshId: conductorDecision.route.meshId } : {}), reason: conductorDecision.reason, viaFastPath: conductorDecision.viaFastPath, ...(publicRoute ? { state: "selected" as const } : {}) } });
       const runNow = await getGoalRun(goalRunId);
       if (runNow) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(runNow) });
       if (activeSkills?.skills.length) {
@@ -1734,6 +1824,21 @@ export async function POST(req: Request): Promise<Response> {
         await finishGoalRun(goalRunId, req.signal.aborted ? "cancelled" : "failed", message);
         const finalRun = await getGoalRun(goalRunId);
         if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
+      }
+      if (publicRoute) {
+        for (const jobId of publicJobIds) {
+          const evidence = await publicJobEvidence(jobId);
+          if (evidence) writer.write({
+            type: "data-conductor",
+            data: {
+              tier: "public", alias: activeModel, peerKey: evidence.transportKey,
+              reason: evidence.selectionReason, viaFastPath: false,
+              jobId: evidence.jobId, providerId: evidence.providerId, state: evidence.state,
+              ...(evidence.stats ? { metrics: evidence.stats } : {}),
+              ...(evidence.error ? { error: evidence.error } : {}),
+            },
+          });
+        }
       }
     },
     onEnd: ({ messages: finalMessages }) => {

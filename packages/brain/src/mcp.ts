@@ -9,7 +9,7 @@ export const BRAIN_MCP_TOOL_GROUPS: BrainMcpToolGroup[] = [
   { id: "feed", name: "Feed", description: "Search the user's auto-written on-device daily paper (The Understory)." },
   { id: "memory", name: "Memory", description: "Save and recall typed memories about the user (preferences, facts, goals, people, routines)." },
   { id: "tasks", name: "TODOs", description: "Create, list, and update TODOs on the user's TODO list." },
-  { id: "context", name: "Context", description: "Search the user's private context graph (Apple Notes, files, memories, past chats) and read their live screen activity." },
+  { id: "context", name: "Context", description: "Search on-device text entries, memories, past chats, and live screen activity. Raw files use the Files integration." },
   { id: "photos", name: "Photos", description: "List the user's images and their on-device auto-tags." },
   { id: "image", name: "Image", description: "Generate images from text, fully on-device." },
   { id: "research", name: "Research", description: "Run a deep, multi-source WEB research run in the background (needs network)." },

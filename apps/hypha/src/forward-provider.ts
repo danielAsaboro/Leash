@@ -68,7 +68,7 @@ export function createForwardProvider(deps: ForwardProviderDeps): (req: ForwardR
     }
     deps.audit.record({ event: "note", extra: { role: "forward", phase: "provider-serve-open", id: req.id, endpoint: req.endpoint, status: res.status } });
     try {
-      if (isChat) await streamSse(req, stream, send);
+      if (isChat) await streamSse(req, stream, send, (details) => deps.audit.record({ event: "delegation", extra: { role: "forward", phase: "provider-structured-delta", id: req.id, ...details } }));
       else await relayBody(req, res.headers.get("content-type") ?? "", stream, send, sttDurationSeconds);
     } catch (e) {
       send({ id: req.id, type: "error", error: `forward-provider: stream error: ${e instanceof Error ? e.message : String(e)}` });
@@ -77,53 +77,80 @@ export function createForwardProvider(deps: ForwardProviderDeps): (req: ForwardR
 }
 
 /** Chat: parse the serve's OpenAI SSE and emit each token (delta.content) as a chunk frame. */
-async function streamSse(req: ForwardRequest, body: ReadableStream<Uint8Array>, send: (frame: ForwardFrame) => void): Promise<void> {
+export async function streamSse(req: ForwardRequest, body: ReadableStream<Uint8Array>, send: (frame: ForwardFrame) => void, onStructured?: (details: { toolCallCount: number; finishReason?: string }) => void): Promise<void> {
   const reqBody = (req.body as Record<string, unknown>) ?? {};
   const reader = body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let tokens = 0;
+  let finished = false;
+
+  const finish = (): void => {
+    if (finished) return;
+    finished = true;
+    send({ id: req.id, type: "done", stats: { tokens, usage: billableUsage(req.endpoint, reqBody, { tokens }) } });
+  };
+  const processEvent = (event: string): boolean => {
+    // SSE permits CRLF and multiple data lines. QVAC normally emits one JSON data line,
+    // but the final structured tool delta can be the last event before EOF, with no trailing
+    // blank line. Keep the parser standards-compliant so that delta is never discarded.
+    const payload = event
+      .split("\n")
+      .filter((line) => line.startsWith("data:"))
+      .map((line) => line.slice("data:".length).trimStart())
+      .join("\n")
+      .trim();
+    if (payload.length === 0) return false;
+    if (payload === "[DONE]") {
+      finish();
+      return true;
+    }
+    let frame: SseDelta;
+    try { frame = JSON.parse(payload) as SseDelta; } catch { return false; }
+    if (frame.error !== undefined) {
+      const message = typeof frame.error === "string" ? frame.error : (frame.error.message ?? "serve error");
+      send({ id: req.id, type: "error", error: `forward-provider: ${message}` });
+      finished = true;
+      return true;
+    }
+    const choice = frame.choices?.[0];
+    const token = choice?.delta?.content;
+    const toolCalls = choice?.delta?.tool_calls;
+    const finishReason = choice?.finish_reason;
+    const hasText = typeof token === "string" && token.length > 0;
+    const hasStructured = (Array.isArray(toolCalls) && toolCalls.length > 0) || (finishReason !== undefined && finishReason !== null);
+    if (hasStructured) {
+      onStructured?.({ toolCallCount: Array.isArray(toolCalls) ? toolCalls.length : 0, ...(typeof finishReason === "string" ? { finishReason } : {}) });
+      if (hasText) tokens++;
+      const delta: { content?: string; tool_calls?: unknown[]; finish_reason?: string | null } = {};
+      if (hasText) delta.content = token;
+      if (Array.isArray(toolCalls) && toolCalls.length > 0) delta.tool_calls = toolCalls;
+      if (finishReason !== undefined && finishReason !== null) delta.finish_reason = finishReason;
+      send({ id: req.id, type: "chunk", data: hasText ? token! : "", delta });
+    } else if (hasText) {
+      tokens++;
+      send({ id: req.id, type: "chunk", data: token! });
+    }
+    return false;
+  };
+
   for (;;) {
     const { value, done } = await reader.read();
-    if (done) break;
+    if (done) {
+      buffer += decoder.decode();
+      buffer = buffer.replace(/\r\n/g, "\n");
+      if (buffer.trim().length > 0) processEvent(buffer);
+      break;
+    }
     buffer += decoder.decode(value, { stream: true });
+    buffer = buffer.replace(/\r\n/g, "\n");
     const events = buffer.split("\n\n");
     buffer = events.pop() ?? "";
     for (const event of events) {
-      const dataLine = event.split("\n").find((line) => line.startsWith("data:"));
-      if (dataLine === undefined) continue;
-      const payload = dataLine.slice("data:".length).trim();
-      if (payload === "[DONE]") { send({ id: req.id, type: "done", stats: { tokens, usage: billableUsage(req.endpoint, reqBody, { tokens }) } }); return; }
-      let frame: SseDelta;
-      try { frame = JSON.parse(payload) as SseDelta; } catch { continue; }
-      if (frame.error !== undefined) {
-        const message = typeof frame.error === "string" ? frame.error : (frame.error.message ?? "serve error");
-        send({ id: req.id, type: "error", error: `forward-provider: ${message}` });
-        return;
-      }
-      const choice = frame.choices?.[0];
-      const token = choice?.delta?.content;
-      const toolCalls = choice?.delta?.tool_calls;
-      const finishReason = choice?.finish_reason;
-      const hasText = typeof token === "string" && token.length > 0;
-      const hasStructured = (Array.isArray(toolCalls) && toolCalls.length > 0) || (finishReason !== undefined && finishReason !== null);
-      if (hasStructured) {
-        // Tool-aware turn (Stage 3): forward the FULL OpenAI delta. `data` still carries the text token
-        // (empty string when this delta only has tool_calls) so legacy consumers reading `data` are unaffected.
-        if (hasText) tokens++;
-        const delta: { content?: string; tool_calls?: unknown[]; finish_reason?: string | null } = {};
-        if (hasText) delta.content = token;
-        if (Array.isArray(toolCalls) && toolCalls.length > 0) delta.tool_calls = toolCalls;
-        if (finishReason !== undefined && finishReason !== null) delta.finish_reason = finishReason;
-        send({ id: req.id, type: "chunk", data: hasText ? token! : "", delta });
-      } else if (hasText) {
-        // Plain-text token — unchanged legacy path.
-        tokens++;
-        send({ id: req.id, type: "chunk", data: token! });
-      }
+      if (processEvent(event)) return;
     }
   }
-  send({ id: req.id, type: "done", stats: { tokens, usage: billableUsage(req.endpoint, reqBody, { tokens }) } });
+  finish();
 }
 
 /** Non-chat: a JSON/text body (embeddings, transcriptions) → one chunk; a binary body (audio/speech)

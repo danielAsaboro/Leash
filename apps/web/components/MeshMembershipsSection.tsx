@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, LogOutIcon, PlusIcon, TicketIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon } from "lucide-react";
+import { ChevronRightIcon, ChevronDownIcon, GlobeIcon, LogInIcon, LogOutIcon, PlusIcon, TicketIcon, LockIcon, LayersIcon, UsersIcon, PencilIcon, RefreshCwIcon, Trash2Icon, CpuIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { fetchWithTimeout, TIMEOUT } from "../lib/http.ts";
 import { appConfirm } from "../lib/prompt.ts";
@@ -85,6 +85,7 @@ interface MeshMember {
 }
 interface ShareState { shareModels: boolean; peers: SharePeer[]; members: MeshMember[]; aliasToName: Record<string, string>; myModels: string[] }
 interface DlStatus { name: string; state: string; percentage: number }
+interface PublicComputeState { enabled: boolean; maxConcurrent: number; priceMicrosPerKiloToken: number }
 
 /** Coerce any error value (string, {message}, or other object) to a renderable string. */
 function errStr(e: unknown): string | null {
@@ -142,6 +143,27 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [publicCompute, setPublicCompute] = useState<PublicComputeState | null>(null);
+  const [publicComputeBusy, setPublicComputeBusy] = useState(false);
+  const refreshPublicCompute = useCallback(() => {
+    fetchWithTimeout("/api/leash/hypha/public-compute", {}, TIMEOUT.probe)
+      .then((r) => r.json())
+      .then((body: { settings?: PublicComputeState }) => setPublicCompute(body.settings ?? null))
+      .catch(() => setPublicCompute(null));
+  }, []);
+  useEffect(() => { refreshPublicCompute(); }, [refreshPublicCompute]);
+  const togglePublicCompute = async () => {
+    if (!publicCompute || publicComputeBusy) return;
+    setPublicComputeBusy(true);
+    try {
+      const r = await fetchWithTimeout("/api/leash/hypha/public-compute", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ enabled: !publicCompute.enabled }) });
+      const body = await r.json() as { settings?: PublicComputeState; error?: string };
+      if (!r.ok || !body.settings) throw new Error(body.error ?? `Request failed (${r.status})`);
+      setPublicCompute(body.settings);
+      toast.success(body.settings.enabled ? "Public inference serving enabled" : "Public inference serving disabled");
+    } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
+    finally { setPublicComputeBusy(false); }
+  };
   // New / Join forms (each visibility-first).
   const [newOpen, setNewOpen] = useState(false);
   const [newVis, setNewVis] = useState<MeshVisibility>("private");
@@ -476,7 +498,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
             </>
           ) : (
             <>
-              <p className="kicker mt-2" style={kicker("var(--color-muted)")}>Public mesh — no pairing, broadcast-only. Every device that enters the same shared id auto-discovers the others and gossips. Anyone with the id can join.</p>
+              <p className="kicker mt-2" style={kicker("var(--color-muted)")}>Public mesh — open discovery with optional, explicitly opted-in inference serving. Compute jobs use a separate authenticated encrypted channel and never grant private membership.</p>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 <input value={newSharedId} onChange={(e) => setNewSharedId(e.target.value)} placeholder="shared id (e.g. my-block-42)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "14rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
                 <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="label (optional)" className="border px-2 py-1" style={{ fontFamily: "var(--font-mono)", width: "10rem", borderColor: "var(--color-rule-strong)", background: "var(--color-paper)" }} />
@@ -583,11 +605,18 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                     {m.writable
                       ? metaBadge(PencilIcon, "Writable — you can manage this mesh", undefined, "var(--color-sage-deep)")
                       : metaBadge(RefreshCwIcon, "Syncing — read-only until write access syncs", undefined, "var(--color-faint)")}
+                    {m.visibility === "public" && publicCompute ? metaBadge(CpuIcon, publicCompute.enabled ? `Serving public QVAC inference · max ${publicCompute.maxConcurrent} concurrent · ${publicCompute.priceMicrosPerKiloToken}µ/ktok` : "Public inference serving is off", publicCompute.enabled ? "serve on" : "serve off", publicCompute.enabled ? "var(--color-sage-deep)" : "var(--color-faint)") : null}
                   </span>
                   <span className="h-px flex-1" style={{ background: "var(--color-rule)" }} />
-                  <IconButton title={`Invite a device to "${m.label}"`} color="var(--color-sage-deep)" disabled={busy} onClick={() => ensureExpanded(m.meshId)}>
-                    <TicketIcon size={15} aria-hidden />
-                  </IconButton>
+                  {m.visibility === "public" && publicCompute ? (
+                    <button type="button" disabled={busy || publicComputeBusy} onClick={() => void togglePublicCompute()} className="kicker px-2 py-1" style={{ border: "1px solid var(--color-rule-strong)", color: publicCompute.enabled ? "var(--color-brick)" : "var(--color-sage-deep)" }}>
+                      {publicComputeBusy ? "updating…" : publicCompute.enabled ? "stop serving" : "serve compute"}
+                    </button>
+                  ) : (
+                    <IconButton title={`Invite a device to "${m.label}"`} color="var(--color-sage-deep)" disabled={busy} onClick={() => ensureExpanded(m.meshId)}>
+                      <TicketIcon size={15} aria-hidden />
+                    </IconButton>
+                  )}
                   {m.creator ? (
                     <IconButton title={`Delete "${m.label}" — you created this mesh`} danger disabled={busy} onClick={() => void deleteMesh(m.meshId, m.label)}>
                       <Trash2Icon size={15} aria-hidden />
@@ -645,8 +674,8 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                       </ul>
                     )}
                     <div className="mt-3 flex flex-col gap-3 border-t pt-3" style={{ borderColor: "var(--color-rule)" }}>
-                      <MeshInvite meshId={m.meshId} label={m.label} />
-                      <MeshLanPairing
+                      {m.visibility === "private" ? <MeshInvite meshId={m.meshId} label={m.label} /> : <p className="text-xs" style={{ color: "var(--color-muted)" }}>Public providers are discovered from signed, expiring cell announcements. Joining or serving here does not pair devices.</p>}
+                      {m.visibility === "private" && <MeshLanPairing
                         meshId={m.meshId}
                         pairState={pairState}
                         busy={pairBusy}
@@ -654,7 +683,7 @@ export function MeshMembershipsSection({ meshes, forgotten, borrow }: { meshes: 
                         elsewhere={pairingElsewhere}
                         onStart={() => startPair(m.meshId)}
                         onAct={pairAct}
-                      />
+                      />}
                     </div>
                   </div>
                 )}

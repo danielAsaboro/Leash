@@ -30,6 +30,9 @@ export const INTERVAL_SEC = Number(process.env["LEASH_WATCH_INTERVAL_SEC"] ?? 60
 export const IDLE_SKIP_SEC = Number(process.env["LEASH_WATCH_IDLE_SKIP_SEC"] ?? 120);
 /** Temp frame path — the PNG is deleted right after each capture (no residual frames). */
 export const FRAME_PATH = process.env["LEASH_WATCH_FRAME"] ?? "/tmp/leash/frame.png";
+/** Longest frame edge sent to the VLM. A desktop Retina screenshot can exceed 4k image tokens;
+ * downsampling preserves enough UI context for activity summaries without monopolizing inference. */
+export const FRAME_MAX_PX = Number(process.env["LEASH_WATCH_FRAME_MAX_PX"] ?? 960);
 /** SOFT vision timeout — how long a tick WAITS for the VLM reply before moving on. The request is
  * never aborted (a mid-decode disconnect wedges the qvac serve); it finishes in the background and
  * ticks are skipped until it settles. */

@@ -3,8 +3,9 @@
  * visibility-first form choice into the `/api/leash/hypha/mesh` action + payload, or a
  * required-field error. No `server-only`, no Node — the card runs this in the browser.
  *
- * Mesh model: a mesh is PRIVATE (allow-listed; invite to join) or PUBLIC (broadcast-only;
- * anyone computing the same shared id meets — so "create" and "join" are the same op).
+ * Mesh model: a mesh is PRIVATE (allow-listed; invite to join) or PUBLIC (shared discovery and
+ * opted-in public-compute announcements; anyone computing the same shared id meets, so "create"
+ * and "join" are the same op). Public discovery never grants private membership.
  * Unit-tested by scripts/smoke-mesh-entry.ts.
  */
 export type MeshIntent = "new" | "join";

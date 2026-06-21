@@ -11,7 +11,7 @@ export type StoredMessage = {
   role: "user" | "assistant";
   content: string;
   image?: string;
-  telemetry?: { tokens: number; tps: number; ttftMs: number; where: "mesh" | "local"; device?: string };
+  telemetry?: { tokens: number; tps: number; ttftMs: number; where: "mesh" | "local" | "public"; device?: string; jobId?: string };
 };
 
 export type ChatRecord = { id: string; createdAt: number; updatedAt: number; title: string; messages: StoredMessage[] };

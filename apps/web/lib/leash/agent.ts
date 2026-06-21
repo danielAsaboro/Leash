@@ -70,6 +70,7 @@ export const leashCallOptionsSchema = z.object({
   suppressRunSkill: z.boolean().optional(),
   /** Quick/plain turns keep one sentinel schema instead of the full registry. */
   leanTools: z.boolean().optional(),
+  noTools: z.boolean().optional(),
   /**
    * Whether `<think>` reasoning is ON for this turn (deep text). Drives sampling per Qwen3's
    * best practices: thinking → temp 0.6 / topP 0.95; non-thinking (/no_think) → temp 0.7 / topP 0.8
@@ -125,9 +126,9 @@ function continuationOn(): boolean {
  * the per-turn mapping the route used to inline around `streamText`.
  *
  * `overrideModel` (optional): when the Conductor selected a peer route, the route passes
- * the pre-built `routedChatModel` here so `prepareCall` uses it for text lanes instead
- * of constructing a plain `chatModel(...)`. Ignored for vision/computer routes — those
- * keep their dedicated model factories.
+ * the pre-built `routedChatModel` here so `prepareCall` uses it for text or vision lanes
+ * instead of constructing a plain local model. Computer-use keeps its dedicated local
+ * driver because its action loop controls this machine.
  */
 export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, overrideModel?: LanguageModel): ToolLoopAgent<LeashCallOptions, ToolSet, LeashRuntimeContext> {
   const names = Object.keys(tools);
@@ -156,9 +157,14 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
       currentRuntime = options.runtime;
       return {
         ...settings,
-        // For text routes, prefer the Conductor's pre-built routedChatModel (peer directive)
-        // when provided; otherwise fall back to the user-chosen or default chatModel.
-        model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : (overrideModel ?? chatModel(options.route, options.model)),
+        // Text and vision may use the Conductor's peer-directed model. Vision images
+        // remain inline in the OpenAI request and Hypha's forward transport carries
+        // those bytes to the selected peer's local serve.
+        model: options.route === "vision"
+          ? (overrideModel ?? visionModel())
+          : options.route === "computer"
+            ? computerModel()
+            : (overrideModel ?? chatModel(options.route, options.model)),
         instructions: options.instructions,
         activeTools,
         toolOrder: [...activeTools].sort(),

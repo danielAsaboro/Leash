@@ -13,6 +13,17 @@ const chatId = `dedicated-hardware-${suffix}`;
 const imagePath = join(process.cwd(), "spike", "fixtures", "ocr-note.png");
 const privateMarker = `MM9-${suffix.toUpperCase()}`;
 
+interface BrokerStats {
+  served?: number;
+  overflow?: { shed?: number; availabilityRouted?: number; overflowFailures?: number };
+}
+
+async function brokerStats(): Promise<BrokerStats> {
+  const response = await fetch("http://127.0.0.1:11436/__broker/stats");
+  assert.equal(response.ok, true, "Leash broker must be healthy for the distributed orchestration showcase");
+  return response.json() as Promise<BrokerStats>;
+}
+
 async function speakAndTranscribe(text: string): Promise<{ text: string; wavBytes: number; speechMs: number; transcriptionMs: number }> {
   const speechStarted = Date.now();
   const speech = await fetch(`${WEB_BASE}/api/leash/speak`, {
@@ -36,6 +47,7 @@ async function speakAndTranscribe(text: string): Promise<{ text: string; wavByte
 }
 
 const imageBytes = await readFile(imagePath);
+const brokerBefore = await brokerStats();
 const imageDataUrl = `data:image/png;base64,${imageBytes.toString("base64")}`;
 const vision = await postChat({
   chatId,
@@ -93,6 +105,14 @@ assert.match(finalText, /QV-2026-0601/i, "parent synthesis omitted the batch id"
 assert.match(finalText, /22/, "parent synthesis omitted the threshold");
 assert.match(finalText, /escalat/i, "parent synthesis omitted the escalation decision");
 assert.match(finalText, new RegExp(privateMarker, "i"), "parent synthesis omitted the private marker");
+const brokerAfter = await brokerStats();
+const peerShedDelta = (brokerAfter.overflow?.shed ?? 0) - (brokerBefore.overflow?.shed ?? 0);
+assert.ok(peerShedDelta >= 1, "multi-agent showcase did not distribute a concurrent specialist to a warm mesh peer");
+assert.equal(
+  (brokerAfter.overflow?.overflowFailures ?? 0) - (brokerBefore.overflow?.overflowFailures ?? 0),
+  0,
+  "mesh overflow failed during the distributed orchestration showcase",
+);
 
 const report = {
   schemaVersion: 1,
@@ -110,6 +130,7 @@ const report = {
     tools: finalTurn.tools,
     agentContextEvidence: finalTurn.agentContextEvidence,
     durationMs: finalTurn.durationMs,
+    broker: { before: brokerBefore, after: brokerAfter, peerShedDelta },
   },
   finalSynthesis: finalText,
 };

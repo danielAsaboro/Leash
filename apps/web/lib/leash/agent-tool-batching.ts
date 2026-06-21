@@ -2,7 +2,34 @@ const MULTI_READ_INTENT_RE =
   /\b(?:all|both|each|compare|cross-check|crosscheck|together|in parallel|independent|simultaneously)\b/i;
 const ORDERED_FLOW_RE = /\b(?:first|then|after|before|next|followed by|using (?:its|the) (?:result|output))\b/i;
 
-export type InitialToolPolicy = "auto" | "required" | { type: "tool"; toolName: string };
+export type InitialToolPolicy = "auto" | "none" | "required" | { type: "tool"; toolName: string };
+
+const TOOL_EVIDENCE_INTENT_RE =
+  /\b(?:search|find|look\s*up|retrieve|read|inspect|check|verify|list|current|latest|today|screen|context|memory|note|file|task|record|evidence|quote|source|research|run|execute|calculate)\b/i;
+
+type CompletedAgentStep = {
+  toolCalls?: ReadonlyArray<{ toolName?: string; input?: unknown; args?: unknown }>;
+  toolResults?: ReadonlyArray<{ output?: unknown }>;
+};
+
+function structuredToolError(value: unknown): boolean {
+  return !!value && typeof value === "object" && (value as { isError?: unknown }).isError === true;
+}
+
+/** Stop an autonomous delegate from paying for the same failed or duplicate tool call repeatedly. */
+export function shouldForceSubagentSynthesis(steps: ReadonlyArray<CompletedAgentStep>): boolean {
+  if (steps.some((step) => (step.toolResults ?? []).some((result) => structuredToolError(result.output)))) return true;
+
+  const seen = new Set<string>();
+  for (const step of steps) {
+    for (const call of step.toolCalls ?? []) {
+      const signature = JSON.stringify([call.toolName ?? "", call.input ?? call.args ?? null]);
+      if (seen.has(signature)) return true;
+      seen.add(signature);
+    }
+  }
+  return false;
+}
 
 function normalizedWords(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -50,7 +77,16 @@ export function initialToolPolicyForTask(task: string, toolNames: string[]): Ini
   // tools with no ordering language form an independent batch.
   if (!ORDERED_FLOW_RE.test(task) && mentionedTools(task, toolNames).length >= 2) return "required";
 
-  return MULTI_READ_INTENT_RE.test(task) ? "required" : "auto";
+  if (MULTI_READ_INTENT_RE.test(task)) return "required";
+  return TOOL_EVIDENCE_INTENT_RE.test(task) ? "auto" : "none";
+}
+
+/**
+ * Tool schemas actually exposed to a delegated task. QVAC models may emit calls
+ * even with `toolChoice: "none"`, so reasoning-only work must receive zero schemas.
+ */
+export function toolNamesForTask(task: string, toolNames: string[]): string[] {
+  return initialToolPolicyForTask(task, toolNames) === "none" ? [] : toolNames;
 }
 
 /** Concrete batching instruction for tools explicitly named in an independent task. */
@@ -69,8 +105,8 @@ export function toolPolicyForStep(initial: InitialToolPolicy, stepNumber: number
 
 /**
  * Require an initial tool step only when the delegated task clearly asks for
- * a multi-source operation and the agent has several independent capabilities.
- * The model still chooses the calls; later steps return to automatic selection.
+ * a multi-source operation. Pure reasoning stays tool-free; evidence work keeps
+ * automatic selection; later independent-batch steps become synthesis-only.
  */
 export function shouldRequireInitialToolBatch(task: string, toolNames: string[]): boolean {
   // One tool may still need several independent calls with different inputs

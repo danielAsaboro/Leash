@@ -15,9 +15,9 @@ and delete, see the [Mesh](/platforms/mesh) guide.
 One flat mesh forces every device into the same trust circle. Membership is instead organized
 along two axes:
 
-- **Visibility** — `private` (your own encrypted circle) or `public` (a broadcast-only cell).
-- **Reach** — `local` (compute-bearing peers you route work to) versus broadcast cells that
-  carry no compute and no firewall.
+- **Visibility** — `private` (your own encrypted circle) or `public` (an untrusted discovery cell).
+- **Reach** — `local` (trusted compute-bearing peers) versus public providers selected only for an
+  explicit shareable job over their separate authenticated transport.
 
 A device keeps one **primary** mesh (tier 0, private, local) that anchors its identity, and
 any number of **secondary** meshes (higher tiers) it has joined. Routing respects visibility:

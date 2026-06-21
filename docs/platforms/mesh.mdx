@@ -103,10 +103,11 @@ See [The mesh and membership](/explanation/mesh-and-membership) for *why* leave/
 
 A **public** mesh is a leaderless gossip **cell**, not a paired circle. It lives on its own
 per-cell-seeded store (so the cell identity is unlinkable to your private mesh), discovers peer
-feeds over mDNS, and is **broadcast-only** — it carries no compute and can never widen your
-delegated-inference firewall. There's no invite: any device that computes the same cell id meets
-on the same topic. Join with `POST /mesh/public/join {cellId}`, and **Leave** drops it like any
-other membership.
+feeds over mDNS, and never widens your private delegated-inference firewall. It can carry signed,
+short-lived public-provider advertisements. A shareable public job then uses a separate authenticated
+and encrypted transport; the provider does not become a private member and receives only the explicit
+job payload. There's no invite: any device that computes the same cell id meets on the same topic.
+Join with `POST /mesh/public/join {cellId}`, and **Leave** drops it like any other membership.
 
 ## DHT identity
 

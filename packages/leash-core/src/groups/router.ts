@@ -14,8 +14,8 @@
  * Deviations from the brief's assumed PeerRow:
  *   - NO isLocal flag — the local device is represented in the top-level `self` key, not
  *     in the peers array (warm-pool.peers() explicitly filters selfKey out). The `self`
- *     object only carries { providerKey, wallet }, no model list. We therefore call
- *     GET /health for the local device's warmAliases for get_device_capability.
+ *     object only carries { providerKey, wallet }, no model list. Local inventory therefore
+ *     comes from QVAC `/v1/models`; Hypha `/health.warmAliases` is REMOTE delegated warmth.
  *   - models is string[] (alias strings only), NOT { alias, modelSrc }[]. modelSrc is
  *     internal to the warm pool and is NOT serialised into /peers. We set modelSrc to
  *     undefined and omit it from RouteOption (the field is optional in types.ts).
@@ -30,13 +30,14 @@ import type { RouteOption, Sensitivity, CapabilityBar, Modality, ParamClass, Spe
 import { defineTool, type ToolGroup } from "./types.ts";
 
 const HYPHA_URL = process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11437";
+const QVAC_OPENAI_URL = (process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1").replace(/\/+$/, "");
 const NO_SOURCES: never[] = [];
 
 /**
  * One row of hypha's /peers response. Field names match the real PeerView type in
  * apps/hypha/src/warm-pool.ts, with meshId/meshLabel appended by mesh-router.peers().
  */
-interface PeerRow {
+export interface PeerRow {
   /** Full device UUID (from DeviceCapability). */
   deviceId: string;
   displayName: string;
@@ -82,11 +83,12 @@ interface PeersResponse {
  * Top-level shape of GET /health — used by get_device_capability to learn the local
  * device's warmAliases (the local list is not in /peers).
  */
-interface HealthResponse {
-  ok: boolean;
-  port?: number;
-  inflight?: number;
-  warmAliases?: string[];
+interface LocalModel {
+  id?: string;
+}
+
+interface BrokerStats {
+  aliases?: Record<string, { busy?: boolean; queued?: number }>;
 }
 
 async function fetchPeers(): Promise<PeersResponse | null> {
@@ -99,11 +101,32 @@ async function fetchPeers(): Promise<PeersResponse | null> {
   }
 }
 
-async function fetchHealth(): Promise<HealthResponse | null> {
+/** QVAC is the only source of truth for models served by THIS device. When chat points at
+ * the broker, also read its per-alias queue depth so ranking sees real local saturation. */
+async function fetchLocalOptions(): Promise<RouteOption[] | null> {
   try {
-    const res = await fetch(`${HYPHA_URL}/health`, { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) return null;
-    return (await res.json()) as HealthResponse;
+    const modelsRes = await fetch(`${QVAC_OPENAI_URL}/models`, { signal: AbortSignal.timeout(2000) });
+    if (!modelsRes.ok) return null;
+    const models = (await modelsRes.json()) as { data?: LocalModel[] };
+    let aliases: BrokerStats["aliases"] = {};
+    try {
+      const brokerRoot = QVAC_OPENAI_URL.replace(/\/v1$/, "");
+      const statsRes = await fetch(`${brokerRoot}/__broker/stats`, { signal: AbortSignal.timeout(750) });
+      if (statsRes.ok) aliases = ((await statsRes.json()) as BrokerStats).aliases ?? {};
+    } catch {
+      /* direct serve or broker stats unavailable: live inventory still remains authoritative */
+    }
+    return (models.data ?? []).flatMap((model) => {
+      if (!model.id) return [];
+      const load = aliases?.[model.id];
+      return [{
+        tier: "device" as const,
+        alias: model.id,
+        tags: tagsForAlias(model.id),
+        pricePerKiloToken: 0,
+        inflight: Number(Boolean(load?.busy)) + (load?.queued ?? 0),
+      }];
+    });
   } catch {
     return null;
   }
@@ -117,10 +140,15 @@ async function fetchHealth(): Promise<HealthResponse | null> {
  * 16-char `peerId` prefix or a deviceId slice only for pre-fix hypha builds that don't
  * yet emit `providerKey` — in those cases pinning will silently fail to match, but at
  * least the RouteOption is still usable for display/ranking. */
-function rowToOptions(row: PeerRow): RouteOption[] {
-  const peerKey = row.providerKey ?? row.peerId ?? row.deviceId.slice(0, 16);
+export function rowToOptions(row: PeerRow): RouteOption[] {
+  // Route pins require the FULL provider key. Stale or legacy/truncated rows are display data,
+  // not executable routes, and must never win a ranking decision.
+  if (!row.live || !row.providerKey) return [];
+  const peerKey = row.providerKey;
   const tier = row.visibility === "public" ? "public" : "private";
   const pricePerKiloToken = tier === "private" ? 0 : (row.pricePerKiloToken ?? 0);
+  // `borrowable:false` only disables SDK loadDelegated. Hypha's forward transport can still
+  // execute that alias on the peer's resident serve (required for vision), so retain it here.
   return row.models.map((alias) => ({
     tier,
     alias,
@@ -133,17 +161,6 @@ function rowToOptions(row: PeerRow): RouteOption[] {
   }));
 }
 
-/** Build RouteOptions for the local device from its warm aliases (from /health). */
-function localAliasesToOptions(warmAliases: string[], inflight: number): RouteOption[] {
-  return warmAliases.map((alias) => ({
-    tier: "device" as const,
-    alias,
-    tags: tagsForAlias(alias),
-    pricePerKiloToken: 0,
-    inflight,
-  }));
-}
-
 export const routerGroup: ToolGroup = {
   id: "router",
   label: "Router",
@@ -152,24 +169,21 @@ export const routerGroup: ToolGroup = {
     defineTool({
       name: "get_device_capability",
       description:
-        "Capabilities of THIS device: in-flight load count and the model aliases it currently serves (warm aliases from hypha GET /health). Does NOT report RAM — /health carries no RAM field. Call before deciding whether the local device can handle a turn.",
+        "Capabilities of THIS device: live model aliases from QVAC /v1/models and their broker queue load. Call before deciding whether the local device can handle a turn.",
       inputSchema: {},
       handler: async () => {
-        const health = await fetchHealth();
-        if (!health?.ok) {
+        const opts = await fetchLocalOptions();
+        if (!opts) {
           return {
-            text: "Local device capability unavailable (hypha not reachable). Treat as: serves the default chat model only.",
+            text: "Local device capability unavailable (QVAC model serve not reachable).",
             sources: NO_SOURCES,
           };
         }
-        const warmAliases = health.warmAliases ?? [];
-        const inflight = health.inflight ?? 0;
-        const opts = localAliasesToOptions(warmAliases, inflight);
         const lines = opts.map(
           (o) => `${o.alias} [${o.tags.modality}/${o.tags.paramClass}/${o.tags.specialist}] inflight ${o.inflight}`,
         );
         return {
-          text: `This device · inflight ${inflight}\nLocal models:\n${lines.join("\n") || "(none — model serve not running)"}`,
+          text: `This device · ${opts.length} live model(s)\nLocal models:\n${lines.join("\n") || "(none loaded)"}`,
           sources: NO_SOURCES,
         };
       },
@@ -183,7 +197,7 @@ export const routerGroup: ToolGroup = {
       handler: async () => {
         const data = await fetchPeers();
         if (!data) return { text: "No mesh peers reachable (hypha offline). All routing stays local.", sources: NO_SOURCES };
-        const peers = data.peers ?? [];
+        const peers = (data.peers ?? []).filter((p) => p.visibility !== "public");
         if (peers.length === 0) return { text: "No mesh peers reachable. All routing stays local.", sources: NO_SOURCES };
         const opts = peers.flatMap((p) => rowToOptions(p));
         if (opts.length === 0) return { text: "Mesh peers visible but none serves any models.", sources: NO_SOURCES };
@@ -198,7 +212,7 @@ export const routerGroup: ToolGroup = {
     defineTool({
       name: "rank_routes",
       description:
-        "Given a capability bar (modality, minimum size, optional specialist) and sensitivity, return the ranked routes (best first) across this device, private mesh peers, and public mesh peers. Sensitive turns are hard-gated away from the public tier before cost is considered.",
+        "Given a capability bar (modality, minimum size, optional specialist) and sensitivity, return the ranked executable routes (best first) across this device and paired private-mesh peers. Public gossip cells do not advertise compute routes.",
       inputSchema: {
         modality: z.enum(["text", "vision", "audio"]).describe("Required modality for the turn."),
         minParamClass: z.enum(["tiny", "small", "mid", "large"]).describe("Smallest model size that can do the turn well."),
@@ -206,14 +220,13 @@ export const routerGroup: ToolGroup = {
           .enum(["general", "health", "vision", "computer"])
           .optional()
           .describe("Required specialist, if any."),
-        sensitivity: z.enum(["private", "shareable"]).describe("'private' keeps the turn off the public tier."),
+        sensitivity: z.enum(["private", "shareable"]).describe("Policy label; the shipped runtime executes both only on local or paired private routes."),
       },
       handler: async ({ modality, minParamClass, specialist, sensitivity }) => {
         // Gather local + remote options in parallel.
-        const [health, peersData] = await Promise.all([fetchHealth(), fetchPeers()]);
+        const [local, peersData] = await Promise.all([fetchLocalOptions(), fetchPeers()]);
 
-        const localInflight = health?.inflight ?? 0;
-        const localOpts = localAliasesToOptions(health?.warmAliases ?? [], localInflight);
+        const localOpts = local ?? [];
         const remoteOpts = (peersData?.peers ?? []).flatMap((p) => rowToOptions(p));
         const options: RouteOption[] = [...localOpts, ...remoteOpts];
 
@@ -226,7 +239,7 @@ export const routerGroup: ToolGroup = {
 
         if (ranked.length === 0) {
           return {
-            text: "ROUTE: none (no device, private mesh, or allowed public mesh route cleared the bar)",
+            text: "ROUTE: none (no local or paired private-mesh route cleared the bar)",
             sources: NO_SOURCES,
             route: null,
           };

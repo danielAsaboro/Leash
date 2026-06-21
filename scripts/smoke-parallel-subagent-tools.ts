@@ -51,9 +51,9 @@ const initialToolPolicy = initialToolPolicyForTask(task, Object.keys(tools));
 const requireInitialToolBatch = shouldRequireInitialToolBatch(task, Object.keys(tools));
 assert.equal(requireInitialToolBatch, true, "multi-source read task must require an initial tool batch");
 assert.equal(
-  shouldRequireInitialToolBatch("Give a short general summary.", Object.keys(tools)),
-  false,
-  "ordinary delegated work must retain automatic tool selection",
+  initialToolPolicyForTask("Give a short general summary.", Object.keys(tools)),
+  "none",
+  "ordinary delegated reasoning must not expose irrelevant tools",
 );
 assert.deepEqual(
   initialToolPolicyForTask(

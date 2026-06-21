@@ -35,8 +35,9 @@ heavier work on the right peer across your mesh instead of collapsing to a cloud
   local context on hardware the user owns.
 - **Reasoning scales past one device.** Heavy turns can run on a stronger peer over an encrypted
   mesh, while the user still experiences one assistant.
-- **Trust tiers are built into the runtime.** On a **private mesh**, your own devices delegate for
-  free. On a **public mesh**, outside providers can expose compute free or paid.
+- **Trust tiers are explicit.** Your paired **private mesh** delegates for free. Unpaired,
+  zero-price public providers are selected only for shareable jobs over a separate authenticated
+  transport. Paid public settlement is tested separately and is not claimed as a live paid route.
 - **It adapts locally.** A nightly QVAC Fabric LoRA loop turns user corrections into a personal
   adapter on-device.
 - **Health is the proof case, not the category.** MedPsy health-record RAG demonstrates why a
@@ -48,6 +49,10 @@ heavier work on the right peer across your mesh instead of collapsing to a cloud
 - **Skills + plugins + delegates** so the main assistant can route or hand off focused work.
 - **Encrypted P2P mesh delegation** with CRDT context sync and optional metered settlement.
 - **A real mobile client** on iPhone 12 Pro Max with on-device chat and voice/live-call.
+- **Physical public-compute clients** on iPad and Android, each streaming a real Pro-hosted QVAC
+  answer with the selected provider, route, job id, TTFT, throughput, and LAN evidence visible.
+- **Five installable capability packs** exposing 14 skills, 11 agents, five MCP servers, and 14
+  executable tools; the normal chat path selected and ran four of those workflows end to end.
 - **Multimodal local paths** for chat, embeddings/RAG, vision, OCR, STT, TTS, and image generation.
 - **Proactive behavior** through the heartbeat/feed loop, not just reactive chat.
 - **Structured audit evidence** in committed JSONL logs and reproducible proof scripts.
@@ -56,7 +61,10 @@ heavier work on the right peer across your mesh instead of collapsing to a cloud
 
 - **Inference:** 70.6 tok/s on Llama 3.2 1B; 113.7 / 74.7 / 24.1 tok/s across 600M / 1B / 4B chat models
 - **RAG retrieval:** ~23 ms
-- **Encrypted delegated compute:** 45.4 tok/s on the peer GPU, TTFT 257 ms, 1.27 s round-trip
+- **Public delegated compute:** 8/8 sequential jobs; 1,013/1,047 ms p50/p95 total latency,
+  140/312 ms requester TTFT, 39.56/39.85 tok/s, and 24,891 MB peak provider-system RAM
+- **Public multi-tool chat:** remote QVAC emitted two structured calls in one normal chat turn;
+  Leash executed `public_calculate` and `public_convert_units`, then remotely synthesized the answer
 - **On-device LoRA:** 152.7 s fine-tune, 20 MB adapter, observable behavior change
 
 ## Trust, safety, and honesty

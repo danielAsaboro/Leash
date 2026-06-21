@@ -77,6 +77,12 @@ try {
   const r7 = routeDelegation({ alias: "chat" }, [homeA, homeB]);
   expect("same-tier tiebreak prefers the lower-inflight peer", isRouteHit(r7) && r7.meshId === "b");
 
+  // 8. A hard pin never overrides privacy: private→public still fails closed.
+  const r8 = routeDelegation({ alias: "chat", pinMeshId: "cell" }, [warmPublic]);
+  expect("a private request cannot pin through to a public mesh", !isRouteHit(r8) && r8.reason === "no-eligible-mesh");
+  const r9 = routeDelegation({ alias: "chat", sensitivity: "shareable", pinMeshId: "cell" }, [warmPublic]);
+  expect("an explicitly shareable request may pin to a public mesh", isRouteHit(r9) && r9.meshId === "cell");
+
   console.log("\n🟢 PASS — union firewall + delegation ladder + eligibility cap all hold");
 } catch (err) {
   console.error("\n🔴 FAIL:", err);

@@ -363,6 +363,21 @@ async function ensureBuiltinDaemon(entry: McpServerEntry): Promise<void> {
   } catch {
     /* already running, or the daemon overlay is still downloading — the next reconcile retries */
   }
+  // startService returns as soon as the child is spawned. A cold chat used to race straight into
+  // createMCPClient while the shared tools daemon was still binding its port, poisoning every
+  // built-in with a 30s failure cache. Wait for the daemon's declared health probe instead.
+  if (builtin.healthUrl) {
+    const deadline = Date.now() + CONNECT_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      try {
+        const response = await fetch(builtin.healthUrl, { signal: AbortSignal.timeout(500), cache: "no-store" });
+        if (response.ok) return;
+      } catch {
+        /* still starting */
+      }
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
 }
 
 /** Reconcile live connections against the store snapshot (serialized — one at a time). */

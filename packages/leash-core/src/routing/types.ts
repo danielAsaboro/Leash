@@ -7,7 +7,7 @@ export type ParamClass = "tiny" | "small" | "mid" | "large" | "unknown";
 export type Specialist = "general" | "health" | "vision" | "ocr" | "computer";
 /** Matches apps/hypha mesh-router: "private" = keep in-mesh (sensitive); "shareable" = public OK. */
 export type Sensitivity = "private" | "shareable";
-/** "public" is the documented extension seam — the sensitivity gate excludes it; not built this round. */
+/** Execution tier. Public routes are signed, expiring, opted-in QVAC provider advertisements. */
 export type Tier = "device" | "private" | "public";
 
 export interface CapabilityTags {

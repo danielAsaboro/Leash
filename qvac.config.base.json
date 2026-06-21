@@ -10,7 +10,7 @@
         "default": true,
         "config": {
           "tools": true,
-          "toolsMode": "static",
+          "toolsMode": "dynamic",
           "ctx_size": 32768
         }
       },

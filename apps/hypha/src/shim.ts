@@ -42,6 +42,8 @@ import { descriptorFor } from "./catalog.ts";
 import { flattenContent, parseDataUrlImage, type ContentPart } from "./chat-attachments.ts";
 import { HYPHA_TTFB_MS, HYPHA_ECONOMY_TEST_HOOKS, HYPHA_FORWARD_METERED } from "./config.ts";
 import { meshBus, MESH_EVENT } from "./mesh-events.ts";
+import type { PublicComputeMarket, PublicComputeSettings } from "./public-compute-market.ts";
+import type { PublicProviderCandidate } from "@mycelium/mesh";
 
 export interface Inflight {
   inc(): void;
@@ -113,7 +115,7 @@ export interface MeshControl {
   inviteToMesh(meshId: string): Promise<{ ok: boolean; invite?: string; sid?: string; uri?: string; error?: string }>;
   /** Join an existing mesh as a NEW membership via a blind invite. Returns the new local meshId. */
   joinMesh(invite: string, label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
-  /** Join a public, discoverable cell (no pairing) by its id — broadcast-only gossip (spec §9). */
+  /** Join a public, discoverable cell (no pairing) by its id for adverts and authenticated jobs. */
   joinPublicCell(cellId: string, label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
   /** Delete a mesh THIS device founded (creator-gated; the primary mesh is never deletable). */
   deleteMesh(meshId: string): Promise<{ ok: boolean; error?: string }>;
@@ -291,15 +293,53 @@ async function streamForwardChat(
       const t0 = Date.now();
       let tokens = 0;
       let full = "";
+      let providerFinished = false;
+      let providerFinishReason: string | null = null;
+      const toolCalls = new Map<number, { index: number; id?: string; type?: string; function?: { name?: string; arguments?: string } }>();
       try {
-        const gen = forward.forward(peerKey, { id: args.id, endpoint: "/v1/chat/completions", body: args.body });
+        const gen = forward.forwardFrames(peerKey, { id: args.id, endpoint: "/v1/chat/completions", body: args.body });
         let next = await gen.next();
         while (next.done !== true) {
-          tokens++;
-          full += next.value;
+          const frame = next.value;
+          if (frame.data) {
+            tokens++;
+            full += frame.data;
+          }
+          if (frame.delta?.tool_calls !== undefined) {
+            for (const raw of frame.delta.tool_calls) {
+              if (!raw || typeof raw !== "object") continue;
+              const part = raw as { index?: unknown; id?: unknown; type?: unknown; function?: { name?: unknown; arguments?: unknown } };
+              const index = typeof part.index === "number" ? part.index : 0;
+              const previous = toolCalls.get(index) ?? { index };
+              const next = {
+                ...previous,
+                ...(typeof part.id === "string" ? { id: part.id } : {}),
+                ...(typeof part.type === "string" ? { type: part.type } : {}),
+                function: {
+                  ...(previous.function ?? {}),
+                  ...(typeof part.function?.name === "string" ? { name: (previous.function?.name ?? "") + part.function.name } : {}),
+                  ...(typeof part.function?.arguments === "string" ? { arguments: (previous.function?.arguments ?? "") + part.function.arguments } : {}),
+                },
+              };
+              toolCalls.set(index, next);
+            }
+          }
+          if (frame.delta?.finish_reason !== undefined && frame.delta.finish_reason !== null) {
+            providerFinished = true;
+            providerFinishReason = frame.delta.finish_reason;
+          }
           if (args.stream) {
             if (!committed && clientOpen) writeHead();
-            if (clientOpen) res.write(sseChunk(args.id, args.alias, args.created, { content: next.value }, null));
+            if (clientOpen) {
+              const finish = frame.delta?.finish_reason ?? null;
+              const delta = frame.delta
+                ? {
+                    ...(frame.delta.content !== undefined ? { content: frame.delta.content } : {}),
+                    ...(frame.delta.tool_calls !== undefined ? { tool_calls: frame.delta.tool_calls } : {}),
+                  }
+                : { content: frame.data };
+              res.write(sseChunk(args.id, args.alias, args.created, delta, finish));
+            }
           }
           if (!clientOpen) {
             // Client gone mid-stream — cancel the provider's forwarded decode (it aborts its local
@@ -318,13 +358,28 @@ async function streamForwardChat(
         if (!clientOpen) return usage;
         if (args.stream) {
           if (!committed) writeHead();
-          res.write(sseChunk(args.id, args.alias, args.created, {}, "stop"));
+          // The provider's terminal chunk is authoritative. Appending a second
+          // `stop` after `tool_calls` makes OpenAI-compatible clients finalize
+          // the same generation twice and can discard/invalidates tool input.
+          if (!providerFinished) res.write(sseChunk(args.id, args.alias, args.created, {}, "stop"));
           res.write("data: [DONE]\n\n");
           res.end();
         } else {
           committed = true;
           res.writeHead(200, { "content-type": "application/json" });
-          res.end(JSON.stringify({ id: args.id, object: "chat.completion", created: args.created, model: args.alias, choices: [{ index: 0, message: { role: "assistant", content: full }, finish_reason: "stop" }] }));
+          const calls = [...toolCalls.values()].sort((a, b) => a.index - b.index);
+          const message = {
+            role: "assistant",
+            content: full,
+            ...(calls.length > 0 ? { tool_calls: calls } : {}),
+          };
+          res.end(JSON.stringify({
+            id: args.id,
+            object: "chat.completion",
+            created: args.created,
+            model: args.alias,
+            choices: [{ index: 0, message, finish_reason: providerFinishReason ?? (calls.length > 0 ? "tool_calls" : "stop") }],
+          }));
         }
         return usage;
       } catch (err) {
@@ -344,6 +399,93 @@ async function streamForwardChat(
   } finally {
     inflight.dec();
   }
+}
+
+/** Public compute is deliberately separate from the paired forward client. The selected advert is
+ * authenticated again by the Noise key on connect, and this function never falls back to private or
+ * local execution after a public route has been committed. */
+async function streamPublicChat(
+  res: http.ServerResponse,
+  market: PublicComputeMarket,
+  winner: PublicProviderCandidate,
+  args: { id: string; alias: string; created: number; stream: boolean; body: Record<string, unknown>; discoveryMs: number; probeMs: number },
+  inflight: Inflight,
+  audit?: AuditLog,
+): Promise<void> {
+  inflight.inc();
+  let open = true;
+  const jobId = randomUUID();
+  let committed = false;
+  let settled = false;
+  const selectedAt = Date.now();
+  market.recordJobEvidence({ jobId, providerId: winner.advert.providerId, transportKey: winner.advert.transportKey, selectionReason: winner.reason, state: "selected", selectedAt });
+  res.on("close", () => {
+    open = false;
+    if (!settled) market.client.cancel(winner.advert, jobId);
+    const prior = market.jobEvidence(jobId);
+    if (prior && prior.state !== "succeeded" && prior.state !== "failed") market.recordJobEvidence({ ...prior, state: "cancelled", completedAt: Date.now(), error: "requester disconnected" });
+  });
+  const head = (): void => {
+    if (committed || !open) return;
+    res.writeHead(200, {
+      "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive",
+      "x-leash-route": "public", "x-leash-job-id": jobId, "x-leash-provider": winner.advert.providerId,
+    });
+    res.write(sseChunk(args.id, args.alias, args.created, { role: "assistant" }, null));
+    committed = true;
+  };
+  let tokens = 0, text = "", finish: string | null = null;
+  const toolCalls = new Map<number, { index: number; id?: string; type?: string; function?: { name?: string; arguments?: string } }>();
+  try {
+    const gen = market.client.forwardFrames(winner.advert, args.body, { jobId });
+    let next = await gen.next();
+    while (!next.done) {
+      const frame = next.value;
+      const prior = market.jobEvidence(jobId);
+      if (prior?.state === "selected") market.recordJobEvidence({ ...prior, state: "streaming" });
+      if (frame.data) { tokens++; text += frame.data; }
+      for (const raw of frame.delta?.tool_calls ?? []) {
+        if (!raw || typeof raw !== "object") continue;
+        const part = raw as { index?: unknown; id?: unknown; type?: unknown; function?: { name?: unknown; arguments?: unknown } };
+        const index = typeof part.index === "number" ? part.index : 0;
+        const prior = toolCalls.get(index) ?? { index };
+        toolCalls.set(index, { ...prior, ...(typeof part.id === "string" ? { id: part.id } : {}), ...(typeof part.type === "string" ? { type: part.type } : {}), function: { ...(prior.function ?? {}), ...(typeof part.function?.name === "string" ? { name: (prior.function?.name ?? "") + part.function.name } : {}), ...(typeof part.function?.arguments === "string" ? { arguments: (prior.function?.arguments ?? "") + part.function.arguments } : {}) } });
+      }
+      if (frame.delta?.finish_reason) finish = frame.delta.finish_reason;
+      if (args.stream) {
+        head();
+        if (open) res.write(sseChunk(args.id, args.alias, args.created, frame.delta ? { ...(frame.delta.content !== undefined ? { content: frame.delta.content } : {}), ...(frame.delta.tool_calls !== undefined ? { tool_calls: frame.delta.tool_calls } : {}) } : { content: frame.data }, frame.delta?.finish_reason ?? null));
+      }
+      if (!open) { await gen.return({}).catch(() => undefined); return; }
+      next = await gen.next();
+    }
+    const stats: Record<string, unknown> = { ...(next.value ?? {}), discoveryMs: args.discoveryMs, probeMs: args.probeMs };
+    settled = true;
+    market.recordJobEvidence({ jobId, providerId: winner.advert.providerId, transportKey: winner.advert.transportKey, selectionReason: winner.reason, state: "succeeded", selectedAt, completedAt: Date.now(), stats });
+    audit?.record({ event: "delegation", modelId: args.alias, tokens, ttftMs: Number(stats["requesterTtftMs"] ?? 0), tokensPerSecond: Number(stats["tokensPerSecond"] ?? 0), durationMs: Number(stats["requesterTotalMs"] ?? 0), extra: { role: "public-consumer", phase: "product-stream-done", jobId, providerId: winner.advert.providerId, selectionReason: winner.reason, ...stats } });
+    meshBus.record({ kind: "done", phase: "public-compute-done", peer: winner.advert.providerId.slice(0, 16), alias: args.alias, tokens, ms: Number(stats["requesterTotalMs"] ?? 0) });
+    if (args.stream) { head(); if (!finish) res.write(sseChunk(args.id, args.alias, args.created, {}, toolCalls.size ? "tool_calls" : "stop")); res.write("data: [DONE]\n\n"); res.end(); }
+    else {
+      const calls = [...toolCalls.values()].sort((a, b) => a.index - b.index);
+      res.writeHead(200, { "content-type": "application/json", "x-leash-route": "public", "x-leash-job-id": jobId, "x-leash-provider": winner.advert.providerId });
+      res.end(JSON.stringify({ id: args.id, object: "chat.completion", created: args.created, model: args.alias, choices: [{ index: 0, message: { role: "assistant", content: text, ...(calls.length ? { tool_calls: calls } : {}) }, finish_reason: finish ?? (calls.length ? "tool_calls" : "stop") }], leash_routing: { route: "public", jobId, providerId: winner.advert.providerId, reason: winner.reason, ...stats } }));
+    }
+  } catch (err) {
+    settled = true;
+    const message = err instanceof Error ? err.message : String(err);
+    const cancelled = !open;
+    const evidenceError = cancelled ? "requester disconnected" : message;
+    market.recordJobEvidence({ jobId, providerId: winner.advert.providerId, transportKey: winner.advert.transportKey, selectionReason: winner.reason, state: cancelled ? "cancelled" : "failed", selectedAt, completedAt: Date.now(), error: evidenceError });
+    audit?.record({ event: "delegation", extra: { role: "public-consumer", phase: cancelled ? "product-stream-cancelled" : "product-stream-failed", jobId, providerId: winner.advert.providerId, error: evidenceError } });
+    meshBus.record({ kind: "failed", phase: cancelled ? "public-compute-cancelled" : "public-compute-failed", peer: winner.advert.providerId.slice(0, 16), alias: args.alias, error: evidenceError });
+    if (!committed) return jsonError(res, 502, message, message.split(":", 1)[0] || "inference_failure");
+    if (open) { res.write(`data: ${JSON.stringify({ error: { message, code: "public_compute_failed", jobId } })}\n\n`); res.end(); }
+  } finally { inflight.dec(); }
+}
+
+function jsonError(res: http.ServerResponse, status: number, message: string, code: string): void {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify({ error: { message, code } }));
 }
 
 /** Forward a non-chat request whose answer is a single JSON body (embeddings) and relay it back, trying
@@ -485,6 +627,8 @@ export interface ShimDeps {
   /** Forward transport for non-delegable modalities (vision today; embed/stt/tts in B2), or null when
    *  HYPHA_FORWARD is off → vision falls through to the (image-broken cross-machine) delegation path. */
   forward?: ForwardControlClient | null;
+  /** Public-cell discovery + authenticated public job transport. Separate from private membership. */
+  publicCompute?: PublicComputeMarket | null;
   /** Record a local reputation observation of a delegated completion (provider key, delivered?, TTFB). */
   recordObservation?: (providerId: string, ok: boolean, ttftMs?: number) => void;
   /** Snapshot for `GET /reputation` (per-provider scores), or undefined if reputation isn't wired. */
@@ -500,7 +644,7 @@ export interface ShimDeps {
 }
 
 export function createShim(deps: ShimDeps): http.Server {
-  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, forward, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared, getPrimaryGraph } = deps;
+  const { getRouter, getSelfConsumerKey, inflight, pairing, mesh, audit, kv, settlement, paymentControl, forward, publicCompute, recordObservation, getReputation, getShareModels, setShareModels, getUnsharedModels, setAliasShared, getPrimaryGraph } = deps;
   const json = (res: http.ServerResponse, code: number, body: unknown): void => {
     res.writeHead(code, { "content-type": "application/json" });
     res.end(JSON.stringify(body));
@@ -528,6 +672,22 @@ export function createShim(deps: ShimDeps): http.Server {
       // never forces a mesh online, so polling /peers on a mesh-less device stays a no-op.
       const leader = await mesh.leader().catch(() => null);
       return json(res, 200, { peers: router ? router.peers() : [], self, leader, ...info });
+    }
+    if (method === "GET" && url === "/public/compute") {
+      if (!publicCompute) return json(res, 503, { ok: false, error: "public compute unavailable" });
+      const found = await publicCompute.discover();
+      return json(res, 200, { ok: true, settings: publicCompute.config, requesterId: publicCompute.client.requesterId, ...found });
+    }
+    if (method === "POST" && url === "/public/compute/settings") {
+      if (!publicCompute) return json(res, 503, { ok: false, error: "public compute unavailable" });
+      const next = await publicCompute.update((await readJsonBody(req)) as Partial<PublicComputeSettings>);
+      return json(res, 200, { ok: true, settings: next });
+    }
+    if (method === "GET" && url.startsWith("/public/compute/jobs/")) {
+      if (!publicCompute) return json(res, 503, { ok: false, error: "public compute unavailable" });
+      const jobId = decodeURIComponent(url.slice("/public/compute/jobs/".length).split("?", 1)[0] ?? "");
+      const evidence = publicCompute.jobEvidence(jobId);
+      return evidence ? json(res, 200, { ok: true, evidence }) : json(res, 404, { ok: false, error: "unknown public job" });
     }
     // ── live routing event stream (SSE) — the browser-subscribable mirror of the JSONL
     //    delegation audit; powers the living-mesh visualization. localhost control surface. ──
@@ -784,9 +944,6 @@ export function createShim(deps: ShimDeps): http.Server {
       return json(res, 404, { error: `hypha shim: no route ${method} ${url}` });
     }
 
-    const router = getRouter();
-    if (!router || !router.online()) return json(res, 503, { error: { message: "hypha: mesh offline (device not paired)", code: "mesh_offline" } });
-
     let body: {
       model?: string;
       messages?: ChatMessage[];
@@ -799,6 +956,7 @@ export function createShim(deps: ShimDeps): http.Server {
       tool_choice?: unknown;
       parallel_tool_calls?: unknown;
       stallMs?: number; // test-only (HYPHA_ECONOMY_TEST_HOOKS): go silent mid-metered-session
+      routeMode?: "local" | "private" | "public" | "automatic";
     };
     try {
       body = JSON.parse((await readBody(req)).toString("utf-8"));
@@ -819,6 +977,32 @@ export function createShim(deps: ShimDeps): http.Server {
     // `peerKey` is an advisory conductor pin (falls back to tier walk if the peer is unreachable).
     const sensitivity = body.sensitivity === "shareable" ? "shareable" : "private";
     const peerKey = typeof body.peerKey === "string" ? body.peerKey : undefined;
+    const routeMode = body.routeMode ?? "automatic";
+    if (routeMode === "local") return json(res, 409, { error: { message: "hypha is a remote-compute endpoint; local intent must use local QVAC serve", code: "capability_mismatch" } });
+
+    // Explicit public intent never falls through. Automatic may enter public only when the request
+    // is shareable and no eligible private forward target exists (evaluated below).
+    const router = getRouter();
+    const privateTargets = router?.online() && forward ? router.forwardTargetsForAlias({ alias, sensitivity: "private", ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) }) : [];
+    const shouldTryPublic = routeMode === "public" || (routeMode === "automatic" && sensitivity === "shareable" && privateTargets.length === 0);
+    if (shouldTryPublic) {
+      if (!publicCompute) return json(res, 503, { error: { message: "public compute is unavailable", code: "no_eligible_provider" } });
+      const contextTokens = Math.ceil(Buffer.byteLength(JSON.stringify({ messages: body.messages, tools: body.tools })) / 4);
+      // Public payment settlement is not yet part of this protocol. Free providers are eligible;
+      // paid adverts fail closed instead of receiving uncompensated work or faking settlement.
+      const selection = await publicCompute.select({ task: alias === "health" ? "health" : requestHasImages(body.messages) ? "vision" : "chat", alias, contextTokens, requiresTools: hasTools, sensitivity, maxPriceMicrosPerKiloToken: 0, ...(peerKey ? { requiredTransportKey: peerKey } : {}) });
+      if (!selection.winner) {
+        const paymentFailure = selection.rejected.some((r) => r.reason === "price_too_high");
+        return json(res, paymentFailure ? 402 : 503, { error: { message: paymentFailure ? "eligible public provider requires payment but no public settlement authorization was supplied" : "no eligible authenticated public provider", code: paymentFailure ? "payment_failure" : "no_eligible_provider", rejected: selection.rejected }, routing: { route: "public", discoveryMs: selection.discoveryMs, probeMs: selection.probeMs } });
+      }
+      const publicBody: Record<string, unknown> = { ...(body as Record<string, unknown>), model: alias };
+      for (const field of ["sensitivity", "meshId", "peerKey", "computeBudget", "stallMs", "routeMode"]) delete publicBody[field];
+      const winner = selection.winner;
+      audit?.record({ event: "delegation", modelId: alias, extra: { role: "public-consumer", phase: "selected", jobRoute: "public", providerId: winner.advert.providerId, transportKey: winner.advert.transportKey, cellId: winner.advert.cellId, reason: winner.reason, fields: winner.fields, discoveryMs: selection.discoveryMs, probeMs: selection.probeMs } });
+      meshBus.record({ kind: "route", phase: "public-compute-selected", peer: winner.advert.providerId.slice(0, 16), alias });
+      return streamPublicChat(res, publicCompute, winner, { id: `chatcmpl-${randomUUID()}`, alias, created: Math.floor(Date.now() / 1000), stream: body.stream === true, body: publicBody, discoveryMs: selection.discoveryMs, probeMs: selection.probeMs }, inflight, audit);
+    }
+    if (!router || !router.online()) return json(res, 503, { error: { message: "hypha: private mesh offline (device not paired)", code: "mesh_offline" } });
 
     // SP2 Option B — vision (and later embed/stt/tts) can't ride SDK delegation (attachments are
     // path-only, read on the worker) and is advertised borrowable:false. The forward transport borrows
@@ -832,21 +1016,26 @@ export function createShim(deps: ShimDeps): http.Server {
     // contention). Falls through to SDK delegation only when no forward peer serves the alias.
     if (forward) {
       const hasImages = requestHasImages(body.messages);
-      const peers = router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) });
+      const peers = routeMode === "private" ? privateTargets : router.forwardTargetsForAlias({ alias, sensitivity, ...(body.meshId ? { pinMeshId: body.meshId } : {}), ...(peerKey ? { pinPeerKey: peerKey } : {}) });
       if (peers.length > 0) {
         audit?.record({ event: "delegation", extra: { role: "consumer", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias, images: hasImages } });
         meshBus.record({ kind: "route", phase: "forward-route", peers: peers.length, peer: peers[0]!.slice(0, 16), alias });
-        // Faithful OpenAI relay: pass tool-calling fields through to the peer's serve when present
-        // (Stage 3 tool-aware borrow). The forward provider proxies them to its local serve verbatim.
-        const forwardBody: Record<string, unknown> = { model: alias, messages: body.messages };
-        if (body.tools !== undefined) forwardBody.tools = body.tools;
-        if (body.tool_choice !== undefined) forwardBody.tool_choice = body.tool_choice;
-        if (body.parallel_tool_calls !== undefined) forwardBody.parallel_tool_calls = body.parallel_tool_calls;
+        // Faithful OpenAI/QVAC relay: preserve every inference field (token
+        // caps, sampling, reasoning budget, response format, tool settings,
+        // etc.) while stripping only Leash's mesh-routing envelope. The peer's
+        // provider proxies this body to its local serve verbatim.
+        const forwardBody: Record<string, unknown> = { ...(body as Record<string, unknown>), model: alias };
+        for (const routingField of ["sensitivity", "meshId", "peerKey", "computeBudget", "stallMs", "routeMode"]) {
+          delete forwardBody[routingField];
+        }
         const chatArgs = {
           id: `chatcmpl-${randomUUID()}`,
           alias,
           created: Math.floor(Date.now() / 1000),
-          stream: body.stream !== false,
+          // OpenAI's request default is non-streaming. AI SDK `doGenerate`
+          // omits the field entirely, while `doStream` sends `stream:true`.
+          // Treating omission as true returned SSE to a JSON response parser.
+          stream: body.stream === true,
           body: forwardBody,
         };
         return forwardWithOptionalSettlement(res, forwardSettleDeps(), router, alias, "/v1/chat/completions", body as Record<string, unknown>, peers,

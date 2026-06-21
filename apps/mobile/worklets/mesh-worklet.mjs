@@ -25,6 +25,7 @@ import BlindPairing from "blind-pairing";
 import b4a from "b4a";
 import fs from "bare-fs";
 import { completeJoin } from "./join-flow.mjs";
+import { readMeshMeta, writeMeshMeta } from "./mesh-persistence.mjs";
 import { forceRelayConnect } from "./swarm-options.mjs";
 
 const IPC = BareKit.IPC;
@@ -111,12 +112,18 @@ let changeTimer = null;
 let lastTaskSig = "";
 let lastReconnectAt = 0; // throttle the heartbeat reconnect-watchdog (≥30s between re-join attempts)
 
-const metaPath = () => storeDir + "/mesh-meta.json";
 function readMeta() {
-  try { return JSON.parse(b4a.toString(fs.readFileSync(metaPath()))); } catch { return {}; }
+  return readMeshMeta({ fs, storeDir, decode: (value) => b4a.toString(value) });
 }
 function writeMeta(m) {
-  try { fs.writeFileSync(metaPath(), b4a.from(JSON.stringify(m))); } catch { /* best-effort */ }
+  const ok = writeMeshMeta({
+    fs,
+    storeDir,
+    encode: (value) => b4a.from(value),
+    meta: m,
+    onError: (error) => dbg("meta: write failed " + (error?.message || String(error))),
+  });
+  if (ok) dbg("meta: persisted joined=" + !!m.joined);
 }
 
 // STABLE per-device identity, advertised as `consumerPublicKey` so the desktop's supersede reaper

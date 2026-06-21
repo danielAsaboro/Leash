@@ -37,13 +37,14 @@ const AGING_MS = Number(process.env["LEASH_BROKER_AGING_MS"] ?? 8000);
 // No upstream timeout — decodes are slow; the broker must not body-time-out the serve.
 const dispatcher = new Agent({ bodyTimeout: 0, headersTimeout: 0, connectTimeout: 10_000 });
 
-// ── Mesh overflow (Hypha) — purely additive; OFF unless LEASH_BROKER_HYPHA_URL is set.
-// When on, a saturated/unavailable alias is shed to a paired peer's local OpenAI shim
-// instead of waiting on the single local GPU. Unset → the broker behaves exactly as before.
-const HYPHA_URL = (process.env["LEASH_BROKER_HYPHA_URL"] ?? "").replace(/\/+$/, "");
+// ── Mesh overflow (Hypha) — purely additive. The normal local Hypha shim is the default so
+// `npm run broker` and dashboard launches behave identically; an explicit empty env disables it.
+// A missing/offline shim is inert. A saturated/unavailable alias is shed only when `/peers`
+// proves that a LIVE peer already has the alias warm, so enabling discovery cannot leak a turn.
+const HYPHA_URL = (process.env["LEASH_BROKER_HYPHA_URL"] ?? "http://127.0.0.1:11437").replace(/\/+$/, "");
 const OVERFLOW_ENABLED = HYPHA_URL.length > 0;
 /** Shed a same-alias request once this many are already waiting locally (depth gate). */
-const OVERFLOW_DEPTH = Number(process.env["LEASH_BROKER_OVERFLOW_DEPTH"] ?? 2);
+const OVERFLOW_DEPTH = Number(process.env["LEASH_BROKER_OVERFLOW_DEPTH"] ?? 1);
 let shed = 0; // depth-triggered sheds
 let availabilityRouted = 0; // alias-not-served-locally routes
 let overflowFailures = 0; // overflow attempted but fell through / broke mid-stream
@@ -56,14 +57,14 @@ interface Waiter {
 }
 
 /** Per-alias slot: at most one in-flight, the rest wait by priority+aging. */
-const slots = new Map<string, { busy: boolean; queue: Waiter[] }>();
+const slots = new Map<string, { busy: boolean; queue: Waiter[]; routing: number }>();
 let seqCounter = 0;
 let served = 0;
 
 function slot(alias: string) {
   let s = slots.get(alias);
   if (!s) {
-    s = { busy: false, queue: [] };
+    s = { busy: false, queue: [], routing: 0 };
     slots.set(alias, s);
   }
   return s;
@@ -167,12 +168,11 @@ async function hyphaPeers(): Promise<Array<{ live?: boolean; warmModels?: string
  *   · availabilityRouted — the alias isn't served locally at all
  *   · shed — the local alias queue is already ≥ OVERFLOW_DEPTH deep
  */
-async function overflowReason(alias: string): Promise<"shed" | "availabilityRouted" | null> {
+async function overflowReason(alias: string, observedLoad: number): Promise<"shed" | "availabilityRouted" | null> {
   const warm = (await hyphaPeers()).some((p) => p.live && (p.warmModels ?? []).includes(alias));
   if (!warm) return null;
   if (!(await localAliases()).has(alias)) return "availabilityRouted";
-  const depth = slots.get(alias)?.queue.length ?? 0;
-  return depth >= OVERFLOW_DEPTH ? "shed" : null;
+  return observedLoad >= OVERFLOW_DEPTH ? "shed" : null;
 }
 
 /**
@@ -242,7 +242,7 @@ const stats = (): string =>
     upstream: UPSTREAM,
     served,
     overflow: { enabled: OVERFLOW_ENABLED, hyphaUrl: HYPHA_URL || null, depth: OVERFLOW_DEPTH, shed, availabilityRouted, overflowFailures },
-    aliases: Object.fromEntries([...slots].map(([a, s]) => [a, { busy: s.busy, queued: s.queue.length }])),
+    aliases: Object.fromEntries([...slots].map(([a, s]) => [a, { busy: s.busy, queued: s.queue.length, routing: s.routing }])),
   });
 
 const server = http.createServer(async (req, res) => {
@@ -280,7 +280,18 @@ const server = http.createServer(async (req, res) => {
   // Mesh overflow: decide BEFORE taking a local slot (the whole point — don't queue locally
   // when a warm peer can take it). Only chat completions; the shim speaks nothing else.
   if (OVERFLOW_ENABLED && alias && method === "POST" && url.includes("/chat/completions")) {
-    const reason = await overflowReason(alias);
+    // Reserve a routing position synchronously before the peer lookup. Without
+    // this, two requests arriving together could both observe an idle slot while
+    // awaiting /models + /peers, then serialize locally instead of distributing.
+    const routeSlot = slot(alias);
+    const observedLoad = Number(routeSlot.busy) + routeSlot.queue.length + routeSlot.routing;
+    routeSlot.routing++;
+    let reason: "shed" | "availabilityRouted" | null;
+    try {
+      reason = await overflowReason(alias, observedLoad);
+    } finally {
+      routeSlot.routing--;
+    }
     if (reason) {
       const outcome = await forwardToHypha(url, body, fwd, res, () => clientOpen, clientGone.signal);
       if (outcome === "served") {

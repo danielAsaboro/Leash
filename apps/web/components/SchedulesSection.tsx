@@ -28,6 +28,12 @@ function describeShape(e: ScheduleEntry): string {
   return `${DAYS[s.day] ?? "?"} at ${s.at}`;
 }
 
+function describeAction(e: ScheduleEntry): string {
+  if (e.kind === "job") return e.job?.script === "research" ? `research "${(e.job.args?.[0] ?? "").slice(0, 40)}"` : `npm run ${e.job?.script}`;
+  if (e.kind === "heartbeat") return `proactive heartbeat · ${e.heartbeat?.activeHours.start ?? "always"}–${e.heartbeat?.activeHours.end ?? "active"} · max ${e.heartbeat?.maxPerDay ?? "∞"}/day`;
+  return `creates TODO "${e.task?.title}"`;
+}
+
 export function SchedulesSection({ schedules, state, runs }: { schedules: ScheduleEntry[]; state: Record<string, CronScheduleState>; runs: CronRun[] }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -184,7 +190,7 @@ export function SchedulesSection({ schedules, state, runs }: { schedules: Schedu
                 <input type="checkbox" checked={e.enabled} onChange={() => toggle(e)} disabled={busy} aria-label={`Enable ${e.name}`} />
                 <div className="min-w-0 flex-1">
                   <p style={{ fontFamily: "var(--font-body)", fontSize: "0.95rem" }}>
-                    {e.name} <span className="kicker ml-1" style={{ color: "var(--color-faint)" }}>{e.kind === "job" ? (e.job?.script === "research" ? `research "${(e.job?.args?.[0] ?? "").slice(0, 40)}"` : `npm run ${e.job?.script}`) : `creates TODO "${e.task?.title}"`} · {describeShape(e)}</span>
+                    {e.name} <span className="kicker ml-1" style={{ color: "var(--color-faint)" }}>{describeAction(e)} · {describeShape(e)}</span>
                   </p>
                 </div>
                 <span className="kicker" style={{ color: "var(--color-faint)" }} suppressHydrationWarning>

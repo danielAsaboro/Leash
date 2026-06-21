@@ -47,7 +47,7 @@ import {
   withScopedToolContext,
   type LeashToolContext,
 } from "./runtime-lifecycle.ts";
-import { initialToolBatchInstruction, initialToolPolicyForTask, toolPolicyForStep } from "./agent-tool-batching.ts";
+import { initialToolBatchInstruction, initialToolPolicyForTask, shouldForceSubagentSynthesis, toolNamesForTask, toolPolicyForStep } from "./agent-tool-batching.ts";
 import { appendAuthoritativeToolEvidence, structuredAuthoritativeToolEvidence, type AuthoritativeToolEvidence } from "./agent-authoritative-results.ts";
 import { memoizeToolExecutions } from "./agent-tool-idempotency.ts";
 import { subagentExecutionPolicy } from "./agent-execution-policy.ts";
@@ -172,6 +172,13 @@ function buildOne(agent: Agent, registry: ToolSet, runtime: AgentToolRuntimeCont
           // pure-reasoning delegate; the configured serve supports toolless calls.
           const merged: ToolSet = enforceToolPolicy({ ...(names.length ? tools : {}), ...inline.tools, ...memTools }, { route: "agent", subagent: true });
           const runTools = memoizeToolExecutions(withScopedToolContext(merged));
+          const initialToolPolicy = initialToolPolicyForTask(task, Object.keys(runTools));
+          // Qwen can still emit a tool call when a request carries schemas alongside
+          // `toolChoice: "none"`. For a reasoning-only delegated task, omit the schemas
+          // entirely. This also removes their prompt-token/prefill cost instead of merely
+          // asking the model not to use them.
+          const taskToolNames = toolNamesForTask(task, Object.keys(runTools));
+          const taskTools: ToolSet = Object.fromEntries(taskToolNames.map((name) => [name, runTools[name] as ToolSet[string]]));
           const parentCapsule = await parentContextCapsule({
             goalRunId,
             task,
@@ -187,7 +194,7 @@ function buildOne(agent: Agent, registry: ToolSet, runtime: AgentToolRuntimeCont
             summarySection: runtime.getSummarySection?.(),
             recentConversation: runtime.getRecentConversation?.(),
             currentUserTurn: runtime.getCurrentUserTurn?.(),
-            selectedTools: Object.keys(merged),
+            selectedTools: Object.keys(taskTools),
             memoryContext: memCtx,
             maxChars: Number(process.env["LEASH_AGENT_CONTEXT_CHARS"] ?? 3200),
           });
@@ -201,13 +208,12 @@ function buildOne(agent: Agent, registry: ToolSet, runtime: AgentToolRuntimeCont
             });
             ledgerStepId = step.id;
           }
-          loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${Object.keys(runTools).length} tool(s), ${agent.skills.length} skill(s), ${agent.mcpServers.inline.length} inline mcp)`);
+          loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${Object.keys(taskTools).length} tool(s), ${agent.skills.length} skill(s), ${agent.mcpServers.inline.length} inline mcp)`);
           // The subagent is a ToolLoopAgent — same primitive as the main chat agent — with an isolated context.
           // QVAC wedge rule: maxRetries 0 and NEVER an abortSignal (an aborted decode wedges the serve).
           const delegatePrompt = buildAgentDelegateContextPrompt(packet);
           const executionPolicy = subagentExecutionPolicy(agent.slug, task);
-          const initialToolPolicy = initialToolPolicyForTask(task, Object.keys(runTools));
-          const batchInstruction = initialToolBatchInstruction(task, Object.keys(runTools));
+          const batchInstruction = initialToolBatchInstruction(task, Object.keys(taskTools));
           const parentContext = execution.context as Partial<LeashToolContext> | undefined;
           const subRuntime = createLeashRuntimeContext({
             route: "agent",
@@ -222,13 +228,13 @@ function buildOne(agent: Agent, registry: ToolSet, runtime: AgentToolRuntimeCont
             topP: executionPolicy.topP,
             maxOutputTokens: executionPolicy.maxOutputTokens,
             maxRetries: 0,
-            tools: runTools,
-            toolOrder: Object.keys(runTools).sort(),
+            tools: taskTools,
+            toolOrder: Object.keys(taskTools).sort(),
             runtimeContext: subRuntime,
-            toolsContext: toolContextsFor(runTools, subRuntime),
+            toolsContext: toolContextsFor(taskTools, subRuntime),
             toolApproval: leashToolApproval,
-            prepareStep: ({ stepNumber }) => ({
-              toolChoice: toolPolicyForStep(initialToolPolicy, stepNumber),
+            prepareStep: ({ stepNumber, steps }) => ({
+              toolChoice: shouldForceSubagentSynthesis(steps) ? "none" : toolPolicyForStep(initialToolPolicy, stepNumber),
             }),
             reasoning: executionPolicy.reasoning,
             providerOptions: qvacReasoningProviderOptions(executionPolicy.reasoning === "high"),
@@ -425,9 +431,10 @@ export async function runPlannedAgentOrchestration(
     return result.evidence;
   }));
   const evidenceJson = structuredAuthoritativeToolEvidence(evidence);
-  const outcomes: PlannedAgentOrchestrationResult["agents"] = [];
-
-  for (const plan of input.plans) {
+  // Specialists are independent once the shared authoritative reads complete.
+  // Start them together: the broker serializes safely on one device and sheds
+  // one to a warm private peer when another inference device is available.
+  const outcomes = await Promise.all(input.plans.map(async (plan): Promise<PlannedAgentOrchestrationResult["agents"][number]> => {
     const agent = input.agents.find((candidate) => candidate.slug === plan.slug);
     if (!agent) throw new Error(`explicit delegate ${plan.slug} is no longer available`);
     const allowed = await agentTools(agent, Object.fromEntries(input.readCalls.map((call) => [call.toolName, call.tool])) as ToolSet);
@@ -480,7 +487,12 @@ export async function runPlannedAgentOrchestration(
       ].filter(Boolean).join("\n\n"),
       temperature: executionPolicy.temperature,
       topP: executionPolicy.topP,
-      maxOutputTokens: Math.min(executionPolicy.maxOutputTokens, 220),
+      // Forced tool JSON needs enough room for the complete finding. The old
+      // 180/220-token ceiling intermittently cut a verbose small-model JSON
+      // string mid-value, which the AI SDK correctly rejected as invalid JSON.
+      // Reasoning remains disabled for bounded evidence work, so this is a
+      // validity ceiling rather than permission to spend tokens on a scratchpad.
+      maxOutputTokens: Math.min(Math.max(executionPolicy.maxOutputTokens, 320), 420),
       maxRetries: 0,
       tools: findingTool,
       toolChoice: { type: "tool", toolName: "submit_finding" },
@@ -497,7 +509,6 @@ export async function runPlannedAgentOrchestration(
     const output = submittedField(generated, "submit_finding", "finding");
     if (!output) throw new Error(`${agent.name} produced no visible specialist finding`);
     const durationMs = Date.now() - startedAt;
-    outcomes.push({ agent: plan, output, durationMs });
     await updateGoalRunStep(input.goalRunId, step.id, { status: "done", summary: appendAuthoritativeToolEvidence(output, evidence) });
     await recordGoalRunModelTrace(input.goalRunId, {
       stepId: step.id,
@@ -508,6 +519,24 @@ export async function runPlannedAgentOrchestration(
       contextTokensEstimate: packet.tokenEstimate,
     });
     await input.onEvent?.({ type: "agent_end", agent: plan, output, durationMs });
+    return { agent: plan, output, durationMs };
+  }));
+
+  // A single explicitly addressed specialist already produced the requested
+  // user-facing answer. Sending it through a second parent model used to add a
+  // redundant decode (and could subtly paraphrase authoritative identifiers).
+  // Preserve parent synthesis for true multi-agent work only.
+  if (outcomes.length === 1) {
+    const requiredIdentifiers = requiredGroundedIdentifiers(input.request, [
+      input.currentUserTurn,
+      input.recentConversation ?? "",
+      ...evidence.map((entry) => JSON.stringify(entry.value)),
+    ]);
+    return {
+      text: ensureGroundedIdentifiers(outcomes[0]!.output, requiredIdentifiers),
+      evidence,
+      agents: outcomes,
+    };
   }
 
   const parentRuntime = createLeashRuntimeContext({ route: "chat", runId: input.goalRunId, stepId: input.mainStepId });

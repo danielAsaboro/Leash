@@ -273,15 +273,14 @@ export const CONDUCTOR_SYSTEM_PROMPT = [
   "- Prefer default=true among otherwise suitable chat aliases.",
   "- Prefer ready OCR aliases for text-heavy image extraction before health or chat interpretation.",
   "- Prefer ready vision or multimodal aliases when needsVision is true.",
-  "- If no local inventory alias has the needed modality or strength, choose the best ready general/chat alias, set the need flags accurately, and explain the missing capability in reason; the conductor can then search device, private mesh, and public mesh options.",
+  "- If no local inventory alias has the needed modality or strength, choose the best ready general/chat alias, set the need flags accurately, and explain the missing capability in reason; deterministic routing can then search this device and paired private-mesh peers.",
   "- Do not choose embedding, speech, audio, or transcription aliases for chat routing.",
   "- Avoid the conductor model alias for route decisions unless no other ready chat alias exists and no tools/files/memory are needed.",
   "Mesh ladder semantics:",
   "- Your output does not directly choose a mesh peer. It supplies the capability bar and sensitivity label that the deterministic conductor uses.",
-  "- The conductor checks this device first, then private mesh peers, then public mesh peers only when sensitivity is shareable.",
-  "- Public mesh peers may be paid. Mark sensitivity=shareable only when the prompt has no private user data and can safely leave the user's private device mesh.",
-  "- Mark sensitivity=private for anything involving the user's files, images, Apple Notes, memory, personal history, credentials, device state, health, finance, workplace/private code, unreleased plans, or private relationships. That blocks public mesh routing even if a public model is the best technical fit.",
-  "- For generic prompts that only need public knowledge or public reasoning, sensitivity can be shareable so the conductor may use a public paid model if local/private options cannot satisfy the request.",
+  "- The shipped inference ladder checks this device first, then live paired private-mesh peers, then opted-in authenticated public providers for shareable capability-matched work. The deterministic router—not this classifier—selects and verifies the provider.",
+  "- Keep sensitivity=private for anything involving the user's files, images, Apple Notes, memory, personal history, credentials, device state, health, finance, workplace/private code, unreleased plans, or private relationships.",
+  "- Generic prompts with no user context may be marked shareable and can use an authenticated public provider. The audit/UI must still disclose the route actually used; a requested public route never silently falls back locally.",
   "Output contract:",
   '{"action":"answer","answer":"concise answer"}',
   '{"action":"route","route":{"alias":"exact-ready-inventory-alias","reason":"short concrete reason","needsTools":boolean,"needsVision":boolean,"needsMemory":boolean,"needsFiles":boolean,"sensitivity":"private|shareable"}}',
@@ -323,7 +322,7 @@ export function buildConductorExamplesSystemSection(inventory: ConfiguredModelSp
     'User: "read this lab results photo and explain the values"',
     `Output: {"action":"route","route":{"alias":${JSON.stringify(ocrAlias)},"reason":"lab photo is text-heavy and needs OCR extraction first","needsTools":false,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"private"}}`,
     'User: "compare public approaches to local-first RAG and outline tradeoffs"',
-    `Output: {"action":"route","route":{"alias":${JSON.stringify(routeAlias)},"reason":"public research-style analysis can use mesh routing","needsTools":true,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"shareable"}}`,
+    `Output: {"action":"route","route":{"alias":${JSON.stringify(routeAlias)},"reason":"research-style analysis needs full agent tools","needsTools":true,"needsVision":false,"needsMemory":false,"needsFiles":false,"sensitivity":"shareable"}}`,
   ].join("\n");
 }
 
@@ -431,7 +430,7 @@ export function buildPlanStepSystemPrompt(input: { task: string; step: string; i
   return (
     `Task: execute one approved plan step.\nPriority: do only this step; do not attempt other steps.\n\nOVERALL TASK:\n${input.task}\n\n` +
     `CURRENT STEP (${input.index + 1} of ${input.total}):\n${input.step}${input.prior}\n\n` +
-    `Output contract: call tools if needed, then briefly report what you did or found. Earlier deterministic tool results are authoritative: copy their verdict, failures, and Boolean state exactly; never infer, reverse, or embellish those fields.`
+    `Output contract: call tools if needed, then briefly report what you did or found. Earlier deterministic tool results are authoritative: copy their verdict, failures, and Boolean state exactly; never infer, reverse, or embellish those fields. Do not claim you collected, observed, checked, or verified an input unless it appears in the task, prior results, or a tool result; list missing inputs instead. A requirement, gate, or requested verification is not evidence that it passed: when the required evidence is absent, state that it is absent and keep the gate unmet.`
   );
 }
 

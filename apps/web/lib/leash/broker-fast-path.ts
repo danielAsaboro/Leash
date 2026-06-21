@@ -6,10 +6,16 @@ export interface DirectBrokerCall {
   input: Record<string, unknown>;
 }
 
+export interface DirectBrokerResult {
+  text: string;
+  output: unknown;
+}
+
 const CONTEXT_BLOAT_RE = /\bcontext-grounding\b[\s\S]{0,120}\b(?:tool broker|context bloat)\b/i;
 const MEMORY_PREF_RE = /\bmemory-keeper\b[\s\S]{0,120}\b(?:preferred answer length|answer length|preference)\b/i;
 const TASKS_OPEN_RE = /\btask-manager\b[\s\S]{0,120}\b(?:open tasks?|list open|todos?)\b/i;
 const DAILY_TODAY_RE = /\bdaily-paper\b[\s\S]{0,120}\b(?:today|understory|recent paper|edition)\b/i;
+const PRIVATE_NOTE_RE = /\b(?:what did i (?:note|write)(?: about| on)?|my (?:private )?notes? (?:about|on))\s+(.+?)(?:[?.!]|$)/i;
 
 export function directBrokerCallForSimpleTurn(text: string): DirectBrokerCall | null {
   const q = (text ?? "").trim();
@@ -25,6 +31,10 @@ export function directBrokerCallForSimpleTurn(text: string): DirectBrokerCall | 
   }
   if (DAILY_TODAY_RE.test(q)) {
     return { broker: "context_run", action: "understory_today", input: {} };
+  }
+  const privateNote = q.match(PRIVATE_NOTE_RE)?.[1]?.trim();
+  if (privateNote && privateNote.length <= 180) {
+    return { broker: "context_run", action: "search_graph", input: { query: privateNote, topK: 3, kinds: ["note", "memory"] } };
   }
   return null;
 }
@@ -43,9 +53,13 @@ function outputText(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export async function runDirectBrokerCall(call: DirectBrokerCall, registry: ToolSet): Promise<string | null> {
+export async function runDirectBrokerCall(call: DirectBrokerCall, registry: ToolSet): Promise<DirectBrokerResult | null> {
   const broker = registry[call.broker] as { execute?: (args: unknown, opts?: unknown) => Promise<unknown> } | undefined;
   if (typeof broker?.execute !== "function") return null;
   const result = await broker.execute({ action: call.action, input: call.input }, {});
-  return outputText(result).trim();
+  const raw = outputText(result).trim();
+  const noteOnly = call.action === "search_graph" && Array.isArray(call.input["kinds"]);
+  const match = noteOnly ? raw.match(/^\(([^)]+)\)\s+([^\n]+)(?:\n---|$)/) : null;
+  const text = match ? `I found this in ${match[1]}: ${match[2]}` : raw;
+  return { text, output: result };
 }

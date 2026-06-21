@@ -10,6 +10,7 @@ export interface ToolExposureOptions {
   agentTools?: string[];
   suppressRunSkill?: boolean;
   leanTools?: boolean;
+  noTools?: boolean;
 }
 
 /** A skill can't reintroduce the 4096-ctx overflow: its declared toolset is truncated here. */
@@ -33,6 +34,7 @@ function isAgentToolName(name: string): boolean {
  */
 export function resolveActiveToolNames(names: string[], options: ToolExposureOptions): string[] {
   if (options.route === "vision") return [];
+  if (options.noTools) return [];
   if (options.leanTools) return names.includes(KEEPALIVE_TOOL_NAME) ? [KEEPALIVE_TOOL_NAME] : names.slice(0, 1);
 
   const declared = options.skillTools ?? [];

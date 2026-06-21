@@ -143,6 +143,14 @@ const TOOL_OVERRIDES: Record<string, Partial<Omit<ToolPolicy, "name">>> = {
 };
 
 const CONTROL_POLICIES: Record<string, ToolPolicy> = {
+  public_calculate: {
+    name: "public_calculate", scope: "router", risk: "read", approval: "none", allowedRoutes: ["chat"],
+    subagentAllowed: false, backgroundAllowed: false, publicMeshAllowed: true,
+  },
+  public_convert_units: {
+    name: "public_convert_units", scope: "router", risk: "read", approval: "none", allowedRoutes: ["chat"],
+    subagentAllowed: false, backgroundAllowed: false, publicMeshAllowed: true,
+  },
   leash_keepalive: {
     name: "leash_keepalive",
     scope: "orchestration",

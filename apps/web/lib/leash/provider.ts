@@ -41,11 +41,25 @@ function chatMiddleware(label: string): LanguageModelMiddleware[] {
  * connect, kept short so a truly-down serve still fails fast.
  */
 const patientDispatcher = new Agent({ bodyTimeout: 0, headersTimeout: 0, connectTimeout: 10_000 });
-const patientFetch = ((input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) =>
-  undiciFetch(input, { ...init, dispatcher: patientDispatcher })) as unknown as typeof fetch;
+const DEFAULT_BROKER_ROOT = `http://127.0.0.1:${process.env["LEASH_BROKER_PORT"] ?? 11436}`;
+export const QVAC_SERVE_ROOT = (process.env["QVAC_SERVE_URL"] ?? process.env["LEASH_BROKER_UPSTREAM"] ?? "http://127.0.0.1:11435").replace(/\/+$/, "");
 
-/** Where `qvac serve openai` listens. 11435 (not Ollama's 11434). */
-export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
+/**
+ * Chat defaults to the priority/overflow broker. If the optional daemon is not
+ * running yet, only a connection-level failure is retried against the direct
+ * local serve. HTTP/model errors and interrupted streams are never replayed.
+ */
+export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? `${DEFAULT_BROKER_ROOT}/v1`;
+const patientFetch = (async (input: Parameters<typeof undiciFetch>[0], init?: Parameters<typeof undiciFetch>[1]) => {
+  try {
+    return await undiciFetch(input, { ...init, dispatcher: patientDispatcher });
+  } catch (error) {
+    const url = String(input);
+    const mayFallback = !process.env["QVAC_OPENAI_URL"] && url.startsWith(DEFAULT_BROKER_ROOT);
+    if (!mayFallback) throw error;
+    return undiciFetch(`${QVAC_SERVE_ROOT}${url.slice(DEFAULT_BROKER_ROOT.length)}`, { ...init, dispatcher: patientDispatcher });
+  }
+}) as unknown as typeof fetch;
 const HYPHA_SHIM_URL = (process.env["LEASH_BROKER_HYPHA_URL"] ?? `http://127.0.0.1:${process.env["HYPHA_PORT"] ?? 11437}`).replace(/\/+$/, "");
 const QVAC_ROUTED_OPENAI_URL = process.env["LEASH_ROUTED_OPENAI_URL"] ?? `${HYPHA_SHIM_URL}/v1`;
 
@@ -190,22 +204,27 @@ export function imageModel() {
  * `POST /v1/chat/completions`. The wrapper merges them at that top-level key before the POST
  * reaches the shim.
  */
-export function routedChatModel(opts: { alias: string; sensitivity: Sensitivity; meshId?: string; peerKey?: string }): LanguageModel {
+export function routedChatModel(opts: { alias: string; sensitivity: Sensitivity; meshId?: string; peerKey?: string; routeMode?: "private" | "public" | "automatic"; onRoutingResponse?: (value: { route: string | null; jobId: string | null; providerId: string | null }) => void }): LanguageModel {
   const directive: Record<string, string> = { sensitivity: opts.sensitivity };
   if (opts.meshId) directive["meshId"] = opts.meshId;
   if (opts.peerKey) directive["peerKey"] = opts.peerKey;
+  if (opts.routeMode) directive["routeMode"] = opts.routeMode;
 
-  const routedFetch: typeof fetch = ((input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+  const routedFetch: typeof fetch = (async (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
     if (init?.body && typeof init.body === "string") {
       try {
         const parsed = JSON.parse(init.body) as Record<string, unknown>;
         const merged = { ...parsed, ...directive };
-        return patientFetch(input, { ...init, body: JSON.stringify(merged) });
+        const response = await patientFetch(input, { ...init, body: JSON.stringify(merged) });
+        opts.onRoutingResponse?.({ route: response.headers.get("x-leash-route"), jobId: response.headers.get("x-leash-job-id"), providerId: response.headers.get("x-leash-provider") });
+        return response;
       } catch {
         /* fall through on any JSON parse error */
       }
     }
-    return patientFetch(input, init);
+    const response = await patientFetch(input, init);
+    opts.onRoutingResponse?.({ route: response.headers.get("x-leash-route"), jobId: response.headers.get("x-leash-job-id"), providerId: response.headers.get("x-leash-provider") });
+    return response;
   }) as unknown as typeof fetch;
 
   const provider = createQvac({ baseURL: QVAC_ROUTED_OPENAI_URL, apiKey: "qvac", fetch: routedFetch, headers: { "x-leash-priority": "interactive" } });
@@ -213,4 +232,21 @@ export function routedChatModel(opts: { alias: string; sensitivity: Sensitivity;
     model: provider(opts.alias),
     middleware: chatMiddleware("chat"),
   });
+}
+
+export interface PublicJobEvidenceView {
+  jobId: string; providerId: string; transportKey: string; selectionReason: string;
+  state: "selected" | "streaming" | "succeeded" | "failed" | "cancelled";
+  selectedAt: number; completedAt?: number; stats?: Record<string, unknown>; error?: string;
+}
+
+/** Read correlated requester/provider evidence emitted by Hypha for a completed public job. */
+export async function publicJobEvidence(jobId: string): Promise<PublicJobEvidenceView | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(jobId)) return null;
+  try {
+    const response = await patientFetch(`${HYPHA_SHIM_URL}/public/compute/jobs/${encodeURIComponent(jobId)}`, { signal: AbortSignal.timeout(2_000) });
+    if (!response.ok) return null;
+    const body = await response.json() as { evidence?: PublicJobEvidenceView };
+    return body.evidence ?? null;
+  } catch { return null; }
 }

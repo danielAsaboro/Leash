@@ -33,7 +33,9 @@ import {
   type ChatSummary,
   type ChatRecord,
 } from "./chats";
+import { chatNeedsSave, snapshotChat, type PersistedChatSnapshot } from "./chat-persistence";
 import { meshForward, meshVision, abortMeshForward } from "./forwardWorklet";
+import { abortPublicChat, discoverPublicChatProvider, publicChat, type PublicProviderAdvert } from "./publicCompute";
 import { loadStt, startRecording, stopRecording, transcribeWav, type RecHandle } from "./voice";
 import { useFonts } from "expo-font";
 import {
@@ -83,13 +85,13 @@ import { EconomyScreen } from "./EconomyScreen";
 import { ServicesScreen } from "./ServicesScreen";
 import { initMesh } from "./meshClient";
 import { getPrompts, CHAT_SYSTEM_PROMPT, VOICE_RESPONSE_PROMPT } from "./prompts";
-import { DEFAULT_IMAGE_PROMPT, NO_THINK_DIRECTIVE } from "./prompt";
+import { DEFAULT_IMAGE_PROMPT, MOBILE_CHAT_GENERATION_PARAMS, NO_THINK_DIRECTIVE } from "./prompt";
 import { getConstitution } from "./constitution";
 import { listMemories, type Memory } from "./memories";
 import { addNotification, unreadCount } from "./notifications";
 import * as Device from "expo-device";
 import { AppState, Keyboard } from "react-native";
-import { buildDeviceTools } from "./lib/agent/tools";
+import { buildDeviceToolsForPrompt } from "./lib/agent/tools";
 import { runNativeTurn, splitThink, partsFromText, type Part } from "./lib/agent/native-loop";
 import { logChatTurn, summarizeParts } from "./lib/agent/chat-log";
 import { activeSkillForTurn, syncSkillsFromMesh } from "./lib/agent/skills";
@@ -104,6 +106,7 @@ import { getDeviceIdentity, makeDeviceIdentity, saveDeviceIdentity } from "./dev
 import { resetDeviceState } from "./resetDeviceState";
 import { decideMobileSetup, mobileDeviceLabel } from "./deviceSetup";
 import type { DeviceSetupDecision } from "@mycelium/brain";
+import { makeMessageId } from "./message-id";
 
 const SELF_DEVICE = Device.deviceName || Device.modelName || "This phone";
 const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
@@ -152,20 +155,30 @@ const SUGGESTIONS = [
 ];
 
 type Role = "user" | "assistant";
-type Telemetry = { tokens: number; tps: number; ttftMs: number; where: "mesh" | "local"; device?: string };
+type ComputeRoute = "automatic" | "local" | "private" | "public";
+type Telemetry = {
+  tokens: number; tps: number; ttftMs: number; where: "mesh" | "local" | "public";
+  device?: string; jobId?: string; discoveryMs?: number; connectionMs?: number; queueMs?: number;
+  connectionTransport?: "lan" | "dht";
+  requesterRssBeforeMb?: number; requesterRssAfterMb?: number; selectionReason?: string;
+};
 type ChatMessage = { id: string; role: Role; content: string; telemetry?: Telemetry; image?: string; parts?: Part[] };
 
-let idSeq = 0;
-const makeId = () => `m${(idSeq += 1)}`;
+const makeId = makeMessageId;
 
 /** "⛓ mesh · 142 tok · 18 tok/s · ttft 120 ms" — broadsheet telemetry under a finished answer. */
 function telemetryLine(t: Telemetry): string {
-  const place = t.where === "mesh" ? `⛓ mesh${t.device ? ` · ${t.device}` : ""}` : "⌂ on-device";
+  const place = t.where === "public" ? `◎ public${t.device ? ` · ${t.device}` : ""}` : t.where === "mesh" ? `⛓ private${t.device ? ` · ${t.device}` : ""}` : "⌂ on-device";
   return [
     place,
     `${t.tokens} tok`,
     t.tps ? `${t.tps} tok/s` : "",
     t.ttftMs ? `ttft ${t.ttftMs} ms` : "",
+    t.discoveryMs !== undefined ? `disc ${t.discoveryMs} ms` : "",
+    t.connectionTransport ? `via ${t.connectionTransport}` : "",
+    t.connectionMs !== undefined ? `connect ${t.connectionMs} ms` : "",
+    t.queueMs !== undefined ? `queue ${t.queueMs} ms` : "",
+    t.jobId ? `job ${t.jobId.slice(0, 8)}` : "",
   ]
     .filter(Boolean)
     .join("  ·  ");
@@ -216,6 +229,7 @@ export default function App(): React.JSX.Element {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [chatList, setChatList] = useState<ChatSummary[]>([]);
   const chatCreatedRef = useRef(Date.now());
+  const persistedChatRef = useRef<PersistedChatSnapshot | null>(null);
 
   // Attachment busy state + the "+" Add-to-Chat sheet + the staged (not-yet-sent) attachments
   // (up to 5, shown as thumbnails hoisted inside the composer box).
@@ -245,6 +259,10 @@ export default function App(): React.JSX.Element {
   // Mesh offload — the phone AUTO-borrows chat compute from a provider it discovers in its joined
   // mesh. No provider key is ever typed or stored; `offload` is the live target (null = on-device).
   const [offload, setOffload] = useState<MeshOffloadTarget | null>(null);
+  const [computeRoute, setComputeRoute] = useState<ComputeRoute>("automatic");
+  const [publicProviderName, setPublicProviderName] = useState<string>("");
+  const computeRouteRef = useRef<ComputeRoute>("automatic");
+  computeRouteRef.current = computeRoute;
   // The dashboard shell: which screen is showing + the left nav drawer.
   const [route, setRoute] = useState<Route>("chat");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -261,7 +279,10 @@ export default function App(): React.JSX.Element {
   const firstDevicePlanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasContent = input.trim().length > 0 || attachments.length > 0;
-  const canSend = !!modelId && !isGenerating && hasContent;
+  // Public compute is a real execution route, not a decoration on local inference. A shareable
+  // public turn remains usable while the optional local chat model is still loading or absent.
+  const routeCanExecute = !!modelId || computeRoute === "public";
+  const canSend = routeCanExecute && !isGenerating && hasContent;
   const MAX_ATTACH = 5;
 
   const setStepStatus = useCallback((key: string, status: WarmStep["status"]) => {
@@ -528,6 +549,7 @@ export default function App(): React.JSX.Element {
         const rec = await loadChat(list[0]!.id);
         if (rec) {
           chatCreatedRef.current = rec.createdAt;
+          persistedChatRef.current = snapshotChat(rec.id, rec.messages);
           setChatId(rec.id);
           setMessages(rec.messages as ChatMessage[]);
           return;
@@ -539,7 +561,8 @@ export default function App(): React.JSX.Element {
 
   // Persist the current conversation whenever it settles (a turn finished, not mid-stream).
   useEffect(() => {
-    if (!chatId || isGenerating || messages.length === 0) return;
+    if (isGenerating || !chatNeedsSave(persistedChatRef.current, chatId, messages)) return;
+    const snapshot = snapshotChat(chatId, messages);
     const rec: ChatRecord = {
       id: chatId,
       createdAt: chatCreatedRef.current,
@@ -547,7 +570,10 @@ export default function App(): React.JSX.Element {
       title: deriveTitle(messages),
       messages,
     };
-    void saveChat(rec);
+    persistedChatRef.current = snapshot;
+    void saveChat(rec).catch(() => {
+      if (persistedChatRef.current === snapshot) persistedChatRef.current = null;
+    });
   }, [messages, isGenerating, chatId]);
 
   // AUTO-BORROW (forward transport). Poll the joined mesh for a live provider serving a chat model and,
@@ -566,7 +592,7 @@ export default function App(): React.JSX.Element {
       };
     }
     const tick = async () => {
-      const target = await pickChatProvider().catch(() => null);
+      const target = await pickChatProvider(offloadRef.current?.providerPublicKey).catch(() => null);
       if (cancelled) return;
       const ck = target ? await selfConsumerKey().catch(() => "") : "";
       if (cancelled) return;
@@ -649,10 +675,12 @@ export default function App(): React.JSX.Element {
     ): Promise<string> => {
       cancelRef.current = false;
       activeRequestIdRef.current = null;
+      const routeMode = computeRouteRef.current;
       const target = offloadRef.current;
-      const useMesh = !!target && !!consumerKeyRef.current;
-      const where: "mesh" | "local" = useMesh ? "mesh" : "local";
-      if (!useMesh && !modelIdRef.current) return "";
+      const useMesh = (routeMode === "automatic" || routeMode === "private") && !!target && !!consumerKeyRef.current;
+      const usePublic = routeMode === "public";
+      const where: "public" | "mesh" | "local" = usePublic ? "public" : useMesh ? "mesh" : "local";
+      if (!useMesh && !usePublic && !modelIdRef.current) return "";
 
       const started = Date.now();
       let firstAt = 0;
@@ -662,11 +690,11 @@ export default function App(): React.JSX.Element {
       let turnParts: Part[] = [];
       let turnTelemetry: Telemetry | undefined;
       let turnError: string | undefined;
+      let selectedPublicProvider = "";
 
-      // Direct system prompt for the MESH-borrow and VOICE paths: Brain identity (+ voice directive on
-      // spoken turns), with `/no_think` to keep the small model fast and markdown-free for TTS. The
-      // LOCAL text-chat path below runs the agent loop WITHOUT `/no_think` so reasoning is produced and
-      // shown in a collapsible block (the whole point of this screen).
+      // Direct system prompt for MESH borrow and local phone inference. `/no_think` plus the matching
+      // per-request reasoning budget keeps small on-device models responsive; tool calls and answers
+      // still render through the native parts loop.
       const directBase = voice ? `${baseSystemRef.current}\n\n${voiceDirectiveRef.current}` : baseSystemRef.current;
       const directSystem = `${directBase}\n${NO_THINK_DIRECTIVE}`;
       const fullHistory = [{ role: "system" as const, content: directSystem }, ...history];
@@ -678,7 +706,46 @@ export default function App(): React.JSX.Element {
       };
 
       try {
-        if (useMesh && voice) {
+        if (routeMode === "private" && !useMesh) throw new Error("no eligible private mesh provider");
+        if (usePublic) {
+          // A public turn is deliberately stateless/shareable: never transmit conversation history,
+          // memories, files, private tools, or attachments. Discovery is revalidated every turn and
+          // the phone connects directly to the advertised Noise identity.
+          const discovery = await discoverPublicChatProvider();
+          const publicTarget: PublicProviderAdvert = discovery.advert;
+          selectedPublicProvider = publicTarget.displayName;
+          setPublicProviderName(publicTarget.displayName);
+          const latest = history[history.length - 1]?.content ?? "";
+          const result = await publicChat({
+            advert: publicTarget,
+            messages: [
+              { role: "system", content: `You are answering one explicitly shareable, stateless public-compute turn. Do not request private memory, files, device state, credentials, or prior conversation.\n${NO_THINK_DIRECTIVE}` },
+              { role: "user", content: latest },
+            ],
+            onChunk: (full) => {
+              if (cancelRef.current) return;
+              if (!firstAt) firstAt = Date.now();
+              const display = stripThink(full);
+              onToken?.(display);
+              setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: display } : m));
+            },
+          });
+          acc = stripThink(result.text);
+          const tokens = Number(result.stats.tokens ?? Math.max(1, Math.round(acc.length / 4)));
+          const tps = Math.round(Number(result.stats.tokensPerSecond ?? 0));
+          const ttftMs = firstAt ? firstAt - started : discovery.discoveryMs + Number(result.stats.requesterTtftMs ?? 0);
+          turnTelemetry = {
+            tokens, tps, ttftMs, where: "public", device: publicTarget.displayName, jobId: result.jobId,
+            discoveryMs: discovery.discoveryMs,
+            ...(result.stats.connectionTransport === "lan" || result.stats.connectionTransport === "dht" ? { connectionTransport: result.stats.connectionTransport } : {}),
+            connectionMs: Number(result.stats.connectionMs ?? 0),
+            queueMs: Number(result.stats.queueMs ?? 0),
+            ...(Number.isFinite(Number(result.stats.requesterRssBeforeMb)) ? { requesterRssBeforeMb: Number(result.stats.requesterRssBeforeMb) } : {}),
+            ...(Number.isFinite(Number(result.stats.requesterRssAfterMb)) ? { requesterRssAfterMb: Number(result.stats.requesterRssAfterMb) } : {}),
+            selectionReason: discovery.selectionReason,
+          };
+          setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: acc, telemetry: turnTelemetry } : m));
+        } else if (useMesh && voice) {
           // FORWARD (voice): borrow the peer's resident serve over the per-pair forward transport, direct
           // fast path (plain text → TTS). Non-voice borrow goes through the agent loop below instead.
           const messages = fullHistory.map((m) => ({ role: m.role, content: m.content }));
@@ -696,7 +763,8 @@ export default function App(): React.JSX.Element {
           acc = stripThink(acc);
           const elapsed = (Date.now() - started) / 1000;
           const tokens = Math.max(1, Math.round(acc.length / 4));
-          const tps = elapsed > 0 ? Math.round(tokens / elapsed) : 0;
+          const generationElapsed = firstAt ? Math.max(0.001, (Date.now() - firstAt) / 1000) : elapsed;
+          const tps = generationElapsed > 0 ? Math.round(tokens / generationElapsed) : 0;
           const ttftMs = firstAt ? firstAt - started : 0;
           const telemetry: Telemetry = { tokens, tps, ttftMs, where: "mesh", device: target!.displayName };
           console.log(`[chat] DONE where=mesh provider=${target!.displayName} model=${target!.alias} chars=${acc.length} ~${tps} tok/s ttft ${ttftMs}ms`);
@@ -704,7 +772,12 @@ export default function App(): React.JSX.Element {
         } else if (voice) {
           // LOCAL VOICE: direct fast path — plain tokenStream + stripThink, read aloud by TTS.
           let chunks = 0;
-          const result = completion({ modelId: modelIdRef.current!, history: fullHistory, stream: true });
+          const result = completion({
+            modelId: modelIdRef.current!,
+            history: fullHistory,
+            stream: true,
+            generationParams: MOBILE_CHAT_GENERATION_PARAMS,
+          });
           activeRequestIdRef.current = (result as { requestId?: string }).requestId ?? null;
           for await (const token of result.tokenStream) {
             if (cancelRef.current) break;
@@ -732,7 +805,7 @@ export default function App(): React.JSX.Element {
           // Skill selection (lexical + on-device embeddings + RRF). When one clears the gate, inject its
           // body into the system prompt and prepend a "Loaded skill ·" card to the rendered parts.
           const lead: Part[] = [];
-          let agentSystem = baseSystemRef.current;
+          let agentSystem = `${baseSystemRef.current}\n${NO_THINK_DIRECTIVE}`;
           try {
             const active = await activeSkillForTurn(history[history.length - 1]?.content ?? "");
             if (active) {
@@ -770,8 +843,9 @@ export default function App(): React.JSX.Element {
               modelId: modelIdRef.current!,
               instructions: agentSystem,
               history,
-              tools: buildDeviceTools(),
+              tools: buildDeviceToolsForPrompt(prompt),
               maxSteps: 6,
+              generationParams: MOBILE_CHAT_GENERATION_PARAMS,
               leadingParts: lead,
               isCancelled: () => cancelRef.current,
               onUpdate: (parts) => {
@@ -784,7 +858,8 @@ export default function App(): React.JSX.Element {
 
           const elapsed = (Date.now() - started) / 1000;
           const tokens = Math.max(1, Math.round(acc.length / 4));
-          const tps = elapsed > 0 ? Math.round(tokens / elapsed) : 0;
+          const generationElapsed = firstAt ? Math.max(0.001, (Date.now() - firstAt) / 1000) : elapsed;
+          const tps = generationElapsed > 0 ? Math.round(tokens / generationElapsed) : 0;
           const ttftMs = firstAt ? firstAt - started : 0;
           const telemetry: Telemetry = { tokens, tps, ttftMs, where, device: useMesh ? target!.displayName : undefined };
           turnTelemetry = telemetry;
@@ -810,14 +885,24 @@ export default function App(): React.JSX.Element {
           device: SELF_DEVICE,
           where,
           ...(voice ? { voice: true } : {}),
-          model: useMesh ? target?.alias ?? "?" : modelIdRef.current ?? "?",
-          ...(useMesh && target ? { provider: target.displayName } : {}),
+          model: usePublic ? "chat" : useMesh ? target?.alias ?? "?" : modelIdRef.current ?? "?",
+          ...(usePublic && selectedPublicProvider ? { provider: selectedPublicProvider } : useMesh && target ? { provider: target.displayName } : {}),
           prompt,
           ...(reasoning ? { reasoning } : {}),
           answer: acc,
           ...(tools.length ? { tools } : {}),
           ...(skill ? { skill } : {}),
-          ...(turnTelemetry ? { telemetry: { tokens: turnTelemetry.tokens, tps: turnTelemetry.tps, ttftMs: turnTelemetry.ttftMs } } : {}),
+          ...(turnTelemetry ? { telemetry: {
+            tokens: turnTelemetry.tokens, tps: turnTelemetry.tps, ttftMs: turnTelemetry.ttftMs,
+            ...(turnTelemetry.jobId ? { jobId: turnTelemetry.jobId } : {}),
+            ...(turnTelemetry.discoveryMs !== undefined ? { discoveryMs: turnTelemetry.discoveryMs } : {}),
+            ...(turnTelemetry.connectionTransport ? { connectionTransport: turnTelemetry.connectionTransport } : {}),
+            ...(turnTelemetry.connectionMs !== undefined ? { connectionMs: turnTelemetry.connectionMs } : {}),
+            ...(turnTelemetry.queueMs !== undefined ? { queueMs: turnTelemetry.queueMs } : {}),
+            ...(turnTelemetry.requesterRssBeforeMb !== undefined ? { requesterRssBeforeMb: turnTelemetry.requesterRssBeforeMb } : {}),
+            ...(turnTelemetry.requesterRssAfterMb !== undefined ? { requesterRssAfterMb: turnTelemetry.requesterRssAfterMb } : {}),
+            ...(turnTelemetry.selectionReason ? { selectionReason: turnTelemetry.selectionReason } : {}),
+          } } : {}),
           ...(turnError ? { error: turnError } : {}),
         });
       }
@@ -866,6 +951,7 @@ export default function App(): React.JSX.Element {
     // cancel so the provider aborts its local serve fetch (cancel-bridge; safe on 0.13.5) — and unblock
     // the phone. (Requires the forward worklet bundle rebuilt from forward-worklet.mjs.)
     abortMeshForward();
+    abortPublicChat();
     // Prefer a targeted cancel of the active single-shot turn's requestId (safe on 0.13.5);
     // fall back to the broad per-model cancel for the multi-step native loop (no single requestId).
     const rid = activeRequestIdRef.current;
@@ -990,6 +1076,10 @@ export default function App(): React.JSX.Element {
     if (!modelId || isGenerating) return;
     Keyboard.dismiss(); // drop the keyboard on send so the conversation fills the screen; tap the box to type again
     if (attachments.length > 0) {
+      if (computeRouteRef.current === "public") {
+        Alert.alert("Public route", "Public chat sends only the explicit text turn. Remove attachments or choose Local/Private for vision.");
+        return;
+      }
       const items = attachments;
       setAttachments([]);
       void sendImage(items);
@@ -1048,6 +1138,7 @@ export default function App(): React.JSX.Element {
   const newChat = useCallback(() => {
     if (isGenerating) stop();
     chatCreatedRef.current = Date.now();
+    persistedChatRef.current = null;
     setChatId(newChatId());
     setMessages([]);
     setInput("");
@@ -1065,6 +1156,7 @@ export default function App(): React.JSX.Element {
       const rec = await loadChat(id);
       if (!rec) return;
       chatCreatedRef.current = rec.createdAt;
+      persistedChatRef.current = snapshotChat(rec.id, rec.messages);
       setChatId(rec.id);
       setMessages(rec.messages as ChatMessage[]);
       setInput("");
@@ -1228,6 +1320,20 @@ export default function App(): React.JSX.Element {
               )}
             </Pressable>
           </View>
+          <View style={styles.routePicker}>
+            {(["automatic", "local", "private", "public"] as ComputeRoute[]).map((mode) => (
+              <Pressable
+                key={mode}
+                onPress={() => setComputeRoute(mode)}
+                accessibilityRole="button"
+                accessibilityLabel={`Route ${mode}`}
+                accessibilityState={{ selected: computeRoute === mode }}
+                style={[styles.routeChoice, computeRoute === mode && styles.routeChoiceActive]}
+              >
+                <Text style={[styles.routeChoiceText, computeRoute === mode && styles.routeChoiceTextActive]}>{mode === "automatic" ? "AUTO" : mode.toUpperCase()}</Text>
+              </Pressable>
+            ))}
+          </View>
           {progress != null && (
             <View style={styles.progressTrack}>
               <View style={[styles.progressFill, { width: `${progress}%` }]} />
@@ -1252,8 +1358,8 @@ export default function App(): React.JSX.Element {
                 <Pressable
                   key={s}
                   onPress={() => send(s)}
-                  disabled={!modelId}
-                  style={({ pressed }) => [styles.suggest, pressed && styles.suggestPressed, !modelId && styles.suggestDisabled]}
+                  disabled={!routeCanExecute}
+                  style={({ pressed }) => [styles.suggest, pressed && styles.suggestPressed, !routeCanExecute && styles.suggestDisabled]}
                 >
                   <Text style={styles.suggestArrow}>→</Text>
                   <Text style={styles.suggestText}>{s}</Text>
@@ -1302,9 +1408,10 @@ export default function App(): React.JSX.Element {
               style={styles.pillInput}
               value={input}
               onChangeText={setInput}
-              placeholder={modelId ? "Message your exocortex…" : "Loading the model…"}
+              placeholder={routeCanExecute ? "Message your exocortex…" : "Loading the model…"}
               placeholderTextColor={C.faint}
-              editable={!!modelId}
+              editable={routeCanExecute}
+              accessibilityLabel="Chat message"
               multiline
               blurOnSubmit={false}
             />
@@ -1338,6 +1445,9 @@ export default function App(): React.JSX.Element {
                 <Pressable
                   onPress={handleSend}
                   disabled={!canSend}
+                  accessibilityRole="button"
+                  accessibilityLabel="Send message"
+                  accessibilityState={{ disabled: !canSend }}
                   style={[styles.pillSend, !hasContent && styles.pillSendIdle]}
                   hitSlop={6}
                 >
@@ -1346,7 +1456,9 @@ export default function App(): React.JSX.Element {
               )}
             </View>
           </View>
-          <Text style={styles.footerKicker}>PRIVATE · OFFLINE-CAPABLE · NOTHING LEAVES THIS DEVICE</Text>
+          <Text style={styles.footerKicker}>
+            {computeRoute === "public" ? `PUBLIC · SHAREABLE TURN ONLY${publicProviderName ? ` · ${publicProviderName}` : ""}` : computeRoute === "private" || (computeRoute === "automatic" && meshOnRef.current) ? "PRIVATE MESH · ENCRYPTED DEVICE-TO-DEVICE" : "LOCAL · OFFLINE-CAPABLE · ON THIS DEVICE"}
+          </Text>
         </View>
       </KeyboardAvoidingView>
       ) : route === "home" ? (
@@ -1543,7 +1655,10 @@ function MessageBlock({
       )}
       {message.telemetry && (
         <View style={styles.telemetryRow}>
-          <Text style={styles.telemetry}>{telemetryLine(message.telemetry)}</Text>
+          <View style={styles.telemetryEvidence}>
+            <Text style={styles.telemetry}>{telemetryLine(message.telemetry)}</Text>
+            {message.telemetry.selectionReason ? <Text style={styles.telemetryReason}>selected · {message.telemetry.selectionReason}</Text> : null}
+          </View>
           {canRegenerate && (
             <Pressable onPress={onRegenerate} hitSlop={8}>
               <Text style={styles.regen}>↻ REGENERATE</Text>
@@ -1622,6 +1737,11 @@ const styles = StyleSheet.create({
     letterSpacing: TRACKING_LABEL,
     textTransform: "uppercase",
   },
+  routePicker: { flexDirection: "row", gap: 5, paddingTop: 8 },
+  routeChoice: { flex: 1, borderWidth: StyleSheet.hairlineWidth, borderColor: C.rule, borderRadius: 4, paddingVertical: 5, alignItems: "center" },
+  routeChoiceActive: { backgroundColor: C.sageDeep, borderColor: C.sageDeep },
+  routeChoiceText: { fontFamily: F.monoMed, fontSize: 8, color: C.muted, letterSpacing: 0.6 },
+  routeChoiceTextActive: { color: C.cream },
   progressTrack: {
     height: 3,
     backgroundColor: C.rule,
@@ -1696,7 +1816,9 @@ const styles = StyleSheet.create({
     marginTop: 12,
     gap: 12,
   },
+  telemetryEvidence: { flex: 1, gap: 3 },
   telemetry: { fontFamily: F.mono, fontSize: 10, color: C.faint, letterSpacing: 0.6, flex: 1 },
+  telemetryReason: { fontFamily: F.mono, fontSize: 9, color: C.faint, letterSpacing: 0.35 },
   regen: { fontFamily: F.monoMed, fontSize: 10, color: C.sageDeep, letterSpacing: TRACKING_LABEL },
 
   // Composer — Claude-style input pill with actions inside.

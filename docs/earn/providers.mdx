@@ -7,6 +7,11 @@ A provider is a machine running Hypha plus a local QVAC serve. It advertises mod
 payment identity, and one public settlement price for its paid rail.
 
 <Warning>
+  Zero-price public serving is live. Non-zero-price serving remains gated until the live request
+  path can complete its paid-session authorization and settlement.
+</Warning>
+
+<Warning>
   All model work must go through `@qvac/sdk`. Do not add cloud AI fallback routes for paid or free providers.
 </Warning>
 
@@ -14,6 +19,7 @@ payment identity, and one public settlement price for its paid rail.
 
 - QVAC serve is running with the model aliases you want to offer.
 - Hypha is running on the provider device.
+- Public compute is explicitly enabled in the Mesh UI or provider control API.
 - The provider has a distinct wallet identity.
 - `HYPHA_ECONOMY_ENABLED=1` is set.
 - The provider has a public settlement price via `HYPHA_ECONOMY_PRICE_PER_KTOK`.
@@ -57,9 +63,8 @@ the settlement rail, not per alias.
 The router treats price as one input, alongside model fit, latency, availability, confidence, and reputation.
 
 <Note>
-  Zero-price public providers are routeable, but the current `/economy` ledger and market views are
-  still paid-session-first. Validate free-provider behavior through routing traces, not by expecting
-  rich ledger rows.
+  Zero-price public advertisements are executable inference routes. They are signed, expire without
+  heartbeats, and are revalidated against the live serve before selection.
 </Note>
 
 ## Keep it online

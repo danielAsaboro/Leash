@@ -24,14 +24,15 @@ import { spawn, execFile } from "node:child_process";
 import { openSync, closeSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { readJson, writeJson, DATA_DIR } from "./json-store.ts";
-import { QVAC_OPENAI_URL, liveModels } from "./models.ts";
+import { liveModels } from "./models.ts";
+import { QVAC_SERVE_OPENAI_URL } from "./serve-endpoint.ts";
 import { inflightCount } from "./inflight.ts";
 
 const ROOT = join(DATA_DIR, "..");
 const PIDFILE = process.env["LEASH_SERVE_PIDFILE"] ?? join(DATA_DIR, "leash-serve.json");
 const LOGFILE = process.env["LEASH_SERVE_LOG"] ?? join(DATA_DIR, "leash-serve.log");
-/** Port from QVAC_OPENAI_URL (default 11435). */
-const PORT = Number(new URL(QVAC_OPENAI_URL).port || 11435);
+/** Direct serve port. Chat's QVAC_OPENAI_URL may intentionally point at the broker. */
+const PORT = Number(new URL(QVAC_SERVE_OPENAI_URL).port || 11435);
 const QVAC_CONFIG_PATH = process.env["QVAC_CONFIG_PATH"];
 
 /**

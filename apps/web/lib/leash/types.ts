@@ -7,6 +7,7 @@ import type { GoalRunView } from "@mycelium/leash-core/goal-runs";
  * Client-safe so VoiceCall/LeashChat can reference it without pulling server-only code.
  */
 export type EffortTier = "quick" | "standard" | "deep";
+export type RouteIntent = "local" | "private" | "public" | "automatic";
 
 /** Per-message telemetry, emitted by the route via `messageMetadata`. */
 export interface LeashMetadata {
@@ -83,6 +84,12 @@ export interface ConductorDecisionEvent {
   meshId?: string;
   reason: string;
   viaFastPath: boolean;
+  /** Correlated public-compute evidence, emitted after a routed stream settles. */
+  jobId?: string;
+  providerId?: string;
+  state?: "selected" | "streaming" | "succeeded" | "failed" | "cancelled";
+  metrics?: Record<string, unknown>;
+  error?: string;
 }
 
 /** Persisted `data-goal-run` part: durable run progress/evidence for this assistant turn. */

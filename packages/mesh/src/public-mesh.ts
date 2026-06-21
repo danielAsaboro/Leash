@@ -11,9 +11,9 @@
  *     above — over mDNS for a local cell (apps/hypha wires it) — via `addPeerFeed`. Once a peer
  *     feed is known, the swarm connection replicates it and the gossip view merges it.
  *
- * Broadcast-only by construction: there is no compute provider here, so a public membership can
- * never widen the device's delegated-inference firewall (spec §4) — the privacy guarantee is
- * structural, not a runtime check.
+ * Public membership never widens the private delegated-inference firewall. Public compute, when
+ * explicitly enabled, uses a separate authenticated transport and stateless job envelope layered
+ * above these signed adverts; it does not reuse this replication stream or grant mesh membership.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";

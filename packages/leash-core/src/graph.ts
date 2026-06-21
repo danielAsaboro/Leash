@@ -32,6 +32,8 @@ export interface ActivityRecord {
 }
 
 let leashEmbModelId: string | undefined;
+let leashEmbModelPromise: Promise<string> | undefined;
+let leashEmbEnvTried = false;
 
 /** Split a note into paragraph-ish chunks, dropping trivially short fragments. */
 export function chunkText(text: string): string[] {
@@ -213,6 +215,7 @@ export interface GraphHit {
   source: string;
   text: string;
   score: number;
+  kind?: string;
 }
 
 export function cosine(a: number[], b: number[]): number {
@@ -240,29 +243,110 @@ export async function collectLeashRagDocs(): Promise<RagSourceDoc[]> {
 
 async function leashEmbeddingModelId(): Promise<string> {
   if (leashEmbModelId) return leashEmbModelId;
-  leashEmbModelId = process.env["LEASH_RAG_EMB_MODEL_ID"] || (await loadEmbeddings());
-  return leashEmbModelId;
+  if (!leashEmbModelPromise) {
+    leashEmbModelPromise = (async () => {
+      const configured = !leashEmbEnvTried ? process.env["LEASH_RAG_EMB_MODEL_ID"] : undefined;
+      leashEmbEnvTried = true;
+      const modelId = configured || (await loadEmbeddings());
+      leashEmbModelId = modelId;
+      return modelId;
+    })().finally(() => {
+      leashEmbModelPromise = undefined;
+    });
+  }
+  return leashEmbModelPromise;
+}
+
+/** QVAC model ids belong to one worker lifetime. A dashboard serve restart invalidates a
+ * previously cached id even though the embedding alias is loaded again. */
+export function isStaleEmbeddingModelError(error: unknown): boolean {
+  const message = error instanceof Error ? `${error.message} ${String(error.cause ?? "")}` : String(error);
+  return /model with id ["']?[^"']+["']? not found/i.test(message);
+}
+
+async function recoverEmbeddingModelId(staleId: string): Promise<string> {
+  // The equality guard lets concurrent search_graph calls share one reload. A second caller that
+  // observes the replacement simply reuses it instead of starting another SDK load.
+  if (leashEmbModelId === staleId) leashEmbModelId = undefined;
+  return leashEmbeddingModelId();
+}
+
+async function searchNotesWithModel(input: {
+  docs: RagSourceDoc[];
+  embModelId: string;
+  query: string;
+  topK: number;
+  kinds?: string[];
+}) {
+  await syncRagWorkspace({
+    embModelId: input.embModelId,
+    workspace: LEASH_RAG_WORKSPACE,
+    manifestPath: LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE),
+    docs: input.docs,
+  });
+  return searchRagWorkspace({
+    embModelId: input.embModelId,
+    workspace: LEASH_RAG_WORKSPACE,
+    manifestPath: LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE),
+    query: input.query,
+    // A source-kind filter is applied after the SDK search, so retrieve a bounded wider candidate
+    // pool first. This prevents an exact echo in a recent chat from hiding an actual note.
+    topK: input.kinds?.length ? Math.max(16, Math.min(64, input.topK * 8)) : Math.max(1, Math.min(8, input.topK)),
+  });
+}
+
+/** Exact device/batch/reference ids are poor semantic-search queries: a vector can prefer another
+ * numeric measurement. Put literal identifier matches ahead of cosine-ranked results. */
+export function exactIdentifierGraphHits(query: string, docs: RagSourceDoc[]): GraphHit[] {
+  const ids = [...new Set(
+    (query.match(/\b(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9]+(?:-[A-Z0-9]+)+\b/gi) ?? [])
+      .map((value) => value.toLowerCase()),
+  )];
+  if (ids.length === 0) return [];
+  return docs
+    .map((doc) => {
+      const text = doc.content.toLowerCase();
+      const matches = ids.filter((id) => text.includes(id)).length;
+      return matches > 0
+        ? { source: doc.source, text: doc.content, score: 2 + matches, ...(doc.kind ? { kind: doc.kind } : {}) }
+        : null;
+    })
+    .filter((hit): hit is GraphHit => hit !== null)
+    .sort((left, right) => right.score - left.score);
 }
 
 /** Top-K most similar chunks for a query — notes + activity + typed memories + past chats, via QVAC SDK RAG. */
-export async function searchNotes(query: string, topK = 3): Promise<GraphHit[]> {
+export async function searchNotes(query: string, topK = 3, kinds?: string[]): Promise<GraphHit[]> {
   const docs = await collectLeashRagDocs();
   if (docs.length === 0) return [];
-  const embModelId = await leashEmbeddingModelId();
-  await syncRagWorkspace({
-    embModelId,
-    workspace: LEASH_RAG_WORKSPACE,
-    manifestPath: LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE),
-    docs,
-  });
-  const hits = await searchRagWorkspace({
-    embModelId,
-    workspace: LEASH_RAG_WORKSPACE,
-    manifestPath: LEASH_RAG_MANIFEST || defaultRagManifestPath(LEASH_RAG_WORKSPACE),
-    query,
-    topK: Math.max(1, Math.min(8, topK)),
-  });
-  return hits.map((hit) => ({ source: hit.source ?? "unknown", text: hit.content, score: hit.score }));
+  let embModelId = await leashEmbeddingModelId();
+  let hits: Awaited<ReturnType<typeof searchNotesWithModel>>;
+  try {
+    hits = await searchNotesWithModel({ docs, embModelId, query, topK, ...(kinds ? { kinds } : {}) });
+  } catch (error) {
+    if (!isStaleEmbeddingModelError(error)) throw error;
+    embModelId = await recoverEmbeddingModelId(embModelId);
+    hits = await searchNotesWithModel({ docs, embModelId, query, topK, ...(kinds ? { kinds } : {}) });
+  }
+  const literalHits = exactIdentifierGraphHits(query, docs);
+  const semanticHits: GraphHit[] = hits.map((hit) => ({
+    source: hit.source ?? "unknown",
+    text: hit.content,
+    score: hit.score,
+    ...(hit.kind ? { kind: hit.kind } : {}),
+  }));
+  const allowed = kinds?.length ? new Set(kinds) : null;
+  const seen = new Set<string>();
+  return [...literalHits, ...semanticHits]
+    .filter((hit) => !allowed || (typeof hit.kind === "string" && allowed.has(hit.kind)))
+    .filter((hit) => {
+      const key = `${hit.source}\u0000${hit.text}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, Math.max(1, topK))
+    .map((hit) => ({ source: hit.source, text: hit.text, score: hit.score, ...(hit.kind ? { kind: hit.kind } : {}) }));
 }
 
 export interface IndexStats {

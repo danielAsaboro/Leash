@@ -88,11 +88,12 @@ the proactive feed all become usable context on your own hardware. And it reason
 weight class of any one device by placing heavier work on stronger peers across your mesh
 instead of collapsing to a cloud dependency.
 
-It is not a single demo trick. It is one assistant riding one runtime across several trust and
-economy tiers: on your **private mesh**, your own devices delegate for free; on a **public
-mesh**, outside providers can expose compute free or paid. That is the innovation surface:
-general-purpose personal AI with encrypted delegation and an optional compute market, all on
-the same QVAC-only runtime. See [Leash and Mycelium](/explanation/what-mycelium-is) for the
+It is not a single demo trick. It is one assistant riding one runtime across several trust
+boundaries: on your **private mesh**, your own devices delegate for free; an explicitly shareable
+turn can use an opted-in, unpaired zero-price public provider over authenticated encrypted P2P.
+The separately tested paid economy contract remains an integration seam, not a shipped paid
+inference claim. That is the innovation surface: general-purpose personal AI with encrypted private
+and public delegation on the same QVAC-only runtime. See [Leash and Mycelium](/explanation/what-mycelium-is) for the
 product/runtime split and [Architecture](/explanation/architecture) for the layers.
 
 <Note>
@@ -121,7 +122,12 @@ both private and extensible.
 
 ## Offline acceptance
 
-After a one-time warm-cache (first run downloads the GGUF weights and bootstraps the mesh, online), everything runs with no network. The acceptance test is literal: **it works in airplane mode**. There's no login, no API key, no cloud dependency on the hot path.
+After a one-time warm-cache (first run downloads the GGUF weights and bootstraps the mesh, online),
+the inference hot path needs no WAN. A WAN-denied requester completed a public LAN job while the
+provider's actual QVAC serve was also running with outbound network denied. Local Android startup
+and rejoin were separately exercised in airplane mode. There is no login, API key, or cloud-AI
+dependency on the hot path. The evidence does not overstate this as a host-wide firewall test of
+every mesh transport process.
 
 ## Where the evidence lives
 

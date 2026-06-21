@@ -36,5 +36,10 @@ const reads = planMandatedReadCalls(prompt, ["search_graph", "active_context"], 
 assert.ok(reads, "known approval-free reads should be pre-executable");
 assert.deepEqual(reads.map((entry) => entry.input), [{ query: prompt, topK: 3 }, {}]);
 assert.equal(planMandatedReadCalls(prompt, ["create_task"], registry), null, "write tools must never enter the read fast path");
+assert.deepEqual(
+  planMandatedReadCalls("Ask Grace to explain the routing decision in one sentence.", [], registry),
+  [],
+  "an explicit reasoning-only specialist request uses an empty authoritative-read batch",
+);
 
 console.log("smoke:explicit-agent-plan PASS");

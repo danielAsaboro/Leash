@@ -63,12 +63,12 @@ from a hosted API.
 Mycelium's mesh is not one flat trust zone.
 
 - On your **private mesh**, your own devices delegate compute to one another for free.
-- On a **public mesh**, outside providers can expose compute as free or paid, with routing and
-  settlement policy handled by the runtime rather than by a different product.
+- A **public cell** carries signed, expiring provider advertisements. A shareable job can select an
+  unpaired zero-price provider and stream QVAC inference over a separate authenticated encrypted
+  transport without adding that provider to the private mesh.
 
-That matters because the assistant experience stays the same while the trust and economy tier
-changes underneath it. Leash is still one assistant. Mycelium is what lets it scale from one
-device, to your own device swarm, to a broader compute market.
+Leash remains one assistant across local, paired-private, and explicit public routes. The zero-price
+public route is live; non-zero-price market settlement remains a separately tested integration boundary.
 
 ## What the user is actually getting
 
@@ -78,7 +78,7 @@ From your point of view, Leash offers:
 - local perception over voice memos, photos/screenshots, OCR text, recent screen activity, and the proactive feed
 - delegated compute and modality borrowing over a paired device mesh
 - extensibility through tools, skills, MCP servers, and specialist delegates
-- a private mesh that is free between your own devices, plus optional free-or-paid public mesh routing
+- a private mesh that is free between your own devices, plus opt-in public cells for signed discovery and zero-price QVAC jobs
 - typed memory plus retrieval-backed recall, and a nightly loop that adapts a personal model
 - local speech, vision, and image paths
 - a reproducible workspace where the core runtime is inspectable

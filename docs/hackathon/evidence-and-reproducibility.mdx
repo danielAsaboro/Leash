@@ -168,11 +168,40 @@ timestamp, source, event, `modelId`, `device`, `prompt`, `tokens`, `ttftMs`, `to
 `durationMs`. Records land under `spike/logs/` and per-app `logs/`. Committed examples include the
 spike JSONL records, `evidence/medpsy-demo.jsonl`, and the structured JSON bundle above.
 
+## Public-compute product evidence
+
+The final public provider was an opted-in, previously unpaired MacBook Pro. Its signed advert
+exposed only the locally served `chat` capability and expired after 30 seconds without a heartbeat.
+Every successful requester record was checked against the provider's independent
+`apps/hypha/logs/hypha.jsonl` record using the same job id.
+
+| Product path | Correlated job evidence | Result |
+| --- | --- | --- |
+| Mac normal chat, two public-safe tools | `ad2a8fd2…`, `96e8bc43…` | Provider emitted two structured tool calls; Leash executed both bounded tools; provider synthesized the final answer. |
+| Physical iPad Release UI | `a6d00040…` | Public Pro provider selected; streamed answer and route/TTFT/tok/s evidence visible; UI test 1/1 passed. |
+| Physical Android Release UI | `e1e3cda9…` | Public Pro provider selected over LAN; provider TTFT 310 ms and 43.69 tok/s. |
+| WAN-denied requester and WAN-denied QVAC serve | `61a7f2a8…` | Public LAN job completed at 241 ms provider TTFT and 44.63 tok/s after cached model preload. |
+
+The final eight-trial warm benchmark produced 1,013/1,047 ms p50/p95 total latency,
+140/312 ms requester TTFT, 111/214 ms provider TTFT, 39.56/39.85 tok/s, and a 24,891 MB
+peak provider-system-memory reading. All eight sequential jobs succeeded. In the four-request
+burst, one job ran and three failed explicitly as `overloaded_provider`, matching the provider's
+one-slot concurrency policy.
+
+The normal plugin-backed chat path was also exercised separately: four sustained turns selected
+the expected installed skill and executed `firewall_check`, `signing_review`, `invoice_gate`, and
+`confidence_gate`. A forced small-context run compacted the model input through message three into
+a 675-character summary while retaining the full ten-message transcript. Reopening that
+conversation left both `updatedAt` and the file mtime unchanged.
+
 ## Airplane-mode acceptance
 
 The project treats **"works in airplane mode"** as a release gate. The first run warm-caches
-model weights and bootstraps the DHT online; after that, local chat, retrieval, and on-device
-mesh operations run with no network. The non-AI remote calls are enumerated in
+model weights and bootstraps the DHT online. Physical Android startup/rejoin was exercised with
+airplane mode enabled. For public compute, a requester process with WAN denied completed a LAN job
+while the provider's real QVAC serve was independently sandboxed against outbound network access.
+The public transport daemon remained online for signed-cell discovery, so this is not presented as
+a host-wide provider firewall test. The non-AI remote calls are enumerated in
 [QVAC-only proof](/hackathon/qvac-only-proof).
 
 ## Out-of-the-box setup

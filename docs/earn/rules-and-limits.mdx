@@ -5,6 +5,11 @@ description: "The boundaries that keep private mesh delegation free and public m
 
 The economy is intentionally bounded. It should make public compute useful without turning private delegation into a billing problem.
 
+<Warning>
+  These are the public-compute policy bounds and tested settlement contracts. Zero-price public
+  inference is live. Non-zero-price jobs fail closed until the paid-session transport is wired.
+</Warning>
+
 ## Mesh limits
 
 | Limit | Value |
@@ -59,7 +64,9 @@ Providers should be able to choose how they participate:
 
 ## Current implementation note
 
-The runtime already models private zero-rate routes and public free-or-paid routes in the economy
-policy. The paid public-session path, settlement retries, and ledger are real. Zero-rate public
-routes exist, but the public economy UI is still paid-session-first, so use the
-[Economy platform guide](/platforms/economy) and smoke tests when validating provider behavior.
+The runtime models private zero-rate routes and public free-or-paid routes in economy policy. The
+signed-advert, eligibility, Noise-authenticated job, streaming, cancellation, replay, overload, and
+audit paths are live for zero-price providers. The paid-session state machine, settlement retries,
+and ledger are real and separately tested, but a non-zero-price public job is not reported as a
+successful live route. Use the [Economy platform guide](/platforms/economy) and smoke tests when
+validating paid provider behavior.

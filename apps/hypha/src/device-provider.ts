@@ -8,8 +8,9 @@
  * reconciles the SDK provider only when the union actually changes (a stop→start is not free).
  *
  * Lazy: the provider isn't started until the first mesh comes online (a fresh, unpaired device
- * serves no one — preserving the daemon's existing lazy-mesh behavior). A broadcast-only public
- * mesh registers an EMPTY set; it can never widen the allow-list, which is what makes it safe.
+ * serves no one — preserving the daemon's existing lazy-mesh behavior). A public discovery cell
+ * registers an EMPTY private-consumer set; public compute uses its separate authenticated,
+ * per-job protocol and can never widen this private allow-list.
  *
  * Reconciles are serialized on a promise chain so two meshes' updates can't thrash the global
  * provider with interleaved stop→starts.

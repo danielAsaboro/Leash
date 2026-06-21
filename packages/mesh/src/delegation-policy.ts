@@ -18,8 +18,9 @@ import type { DeviceCapability, Sensitivity, Visibility } from "@mycelium/shared
  * The set of consumer public keys the device-global provider must allow: the UNION, across all
  * meshes, of every live peer's `consumerPublicKey` (excluding this device's own caps and any
  * locally-tombstoned peers). One provider, one allow-list = ∪ of the meshes' paired consumers.
- * A broadcast-only public mesh contributes nothing here (its caps carry no provider role), which
- * is exactly why it can never make the provider serve a stranger.
+ * A public discovery cell contributes nothing to this private-provider allow-list unless a peer
+ * separately holds an opted-in private provider role. Public-compute advertisements and sessions
+ * remain outside private mesh membership, which is exactly why discovery cannot expose that mesh.
  */
 export function unionAllowedConsumers(
   meshCaps: DeviceCapability[][],
@@ -96,7 +97,10 @@ export function maxVisibilityFor(sensitivity: Sensitivity): Visibility {
 
 /** Is `mesh` eligible for `req`? Honors the hard pin, the tier cap, and the sensitivity→visibility cap. */
 export function meshEligible(req: DelegationRequest, mesh: Pick<MeshCandidate, "meshId" | "tier" | "visibility">): boolean {
-  if (req.pinMeshId !== undefined) return mesh.meshId === req.pinMeshId;
+  // A pin narrows the candidate set; it never overrides the privacy or tier
+  // caps. Otherwise a caller could pin a private turn to a public mesh and
+  // bypass the fail-closed sensitivity boundary.
+  if (req.pinMeshId !== undefined && mesh.meshId !== req.pinMeshId) return false;
   if (req.maxTier !== undefined && mesh.tier > req.maxTier) return false;
   return visRank(mesh.visibility) <= visRank(maxVisibilityFor(req.sensitivity ?? "private"));
 }

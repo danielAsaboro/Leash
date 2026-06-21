@@ -26,6 +26,14 @@ const handler = async (req: ForwardRequest, send: (f: ForwardFrame) => void): Pr
   const body = req.body as { messages?: Array<{ content?: string }> } | undefined;
   const text = body?.messages?.[0]?.content ?? "(no text)";
   for (const part of [text, " ", "[echo]"]) send({ id: req.id, type: "chunk", data: part });
+  if (req.id === "tool-delta") {
+    send({
+      id: req.id,
+      type: "chunk",
+      data: "",
+      delta: { tool_calls: [{ index: 0, function: { name: "submit_finding", arguments: '{"finding":"ok"}' } }] },
+    });
+  }
   send({ id: req.id, type: "done", stats: { endpoint: req.endpoint } });
 };
 
@@ -61,6 +69,11 @@ async function main(): Promise<void> {
   assert.equal(a, "alpha [echo]", `mux A: "${a}"`);
   assert.equal(b, "beta [echo]", `mux B: "${b}"`);
   console.log(`✅ concurrent forwards multiplexed — A="${a}", B="${b}"`);
+
+  const detailed = [];
+  for await (const frame of client.forwardFrames(providerKey, reqFor("tool-delta", "/v1/chat/completions", "tools"))) detailed.push(frame);
+  assert.ok(detailed.some((frame) => (frame.delta?.tool_calls?.length ?? 0) > 0), "structured tool-call deltas must survive the P2P transport");
+  console.log("✅ structured tool-call delta preserved across the forward transport");
 
   console.log("\n🎉 FORWARD LOOPBACK GO — topic join + holepunch + newline framing + multiplexed streaming proven.");
 }

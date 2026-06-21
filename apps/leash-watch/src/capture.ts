@@ -9,7 +9,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { readFile, unlink, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
-import { FRAME_PATH } from "./config.ts";
+import { FRAME_MAX_PX, FRAME_PATH } from "./config.ts";
 
 const execFileP = promisify(execFile);
 
@@ -20,6 +20,7 @@ export async function captureScreen(): Promise<string> {
   await mkdir(dirname(FRAME_PATH), { recursive: true });
   try {
     await execFileP("screencapture", ["-x", "-o", FRAME_PATH]);
+    await execFileP("sips", ["--resampleHeightWidthMax", String(FRAME_MAX_PX), FRAME_PATH]);
     const buf = await readFile(FRAME_PATH);
     if (buf.length === 0) {
       throw new CaptureError("captured frame is empty — grant Screen Recording permission to this terminal.");

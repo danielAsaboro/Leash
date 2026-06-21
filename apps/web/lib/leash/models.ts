@@ -15,6 +15,7 @@ import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } fr
 import { estimateFit, type FitEstimate } from "./hwfit.ts";
 import { ASSISTANT_KIT, kitRoleOf, type KitRole, type KitRoleName } from "./kit.ts";
 import { displayPathMiddle } from "./path-display.ts";
+import { QVAC_SERVE_OPENAI_URL } from "./serve-endpoint.ts";
 
 /** Where `qvac serve openai` listens (same default as the provider). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
@@ -61,7 +62,7 @@ export async function liveModels(): Promise<LiveModels> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 1500);
   try {
-    const res = await fetch(`${QVAC_OPENAI_URL}/models`, { signal: ctrl.signal, cache: "no-store" });
+    const res = await fetch(`${QVAC_SERVE_OPENAI_URL}/models`, { signal: ctrl.signal, cache: "no-store" });
     if (!res.ok) return { up: false, ready: [] };
     const body = (await res.json()) as { data?: { id: string }[] };
     return { up: true, ready: (body.data ?? []).map((m) => m.id) };

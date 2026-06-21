@@ -9,3 +9,12 @@ declare module "hyperswarm" {
     readonly connections: Set<unknown>;
   }
 }
+declare module "@hyperswarm/secret-stream" {
+  export default class SecretStream {
+    constructor(initiator: boolean, rawStream: unknown, opts?: { keyPair?: { publicKey: Buffer; secretKey: Buffer }; remotePublicKey?: Buffer });
+    readonly remotePublicKey?: Buffer;
+    on(event: string, listener: (...args: any[]) => void): this;
+    write(data: string | Buffer): boolean;
+    destroy(error?: Error): void;
+  }
+}

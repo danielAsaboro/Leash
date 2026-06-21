@@ -81,7 +81,7 @@ export async function summarizeFrame(dataUrl: string, app: string): Promise<Visi
   const request = (async (): Promise<VisionResult> => {
     const res = await fetch(`${QVAC_OPENAI_URL}/chat/completions`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", "x-leash-priority": "background" },
       body: JSON.stringify({
         model: VISION_MODEL,
         messages: [
@@ -93,6 +93,7 @@ export async function summarizeFrame(dataUrl: string, app: string): Promise<Visi
             ],
           },
         ],
+        max_tokens: 96,
       }),
     });
     const ttftMs = now() - t0; // no streaming here: time to the (single) response

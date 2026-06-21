@@ -3,7 +3,12 @@ title: "How earning works"
 description: "The economy flow from route selection to metered settlement."
 ---
 
-The economy is attached to delegation, not to chat itself. A local answer costs nothing. A private mesh answer costs nothing. A public mesh answer can be free or paid depending on the provider's advertised rate.
+The economy contract attaches to delegation, not to chat itself. A local answer costs nothing. A private mesh answer costs nothing. A public provider may advertise a zero or non-zero rate.
+
+<Warning>
+  Zero-price public inference is live. The paid flow below is a tested settlement contract, but
+  non-zero-price public jobs are not yet wired to that settlement path.
+</Warning>
 
 ## The paid public-session flow
 
@@ -15,7 +20,7 @@ The economy is attached to delegation, not to chat itself. A local answer costs 
 6. **Meter actual work.** The session records usage by token rungs so long completions can settle once at close.
 7. **Settle the run.** Paid public sessions settle the metered amount on-chain and replicate a signed settlement receipt.
 
-Private mesh and free public routing skip the paid-session handshake entirely.
+Private mesh and the live zero-price public route skip the paid-session handshake.
 
 ## Price shape
 
@@ -41,13 +46,14 @@ Streaming inference does not know the final token count up front. The consumer a
 
 <Note>
   The current economy UI is paid-session-first: `/economy` and `/economy/receipts` are built from
-  replicated paid settlement receipts plus reputation snapshots. Use route traces and mesh events to
-  validate free public routing.
+  replicated paid settlement receipts plus reputation snapshots. This validates the economy
+  subsystem; zero-price public audit records live with the routing evidence instead.
 </Note>
 
 ## Why public routing is gated
 
-Public mesh providers are outside your private trust boundary. Leash only considers them when the sensitivity and confidence filters say the request can leave the local/private path.
+Public providers are outside your private trust boundary. The policy permits them only when
+sensitivity and confidence filters say the request can leave the local/private path.
 
 Examples that should stay local or private:
 

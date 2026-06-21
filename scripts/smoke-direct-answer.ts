@@ -45,6 +45,11 @@ assert.deepEqual(
   "daily-paper prompt maps to understory_today",
 );
 assert.deepEqual(
+  directBrokerCallForSimpleTurn("What did I note about the mesh setup? Cite the local source."),
+  { broker: "context_run", action: "search_graph", input: { query: "the mesh setup", topK: 3, kinds: ["note", "memory"] } },
+  "natural private-note wording runs grounded retrieval instead of relying on model tool syntax",
+);
+assert.deepEqual(
   directHealthSafetyCallForSimpleTurn("Health-safety check: based on my private records if available, what should I ask a clinician about blood pressure meds? Keep it non-diagnostic."),
   { kind: "blood_pressure_meds_clinician" },
   "health safety prompt maps to direct read-only health check",

@@ -24,6 +24,8 @@ export { GossipMesh, deriveCellSeed, ephemeralCellId } from "./gossip-mesh.ts";
 export type { GossipMessage } from "./gossip-mesh.ts";
 export { PublicMesh, cellTopic } from "./public-mesh.ts";
 export type { PublicMeshOptions } from "./public-mesh.ts";
+export { PUBLIC_COMPUTE_ADVERT_KIND, PUBLIC_COMPUTE_ADVERT_TTL_MS, parsePublicProviderAdvert, selectPublicProvider } from "./public-compute.ts";
+export type { PublicComputeTask, PublicModelCapability, PublicProviderAdvert, PublicAdvertFailure, PublicComputeNeed, PublicProviderCandidate, PublicProviderSelection } from "./public-compute.ts";
 export { authorizeBudget, authorizeSettlement, SpendGuard } from "./spend-policy.ts";
 export type {
   SpendLimits,

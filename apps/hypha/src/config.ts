@@ -72,6 +72,10 @@ export const CATALOG_FILE = join(DATA_DIR, "leash-models-catalog.json");
 
 /** OpenAI-shim + localhost pairing-control port the broker/dashboard talk to. */
 export const HYPHA_PORT = Number(process.env["HYPHA_PORT"] ?? 11437);
+/** Read-only, LAN-facing public-provider directory. It exposes signed public adverts only;
+ * private mesh/control/job evidence remains on the loopback control server. Set to 0 to disable. */
+export const HYPHA_PUBLIC_DIRECTORY_PORT = Number(process.env["HYPHA_PUBLIC_DIRECTORY_PORT"] ?? 11439);
+export const HYPHA_PUBLIC_DIRECTORY_HOST = process.env["HYPHA_PUBLIC_DIRECTORY_HOST"] ?? "0.0.0.0";
 /** LAN-facing pairing port (the ONLY non-localhost surface; open only in pairing mode). */
 export const HYPHA_PAIR_PORT = Number(process.env["HYPHA_PAIR_PORT"] ?? 11438);
 /** How long "Add a device" stays discoverable before auto-exiting pairing mode. */
@@ -94,6 +98,17 @@ export const HYPHA_FORWARD_METERED = (process.env["HYPHA_FORWARD_METERED"] ?? "1
 export const HEARTBEAT_MS = Number(process.env["HYPHA_HEARTBEAT_MS"] ?? 10_000);
 /** A peer whose lastSeen is older than this is stale → drop its warm entry, stop delegating. */
 export const STALE_MS = Number(process.env["HYPHA_STALE_MS"] ?? 30_000);
+/** Public compute is explicit opt-in and persisted by the daemon API; the env only sets first-run default. */
+export const HYPHA_PUBLIC_COMPUTE_DEFAULT = (process.env["HYPHA_PUBLIC_COMPUTE"] ?? "0") === "1";
+export const HYPHA_PUBLIC_COMPUTE_MAX_CONCURRENT = Number(process.env["HYPHA_PUBLIC_COMPUTE_MAX_CONCURRENT"] ?? 1);
+export const HYPHA_PUBLIC_COMPUTE_MAX_REQUEST_BYTES = Number(process.env["HYPHA_PUBLIC_COMPUTE_MAX_REQUEST_BYTES"] ?? 8 * 1024 * 1024);
+export const HYPHA_PUBLIC_COMPUTE_MAX_OUTPUT_TOKENS = Number(process.env["HYPHA_PUBLIC_COMPUTE_MAX_OUTPUT_TOKENS"] ?? 2048);
+export const HYPHA_PUBLIC_COMPUTE_TIMEOUT_MS = Number(process.env["HYPHA_PUBLIC_COMPUTE_TIMEOUT_MS"] ?? 180_000);
+export const HYPHA_PUBLIC_COMPUTE_MIN_HEADROOM_MB = Number(process.env["HYPHA_PUBLIC_COMPUTE_MIN_HEADROOM_MB"] ?? 2048);
+/** Dedicated encrypted LAN ingress for public jobs. The advert carries only private/link-local
+ * addresses and this port; every TCP stream is still Noise-authenticated against transportKey. */
+export const HYPHA_PUBLIC_COMPUTE_LAN_PORT = Number(process.env["HYPHA_PUBLIC_COMPUTE_LAN_PORT"] ?? 11449);
+export const HYPHA_PUBLIC_COMPUTE_LAN_HOST = process.env["HYPHA_PUBLIC_COMPUTE_LAN_HOST"] ?? "0.0.0.0";
 /** How often the consumer reconciles warm models against live peers. */
 export const WARM_TICK_MS = Number(process.env["HYPHA_WARM_TICK_MS"] ?? 5_000);
 

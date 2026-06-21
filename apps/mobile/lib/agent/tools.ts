@@ -11,6 +11,7 @@ import { z } from "zod";
 import { listTasks, createTask, updateTask, deleteTask, type TaskStatus } from "../../tasks";
 import { listNotes, loadNote, saveNote, newNoteId } from "../../notes";
 import { listMemories, addMemory } from "../../memories";
+import { deviceToolNamesForPrompt } from "./tool-routing";
 
 export function buildDeviceTools(): ToolSet {
   return {
@@ -114,4 +115,10 @@ export function buildDeviceTools(): ToolSet {
       },
     }),
   };
+}
+
+export function buildDeviceToolsForPrompt(prompt: string): ToolSet {
+  const all = buildDeviceTools();
+  const selected = new Set(deviceToolNamesForPrompt(prompt));
+  return Object.fromEntries(Object.entries(all).filter(([name]) => selected.has(name)));
 }

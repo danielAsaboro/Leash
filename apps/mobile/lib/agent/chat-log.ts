@@ -21,7 +21,7 @@ export type ChatToolLog = { name: string; input?: unknown; output?: unknown; err
 export type ChatLogRecord = {
   ts: string; // ISO timestamp
   device: string; // this device's name
-  where: "local" | "mesh"; // on-device vs borrowed
+  where: "local" | "mesh" | "public"; // on-device, private paired, or untrusted public route
   voice?: boolean;
   model: string; // local modelId or borrowed alias
   provider?: string; // borrowed provider display name
@@ -30,7 +30,13 @@ export type ChatLogRecord = {
   answer: string; // the final visible answer
   tools?: ChatToolLog[];
   skill?: string; // active skill name, if any
-  telemetry?: { tokens?: number; tps?: number; ttftMs?: number };
+  /** Public turns include the authenticated transport job ID for provider-log correlation. */
+  telemetry?: {
+    tokens?: number; tps?: number; ttftMs?: number; jobId?: string;
+    discoveryMs?: number; connectionMs?: number; queueMs?: number;
+    connectionTransport?: "lan" | "dht";
+    requesterRssBeforeMb?: number; requesterRssAfterMb?: number; selectionReason?: string;
+  };
   error?: string; // set when the turn failed
 };
 

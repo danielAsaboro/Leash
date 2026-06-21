@@ -37,9 +37,9 @@ export function pickProviderFromPeers(
   modality: ProviderModality,
   staleMs = 45_000,
   now = Date.now(),
+  preferredProviderKey?: string,
 ): MeshOffloadTarget | null {
-  let best: MeshOffloadTarget | null = null;
-  let bestInflight = Infinity;
+  const candidates: Array<{ target: MeshOffloadTarget; inflight: number }> = [];
 
   for (const peer of peers) {
     if (!peer.isProvider || !peer.providerPublicKey) continue;
@@ -48,19 +48,31 @@ export function pickProviderFromPeers(
     const model = (peer.models ?? []).find((candidate) => matchesModality(candidate, modality));
     if (!model) continue;
 
-    const inflight = peer.inflight ?? 0;
-    if (inflight < bestInflight) {
-      bestInflight = inflight;
-      best = {
+    candidates.push({
+      inflight: peer.inflight ?? 0,
+      target: {
         providerPublicKey: peer.providerPublicKey,
         modelSrc: model.modelSrc,
         alias: model.alias,
         displayName: peer.displayName,
         deviceId: peer.deviceId,
         modelType: modality,
-      };
-    }
+      },
+    });
   }
 
-  return best;
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) =>
+    a.inflight - b.inflight
+    || a.target.providerPublicKey.localeCompare(b.target.providerPublicKey)
+    || a.target.alias.localeCompare(b.target.alias),
+  );
+  const best = candidates[0]!;
+  // Discovery/Autobase row order is not stable. Keep the current live provider when it is tied
+  // on load; switch only when another provider is genuinely less loaded. This prevents the phone's
+  // target and UI receipt from flapping every roster poll while preserving load shedding.
+  const preferred = preferredProviderKey
+    ? candidates.find((candidate) => candidate.target.providerPublicKey === preferredProviderKey)
+    : undefined;
+  return (preferred && preferred.inflight === best.inflight ? preferred : best).target;
 }

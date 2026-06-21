@@ -33,7 +33,7 @@ import { MessageFeedback } from "./MessageFeedback.tsx";
 import { toast } from "./Toast.tsx";
 import { blobToWav } from "@/lib/leash/audio";
 import { fetchWithTimeout, TIMEOUT } from "@/lib/http.ts";
-import type { ConductorDecisionEvent, ElicitationView, GoalRunEvent, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage } from "@/lib/leash/types";
+import type { ConductorDecisionEvent, ElicitationView, GoalRunEvent, LeashElicitationEvent, LeashMetadata, LeashSkillEvent, LeashUIMessage, RouteIntent } from "@/lib/leash/types";
 
 /**
  * The Leash chat surface (client) — Vercel AI Elements on the AI SDK, re-skinned with
@@ -154,10 +154,20 @@ function planFromTool(part: Part): PlanData {
 /** Conductor route-decision step: shows "local <alias>" or "→ peer <alias> (<tier>)" + reason. */
 function RouteDecisionStep({ event }: { event: ConductorDecisionEvent }) {
   const label = event.peerKey ? `→ peer ${event.alias} (${event.tier})` : `local ${event.alias}`;
+  const metric = (name: string): number | null => typeof event.metrics?.[name] === "number" ? event.metrics[name] as number : null;
+  const ttft = metric("requesterTtftMs") ?? metric("ttftMs");
+  const total = metric("requesterTotalMs") ?? metric("totalMs");
+  const tps = metric("tokensPerSecond");
   return (
     <span className="text-xs" style={{ color: "var(--color-faint)", fontFamily: "var(--font-mono)" }} title={event.reason}>
       {label}
+      {event.state ? <span className="ml-1">· {event.state}</span> : null}
+      {event.jobId ? <span className="ml-1 opacity-70">· job {event.jobId.slice(0, 8)}</span> : null}
+      {ttft !== null ? <span className="ml-1 opacity-70">· TTFT {Math.round(ttft)}ms</span> : null}
+      {tps !== null ? <span className="ml-1 opacity-70">· {tps.toFixed(1)} tok/s</span> : null}
+      {total !== null ? <span className="ml-1 opacity-70">· {Math.round(total)}ms</span> : null}
       {event.reason ? <span className="ml-1 opacity-60">· {event.reason}</span> : null}
+      {event.error ? <span className="ml-1" style={{ color: "var(--color-brick)" }}>· {event.error}</span> : null}
     </span>
   );
 }
@@ -600,6 +610,24 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
     }
   };
 
+  // Compute route intent is explicit and per conversation. Public/private never silently fall back;
+  // automatic is the only mode that may follow the documented local → private → public ladder.
+  const [routeIntent, setRouteIntent] = useState<RouteIntent>("automatic");
+  const routeIntentRef = useRef<RouteIntent>("automatic");
+  useEffect(() => {
+    let saved: RouteIntent = "automatic";
+    try {
+      const raw = window.localStorage.getItem(`leash-route-${id}`);
+      if (raw === "local" || raw === "private" || raw === "public" || raw === "automatic") saved = raw;
+    } catch { /* private mode */ }
+    setRouteIntent(saved); routeIntentRef.current = saved;
+  }, [id]);
+  const pickRouteIntent = (next: RouteIntent) => {
+    setRouteIntent(next); routeIntentRef.current = next;
+    try { window.localStorage.setItem(`leash-route-${id}`, next); } catch { /* in-memory still applies */ }
+    toast.info(`Compute route: ${next}`);
+  };
+
   // Chat model picker — the user chooses which CONFIGURED model drives this conversation (mirrors the
   // AI Elements model-selector). A ref feeds the built-once transport so the choice rides every turn;
   // empty = let the server pick the configured default (provider.resolvedChatAlias).
@@ -657,11 +685,12 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
       prepareSendMessagesRequest: ({ id, messages, trigger, messageId, body }) => {
         const plan = planModeRef.current;
         const model = chatModelRef.current || undefined; // user-chosen chat model (input picker)
-        if (trigger === "regenerate-message") return { body: { id, trigger, messageId, plan, model } };
+        const routeIntent = routeIntentRef.current;
+        if (trigger === "regenerate-message") return { body: { id, trigger, messageId, plan, model, routeIntent } };
         // `voice: true` (set by the call overlay via sendMessage's body option) routes this turn
         // to the chat route's fast path (/no_think + 2-step tools). Text composer sends no body.
         const voice = (body as { voice?: boolean } | undefined)?.voice ?? false;
-        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice, plan, model } };
+        return { body: { id, trigger: "submit-message", message: messages[messages.length - 1], voice, plan, model, routeIntent } };
       },
     }),
     experimental_throttle: 50,
@@ -892,6 +921,23 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
                 >
                   <PhoneIcon className="size-4" />
                 </button>
+                <label className="inline-flex items-center gap-1" title="Choose where inference may execute. Public and private are strict; automatic may fall through by policy.">
+                  <NetworkIcon className="size-3.5" aria-hidden="true" />
+                  <span className="sr-only">Compute route</span>
+                  <select
+                    aria-label="Compute route"
+                    value={routeIntent}
+                    disabled={busy}
+                    onChange={(e) => pickRouteIntent(e.target.value as RouteIntent)}
+                    className="h-7 rounded border bg-transparent px-1 text-xs"
+                    style={{ borderColor: "var(--color-rule)", color: routeIntent === "public" ? "var(--color-brick)" : "var(--color-muted)", fontFamily: "var(--font-mono)" }}
+                  >
+                    <option value="automatic">auto</option>
+                    <option value="local">local</option>
+                    <option value="private">private</option>
+                    <option value="public">public</option>
+                  </select>
+                </label>
                 {/* Plan mode toggle — when on, the assistant drafts a plan you approve before it runs. Icon-only, label on hover. */}
                 <button
                   type="button"

@@ -59,10 +59,10 @@ export function dedupePeers(peers: MeshPeer[]): MeshPeer[] {
  * replicated capability roster. Returns null when no provider is advertising a borrowable chat model
  * (→ chat runs on-device). No hardcoded keys or model ids.
  */
-export async function pickChatProvider(staleMs = 45_000): Promise<MeshOffloadTarget | null> {
+export async function pickChatProvider(preferredProviderKey?: string, staleMs = 45_000): Promise<MeshOffloadTarget | null> {
   const peers = await peersList().catch(() => [] as MeshPeer[]);
   console.log("[autoborrow] provider peers:", peers.filter((p) => p.isProvider).length);
-  return pickProviderFromPeers(peers, "chat", staleMs);
+  return pickProviderFromPeers(peers, "chat", staleMs, Date.now(), preferredProviderKey);
 }
 
 /**

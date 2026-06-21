@@ -4,7 +4,12 @@ description: "Warm-peer routing, overflow, KV-cache reuse, identity fixes, and l
 sidebarTitle: "Mesh delegation"
 ---
 
-The mesh is both a capability feature and a performance feature. A small device can borrow a warm model from another device instead of loading it locally, and a saturated desktop can shed overflow to a peer.
+The private mesh is both a capability feature and a performance feature. A small device can borrow a warm model from a paired device instead of loading it locally, and a saturated desktop can shed overflow to a paired peer.
+
+Public cells are a separate untrusted discovery surface. Opted-in providers publish signed,
+short-lived QVAC capabilities there. An explicit public or eligible automatic route dials a
+dedicated Noise-authenticated transport, streams a job with a unique replay-protected id, and never
+adds the provider to the private mesh. Only the job payload crosses that boundary.
 
 ## Route by capability and sensitivity
 
@@ -15,13 +20,46 @@ The ranking obeys two constraints:
 | Constraint | Behavior |
 | --- | --- |
 | Capability | Pick a model that matches the required modality, size class, and specialist tag. |
-| Sensitivity | Do not send private turns to public mesh routes. |
+| Sensitivity | Private turns remain local or inside the paired mesh. Only explicitly shareable jobs may use public providers. |
 
 Quick trivial text turns stay local. Private memory, files, health, credentials, and device-specific context require a local or private mesh route.
 
+## How Leash chooses a peer
+
+The model first supplies a capability bar, not a hostname. Deterministic code then applies the following gates in order:
+
+1. Read the live local QVAC model inventory and Hypha peer roster.
+2. Reject stale peers, entries without a full executable provider key, and aliases that do not match the requested modality, minimum size, or specialist.
+3. Enforce the sensitivity boundary before considering cost or speed.
+4. Respect route intent: local, private, public, or automatic. For public candidates, additionally
+   verify advert signature/TTL, tools, context, price, reachability, current load, memory headroom,
+   and that requester and provider identities differ.
+5. Rank deterministically and record the winning fields and reason. If the selected provider
+   disappears, return the classified failure or follow the explicit automatic fallback policy;
+   never label a local answer as remote success.
+
+The mobile client uses the same live provider roster. It keeps its current provider while loads are equal and changes only when another eligible peer is genuinely less loaded, preventing roster-order flapping.
+
+## Final public-compute measurements
+
+The final warm benchmark completed all eight sequential jobs. Total latency was 1,013/1,047 ms
+p50/p95; requester TTFT was 140/312 ms; provider TTFT was 111/214 ms; and throughput was
+39.56/39.85 tok/s. Peak provider-system memory was 24,891 MB, below the 32 GB judging ceiling.
+
+A four-request burst accepted one job and rejected three as `overloaded_provider`; it did not
+silently run those requests locally. The normal web chat also completed a two-tool public turn as
+two correlated remote QVAC jobs. Physical iPad and Android Release clients independently streamed
+answers from the same unpaired Pro provider and displayed the public route evidence.
+
+For the warm-cache offline check, the requester process was denied WAN access and the Pro's QVAC
+inference serve was restarted under an outbound-network-denying macOS sandbox. The job still
+completed over the signed public advert and direct LAN endpoint. The Hypha transport daemon was not
+placed behind a host-wide firewall, so the evidence is intentionally described as process-level,
+not a whole-host airplane-mode claim.
+
 ## Warm-peer overflow
 
-The broker's mesh overflow is additive and off unless `LEASH_BROKER_HYPHA_URL` is set. When on, it can route a chat completion to a peer for two reasons:
+The broker connects to the local Hypha service at `http://127.0.0.1:11437` by default. Set `LEASH_BROKER_HYPHA_URL` to an explicit empty value to disable mesh overflow. It can route a chat completion to a peer for two reasons:
 
 | Trigger | Meaning |
 | --- | --- |
