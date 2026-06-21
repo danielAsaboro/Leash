@@ -24,10 +24,21 @@ import Hyperswarm from "hyperswarm";
 import BlindPairing from "blind-pairing";
 import b4a from "b4a";
 import fs from "bare-fs";
+import { completeJoin } from "./join-flow.mjs";
+import { forceRelayConnect } from "./swarm-options.mjs";
 
 const IPC = BareKit.IPC;
 const out = (o) => IPC.write(b4a.from(JSON.stringify(o) + "\n"));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const PAIRING_POLL_MS = 500;
+function candidatePairing(candidate) {
+  return Promise.race([
+    candidate.pairing,
+    new Promise((_, reject) => {
+      try { candidate.request.on("rejected", reject); } catch { /* older builds: fall back to pairing */ }
+    }),
+  ]);
+}
 let logPath = null; // set in init → a pullable file (devicectl copy from appDataContainer)
 const dbg = (...a) => {
   const line = "[mesh-worklet] " + a.map((x) => (typeof x === "string" ? x : JSON.stringify(x))).join(" ") + "\n";
@@ -132,6 +143,7 @@ function ensureIdentity() {
 /** A Hyperswarm wired to replicate the ROOT store on every connection (covers all namespaces). */
 function makeSwarm() {
   const s = new Hyperswarm();
+  dbg("swarm: forceRelayConnect=" + forceRelayConnect(s));
   s.on("connection", (conn) => {
     dbg("swarm: connection");
     try { conn.on("error", () => {}); store.replicate(conn); } catch (e) { dbg("replicate err " + (e?.message || String(e))); }
@@ -288,45 +300,90 @@ async function resetForJoin() {
   dbg("reset: done, fresh root store");
 }
 
-async function pair(invite, label) {
+async function pair(invite, label, inviteSessionId) {
   // Joining a mesh REPLACES any current one (single-mesh phone): wipe to a fresh root store first.
   await resetForJoin();
-  meshLabel = (typeof label === "string" && label.trim()) ? label.trim() : "Private mesh";
-  visibility = "private"; // blind-pairing == a private mesh
-  // Blind-pairing candidate flow (mesh-graph.ts MeshGraph.pair, inlined). The invite is the capability;
-  // the host promotes us to a writer (its add-writer entry replicates in shortly after).
-  dbg("pair: new swarm");
-  const pairSwarm = makeSwarm();
-  const pairing = new BlindPairing(pairSwarm);
-  dbg("pair: getLocalCore");
-  const localCore = Autobase.getLocalCore(store);
-  await localCore.ready();
-  const userData = b4a.from(localCore.key);
-  await localCore.close();
-  dbg("pair: addCandidate, awaiting host confirm…");
-  const candidate = pairing.addCandidate({ invite: b4a.from(invite, "hex"), userData, onadd: () => {} });
-  const result = await candidate.pairing; // resolves when the host confirms (rejects on deny)
-  dbg("pair: confirmed by host");
-  await candidate.close();
-  await pairing.close();
-  // DO NOT destroy pairSwarm — REUSE it as the mesh swarm. A bootstrapped (joiner) base needs a live
-  // connection to download the host's cores; tearing the swarm down here caused the base to throw
-  // "Cannot read properties of null (reading 'download')" and the join silently died.
-  dbg("pair: opening autobase on host key");
-  base = new Autobase(store, result.key, { valueEncoding: "json", open: viewOpen, apply: viewApply });
-  await base.ready();
-  if (!joinedAt) joinedAt = Date.now();
-  writeMeta({ joined: true, joinedAt, meshLabel, visibility });
-  swarm = pairSwarm; // reuse the live pairing connection
-  dbg("pair: goOnline");
-  await goOnline();
-  dbg("pair: waiting to become writable…");
-  // Poll until the host's add-writer replicates and we become writable (bounded).
-  const t0 = Date.now();
-  while (!base.writable && Date.now() - t0 < 30_000) { await base.update().catch(() => {}); if (base.writable) break; await sleep(500); }
-  dbg("pair: writable=" + base.writable);
-  await advertise().catch((e) => dbg("final advertise err " + (e?.message || String(e))));
-  dbg("pair: done");
+  const nextLabel = (typeof label === "string" && label.trim()) ? label.trim() : "Private mesh";
+  const nextJoinedAt = joinedAt || Date.now();
+  let pairSwarm = null;
+  let pairing = null;
+  let candidate = null;
+  await completeJoin(
+    {
+      awaitHostConfirm: async () => {
+        meshLabel = nextLabel;
+        visibility = "private"; // blind-pairing == a private mesh
+        // Blind-pairing candidate flow (mesh-graph.ts MeshGraph.pair, inlined). The invite is the capability;
+        // the host promotes us to a writer (its add-writer entry replicates in shortly after).
+        dbg("pair: new swarm");
+        pairSwarm = makeSwarm();
+        pairing = new BlindPairing(pairSwarm, { poll: PAIRING_POLL_MS });
+        dbg("pair: getLocalCore");
+        const localCore = Autobase.getLocalCore(store);
+        await localCore.ready();
+        const userData = b4a.from(localCore.key);
+        await localCore.close();
+        const sid = typeof inviteSessionId === "string" && inviteSessionId.trim() ? inviteSessionId.trim() : "";
+        const candidateUserData = sid ? b4a.from(JSON.stringify({ writerKey: b4a.toString(userData, "hex"), sid })) : userData;
+        dbg("pair: addCandidate sid=" + (sid || "none") + ", awaiting host confirm…");
+        candidate = pairing.addCandidate({ invite: b4a.from(invite, "hex"), userData: candidateUserData, onadd: () => {} });
+        const result = await candidatePairing(candidate); // resolves when the host confirms, rejects on deny
+        dbg("pair: confirmed by host; connected, syncing membership…");
+        return result;
+      },
+      closePairing: async () => {
+        await candidate?.close().catch(() => undefined);
+        await pairing?.close().catch(() => undefined);
+      },
+      openBase: async (key) => {
+        // DO NOT destroy pairSwarm — REUSE it as the mesh swarm. A bootstrapped (joiner) base needs a live
+        // connection to download the host's cores; tearing the swarm down here caused the base to throw
+        // "Cannot read properties of null (reading 'download')" and the join silently died.
+        dbg("pair: opening autobase on host key");
+        base = new Autobase(store, key, { valueEncoding: "json", open: viewOpen, apply: viewApply });
+        await base.ready();
+        joinedAt = nextJoinedAt;
+        swarm = pairSwarm; // reuse the live pairing connection
+      },
+      goOnline: async () => {
+        dbg("pair: goOnline");
+        await goOnline();
+        dbg("pair: waiting to become writable…");
+      },
+      isWritable: () => !!base?.writable,
+      updateBase: async () => {
+        await base.update().catch(() => {});
+      },
+      persistJoined: async () => {
+        dbg("pair: writable=true");
+        writeMeta({ joined: true, joinedAt, meshLabel, visibility });
+      },
+      advertise: async () => {
+        await advertise().catch((e) => dbg("final advertise err " + (e?.message || String(e))));
+        dbg("pair: done");
+      },
+      cleanupFailedJoin: async (error) => {
+        dbg("pair: failed " + (error?.message || String(error)));
+        await candidate?.close().catch(() => undefined);
+        await pairing?.close().catch(() => undefined);
+        if (pairSwarm && pairSwarm !== swarm) await pairSwarm.destroy().catch(() => undefined);
+        try {
+          await resetForJoin();
+        } catch (cleanupError) {
+          dbg("pair: cleanup err " + (cleanupError?.message || String(cleanupError)));
+        }
+        base = null;
+        swarm = null;
+        joinedAt = 0;
+        meshLabel = "Private mesh";
+        visibility = "private";
+        lastTaskSig = "";
+        writeMeta({ joined: false });
+      },
+      sleep,
+    },
+    { pairTimeoutMs: 15_000, writableTimeoutMs: 20_000, pollIntervalMs: 500 },
+  );
 }
 
 // ── IPC dispatch ────────────────────────────────────────────────────────────────────────────────
@@ -355,7 +412,7 @@ async function handle(req) {
         dbg("join: cmd received");
         if (!store) throw new Error("call init before join");
         if (!req.invite) throw new Error("an invite is required");
-        await pair(req.invite, req.label);
+        await pair(req.invite, req.label, req.inviteSessionId);
         return reply({ joined: true, writable: !!base?.writable });
       }
       case "leave": {

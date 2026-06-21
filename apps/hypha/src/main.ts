@@ -20,7 +20,7 @@ import { randomUUID } from "node:crypto";
 import { join } from "node:path";
 import { close, stopQVACProvider, heartbeat, suspend, resume } from "@qvac/sdk";
 import { AuditLog, KvSessions, sweepKvCacheDir, type Visibility, type Reach } from "@mycelium/shared";
-import { MeshGraph, MeshHost, PublicMesh, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle, type MeshTask } from "@mycelium/mesh";
+import { MeshGraph, MeshHost, PublicMesh, joinInviteUri, unpairKey, startAdapterSync, supersededDeviceIds, PRIMARY_MESH_ID, type AdapterSyncHandle, type MeshTask } from "@mycelium/mesh";
 import {
   DATA_DIR,
   DEVICE_NAME,
@@ -803,7 +803,9 @@ async function runDaemon(): Promise<void> {
         const m = runtimes.get(meshId);
         if (!m) return { ok: false, error: "no such mesh on this device" };
         if (!(await ensureWritable(m))) return { ok: false, error: "mesh not writable yet — try again in a moment" };
-        return { ok: true, invite: await m.graph.mintInvite() };
+        const sid = randomUUID();
+        const invite = await m.graph.mintInvite({ sessionId: sid, meshId });
+        return { ok: true, invite, sid, uri: joinInviteUri({ invite, sid, mesh: meshId }) };
       } catch (err) { return { ok: false, error: String(err) }; }
     },
     joinMesh: async (invite, label) => {

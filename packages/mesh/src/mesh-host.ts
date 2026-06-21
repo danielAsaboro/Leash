@@ -55,6 +55,8 @@ export interface PairMeshOptions {
   meshId?: string;
   /** Hex blind-pairing invite minted by the host's mintInvite(). */
   invite: string;
+  /** QR/session id paired with this invite. */
+  inviteSessionId?: string;
   /** Allow-list to seed on the new membership (so it can in turn admit others). */
   allowedDevices?: Set<string>;
   timeoutMs?: number;
@@ -155,6 +157,7 @@ export class MeshHost {
     const graph = await MeshGraph.pair({
       ...this.graphOpts(meshId),
       invite: opts.invite,
+      ...(opts.inviteSessionId !== undefined ? { inviteSessionId: opts.inviteSessionId } : {}),
       ...(opts.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
     });
     if (opts.allowedDevices) for (const k of opts.allowedDevices) graph.allow(k);

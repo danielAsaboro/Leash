@@ -32,6 +32,7 @@ const PIDFILE = process.env["LEASH_SERVE_PIDFILE"] ?? join(DATA_DIR, "leash-serv
 const LOGFILE = process.env["LEASH_SERVE_LOG"] ?? join(DATA_DIR, "leash-serve.log");
 /** Port from QVAC_OPENAI_URL (default 11435). */
 const PORT = Number(new URL(QVAC_OPENAI_URL).port || 11435);
+const QVAC_CONFIG_PATH = process.env["QVAC_CONFIG_PATH"];
 
 /**
  * Entry shim for the PACKAGED serve (Electron-as-Node). Under ELECTRON_RUN_AS_NODE,
@@ -151,13 +152,14 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
     const nodeBin = process.env["LEASH_NODE_BIN"] ?? process.execPath;
     let cmd: string;
     let args: string[];
+    const serveArgs = ["serve", "openai", "--port", String(PORT), ...(QVAC_CONFIG_PATH ? ["--config", QVAC_CONFIG_PATH] : [])];
     if (bundledCli) {
       // Bundled: run the cli through the defaultApp shim (see SERVE_SHIM) so commander parses argv
       // correctly under ELECTRON_RUN_AS_NODE. The shim imports the cli from $LEASH_QVAC_CLI (in env).
       const shim = join(DATA_DIR, "qvac-serve-shim.mjs");
       writeFileSync(shim, SERVE_SHIM);
       cmd = nodeBin;
-      args = [shim, "serve", "openai", "--port", String(PORT)];
+      args = [shim, ...serveArgs];
     } else {
       // Dev: run the repo's LOCAL, vision-patched @qvac/cli with this process's Node — the same
       // version (^0.6.0) + patch the packaged app ships, so cross-mesh VISION (image_url →
@@ -165,7 +167,7 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
       const cliEntry = localCliEntry();
       if (cliEntry) {
         cmd = process.execPath;
-        args = [cliEntry, "serve", "openai", "--port", String(PORT)];
+        args = [cliEntry, ...serveArgs];
       } else {
         // Fallback only: PINNED npx (never unpinned — npx-latest fetches an UNPATCHED cli that
         // silently drops images → "I can't see images"). Vision needs the patched local install.
@@ -174,7 +176,7 @@ export async function startServe(): Promise<{ ok: boolean; error?: string; pid?:
             "Cross-mesh VISION needs the repo's patched local install — run `npm install`.",
         );
         cmd = "npx";
-        args = ["@qvac/cli@0.6.0", "serve", "openai", "--port", String(PORT)];
+        args = ["@qvac/cli@0.6.0", ...serveArgs];
       }
     }
     const child = spawn(cmd, args, {

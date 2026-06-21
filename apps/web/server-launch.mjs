@@ -38,6 +38,7 @@ import {
   userScope,
   userEnv,
 } from "./lib/leash/scope.mjs";
+import { bootstrapConfigFiles, seedScopedQvacConfig } from "./lib/leash/bootstrap-config.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url)); // apps/web
 const REPO_ROOT = join(here, "..", "..");
@@ -177,16 +178,15 @@ function ensureInternalToken(dataDir) {
 /** Make a user scope runnable: dirs, shared npm cache, qvac.config, empty-DB template. */
 function bootstrapScopeDir(scope) {
   for (const d of [scope.dataDir, join(scope.dbPath, ".."), sharedNpmCache(LEASH_BASE)]) mkdirSync(d, { recursive: true });
-  if (existsSync(join(QVAC_CONFIG_SRC, "qvac.config.mjs")) && !existsSync(scope.configPath)) {
-    // Seed the .mjs wrapper verbatim, but seed base.json with an EMPTY serve set: a fresh user
-    // starts with NO models loaded or preloaded. We only RECOMMEND (Brain → Models lists the
-    // catalog); the user picks what to download, which then gets written into THIS config.
-    cpSync(join(QVAC_CONFIG_SRC, "qvac.config.mjs"), join(scope.scopeDir, "qvac.config.mjs"));
+  const configFiles = bootstrapConfigFiles(scope);
+  if (existsSync(join(QVAC_CONFIG_SRC, "qvac.config.mjs")) && !existsSync(configFiles.wrapper)) {
+    // Seed the .mjs wrapper verbatim and keep the committed starter serve set. Welcome onboarding
+    // downloads that same recommended kit; blanking `serve.models` leaves chat with zero live
+    // aliases after setup even when the weights are present.
     const baseSrc = join(QVAC_CONFIG_SRC, "qvac.config.base.json");
     if (existsSync(baseSrc)) {
       const cfg = JSON.parse(readFileSync(baseSrc, "utf-8"));
-      if (cfg.serve && typeof cfg.serve === "object") cfg.serve.models = {};
-      writeFileSync(join(scope.scopeDir, "qvac.config.base.json"), JSON.stringify(cfg, null, 2));
+      seedScopedQvacConfig({ scope, sourceDir: QVAC_CONFIG_SRC, sourceConfig: cfg });
     }
   }
   if (existsSync(DB_TEMPLATE) && !existsSync(scope.dbPath)) cpSync(DB_TEMPLATE, scope.dbPath);

@@ -9,6 +9,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 import * as Device from "expo-device";
 import { pickProviderFromPeers, type MeshOffloadTarget, type MeshPeer } from "./providerSelection";
+import { parseMeshInvitePayload } from "./qrPayload";
 export type { MeshModel, MeshOffloadTarget, MeshPeer } from "./providerSelection";
 
 export type MeshTask = {
@@ -180,7 +181,18 @@ export function initMesh(): Promise<void> {
 /** Blind-pair into a desktop's mesh using its hex invite (minted by hypha /mesh/invite). */
 export async function joinMesh(invite: string, label?: string): Promise<void> {
   await initMesh();
-  await call("join", { invite: invite.trim(), ...(label ? { label } : {}) }, 60_000);
+  const payload = parseMeshInvitePayload(invite.trim());
+  const joinInvite = payload?.invite ?? invite.trim();
+  await call(
+    "join",
+    {
+      invite: joinInvite,
+      ...(payload?.sid ? { inviteSessionId: payload.sid } : {}),
+      ...(payload?.mesh ? { meshId: payload.mesh } : {}),
+      ...(label ? { label } : {}),
+    },
+    45_000,
+  );
 }
 
 /** Leave the current mesh — drops this phone's membership and wipes its local store. */

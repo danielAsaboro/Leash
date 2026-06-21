@@ -96,7 +96,7 @@ export interface MeshControl {
   /** Found a NEW private mesh of your own devices. Returns its local meshId. */
   newMesh(label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
   /** Mint a blind invite for a mesh you belong to (to add a device to it). */
-  inviteToMesh(meshId: string): Promise<{ ok: boolean; invite?: string; error?: string }>;
+  inviteToMesh(meshId: string): Promise<{ ok: boolean; invite?: string; sid?: string; uri?: string; error?: string }>;
   /** Join an existing mesh as a NEW membership via a blind invite. Returns the new local meshId. */
   joinMesh(invite: string, label: string): Promise<{ ok: boolean; meshId?: string; error?: string }>;
   /** Join a public, discoverable cell (no pairing) by its id — broadcast-only gossip (spec §9). */

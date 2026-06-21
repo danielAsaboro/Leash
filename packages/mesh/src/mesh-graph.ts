@@ -224,12 +224,87 @@ export interface PairOptions {
   sharedSwarm?: Hyperswarm;
   /** Hex blind-pairing invite minted by the host's mintInvite(). */
   invite: string;
+  /** QR/session id paired with this invite. Required only for session-scoped QR invites. */
+  inviteSessionId?: string;
   /** Give up (close the half-open swarm/store and throw) if the host hasn't confirmed by then. */
   timeoutMs?: number;
   audit?: AuditLog;
 }
 
+export interface MintInviteOptions {
+  /** Host-owned QR session id; when set, candidates must echo it in userData. */
+  sessionId?: string;
+  /** Local mesh handle, only for audit/QR correlation. */
+  meshId?: string;
+}
+
+export interface JoinInvitePayload {
+  invite: string;
+  sid?: string;
+  mesh?: string;
+}
+
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+const PAIRING_POLL_MS = 500;
+const INVITE_HEX_RE = /^[0-9a-f]+$/i;
+const WRITER_HEX_RE = /^[0-9a-f]{64}$/i;
+
+const cleanString = (value: unknown): string | undefined => (typeof value === "string" && value.trim() ? value.trim() : undefined);
+
+export function joinInviteUri(payload: JoinInvitePayload): string {
+  const qs = new URLSearchParams({ invite: payload.invite });
+  if (payload.sid) qs.set("sid", payload.sid);
+  if (payload.mesh) qs.set("mesh", payload.mesh);
+  return `leash://join?${qs.toString()}`;
+}
+
+export function parseJoinInvitePayload(input: string): JoinInvitePayload | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (INVITE_HEX_RE.test(lower) && lower.length >= 16 && lower.length % 2 === 0) return { invite: lower };
+
+  try {
+    const url = new URL(raw);
+    if (url.protocol === "leash:" && url.hostname === "join") {
+      const invite = cleanString(url.searchParams.get("invite"))?.toLowerCase();
+      if (!invite || !INVITE_HEX_RE.test(invite) || invite.length % 2 !== 0) return null;
+      const sid = cleanString(url.searchParams.get("sid"));
+      const mesh = cleanString(url.searchParams.get("mesh"));
+      return { invite, ...(sid ? { sid } : {}), ...(mesh ? { mesh } : {}) };
+    }
+  } catch {
+    /* not a URI */
+  }
+
+  try {
+    const json = JSON.parse(raw) as { invite?: unknown; sid?: unknown; mesh?: unknown };
+    const invite = cleanString(json.invite)?.toLowerCase();
+    if (!invite || !INVITE_HEX_RE.test(invite) || invite.length % 2 !== 0) return null;
+    const sid = cleanString(json.sid);
+    const mesh = cleanString(json.mesh);
+    return { invite, ...(sid ? { sid } : {}), ...(mesh ? { mesh } : {}) };
+  } catch {
+    return null;
+  }
+}
+
+function encodeCandidateUserData(writerKey: Buffer, sessionId?: string): Buffer {
+  const writerKeyHex = b4a.toString(writerKey, "hex");
+  return sessionId ? b4a.from(JSON.stringify({ writerKey: writerKeyHex, sid: sessionId })) : b4a.from(writerKey);
+}
+
+function decodeCandidateUserData(userData: Buffer): { writerKey: string; sid?: string } {
+  const text = b4a.toString(userData, "utf8").trim();
+  if (text.startsWith("{")) {
+    const parsed = JSON.parse(text) as { writerKey?: unknown; sid?: unknown };
+    const writerKey = cleanString(parsed.writerKey)?.toLowerCase();
+    if (!writerKey || !WRITER_HEX_RE.test(writerKey)) throw new Error("candidate userData missing writerKey");
+    const sid = cleanString(parsed.sid);
+    return { writerKey, ...(sid ? { sid } : {}) };
+  }
+  return { writerKey: b4a.toString(userData, "hex") };
+}
 
 /**
  * Build our Corestore with `allowBackup: true` — this DISABLES the per-store
@@ -345,6 +420,7 @@ export class MeshGraph {
   private member: { flushed(): Promise<void>; close(): Promise<void> } | null = null;
   private allowedDevices?: Set<string>;
   private readonly audit?: AuditLog;
+  private inviteSession: { sid?: string; meshId?: string; invite: string; mintedAt: number } | null = null;
   /** False when store/swarm were injected by a MeshHost — `close()` must not dispose them. */
   private ownsStore = true;
   private ownsSwarm = true;
@@ -662,8 +738,9 @@ export class MeshGraph {
   }
 
   /** Host: mint a hex invite and auto-confirm the first candidate as a writer. */
-  async mintInvite(): Promise<string> {
+  async mintInvite(opts: MintInviteOptions = {}): Promise<string> {
     if (!this.swarm) throw new Error("call joinSwarm() before mintInvite()");
+    const mintStarted = Date.now();
     // Re-minting (PIN retries / a second pairing session) must not leak the previous
     // member + BlindPairing — close them first; only the latest invite stays redeemable.
     if (this.member) {
@@ -675,40 +752,75 @@ export class MeshGraph {
       this.pairing = null;
     }
     const { invite, publicKey } = BlindPairing.createInvite(this.base.key);
-    this.pairing = new BlindPairing(this.swarm);
+    const inviteHex = b4a.toString(invite, "hex");
+    const sid = cleanString(opts.sessionId);
+    const meshId = cleanString(opts.meshId);
+    this.inviteSession = { ...(sid ? { sid } : {}), ...(meshId ? { meshId } : {}), invite: inviteHex, mintedAt: Date.now() };
+    this.pairing = new BlindPairing(this.swarm, { poll: PAIRING_POLL_MS });
     this.member = this.pairing.addMember({
       discoveryKey: this.base.discoveryKey,
       onadd: async (req) => {
+        const seenAt = Date.now();
+        const session = this.inviteSession;
+        this.audit?.record({ event: "pairing", extra: { role: "host", phase: "candidate-seen", sid: session?.sid, meshId: session?.meshId, invite: session?.invite?.slice(0, 12) } });
+        let confirmed = false;
+        let writerKey = "";
+        let candidateSid: string | undefined;
         try {
+          const openStarted = Date.now();
           req.open(publicKey); // decrypt-only: populates req.userData, grants nothing
-          const writerKey = b4a.toString(req.userData, "hex");
+          const decoded = decodeCandidateUserData(req.userData);
+          writerKey = decoded.writerKey;
+          candidateSid = decoded.sid;
+          this.audit?.record({
+            event: "pairing",
+            extra: {
+              role: "host",
+              phase: "candidate-opened",
+              writerKey,
+              sid: candidateSid,
+              expectedSid: session?.sid,
+              meshId: session?.meshId,
+              durationMs: Date.now() - openStarted,
+              sinceInviteMs: session ? Date.now() - session.mintedAt : undefined,
+            },
+          });
+          if (session?.sid && candidateSid !== session.sid) {
+            req.deny();
+            this.audit?.record({ event: "pairing", extra: { role: "host", phase: "onadd-failed", reason: "stale invite session", writerKey, sid: candidateSid, expectedSid: session.sid, durationMs: Date.now() - seenAt } });
+            return;
+          }
           // Allow-list firewall (Part C): a valid invite is necessary but not sufficient —
           // an unlisted device is denied here, so the writer is never added/confirmed.
           if (this.allowedDevices && this.allowedDevices.size > 0 && !this.allowedDevices.has(writerKey)) {
             req.deny(); // status 1 → candidate throws PAIRING_REJECTED
-            this.audit?.record({ event: "pairing", extra: { role: "host", rejected: true, writerKey } });
+            this.audit?.record({ event: "pairing", extra: { role: "host", phase: "onadd-failed", rejected: true, reason: "writer not allow-listed", writerKey, sid: candidateSid, durationMs: Date.now() - seenAt } });
             return;
           }
-          if (!this.base.writable) throw new Error("host mesh not writable — cannot append the add-writer record");
-          await this.base.append({ type: "add-writer", key: writerKey });
           req.confirm({ key: this.base.key });
-          this.audit?.record({ event: "pairing", extra: { role: "host", writerKey } });
+          confirmed = true;
+          this.audit?.record({ event: "pairing", extra: { role: "host", phase: "confirm-sent", writerKey, sid: candidateSid, meshId: session?.meshId, durationMs: Date.now() - seenAt } });
+          const addStarted = Date.now();
+          this.audit?.record({ event: "pairing", extra: { role: "host", phase: "add-writer-start", writerKey, sid: candidateSid, meshId: session?.meshId } });
+          await this.base.append({ type: "add-writer", key: writerKey });
+          this.audit?.record({ event: "pairing", extra: { role: "host", phase: "add-writer-done", writerKey, sid: candidateSid, meshId: session?.meshId, durationMs: Date.now() - addStarted } });
         } catch (err) {
           // NEVER leave the candidate hanging: a failed admission (non-writable mesh, append
           // error) must DENY so the joiner gets a fast PAIRING_REJECTED instead of an
           // infinite "pairing…" wait on its end.
-          this.audit?.record({ event: "pairing", extra: { role: "host", phase: "onadd-failed", error: String(err) } });
-          try {
-            req.deny();
-          } catch {
-            /* channel already gone */
+          this.audit?.record({ event: "pairing", extra: { role: "host", phase: "onadd-failed", writerKey: writerKey || undefined, sid: candidateSid, error: String(err), durationMs: Date.now() - seenAt } });
+          if (!confirmed) {
+            try {
+              req.deny();
+            } catch {
+              /* channel already gone */
+            }
           }
         }
       },
     });
     await this.member.flushed();
-    const inviteHex = b4a.toString(invite, "hex");
-    this.audit?.record({ event: "pairing", extra: { role: "host", invite: inviteHex } });
+    this.audit?.record({ event: "pairing", extra: { role: "host", phase: "invite-minted", invite: inviteHex, sid, meshId, durationMs: Date.now() - mintStarted } });
     return inviteHex;
   }
 
@@ -726,12 +838,15 @@ export class MeshGraph {
     const ownsSwarm = !opts.sharedSwarm;
     // Own swarm → register replication here; shared swarm → the MeshHost already did, once, on root.
     if (ownsSwarm) swarm.on("connection", (conn) => { store.replicate(conn); });
-    const pairing = new BlindPairing(swarm);
+    const pairing = new BlindPairing(swarm, { poll: PAIRING_POLL_MS });
     const localCore = Autobase.getLocalCore(store);
     await localCore.ready();
-    const userData = b4a.from(localCore.key); // hand our writer key to the host
+    const parsedInvite = parseJoinInvitePayload(opts.invite);
+    if (!parsedInvite) throw new Error("invalid mesh invite");
+    const inviteSessionId = cleanString(opts.inviteSessionId) ?? parsedInvite.sid;
+    const userData = encodeCandidateUserData(localCore.key, inviteSessionId); // hand our writer key (+ optional QR sid) to the host
     await localCore.close();
-    const candidate = pairing.addCandidate({ invite: b4a.from(opts.invite, "hex"), userData, onadd: () => {} });
+    const candidate = pairing.addCandidate({ invite: b4a.from(parsedInvite.invite, "hex"), userData, onadd: () => {} });
     // `candidate.pairing` resolves only when the HOST confirms (rejects on deny). A host that
     // errors mid-admission (e.g. a non-writable mesh failing its add-writer append) does
     // neither — without a deadline the joiner would await forever, leaking the swarm and
@@ -742,6 +857,9 @@ export class MeshGraph {
     try {
       result = (await Promise.race([
         candidate.pairing,
+        new Promise<never>((_, reject) => {
+          (candidate as unknown as { request: { on(event: "rejected", listener: (err: Error) => void): void } }).request.on("rejected", reject);
+        }),
         new Promise<never>((_, reject) => {
           timer = setTimeout(
             () =>
@@ -763,7 +881,7 @@ export class MeshGraph {
       // so closing the candidate above is the full cleanup.
       if (ownsSwarm) await swarm.destroy().catch(() => undefined);
       if (ownsStore) await store.close().catch(() => undefined);
-      opts.audit?.record({ event: "pairing", extra: { role: "candidate", failed: true, error: String(err) } });
+      opts.audit?.record({ event: "pairing", extra: { role: "candidate", failed: true, sid: inviteSessionId, error: String(err) } });
       throw err;
     } finally {
       if (timer) clearTimeout(timer);
@@ -779,7 +897,7 @@ export class MeshGraph {
     await g.base.ready();
     swarm.join(g.base.discoveryKey);
     await swarm.flush();
-    opts.audit?.record({ event: "pairing", extra: { role: "candidate", autobaseKey: b4a.toString(result.key, "hex") } });
+    opts.audit?.record({ event: "pairing", extra: { role: "candidate", sid: inviteSessionId, autobaseKey: b4a.toString(result.key, "hex") } });
     return g;
   }
 

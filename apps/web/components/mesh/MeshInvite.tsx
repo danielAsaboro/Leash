@@ -70,13 +70,13 @@ export function MeshInvite({ meshId, label }: { meshId: string; label: string })
     setCopied(false);
     try {
       const r = await fetchWithTimeout("/api/leash/hypha/mesh", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "invite", meshId }) });
-      const body = (await r.json().catch(() => ({}))) as { invite?: string; error?: string };
+      const body = (await r.json().catch(() => ({}))) as { invite?: string; sid?: string; uri?: string; error?: string };
       if (!r.ok || body.error || !body.invite) {
         const msg = body.error ?? `Couldn't mint an invite (${r.status}).`;
         setError(msg);
         toast.error(msg);
       } else {
-        setInvite(body.invite);
+        setInvite(body.uri ?? body.invite);
         toast.success("Mesh invite minted");
       }
     } catch {

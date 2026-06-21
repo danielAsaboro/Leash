@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, Vibration, View } from 
 import { CameraView, useCameraPermissions } from "expo-camera";
 import * as Device from "expo-device";
 import { C, F, TRACKING_LABEL } from "./theme";
+import { parseMeshInvitePayload, serializeMeshInvitePayload } from "./qrPayload";
 
 /** Pull a 64-hex provider key out of a scanned payload: bare hex, a `leash://pair?provider=…`
  *  URI, or a small JSON `{ "provider": "…" }`. */
@@ -24,15 +25,7 @@ export function parseProviderKey(data: string): string | null {
  * tolerates a `leash://join?invite=…` URI or `{ "invite": "…" }` JSON. Returns the hex or null.
  */
 export function parseMeshInvite(data: string): string | null {
-  const t = (data ?? "").trim().toLowerCase();
-  if (/^[0-9a-f]+$/.test(t) && t.length >= 96 && t.length % 2 === 0) return t;
-  const m = t.match(/invite=([0-9a-f]{96,})/i);
-  if (m) return m[1].toLowerCase();
-  try {
-    const j = JSON.parse(data);
-    if (typeof j?.invite === "string" && /^[0-9a-f]{96,}$/i.test(j.invite)) return j.invite.toLowerCase();
-  } catch {}
-  return null;
+  return parseMeshInvitePayload(data)?.invite ?? null;
 }
 
 /** Parse the full pairing payload — provider key, optional friendly name, optional callback URL. */
@@ -100,15 +93,15 @@ export function QRScanner({
     if (handled.current) return;
     // Mesh-membership mode: accept the blind-pairing invite and hand it to joinMesh.
     if (onInvite) {
-      const inv = parseMeshInvite(data);
-      if (!inv) {
+      const payload = parseMeshInvitePayload(data);
+      if (!payload) {
         setBad(true);
         return;
       }
       handled.current = true;
       Vibration.vibrate(40);
       setDone({ mesh: true });
-      setTimeout(() => onInvite(inv), 650);
+      setTimeout(() => onInvite(serializeMeshInvitePayload(payload)), 650);
       return;
     }
     const parsed = parsePairPayload(data);
