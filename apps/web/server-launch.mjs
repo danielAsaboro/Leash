@@ -5,11 +5,11 @@
  *   · standalone web   — `npm run dev` / `npm run start` (wraps `next dev` / `next start`)
  *   · the desktop app  — Electron main spawns THIS file (LEASH_SERVER_JS = bundled standalone)
  *
- * It owns the process: spawns the Next server scoped to the active user (per `<base>/Leash/
+ * It owns the process: spawns the Next server scoped to the active device (per `<base>/Leash/
  * active.json`), and on child EXIT re-reads active.json and respawns in the new scope — which is
- * how the web auth routes' login / switch / logout / reset take effect (they write active.json
- * then exit). On a scope change it reaps the detached `qvac serve` on the serve port so a new
- * user never inherits the previous user's serve/corestore. There is NO unsupervised path.
+ * how the device bootstrap / scope switch / reset flows take effect (they write active.json then
+ * exit). On a scope change it reaps the detached `qvac serve` on the serve port so a new scope
+ * never inherits the previous scope's serve/corestore. There is NO unsupervised path.
  *
  * Env contract (all optional; sensible repo-relative defaults):
  *   LEASH_BASE            install base; `<base>/Leash/` holds users + per-user dirs   [default: ~]
@@ -47,6 +47,7 @@ const BASE = process.env.LEASH_BASE ?? userInfo().homedir; // passwd home (stabl
 const LEASH_BASE = leashBaseFrom(BASE);
 const ACTIVE_FILE = activeFile(LEASH_BASE);
 const REGISTRY_FILE = registryFile(LEASH_BASE);
+const DEVICE_FILE = join(LEASH_BASE, "device.json");
 const WEB_PORT = Number(process.env.PORT ?? 6801);
 const SERVE_PORT = Number(process.env.MYCELIUM_SERVE_PORT ?? 11435);
 const SERVER_CMD = process.env.LEASH_SERVER_CMD ?? "";
@@ -88,6 +89,23 @@ function userExists(userId) {
     return false;
   }
 }
+function readDeviceBootstrap() {
+  try {
+    const d = JSON.parse(readFileSync(DEVICE_FILE, "utf8"));
+    if (d?.version === 1 && (d.mode === null || d.mode === "first-device" || d.mode === "sync-existing")) {
+      return d;
+    }
+  } catch {
+    /* missing */
+  }
+  return null;
+}
+function writeDeviceBootstrap(device) {
+  mkdirSync(LEASH_BASE, { recursive: true });
+  const tmp = join(LEASH_BASE, `.device.${process.pid}.tmp`);
+  writeFileSync(tmp, JSON.stringify(device, null, 2));
+  renameSync(tmp, DEVICE_FILE);
+}
 function performPendingOp() {
   const a = readActive();
   if (!a.op) return;
@@ -95,12 +113,19 @@ function performPendingOp() {
     rmSync(LEASH_BASE, { recursive: true, force: true });
     return;
   }
-  if (a.op === "reset-user" && a.target) rmSync(userScope(LEASH_BASE, a.target).scopeDir, { recursive: true, force: true });
+  if (a.op === "reset-user" && a.target) {
+    rmSync(userScope(LEASH_BASE, a.target).scopeDir, { recursive: true, force: true });
+    const device = readDeviceBootstrap();
+    if (device?.identity?.userId === a.target) rmSync(DEVICE_FILE, { force: true });
+  }
   writeActive({ userId: null });
 }
 function resolveScope() {
   const a = readActive();
+  const device = readDeviceBootstrap();
+  if (a.userId && device?.identity?.userId === a.userId) return userScope(LEASH_BASE, a.userId);
   if (a.userId && userExists(a.userId)) return userScope(LEASH_BASE, a.userId);
+  if (device?.identity?.userId) return userScope(LEASH_BASE, device.identity.userId);
   return userScope(LEASH_BASE, BOOTSTRAP_USER);
 }
 

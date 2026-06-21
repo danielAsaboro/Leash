@@ -42,18 +42,14 @@ for (const s of ["leash-model-catalog.mts", "leash-model-download.mts"]) {
   cpSync(join(web, "scripts", s), join(dst, "scripts", s));
 }
 
-// 4. the shared Brain built-ins — shipped read-only, seeded into each user's skill/agent stores on
-//    first launch (see server-launch.mjs bootstrapScopeDir). Next standalone never traces them
-//    (they're data, not imported), so package the shared source tree explicitly.
+// 4. the shared Brain package — the helper scripts need both the built-in data AND the compiled
+//    package entrypoints. Next standalone never traces this package for the spawned helpers, so
+//    stage it explicitly for packaged desktop/runtime helper launches.
 const brainSrc = join(repoRoot, "packages", "brain");
 const brainDst = join(standalone, "packages", "brain");
-if (existsSync(join(brainSrc, "builtin-skills"))) {
+if (existsSync(join(brainSrc, "package.json"))) {
   mkdirSync(brainDst, { recursive: true });
-  cpSync(join(brainSrc, "builtin-skills"), join(brainDst, "builtin-skills"), { recursive: true });
-}
-if (existsSync(join(brainSrc, "builtin-agents"))) {
-  mkdirSync(brainDst, { recursive: true });
-  cpSync(join(brainSrc, "builtin-agents"), join(brainDst, "builtin-agents"), { recursive: true });
+  cpSync(brainSrc, brainDst, { recursive: true });
 }
 
-console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + shared Brain built-ins into the standalone bundle");
+console.log("[stage-launcher] staged .next/static + public + supervisor + model scripts + shared Brain package into the standalone bundle");

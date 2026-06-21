@@ -100,6 +100,7 @@ import { OnboardingFlow, type WarmStep } from "./OnboardingFlow";
 import { getOnboardingState, saveOnboardingState, type DeviceSetupMode } from "./onboarding";
 import { joinMesh } from "./meshClient";
 import { buildFirstDeviceDownloadPlan } from "./onboardingPlan";
+import { getDeviceIdentity, makeDeviceIdentity, saveDeviceIdentity } from "./deviceIdentity";
 import { resetDeviceState } from "./resetDeviceState";
 import { decideMobileSetup, mobileDeviceLabel } from "./deviceSetup";
 import type { DeviceSetupDecision } from "@mycelium/brain";
@@ -471,9 +472,9 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const onboarding = await getOnboardingState();
+      const [onboarding, identity] = await Promise.all([getOnboardingState(), getDeviceIdentity()]);
       if (cancelled) return;
-      if (!onboarding) {
+      if (!onboarding || !identity) {
         setBootMode(null);
         setBootSource("new");
         setBootStage("choose");
@@ -1119,7 +1120,8 @@ export default function App(): React.JSX.Element {
           setBootMode("first-device");
           const selectedChat = firstDeviceDecision?.recommendedChatAlias ?? DEFAULT_CHAT_KEY;
           setChatKey(selectedChat);
-          void setSelectedChatKey(selectedChat).finally(() => {
+          const identity = makeDeviceIdentity("fresh");
+          void Promise.all([saveDeviceIdentity(identity), setSelectedChatKey(selectedChat)]).finally(() => {
             void bootWorkspace({ mode: "first-device", prefetchSupport: true, source: "new" });
           });
         }}
@@ -1132,9 +1134,10 @@ export default function App(): React.JSX.Element {
           }
           setJoinBusy(true);
           setBootError(null);
+          const identity = makeDeviceIdentity("imported");
           void joinMesh(syncKey)
             .then(async () => {
-              await saveOnboardingState("sync-existing");
+              await Promise.all([saveDeviceIdentity(identity), saveOnboardingState("sync-existing")]);
               await bootWorkspace({ mode: "sync-existing", prefetchSupport: false, source: "new" });
             })
             .catch((e) => {

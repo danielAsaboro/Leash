@@ -1,13 +1,16 @@
 /**
- * THE single source of truth for per-user path scoping + the process env boundary.
+ * THE single source of truth for per-device path scoping + the process env boundary.
  *
  * Imported by both the supervisor (`server-launch.mjs`, which the desktop app spawns too)
- * and the migration tool — so there is exactly ONE definition of where a user's data lives
- * and which env vars isolate a process. Plain ESM (no TypeScript) so the launcher can run it
- * with bare `node`, and `userId` is minted only by `auth-core.ts#slugifyUserId`.
+ * and the launcher helpers — so there is exactly ONE definition of where a device's local
+ * data lives and which env vars isolate a process. Plain ESM (no TypeScript) so the launcher
+ * can run it with bare `node`.
  *
- * Layout: `<base>/Leash/<userId>/{data,db,.qvac,qvac.config.mjs,…}`, with the auth registry,
- * `active.json`, the shared Next runtime and a shared npm cache at `<base>/Leash/` level.
+ * Layout: by default, `<base>/Leash/<userId>/data/*` holds the full device-local workspace
+ * (db, qvac cache, config, cloned MCP repos, chats, notes, downloads, etc.). If
+ * `LEASH_DATA_ROOT` is set, the workspace root moves to `<LEASH_DATA_ROOT>/<userId>/*`.
+ * Model weights live at `models/`; registry/rag stores sit beside them under the same data root.
+ * Shared launcher state stays at `<base>/Leash/` level (`active.json`, runtime seed, shared npm cache).
  */
 import { join } from "node:path";
 
@@ -31,24 +34,23 @@ export function activeFile(leashBase) {
   return join(leashBase, "active.json");
 }
 
-/** Every per-user path under `<leashBase>/<userId>/`. */
-export function userScope(leashBase, userId) {
+/** Every per-user path under the derived device data root. */
+export function userScope(leashBase, userId, dataRoot = process.env["LEASH_DATA_ROOT"]) {
   const scopeDir = join(leashBase, userId);
-  const dataDir = join(scopeDir, "data");
+  const dataDir = dataRoot ? join(dataRoot, userId) : join(scopeDir, "data");
   return {
     userId,
     scopeDir,
     dataDir,
-    dbPath: join(scopeDir, "db", "newsroom.db"),
-    qvacHome: scopeDir,
-    qvacDir: join(scopeDir, ".qvac"),
-    configPath: join(scopeDir, "qvac.config.mjs"),
+    dbPath: join(dataDir, "db", "newsroom.db"),
+    qvacHome: dataDir,
+    configPath: join(dataDir, "qvac.config.mjs"),
     chatDir: join(dataDir, "leash-chats"),
     notesDir: join(dataDir, "notes"),
     feedbackFile: join(dataDir, "leash-feedback.jsonl"),
-    mcpReposDir: join(scopeDir, ".leash-mcp-repos"),
+    mcpReposDir: join(dataDir, ".leash-mcp-repos"),
     hyphaDataDir: join(dataDir, "hypha"),
-    modelsDir: join(scopeDir, ".qvac", "models"),
+    modelsDir: join(dataDir, "models"),
   };
 }
 
@@ -57,11 +59,12 @@ export function bootstrapScope(leashBase) {
 }
 
 /**
- * The isolation boundary: the full env set scoping ONE process to ONE user. Setting HOME scopes
- * all of `~/.qvac` (models, registry-corestore, rag-hyperdb, adapters) and `~/.leash-mcp-repos`;
- * the chat/notes/feedback/etc. keys are pinned because their web-side / spawned-script defaults
- * are bundle- or ROOT-relative (the leak). `npm_config_cache` is SHARED so the qvac CLI downloads
- * once. LEASH_ACTIVE_USER is omitted for bootstrap so the dashboard stays gated pre-login.
+ * The isolation boundary: the full env set scoping ONE process to ONE device workspace. Setting
+ * HOME to `data/` keeps hidden tool state inside the device folder, while `QVAC_CONFIG_PATH` +
+ * `QVAC_MODELS_DIR` pin model storage to `data/models` and the SDK's registry/rag stores beside
+ * it. Deleting `data/` fully clears the local workspace. `npm_config_cache` stays shared so the
+ * qvac CLI downloads once. LEASH_ACTIVE_USER is omitted for bootstrap so the dashboard stays
+ * gated pre-setup.
  */
 export function userEnv(leashBase, scope) {
   const env = {

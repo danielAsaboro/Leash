@@ -41,6 +41,7 @@ const PURPOSE_BY_KEY: Record<string, string> = {
 };
 
 const FACTORY_RESET_FILES: ResetTarget[] = [
+  { key: "device-identity", label: "Device identity", suffix: "device-identity.json", kind: "file" },
   { key: "onboarding", label: "Onboarding state", suffix: "onboarding.json", kind: "file" },
   { key: "selected-model", label: "Selected chat model", suffix: "selectedModel.json", kind: "file" },
   { key: "chats", label: "Conversations", suffix: "chats", kind: "dir" },

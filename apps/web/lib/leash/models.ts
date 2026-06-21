@@ -14,24 +14,24 @@ import { join, dirname, basename } from "node:path";
 import { readJson, readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
 import { estimateFit, type FitEstimate } from "./hwfit.ts";
 import { ASSISTANT_KIT, kitRoleOf, type KitRole, type KitRoleName } from "./kit.ts";
+import { displayPathMiddle } from "./path-display.ts";
 
 /** Where `qvac serve openai` listens (same default as the provider). */
 export const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
 
-/** The SDK's model cache (`~/.qvac/models`; on some machines symlinked to an external SSD). */
+/** The SDK's model cache (scoped to the device workspace, defaulting to `data/models`). */
 export const QVAC_MODELS_DIR = process.env["QVAC_MODELS_DIR"] ?? join(homedir(), ".qvac", "models");
 
 /**
- * Where the model cache REALLY lives — follows the `~/.qvac` symlink when present
- * ("external SSD · <volume>") instead of hardcoding one machine's setup.
+ * Where the model cache really lives — return both the full resolved path and a compacted display
+ * version so the dashboard can show the real target and expose the full path on hover.
  */
-export async function modelsDirLocation(): Promise<string> {
+export async function modelsDirLocation(): Promise<{ full: string; display: string }> {
   try {
-    const real = await realpath(QVAC_MODELS_DIR);
-    const vol = /^\/Volumes\/([^/]+)/.exec(real);
-    return vol ? `external SSD · ${vol[1]}` : "internal SSD";
+    const full = await realpath(QVAC_MODELS_DIR);
+    return { full, display: displayPathMiddle(full) };
   } catch {
-    return "internal SSD";
+    return { full: QVAC_MODELS_DIR, display: displayPathMiddle(QVAC_MODELS_DIR) };
   }
 }
 
@@ -565,7 +565,7 @@ export async function addModelToConfig(alias: string, modelName: string): Promis
  * before writing. Explicit QVAC GGUF roles use the CLI's `{ src, type }` serve shape, which is how
  * the health role points at the QVAC MedPsy collection even when the installed SDK has no exported
  * MedPsy constant. The vision role's `projectionModelSrc` is computed from the projection SKU's
- * on-disk cache filename (`~/.qvac/models/<cacheFile>`), which is exactly the bare-mmproj wiring the
+ * on-disk cache filename (`~/models/<cacheFile>`), which is exactly the bare-mmproj wiring the
  * kit exists to fix. The `chat` role becomes the served default UNLESS the user already has a default
  * configured (non-destructive, mirroring addModelToConfig). Weights are downloaded separately (the
  * dashboard queues them via /models/download); this only edits the config the serve loads on its next
@@ -590,7 +590,7 @@ export async function addModelKit(roles: KitRole[] = ASSISTANT_KIT): Promise<{ o
       const cfg: Record<string, unknown> = { ...(r.model ? defaultModelConfig(catalog, r.model) : {}), ...(r.config ?? {}) };
       if (r.projection) {
         const mm = catalog.find((c) => c.name === r.projection);
-        if (mm?.cacheFile) cfg["projectionModelSrc"] = `~/.qvac/models/${mm.cacheFile}`;
+        if (mm?.cacheFile) cfg["projectionModelSrc"] = `~/models/${mm.cacheFile}`;
       }
       config.serve.models[r.alias] = r.model
         ? { model: r.model, preload: true, ...(Object.keys(cfg).length ? { config: cfg } : {}) }

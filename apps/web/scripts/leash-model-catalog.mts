@@ -12,7 +12,7 @@
  * We record what the inventory + Forage need:
  *   · name / endpointCategory / addon / engine / params / quantization / expectedSize
  *   · registryPath + the derived CACHE FILENAME — sha256(registryPath).hex[0:16] + "_" +
- *     basename(registryPath) — verified against ~/.qvac/models (disambiguates the
+ *     basename(registryPath) — verified against the scoped `data/models` cache (disambiguates the
  *     same-basename collisions like the two Qwen3-4B-Q4_K_M.gguf).
  */
 import { createHash } from "node:crypto";

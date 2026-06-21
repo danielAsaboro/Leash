@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { fetchWithTimeout } from "../lib/http.ts";
-import { activateAndGo } from "../lib/auth-handshake.ts";
+import { activateAndGo } from "../lib/device-handshake.ts";
 import { appAlert, appConfirm } from "../lib/prompt.ts";
 import { toast } from "./Toast.tsx";
 import type { StorageUsage } from "../lib/leash/storage.ts";
@@ -41,8 +41,8 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
   };
 
   const factoryReset = async () => {
-    if (!(await appConfirm("FACTORY RESET? Permanently deletes EVERY account, all data and all downloaded models on this device, returning the app to first-run setup.", { confirmLabel: "Factory reset", destructive: true }))) return;
-    if (!(await appConfirm("This wipes everything for every user. Are you absolutely sure?", { confirmLabel: "Wipe everything", destructive: true }))) return;
+    if (!(await appConfirm("FACTORY RESET? Permanently deletes this device’s Leash workspace, cached models, mesh state, and onboarding record, returning it to first-run setup.", { confirmLabel: "Factory reset", destructive: true }))) return;
+    if (!(await appConfirm("This wipes the full local setup on this device. Are you absolutely sure?", { confirmLabel: "Wipe this device", destructive: true }))) return;
     setBusy(true);
     try {
       const r = await fetchWithTimeout("/api/leash/data/reset", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ scope: "factory" }) });
@@ -54,7 +54,7 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
         return;
       }
       toast.success("Factory reset started");
-      await activateAndGo(null, "/login"); // supervisor wipes + respawns to bootstrap
+      await activateAndGo(null, "/welcome"); // supervisor wipes + respawns to bootstrap
     } catch {
       toast.error("Reset failed");
       setBusy(false);
@@ -79,7 +79,7 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
         </div>
       ))}
       <p className="kicker" style={{ color: "var(--color-faint)", marginTop: "0.5rem" }}>
-        Clearing never touches device identity, the mesh, the economy ledger, or secrets.
+        Clearing never touches this device identity, the mesh, the economy ledger, or secrets.
       </p>
 
       <div className="mt-4 border-t pt-3" style={{ borderColor: "var(--color-rule)" }}>
@@ -96,7 +96,7 @@ export function AppDataCard({ data }: { data: StorageUsage["data"] }) {
           </button>
         </div>
         <p className="kicker" style={{ color: "var(--color-faint)", marginTop: "0.4rem" }}>
-          Factory reset wipes every account on this device. To reset just your own account, see Account → Danger zone.
+          Factory reset wipes this device and returns it to first-run onboarding.
         </p>
       </div>
     </div>

@@ -23,10 +23,10 @@ export function Setup(): React.JSX.Element {
 
   return (
     <div className="flex h-screen flex-col items-center justify-center gap-6 bg-cream px-10 text-ink">
-      <h1 className="font-display text-4xl font-semibold">Where should Leash live?</h1>
+      <h1 className="font-display text-4xl font-semibold">Prepare this computer</h1>
       <p className="max-w-md text-center font-body text-sm text-muted">
-        Pick one folder for Leash&rsquo;s data and the AI model cache (several GB, downloaded on
-        first use). You can move this folder to another machine later.
+        Choose where Leash should keep this computer&rsquo;s local workspace, runtime, and model cache.
+        After that, you&rsquo;ll choose whether this computer starts fresh or joins a device you already trust.
       </p>
       <div className="flex gap-3">
         <button
@@ -47,8 +47,8 @@ export function Setup(): React.JSX.Element {
       {paths && (
         <div className="mt-2 max-w-lg rounded-lg border border-rule bg-paper p-4 font-mono text-[11px] text-muted">
           <div>Leash: {paths.leashBase}</div>
-          <div>per user: {paths.leashBase}/&lt;username&gt;/…</div>
-          <div className="mt-1 text-[10px]">Each account gets its own isolated data, database & model cache here.</div>
+          <div>local scope: {paths.leashBase}/&lt;device-scope&gt;/…</div>
+          <div className="mt-1 text-[10px]">Leash creates one local scope for this installation and prepares the rest from the dashboard onboarding flow.</div>
         </div>
       )}
       <button
@@ -56,7 +56,7 @@ export function Setup(): React.JSX.Element {
         disabled={!base || busy}
         onClick={start}
       >
-        {busy ? 'Starting…' : 'Start Leash'}
+        {busy ? 'Starting…' : 'Continue'}
       </button>
     </div>
   )

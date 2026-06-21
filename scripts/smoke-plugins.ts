@@ -27,7 +27,7 @@ const src = await mkdtemp(join(tmpdir(), "test-plugin-"));
 await mkdir(join(src, ".claude-plugin"), { recursive: true });
 await writeFile(join(src, ".claude-plugin", "plugin.json"), JSON.stringify({ name: "Demo Pack", version: "1.2.0", description: "A demo plugin", enabled: true }));
 await mkdir(join(src, "skills", "greet", "references"), { recursive: true });
-await writeFile(join(src, "skills", "greet", "SKILL.md"), `---\nname: Greet\ndescription: Greets the user warmly\nenabled: true\n---\n\nSay hello nicely. See references/note.md.`);
+await writeFile(join(src, "skills", "greet", "SKILL.md"), `---\nname: greet\ndescription: Greets the user warmly\n---\n\nSay hello nicely. See references/note.md.`);
 await writeFile(join(src, "skills", "greet", "references", "note.md"), "Be warm.");
 await mkdir(join(src, "agents"), { recursive: true });
 await writeFile(join(src, "agents", "reviewer.md"), `---\nname: Reviewer\ndescription: Reviews text for issues\ntools: [bash]\nmax-turns: 4\n---\n\nYou are a careful reviewer.`);

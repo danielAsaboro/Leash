@@ -39,7 +39,7 @@ async function watcherMtime(): Promise<number | null> {
 }
 
 export default async function HomePage() {
-  const [live, disk, diskWhere, daemon, watchMs, tasks, chats] = await Promise.all([
+  const [live, disk, modelPath, daemon, watchMs, tasks, chats] = await Promise.all([
     liveModels(),
     modelsDiskUsage(),
     modelsDirLocation(),
@@ -173,7 +173,7 @@ export default async function HomePage() {
             <Stat label="Files" value={disk.files.length} />
           </div>
           <p className="kicker mt-3" style={{ color: "var(--color-faint)" }}>
-            ~/.qvac/models ({diskWhere})
+            <span title={modelPath.full}>{modelPath.display}</span>
           </p>
         </DashCard>
       </div>

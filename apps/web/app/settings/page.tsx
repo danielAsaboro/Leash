@@ -17,11 +17,11 @@ import { PermissionsCard } from "../../components/PermissionsCard.tsx";
 import { MeshMembershipsSection } from "../../components/MeshMembershipsSection.tsx";
 import { SecretsCard } from "../../components/SecretsCard.tsx";
 import { AccountCard } from "../../components/AccountCard.tsx";
-import { listUsers } from "../../lib/leash/auth.ts";
+import { readDeviceBootstrap } from "../../lib/leash/device-bootstrap.ts";
 
 export const dynamic = "force-dynamic";
 
-const TABS = ["account", "storage", "devices", "secrets", "permissions", "about"] as const;
+const TABS = ["device", "storage", "devices", "secrets", "permissions", "about"] as const;
 type Tab = (typeof TABS)[number];
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -76,20 +76,39 @@ async function AboutTab() {
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   const params = await searchParams;
   const raw = Array.isArray(params["tab"]) ? params["tab"][0] : params["tab"];
-  const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "account";
-  const tabDefs: TabDef[] = TABS.map((t) => ({ key: t, label: t[0]!.toUpperCase() + t.slice(1), href: t === "account" ? "/settings" : `/settings?tab=${t}` }));
+  const tab: Tab = TABS.includes(raw as Tab) ? (raw as Tab) : "device";
+  const tabDefs: TabDef[] = TABS.map((t) => ({
+    key: t,
+    label: t === "device" ? "Device" : t[0]!.toUpperCase() + t.slice(1),
+    href: t === "device" ? "/settings" : `/settings?tab=${t}`,
+  }));
 
+  const bootstrap = readDeviceBootstrap();
   const activeId = process.env["LEASH_ACTIVE_USER"] ?? null;
-  const me = activeId ? listUsers().find((u) => u.userId === activeId) : undefined;
+  const identity = bootstrap?.identity ?? null;
+  const readySince = bootstrap?.completedAt
+    ? new Date(bootstrap.completedAt).toLocaleString("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+    : "—";
 
   return (
-    <DashShell kicker="Device & app" title="Settings" lede="Your account, what this app stores, the devices it connects to, and what it can access.">
+    <DashShell kicker="Device & app" title="Settings" lede="This device identity, what it stores locally, the devices it connects to, and what it can access.">
       <TabNav tabs={tabDefs} active={tab} />
 
-      {tab === "account" && (
+      {tab === "device" && (
         <div className="grid gap-5" style={{ gridTemplateColumns: "minmax(0, 520px)" }}>
-          <DashCard title="Account">
-            <AccountCard username={me?.username ?? "—"} userId={activeId ?? "—"} />
+          <DashCard title="This device">
+            <AccountCard
+              label={identity?.label ?? "This device"}
+              userId={activeId ?? identity?.userId ?? "—"}
+              source={identity?.source ?? "fresh"}
+              completedAt={readySince}
+            />
           </DashCard>
         </div>
       )}

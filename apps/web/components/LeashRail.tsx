@@ -167,8 +167,8 @@ export function LeashRail() {
     };
   }, [pathname]);
 
-  // The landing (`/`) IS the marketing home — it provides its own masthead, so the app rail hides there.
-  if (pathname === "/") return null;
+  // Public bootstrap/marketing surfaces provide their own masthead, so the app rail hides there.
+  if (pathname === "/" || pathname === "/welcome") return null;
 
   return (
     <nav className="leash-rail" aria-label="Leash">

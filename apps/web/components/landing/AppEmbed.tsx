@@ -5,8 +5,8 @@ import { useState } from "react";
  * A static in-app screenshot of a Leash component, in a broadsheet "photo" frame.
  *
  * It is deliberately NOT a live `<iframe>` of the route: the dashboard is gated
- * behind the password lock, so embedding it would either break (redirect to
- * /login) or punch a hole in the lock. Screenshots live at
+ * behind local onboarding, so embedding it would either break or punch a hole in
+ * the device gate. Screenshots live at
  * `public/landing/<slug>.png` (one per component); until a PNG is dropped in, a
  * captioned placeholder renders via `onError` — never a 404 or a live embed.
  *

@@ -5,11 +5,10 @@
   "license": "Apache-2.0",
   "scripts": {
     "brand:icons": "tsx scripts/generate-brand-assets.ts",
-    "dev": "LEASH_SERVER_CMD='npx next dev' PORT=6801 node server-launch.mjs",
+    "dev": "LEASH_SERVER_CMD='npx next dev' node --env-file-if-exists=.env.local --env-file-if-exists=.env server-launch.mjs",
     "build": "next build",
     "postbuild": "node scripts/stage-launcher.mjs",
-    "start": "LEASH_SERVER_CMD='npx next start' PORT=6801 node server-launch.mjs",
-    "migrate:user": "tsx scripts/migrate-to-user.mts"
+    "start": "LEASH_SERVER_CMD='npx next start' node --env-file-if-exists=.env.local --env-file-if-exists=.env server-launch.mjs"
   },
   "dependencies": {
     "@ai-sdk/mcp": "^1.0.46",

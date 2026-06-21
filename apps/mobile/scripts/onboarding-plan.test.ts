@@ -26,6 +26,7 @@ assert.match(rowByKey(firstDevice.rows, "chat").purpose, /chat/i);
 assert.match(rowByKey(firstDevice.rows, "chat").label, /4B/i);
 
 const reset = buildFactoryResetPlan();
+assert.ok(reset.files.some((entry) => entry.key === "device-identity"), "reset should clear device identity");
 assert.ok(reset.files.some((entry) => entry.key === "onboarding"), "reset should clear onboarding state");
 assert.ok(reset.files.some((entry) => entry.key === "selected-model"), "reset should clear selected chat model");
 assert.ok(reset.files.some((entry) => entry.key === "mesh-store"), "reset should clear mesh store");

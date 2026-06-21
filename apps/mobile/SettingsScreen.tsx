@@ -177,9 +177,9 @@ export function SettingsScreen({
             {mesh.on ? <Row label="Provider key" value={shortKey(mesh.providerKey)} /> : null}
             <Row label="Model" value={modelLabel} />
             <Text style={styles.note}>
-              Leash mobile is single-user and standalone — there's no cloud account, password, or
-              session to manage. Your identity here is this device and (optionally) the mesh provider
-              it's paired with.
+              Leash mobile keeps one local identity on this device. There is no password screen,
+              account switcher, or separate sign-in flow here — setup is this device plus, if you
+              choose, the trusted mesh it joins.
             </Text>
             <Pressable onPress={resetDevice} style={({ pressed }) => [styles.dangerBtn, pressed && styles.pressed]}>
               <Text style={styles.dangerText}>⊘  RESET THIS DEVICE</Text>

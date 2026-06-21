@@ -20,8 +20,9 @@ import icon from '../../resources/icon.png?asset'
  *    via Electron's own Node (ELECTRON_RUN_AS_NODE) — no system Node needed.
  *
  * Inference is NOT bundled: the dashboard fetches `qvac serve` on first use (npx @qvac/cli),
- * cached once in the shared npm cache; weights download per user into that user's ~/.qvac.
- */
+ * cached once in the shared npm cache; weights and QVAC stores live inside each device scope's
+ * `data/.qvac` workspace.
+*/
 
 const WEB_PORT = Number(process.env.MYCELIUM_DESKTOP_WEB_PORT ?? 6801)
 const WEB_URL = process.env.MYCELIUM_DESKTOP_WEB_URL ?? `http://localhost:${WEB_PORT}`

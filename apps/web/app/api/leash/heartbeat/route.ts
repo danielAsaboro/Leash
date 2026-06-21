@@ -3,7 +3,7 @@
  *
  * Server-to-server only: fired by the scheduler (mcp-cron, kind: "heartbeat") or a leash-watch
  * context switch, NOT by a browser session. The middleware authorizes it with the shared internal
- * token (x-leash-internal header ↔ LEASH_INTERNAL_TOKEN), so it never bounces to /login. Runs one
+ * token (x-leash-internal header ↔ LEASH_INTERNAL_TOKEN), so it bypasses the browser gate. Runs one
  * heartbeat turn and returns the result for the run history.
  */
 import { runHeartbeat } from "../../../../lib/leash/heartbeat.ts";

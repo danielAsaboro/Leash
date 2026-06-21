@@ -40,7 +40,7 @@ function App(): React.JSX.Element {
           />
         </div>
         <p className="mt-3 text-center font-body text-[11px] text-faint">
-          First run downloads the on-device AI runtime (~170 MB). This happens once.
+          First run downloads the local runtime once, then hands off to device setup.
         </p>
       </div>
     </div>

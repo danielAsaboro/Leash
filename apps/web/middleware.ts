@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { authEnabled, isConfigured, verifySession, SESSION_COOKIE } from "./lib/leash/auth.ts";
+import { bootstrapNeedsWelcome, routeNeedsWelcome } from "./lib/leash/device-bootstrap-core.ts";
+import { readDeviceBootstrap } from "./lib/leash/device-bootstrap.ts";
 
 export const config = {
   runtime: "nodejs",
@@ -11,7 +12,7 @@ export const config = {
 // "/chat", "/brain", …) sits behind the lock. "/" must be an EXACT match (a
 // startsWith("/") would open everything).
 const PUBLIC_EXACT = ["/"];
-const PUBLIC_PREFIX = ["/login", "/setup-password", "/api/leash/auth/", "/api/waitlist", "/landing/"];
+const PUBLIC_PREFIX = ["/api/leash/bootstrap/", "/api/waitlist", "/landing/"];
 
 // Server-to-server internal routes (cron / leash-watch → web): authorized by a shared token, NEVER a
 // browser session. The launcher seeds LEASH_INTERNAL_TOKEN into the web env and writes the same value
@@ -45,16 +46,8 @@ export function middleware(req: NextRequest): NextResponse {
     const hdr = req.headers.get("x-leash-internal");
     if (tok && hdr) return hdr === tok ? NextResponse.next() : new NextResponse("forbidden", { status: 403 });
   }
-  if (!authEnabled()) return NextResponse.next();
   if (isPublic(pathname)) return NextResponse.next();
-  if (!isConfigured()) return NextResponse.redirect(new URL("/setup-password", req.url));
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const userId = verifySession(token);
-  if (!userId) return NextResponse.redirect(new URL("/login", req.url));
-  // The server process is always scoped (by the supervisor) to ONE active user. A cookie for a
-  // different user (stale after a switch) — or no active user (a bootstrap/pre-login process) —
-  // must re-authenticate, which re-activates the right scope.
-  const active = process.env["LEASH_ACTIVE_USER"];
-  if (!active || userId !== active) return NextResponse.redirect(new URL("/login", req.url));
+  const ready = !bootstrapNeedsWelcome(readDeviceBootstrap());
+  if (routeNeedsWelcome(pathname, ready)) return NextResponse.redirect(new URL("/welcome", req.url));
   return NextResponse.next();
 }

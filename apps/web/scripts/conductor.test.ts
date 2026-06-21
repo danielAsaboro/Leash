@@ -40,7 +40,7 @@ const config: RouterQvacConfig = {
       vision: {
         model: "VISION_SMALL",
         preload: true,
-        config: { ctx_size: 8192, projectionModelSrc: "~/.qvac/models/mmproj.gguf" },
+        config: { ctx_size: 8192, projectionModelSrc: "~/models/mmproj.gguf" },
       },
       health: {
         model: "HEALTH_SMALL",

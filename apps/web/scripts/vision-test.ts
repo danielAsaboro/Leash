@@ -9,8 +9,8 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 
 const HOME = process.env["HOME"] ?? "";
-const VL_BASE = join(HOME, ".qvac/models/8541490f11509b11_Qwen3VL-2B-Instruct-Q4_K_M.gguf");
-const VL_MMPROJ = join(HOME, ".qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf");
+const VL_BASE = join(HOME, "models/8541490f11509b11_Qwen3VL-2B-Instruct-Q4_K_M.gguf");
+const VL_MMPROJ = join(HOME, "models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf");
 
 function pickImage(): string {
   if (process.argv[2] && existsSync(process.argv[2])) return process.argv[2];

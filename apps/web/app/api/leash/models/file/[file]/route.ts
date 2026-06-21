@@ -1,6 +1,6 @@
 /**
  * `DELETE /api/leash/models/file/[file]` — delete one cached model file from
- * ~/.qvac/models. GUARDED:
+ * the device-local `data/models` cache. GUARDED:
  *   · refused if the file backs a config alias that is LIVE (READY) right now
  *   · refused if it backs any config alias at all, unless `?force=1` (the UI
  *     confirms first — deleting a configured model breaks the next restart)
