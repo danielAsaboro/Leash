@@ -3,34 +3,71 @@ title: "Hackathon overview"
 description: "Leash for QVAC Hackathon I — what it is, the track it targets, and where the evidence lives."
 ---
 
-Leash was built for **QVAC Hackathon I — "Unleash Edge AI"** (Tether), during the June 1–21, 2026 build window. This section makes the case to judges directly: what the project is, which track it fits, how it meets the criteria, and where the reproducible evidence lives.
+Leash was built for **QVAC Hackathon I — "Unleash Edge AI"** (Tether), during the June 1–21, 2026 build window. This section makes the case directly: what the project is, which track it fits, how it meets the criteria, and where the reproducible evidence lives.
 
 <CardGroup cols={2}>
-  <Card title="Executive summary" icon="list-check" href="/hackathon/submission-summary">
+  <Card
+    title="Executive summary"
+    icon="list-check"
+    href="/hackathon/submission-summary"
+  >
     The one-page summary: what Leash is, why it fits, and what is live.
   </Card>
-  <Card title="Requirement map" icon="folder-open" href="/hackathon/submission-artifacts">
+  <Card
+    title="Requirement map"
+    icon="folder-open"
+    href="/hackathon/submission-artifacts"
+  >
     The direct map from submission requirements to pages and evidence files.
   </Card>
-  <Card title="How we meet the criteria" icon="list-check" href="/hackathon/how-we-meet-the-criteria">
+  <Card
+    title="How we meet the criteria"
+    icon="list-check"
+    href="/hackathon/how-we-meet-the-criteria"
+  >
     A feature-to-criterion mapping against the judging rubric.
   </Card>
-  <Card title="Prior-work disclosure" icon="book" href="/hackathon/prior-work-disclosure">
+  <Card
+    title="Prior-work disclosure"
+    icon="book"
+    href="/hackathon/prior-work-disclosure"
+  >
     The explicit line between judged work and the pre-period spike.
   </Card>
-  <Card title="Design decisions & tradeoffs" icon="scale-balanced" href="/hackathon/design-decisions">
+  <Card
+    title="Design decisions & tradeoffs"
+    icon="scale-balanced"
+    href="/hackathon/design-decisions"
+  >
     The engineering judgment — what we weighed, chose, and disproved.
   </Card>
-  <Card title="What `spike` means here" icon="flask-vial" href="/hackathon/what-spike-means">
-    The repo-specific meaning of `spike`: a real de-risking proof, not a mock or placeholder.
+  <Card
+    title="What `spike` means here"
+    icon="flask-vial"
+    href="/hackathon/what-spike-means"
+  >
+    The repo-specific meaning of `spike`: a real de-risking proof, not a mock or
+    placeholder.
   </Card>
-  <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
+  <Card
+    title="QVAC-only proof"
+    icon="shield-check"
+    href="/hackathon/qvac-only-proof"
+  >
     Every AI path routes through `@qvac/sdk` — no cloud AI.
   </Card>
-  <Card title="Remote network calls" icon="network-wired" href="/hackathon/network-disclosure">
+  <Card
+    title="Remote network calls"
+    icon="network-wired"
+    href="/hackathon/network-disclosure"
+  >
     Full disclosure — every outbound call, all non-AI.
   </Card>
-  <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
+  <Card
+    title="Evidence & reproducibility"
+    icon="flask"
+    href="/hackathon/evidence-and-reproducibility"
+  >
     Spike gates, audit logs, offline acceptance, licensing.
   </Card>
   <Card title="Leash lore" icon="book" href="/help/leash-lore">
@@ -59,7 +96,10 @@ the same QVAC-only runtime. See [Leash and Mycelium](/explanation/what-mycelium-
 product/runtime split and [Architecture](/explanation/architecture) for the layers.
 
 <Note>
-**The QVAC-only rule.** Every inference, embedding, RAG retrieval, and multimodal call routes through `@qvac/sdk` to a local serve. There are no OpenAI/Anthropic/cloud-AI calls anywhere in the system — a single one would disqualify the submission. [See the proof →](/hackathon/qvac-only-proof)
+  **The QVAC-only rule.** Every inference, embedding, RAG retrieval, and
+  multimodal call routes through `@qvac/sdk` to a local serve. There are no
+  OpenAI/Anthropic/cloud-AI calls anywhere in the system — a single one would
+  disqualify the submission. [See the proof →](/hackathon/qvac-only-proof)
 </Note>
 
 ## Track fit: General Purpose
@@ -94,6 +134,11 @@ directories:
 - [Prior-work disclosure](/hackathon/prior-work-disclosure) — the explicit judged-work boundary.
 - [QVAC-only proof](/hackathon/qvac-only-proof) — every AI path through `@qvac/sdk`.
 - [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) — spike gates, audit logs, offline acceptance, and licensing.
+- `evidence/manifest.json` — top-level map for the structured evidence bundle.
+- `evidence/chats/{mac-mini,mbp}/index.json` — chat counts, message counts, date windows, and hashes.
+- `evidence/qvac/{mac-mini,mbp}/summary.json` — QVAC model, RAG, delegation, and LoRA summaries.
+- `evidence/hypha/{mac-mini,mbp}/summary.json` — mesh/delegation event summaries.
+- `evidence/data/{mac-mini,mbp}/summary.json` — folded runtime data summaries.
 - `spike/logs/*.jsonl` — representative JSONL audit records for inference, RAG, P2P, LoRA, and mesh.
 - `evidence/remote-api-calls.json` — structured outbound-call disclosure.
 - `evidence/medpsy-demo.jsonl` — committed MedPsy health-record RAG audit run.

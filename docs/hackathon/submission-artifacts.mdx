@@ -9,19 +9,19 @@ required submission item lives, where should they look?**
 
 ## Requirement map
 
-| Submission requirement | Status | Where to verify |
-|---|---|---|
-| **Project summary / what it is** | In repo | [Submission summary](/hackathon/submission-summary) |
-| **Track fit / judging rubric mapping** | In repo | [How we meet the criteria](/hackathon/how-we-meet-the-criteria) |
-| **Prior-work disclosure** | In repo | [Prior-work disclosure](/hackathon/prior-work-disclosure) |
-| **QVAC-only AI usage** | In repo | [QVAC-only proof](/hackathon/qvac-only-proof) |
-| **Structured remote API disclosure** | In repo | [Remote network calls](/hackathon/network-disclosure), `evidence/remote-api-calls.json` |
-| **Reproducibility + hardware specs** | In repo | [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) |
-| **Structured audit log** | In repo | [Audit log reference](/reference/audit-log), `spike/logs/*.jsonl`, `evidence/medpsy-demo.jsonl` |
-| **Known issues / honest limitations** | In repo | [Known issues](/hackathon/known-issues) |
-| **Design decisions / engineering tradeoffs** | In repo | [Design decisions](/hackathon/design-decisions) |
-| **Demo video** | External submission item | Unlisted YouTube URL in DoraHacks |
-| **Public repo URL** | External form field, backed by this repo | `https://github.com/danielAsaboro/Leash` |
+| Submission requirement                       | Status                                   | Where to verify                                                                                                                  |
+| -------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Project summary / what it is**             | In repo                                  | [Submission summary](/hackathon/submission-summary)                                                                              |
+| **Track fit / judging rubric mapping**       | In repo                                  | [How we meet the criteria](/hackathon/how-we-meet-the-criteria)                                                                  |
+| **Prior-work disclosure**                    | In repo                                  | [Prior-work disclosure](/hackathon/prior-work-disclosure)                                                                        |
+| **QVAC-only AI usage**                       | In repo                                  | [QVAC-only proof](/hackathon/qvac-only-proof)                                                                                    |
+| **Structured remote API disclosure**         | In repo                                  | [Remote network calls](/hackathon/network-disclosure), `evidence/remote-api-calls.json`                                          |
+| **Reproducibility + hardware specs**         | In repo                                  | [Evidence & reproducibility](/hackathon/evidence-and-reproducibility)                                                            |
+| **Structured audit log**                     | In repo                                  | [Audit log reference](/reference/audit-log), `spike/logs/*.jsonl`, `evidence/manifest.json`, `evidence/**/{mac-mini,mbp}/*.json` |
+| **Known issues / honest limitations**        | In repo                                  | [Known issues](/hackathon/known-issues)                                                                                          |
+| **Design decisions / engineering tradeoffs** | In repo                                  | [Design decisions](/hackathon/design-decisions)                                                                                  |
+| **Demo link**                                | External submission item                 | [YouTube demo playlist](https://www.youtube.com/playlist?list=PLeERy8YL4mpQwT3OwpzOqjp23FlrLQ_1Y)                                |
+| **Public repo URL**                          | External form field, backed by this repo | `https://github.com/danielAsaboro/Leash`                                                                                         |
 
 ## Core claim set
 
@@ -38,12 +38,38 @@ These are the claims the pushed repo can support on its own:
 
 ## Evidence files worth opening first
 
-- `spike/logs/*.jsonl` for the primitive proof runs
-- `evidence/medpsy-demo.jsonl` for a committed end-to-end health-record RAG example
-- `evidence/remote-api-calls.json` for machine-readable outbound-call disclosure
-- [Benchmarks](/reference/benchmarks) for performance snapshots in docs form
+Start with the structured bundle. It is organized by capability and device:
 
-## Recommended reading order for judges
+```text
+evidence/
+  manifest.json
+  chats/{mac-mini,mbp}/
+  qvac/{mac-mini,mbp}/
+  hypha/{mac-mini,mbp}/
+  leash/{mac-mini,mbp}/
+  data/{mac-mini,mbp}/
+```
+
+Open these first:
+
+| File                                   | Why it matters                                                         |
+| -------------------------------------- | ---------------------------------------------------------------------- |
+| `evidence/manifest.json`               | Top-level counts, generated files, date windows, and redaction summary |
+| `evidence/qvac/mac-mini/summary.json`  | QVAC model loads, completions, embeddings, RAG, delegation, LoRA       |
+| `evidence/qvac/mbp/summary.json`       | Same primitive proof set from the MacBook Pro side                     |
+| `evidence/hypha/mac-mini/summary.json` | Mesh pairing, delegation, completion, and adapter events               |
+| `evidence/hypha/mbp/summary.json`      | MacBook Pro mesh-side event summary                                    |
+| `evidence/chats/mac-mini/index.json`   | Chat count, message count, date range, and roles                       |
+| `evidence/data/mbp/summary.json`       | Folded MBP runtime/data evidence with redacted credentials             |
+
+Other supporting files:
+
+- `spike/logs/*.jsonl` for the original primitive proof runs.
+- `evidence/medpsy-demo.jsonl` for a committed end-to-end health-record RAG example.
+- `evidence/remote-api-calls.json` for machine-readable outbound-call disclosure.
+- [Benchmarks](/reference/benchmarks) for performance snapshots in docs form.
+
+## Recommended reading order for reviewers
 
 1. [Submission summary](/hackathon/submission-summary)
 2. [How we meet the criteria](/hackathon/how-we-meet-the-criteria)
@@ -54,16 +80,32 @@ These are the claims the pushed repo can support on its own:
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Submission summary" icon="list-check" href="/hackathon/submission-summary">
+  <Card
+    title="Submission summary"
+    icon="list-check"
+    href="/hackathon/submission-summary"
+  >
     The one-page overview.
   </Card>
-  <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
+  <Card
+    title="Evidence & reproducibility"
+    icon="flask"
+    href="/hackathon/evidence-and-reproducibility"
+  >
     Hardware, spike gates, and audit evidence.
   </Card>
-  <Card title="Prior-work disclosure" icon="book" href="/hackathon/prior-work-disclosure">
+  <Card
+    title="Prior-work disclosure"
+    icon="book"
+    href="/hackathon/prior-work-disclosure"
+  >
     The explicit build-period boundary.
   </Card>
-  <Card title="Remote network calls" icon="network-wired" href="/hackathon/network-disclosure">
+  <Card
+    title="Remote network calls"
+    icon="network-wired"
+    href="/hackathon/network-disclosure"
+  >
     Every outbound call, classified.
   </Card>
 </CardGroup>

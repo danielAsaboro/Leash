@@ -1,127 +1,149 @@
 ---
 title: "Leash overview"
-description: "A private, offline-capable assistant that runs across your own devices — powered end-to-end by QVAC."
+description: "A private, offline-capable assistant that runs across your own devices through QVAC."
 sidebarTitle: "Overview"
 ---
 
-**Leash** is a private assistant that runs on your own hardware. It grounds answers in your
-notes, screen activity, and past conversations, drives your machine with your approval,
-borrows compute from your other devices, and keeps every inference on-device through
-`@qvac/sdk`. There is no cloud AI in the loop.
+**Leash** is a private assistant that runs on your own hardware. It answers from your
+notes, files, activity, and past conversations; drives tools with your approval; borrows
+compute from your device mesh; and keeps every AI path on-device through `@qvac/sdk`.
 
-Under the hood, Leash is the flagship surface of **Mycelium** — a five-layer, local-first
-engine (mesh, senses, mind, memory, clients) that hosts the runtime, the encrypted device
-mesh, the agent economy, and the nightly memory loop. Leash is what you use; Mycelium is
-what makes it work.
+Underneath Leash is **Mycelium**, the local-first runtime for models, memory, tools, skills,
+agents, and encrypted mesh compute. Leash is what you use. Mycelium is what makes it work.
+
+<Note>
+  There is no cloud-AI fallback. Chat, embeddings, RAG, vision, speech,
+  delegated inference, and LoRA all route through `@qvac/sdk`.
+</Note>
+
+## Choose your path
+
+<CardGroup cols={2}>
+  <Card title="Run Leash locally" icon="play" href="/quickstart">
+    Start the QVAC serve, open the web app, and ask a grounded question from a
+    note you control.
+  </Card>
+  <Card title="Install on macOS" icon="download" href="/install/macos">
+    Use the desktop app or run headless from the repo on a Mac mini or laptop.
+  </Card>
+  <Card
+    title="Pair a second device"
+    icon="circle-nodes"
+    href="/tutorials/first-local-mesh"
+  >
+    Build the local mesh path and verify delegated inference between machines.
+  </Card>
+  <Card
+    title="Review the evidence"
+    icon="clipboard-check"
+    href="/hackathon/submission-artifacts"
+  >
+    Open the structured evidence bundle, QVAC-only proof, hardware disclosure,
+    and known limits.
+  </Card>
+  <Card
+    title="Understand the architecture"
+    icon="layers"
+    href="/explanation/architecture"
+  >
+    Learn the five layers: mesh, senses, mind, memory, and clients.
+  </Card>
+  <Card title="Operate and debug it" icon="wrench" href="/help/troubleshooting">
+    Fix serve, model, mesh, voice, RAG, and desktop runtime issues.
+  </Card>
+</CardGroup>
 
 ## What you can do with it
 
 <CardGroup cols={2}>
-  <Card title="Chat, grounded in your data" icon="messages-square" href="/channels/chat">
-    Ask questions answered from your notes, activity, and past chats — with source chips,
-    plan mode, and tool approvals.
+  <Card
+    title="Chat, grounded in your data"
+    icon="messages-square"
+    href="/channels/chat"
+  >
+    Ask questions answered from local notes, files, memory, activity, and chat
+    history.
   </Card>
-  <Card title="Run a device mesh" icon="circle-nodes" href="/platforms/mesh">
-    Pair your machines over an encrypted swarm and let heavy turns run on whichever peer
-    has the model warm.
+  <Card title="Run a device mesh" icon="network" href="/platforms/mesh">
+    Pair your devices over an encrypted swarm and route heavy turns to the peer
+    with the right model.
   </Card>
-  <Card title="Talk and watch the screen" icon="mic" href="/channels/voice">
-    Hands-free voice calls with on-device STT and TTS, plus screen-aware computer use.
+  <Card
+    title="Use voice and computer control"
+    icon="mic"
+    href="/channels/voice"
+  >
+    Talk hands-free, inspect the screen, read files, and approve side effects
+    explicitly.
   </Card>
-  <Card title="Earn and spend compute" icon="coins" href="/earn/overview">
-    The mesh runs a micro-economy: serve inference to earn, borrow to spend, settled
-    on-chain per completion.
+  <Card title="Teach skills" icon="wand-sparkles" href="/capabilities/skills">
+    Add reusable workflows with focused tools, references, scripts, and assets.
   </Card>
-  <Card title="Browse the model catalog" icon="layers" href="/models/catalog">
-    Filter a large model catalog, download a model, share it to the mesh, and tune its
-    CPU/GPU and context size to fit your RAM.
+  <Card title="Use specialist agents" icon="brain" href="/agents/overview">
+    Route work through the Conductor, sub-agents, councils, memory, and context
+    compaction.
   </Card>
-  <Card title="Teach repeatable skills" icon="wand-sparkles" href="/capabilities/skills">
-    Compose skills the agent activates on its own, with their own focused toolsets.
+  <Card title="Earn or spend compute" icon="coins" href="/earn/overview">
+    Use optional public-mesh metering and receipts while private-mesh delegation
+    stays free.
   </Card>
-  <Card title="Operate the machine" icon="terminal" href="/channels/computer-use">
-    Read files, run commands, and drive the GUI — every side effect behind an approval card.
+  <Card title="Browse model aliases" icon="layers" href="/models/catalog">
+    See what each alias does, what hardware it fits, and which modalities it
+    unlocks.
   </Card>
-  <Card title="Automate proactively" icon="bot" href="/agents/heartbeat">
-    The heartbeat checks your goals and activity on a timer and surfaces a nudge when it matters.
-  </Card>
-</CardGroup>
-
-## How it is built
-
-<CardGroup cols={2}>
-  <Card title="What Leash is" icon="dog" href="/help/leash-lore">
-    The product and the engine: how Leash sits on top of the Mycelium runtime, and the
-    five layers — mesh, senses, mind, memory, clients.
-  </Card>
-  <Card title="Where it runs" icon="server" href="/platforms/overview">
-    The surfaces (desktop, web, mobile) and the encrypted device mesh that links them.
-  </Card>
-  <Card title="The agent economy" icon="receipt" href="/earn/how-it-works">
-    Why machine-payable compute, and how pre-auth, metering, and on-chain settlement fit.
-  </Card>
-  <Card title="The skills harness" icon="boxes" href="/capabilities/skills">
-    Skills-first routing, semantic activation, focused toolsets, and composition.
-  </Card>
-  <Card title="Workspace map" icon="folders" href="/reference/workspace-map">
-    The monorepo: packages for shared logic, senses, mind, mesh, memory, and database, plus
-    apps for each runtime surface.
-  </Card>
-  <Card title="Changelog" icon="git-commit-horizontal" href="/reference/changelog">
-    Every shipped milestone from the spike to today, mapped to commits.
+  <Card
+    title="Inspect structured logs"
+    icon="file-json"
+    href="/reference/audit-log"
+  >
+    Review model loads, completions, tokens, TTFT, tok/s, mesh events, and
+    evidence summaries.
   </Card>
 </CardGroup>
 
-## For judges
+## How the system fits together
 
-This project was built for **QVAC Hackathon I — "Unleash Edge AI"** (Tether). The Hackathon
-section makes the case directly: track fit, criteria mapping, the QVAC-only proof, and the
-reproducible evidence bundle.
+```text
+clients -> mind -> senses -> memory
+             |        |
+             +--------+-> encrypted mesh
+```
 
-<CardGroup cols={2}>
-  <Card title="Hackathon overview" icon="trophy" href="/hackathon/overview">
-    What Leash is in one screen, and why it fits the General Purpose track.
-  </Card>
-  <Card title="How we meet the criteria" icon="list-checks" href="/hackathon/how-we-meet-the-criteria">
-    Feature-to-criterion mapping across innovation, capabilities, performance, and UX.
-  </Card>
-  <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
-    Every inference, embedding, RAG, LoRA, vision, STT, and TTS path through `@qvac/sdk`.
-  </Card>
-  <Card title="Evidence & reproducibility" icon="clipboard-check" href="/hackathon/evidence-and-reproducibility">
-    Spike gates, JSONL audit logs, airplane-mode acceptance, and Apache-2.0.
-  </Card>
-</CardGroup>
+- **Clients** are the surfaces: web, desktop, iOS, Telegram, and background daemons.
+- **Mind** is the agent layer: Conductor routing, prompts, tools, skills, sub-agents, approvals.
+- **Senses** turns local context into searchable graph data: notes, files, OCR, STT, photos, activity.
+- **Memory** curates recall and trains personal LoRA adapters on-device.
+- **Mesh** pairs devices, replicates context, delegates inference, and records receipts.
 
-## Non-negotiable constraints
+Read the deeper model in [Architecture](/explanation/architecture), or inspect the repo map in
+[Workspace map](/reference/workspace-map).
 
-- **QVAC only.** All inference, embeddings, RAG, delegated compute, vision, speech, and LoRA
-  work go through `@qvac/sdk`. There is no cloud AI fallback.
-- **Offline after warm-cache.** First run can download model weights and bootstrap the DHT.
-  After that, local chat, retrieval, and mesh operations work without network access.
-- **Real runtime code only.** The workspace adds packages and apps only when they land as
-  working implementations. The spike, smoke tests, and daemons are all real paths.
-- **Audit logs stay on.** Spike and runtime flows emit JSONL audit records and are part of
-  the verification story.
+## Evidence for reviewers
 
-## Docs conventions
+The repo includes a structured JSON evidence bundle under `evidence/`. Start with:
 
-These docs follow Diataxis on purpose:
+| File                                         | What it shows                                                |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| `evidence/manifest.json`                     | Top-level counts, date windows, and generated evidence files |
+| `evidence/chats/{mac-mini,mbp}/index.json`   | Chat counts, message counts, and date ranges by device       |
+| `evidence/qvac/{mac-mini,mbp}/summary.json`  | QVAC model, RAG, delegation, and LoRA events                 |
+| `evidence/hypha/{mac-mini,mbp}/summary.json` | Mesh pairing, delegation, completion, and adapter events     |
+| `evidence/data/{mac-mini,mbp}/summary.json`  | Folded runtime/data evidence by device                       |
 
-- Tutorials teach one happy path.
-- How-to guides solve one concrete job.
-- Reference pages stay factual and lookup-oriented.
-- Explanation pages handle architecture, rationale, and tradeoffs.
+For the full submission map, see [Requirement map](/hackathon/submission-artifacts).
 
-Hackathon evidence that judges need is kept in this repo: `spike/logs/` for the spike gates,
-`evidence/` for committed JSONL and structured disclosures, and `docs/hackathon/` for the
-human-readable proof. Parent-level build notes may exist in the development checkout, but this
-docs site stands on its own.
+## Constraints
 
-## Start here
+- **QVAC only.** Every AI path goes through `@qvac/sdk`.
+- **Offline after warm cache.** First run can download model weights and bootstrap the mesh; the
+  hot path is designed to run with no network.
+- **Real implementation only.** Packages and apps exist because their working code landed.
+- **Audit logs stay on.** JSONL and structured JSON evidence are part of the verification story.
 
-- Get running in five minutes: [Quickstart](/quickstart)
-- Learn the local path with deeper checks: [First local mesh](/tutorials/first-local-mesh)
-- Have your first grounded conversation: [Chat](/channels/chat)
-- Add a second machine: [Mesh](/platforms/mesh)
-- Understand the system: [Leash lore](/help/leash-lore)
+## Next
+
+- [Quickstart](/quickstart)
+- [First local mesh](/tutorials/first-local-mesh)
+- [macOS install](/install/macos)
+- [Hackathon overview](/hackathon/overview)
+- [Known issues](/hackathon/known-issues)

@@ -1,574 +1,530 @@
 # Mycelium · Leash
 
-> **Leash** is the harness for a private, offline, **end-to-end-encrypted personal AI
-> that lives on your own devices - no cloud.** It perceives your world through your notes,
-> voice, photos/screenshots, recent screen activity, and feed; it reasons above the weight
-> class of one device by routing work across your models, tools, skills, delegates, and,
-> when needed, the rest of your encrypted mesh. On your **private mesh**, your own devices
-> help each other for free. On a **public mesh**, outside providers can offer compute free
-> or paid. **Mycelium** is the connected five-layer runtime underneath - the models, memory,
-> tools, skills, and mesh that make Leash general-purpose.
->
-> Built end-to-end on **[`@qvac/sdk`](https://www.npmjs.com/package/@qvac/sdk)** for
-> **QVAC Hackathon I — "Unleash Edge AI"** (Tether). No cloud AI is ever in the loop.
-> License: **Apache-2.0**.
+**Leash** is the harness for a private, offline, end-to-end-encrypted personal AI that lives on your own devices, not in a cloud API. It perceives your world through notes, files, voice, photos/screenshots, recent screen activity, feeds, chats, tools, and memory. It reasons above the weight class of one device by routing work across your local models, skills, specialist agents, and encrypted device mesh.
 
-**Status (2026-06-20):** ✅ Spike gate **PASSED** (all four primitives GO) · all five
-product layers **built for real** · running live across **three Macs + an iPhone**, with
-**paid, metered delegated inference** between them. Evidence and reproduction are inside
-this repo: [`docs/hackathon/`](docs/hackathon/), [`evidence/`](evidence/), and
-[`spike/logs/`](spike/logs/). **No stubs, no mocks** — only working QVAC-backed code ships.
+**Mycelium** is the connected five-layer runtime underneath Leash: mesh, senses, mind, memory, and clients. Leash is the product surface. Mycelium is the organism.
 
-## Judge fast path
+> Built end-to-end on [`@qvac/sdk`](https://www.npmjs.com/package/@qvac/sdk) for
+> **QVAC Hackathon I — "Unleash Edge AI"**. Every inference, embedding, RAG, vision,
+> speech, delegation, and LoRA path goes through QVAC on local hardware. No cloud AI is
+> in the loop. License: **Apache-2.0**.
 
-| Requirement | Where to verify |
-|---|---|
-| QVAC-only AI, no cloud LLM calls | [`docs/hackathon/qvac-only-proof.mdx`](docs/hackathon/qvac-only-proof.mdx), [`docs/hackathon/network-disclosure.mdx`](docs/hackathon/network-disclosure.mdx), [`evidence/remote-api-calls.json`](evidence/remote-api-calls.json) |
-| Apache-2.0 open source | [`LICENSE`](LICENSE), every tracked `package.json` |
-| General Purpose hardware fit | [`docs/hackathon/overview.mdx`](docs/hackathon/overview.mdx), [`docs/hackathon/evidence-and-reproducibility.mdx`](docs/hackathon/evidence-and-reproducibility.mdx) |
-| Reproducible local run | [Quickstart](#quickstart), [Reproduce the proofs](#reproduce-the-proofs), [`docs/quickstart.mdx`](docs/quickstart.mdx) |
-| Structured audit logs | [`spike/logs/*.jsonl`](spike/logs/), [`evidence/medpsy-demo.jsonl`](evidence/medpsy-demo.jsonl), [`docs/reference/audit-log.mdx`](docs/reference/audit-log.mdx) |
-| Judging criteria map | [`docs/hackathon/how-we-meet-the-criteria.mdx`](docs/hackathon/how-we-meet-the-criteria.mdx) |
-| Honest limitations | [`docs/hackathon/known-issues.mdx`](docs/hackathon/known-issues.mdx) |
+- Website: <https://www.useleash.xyz/>
+- Docs: <https://docs.useleash.xyz/>
+- Repo license: [`Apache-2.0`](LICENSE)
+- Primary track: **General Purpose** retail devices, ≤32 GB RAM
 
----
+**Status (2026-06-21):** spike gate passed; all five product layers are implemented with
+real QVAC-backed code; the runtime has been exercised across Mac mini, MacBook Pro, a
+third Mac, and iOS. The repo now includes a structured evidence bundle under
+[`evidence/`](evidence/) with per-device summaries for **mac-mini** and **mbp**.
+
+No stubs, no mocks, no fake behavior: packages and apps exist only where the real
+implementation landed.
+
+## Submission fast path
+
+| Requirement                      | Where to verify                                                                                                                                                                                                                                                                                |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| QVAC-only AI, no cloud LLM calls | [`docs/hackathon/qvac-only-proof.mdx`](docs/hackathon/qvac-only-proof.mdx), [`docs/hackathon/network-disclosure.mdx`](docs/hackathon/network-disclosure.mdx), [`evidence/remote-api-calls.json`](evidence/remote-api-calls.json)                                                               |
+| Apache-2.0 open source           | [`LICENSE`](LICENSE), tracked `package.json` files                                                                                                                                                                                                                                             |
+| General Purpose hardware fit     | [`docs/hackathon/overview.mdx`](docs/hackathon/overview.mdx), [`docs/hackathon/evidence-and-reproducibility.mdx`](docs/hackathon/evidence-and-reproducibility.mdx)                                                                                                                             |
+| Reproducible local run           | [Quickstart](#quickstart), [Reproduce the proofs](#reproduce-the-proofs), [`docs/quickstart.mdx`](docs/quickstart.mdx)                                                                                                                                                                         |
+| Structured audit/evidence bundle | [`evidence/manifest.json`](evidence/manifest.json), [`evidence/qvac/mac-mini/summary.json`](evidence/qvac/mac-mini/summary.json), [`evidence/hypha/mac-mini/summary.json`](evidence/hypha/mac-mini/summary.json), [`docs/reference/audit-log.mdx`](docs/reference/audit-log.mdx)               |
+| Chats and runtime evidence       | [`evidence/chats/mac-mini/index.json`](evidence/chats/mac-mini/index.json), [`evidence/chats/mbp/index.json`](evidence/chats/mbp/index.json), [`evidence/data/mac-mini/summary.json`](evidence/data/mac-mini/summary.json), [`evidence/data/mbp/summary.json`](evidence/data/mbp/summary.json) |
+| Demo link                        | [YouTube demo playlist](https://www.youtube.com/playlist?list=PLeERy8YL4mpQwT3OwpzOqjp23FlrLQ_1Y)                                                                                                                                                                                              |
+| Criteria map                     | [`docs/hackathon/how-we-meet-the-criteria.mdx`](docs/hackathon/how-we-meet-the-criteria.mdx)                                                                                                                                                                                                   |
+| Honest limitations               | [`docs/hackathon/known-issues.mdx`](docs/hackathon/known-issues.mdx)                                                                                                                                                                                                                           |
 
 ## Table of contents
 
-- [The idea](#the-idea) · [The five layers](#the-five-layers) · [Hackathon track fit](#hackathon-track-fit)
-- [What's real now](#whats-real-now)
-- [How it works](#how-it-works) — turn lifecycle · agents · skills · tools/MCP · mesh · economy · proactivity · memory · understory · clients
+- [The idea](#the-idea)
+- [The five layers](#the-five-layers)
+- [Hackathon fit](#hackathon-fit)
+- [What is real now](#what-is-real-now)
+- [How it works](#how-it-works)
+- [Structured evidence](#structured-evidence)
 - [Repo layout](#repo-layout)
-- [Quickstart](#quickstart) · [Reproduce the proofs](#reproduce-the-proofs)
-- [Security & privacy](#security--privacy) · [Honest limitations](#honest-limitations) · [Hard rules](#hard-rules) · [Documentation](#documentation)
-
----
+- [Quickstart](#quickstart)
+- [Reproduce the proofs](#reproduce-the-proofs)
+- [Security and privacy](#security-and-privacy)
+- [Honest limitations](#honest-limitations)
+- [Hard rules](#hard-rules)
+- [Documentation](#documentation)
 
 ## The idea
 
-One private intelligence distributed across your devices, in a closed loop — perceive,
-reason above your weight class, remember, and grow:
+One private intelligence distributed across your devices, in a closed loop:
 
 ```mermaid
 flowchart LR
   S["Senses (L2)<br/>embed · RAG · OCR · STT · see"]
-  M["Mind (L3)<br/>Conductor · council · tools · sub-agents"]
-  MEM["Memory (L4)<br/>typed memory · nightly LoRA"]
+  M["Mind (L3)<br/>Conductor · council · tools · skills · agents"]
+  MEM["Memory (L4)<br/>typed recall · nightly LoRA"]
+  MESH["Mesh (L1)<br/>pair · delegate · pay · CRDT graph"]
+  CL["Clients (L5)<br/>web · desktop · iOS · Telegram"]
+
   S --> M --> MEM
   MEM -->|"a sharper you, tomorrow"| S
-  MESH["Mesh (L1) — pair · delegate · pay · CRDT graph"]
-  CL["Clients (L5) — web · desktop · iOS · Telegram"]
-  MESH -.->|borrow a peer's GPU| M
-  MESH -.->|shared context graph| S
+  MESH -.->|"borrow a peer's GPU"| M
+  MESH -.->|"shared context graph"| S
   CL -.-> M
 ```
 
-Privacy here isn't a constraint — it's the *unlock*. Because everything stays on
-hardware you own, Leash can hold your **total context**, reason **above its weight class**
-by borrowing a peer's GPU, and **improve itself nightly** — three things a stateless cloud
-API structurally cannot do. The context graph feeds reasoning; the council's verified
-answers and your feedback feed the nightly LoRA; the improved adapter sharpens the next
-day's perception and reasoning. One organism.
+Privacy is not a constraint here. It is the unlock. Because the context stays on hardware
+you own, Leash can hold your total working context, make private material useful, borrow
+capacity from stronger peers, and improve itself through a local memory-evolution loop.
 
-### The five layers
+The loop is:
 
-| Layer | Role | Where it lives | Status |
-|---|---|---|---|
-| 1 — **Mesh** | encrypted P2P pairing · delegated/split compute · **paid metered settlement** · replicated CRDT context graph | `packages/mesh`, `apps/hypha` | ✅ live |
-| 2 — **Senses** | on-device embeddings · RAG · OCR · STT · screen/photo sensing | `packages/senses`, `apps/leash-watch` | ✅ live |
-| 3 — **Mind** | **Conductor** router · proposer+critic council · cited, verified answers · tools · sub-agents | `packages/mind`, `packages/leash-core`, `apps/web` | ✅ live |
-| 4 — **Memory** | typed memory + recall + **nightly on-device LoRA** (QVAC Fabric): curate → train → eval → `/grow` → P2P share | `packages/memory` | ✅ live |
-| 5 — **Clients** | web dashboard · desktop (Electron) · iOS/Android (Expo) · Telegram bridge | `apps/web`, `apps/desktop`, `apps/mobile`, `apps/leash-telegram` | ✅ live |
+1. **Perceive** local context from notes, files, chats, activity, screenshots, photos, voice, and feeds.
+2. **Reason** through a QVAC-backed agent runtime with tools, skills, sub-agents, and citations.
+3. **Route** work locally or across an encrypted mesh when another trusted device fits better.
+4. **Remember** through typed memory, retrieval stores, and curated training data.
+5. **Grow** through on-device LoRA and adapter sharing.
 
-Each layer became a real `packages/<layer>` (or `apps/<client>`) workspace **only when its
-real implementation landed** — never before.
+## The five layers
 
-### Hackathon track fit
+| Layer           | Role                                                                                                   | Where it lives                                     | Status |
+| --------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------------------- | ------ |
+| 1 — **Mesh**    | encrypted P2P pairing, delegated/split compute, paid metered settlement, replicated CRDT context graph | `packages/mesh`, `apps/hypha`                      | live   |
+| 2 — **Senses**  | embeddings, RAG, OCR, STT, screen/photo sensing, context graph nodes                                   | `packages/senses`, `apps/leash-watch`              | live   |
+| 3 — **Mind**    | Conductor routing, proposer/critic council, cited answers, tools, skills, sub-agents                   | `packages/mind`, `packages/leash-core`, `apps/web` | live   |
+| 4 — **Memory**  | typed memory, recall, nightly QVAC Fabric LoRA, eval, adapter publish/fetch                            | `packages/memory`                                  | live   |
+| 5 — **Clients** | web dashboard, Electron desktop, iOS/Android client, Telegram bridge, background daemons               | `apps/*`                                           | live   |
 
-- **General Purpose (primary).** Retail devices ≤32 GB RAM (the build runs on an Apple-Silicon Mac
-  mini with Mac peers). The track calls for multi-agent orchestration, multimodal work, advanced
-  RAG, P2P delegation, LoRA, and privacy-first tooling — the exact surface Leash exercises.
-- **Psy Models.** Leash serves QVAC's **MedGemma 4B IT** as a first-class `medpsy` alias and routes
-  to it automatically on health intent — health-record RAG, cited + verifier-checked, with a
-  guaranteed clinician disclaimer (`npm run medpsy:demo`). Same build, no separate project.
+Each layer became a workspace only when the real implementation landed. The repo does not
+carry placeholder packages to imply progress.
 
-→ [`docs/hackathon/overview`](docs/hackathon/overview.mdx) · [`docs/hackathon/medpsy-workflow`](docs/hackathon/medpsy-workflow.mdx).
+## Hackathon fit
 
----
+### General Purpose
 
-## What's real now
+Leash targets the **General Purpose** track: retail devices with ≤32 GB RAM. The primary
+build device is an Apple-Silicon Mac mini, with Mac peers used for private-mesh delegation
+and paid-provider tests.
 
-Every claim below is backed by a JSONL audit record or an on-chain transaction — see
-[`docs/hackathon/evidence-and-reproducibility.mdx`](docs/hackathon/evidence-and-reproducibility.mdx)
-and the committed [`evidence/`](evidence/) log.
+The track asks for the exact surface Leash exercises:
 
-- **On-device inference · RAG · embeddings.** Streaming completions with live `tok/s`;
-  RAG grounded in your private notes with `[N]` inline-citation pills. Spike: Llama-3.2-1B
-  **TTFT 56 ms / 70.6 tok/s**; RAG retrieval **23 ms**, top score **0.768**; grounding
-  verified (no-context → "I don't know"; with context → cited answer).
-- **Vision · voice · image-gen, all on-device.** `qwen3vl` answers about a screenshot or
-  attached image; Parakeet STT → reply → Supertonic TTS with progressive sentence-by-sentence
-  speech, barge-in, and a hands-free **Call** mode; Stable Diffusion image generation.
-- **Encrypted P2P delegated compute.** A weak device hands a heavy turn to a strong peer
-  over a Noise-encrypted Hyperswarm link. Spike round-trip **1.27 s, TTFT 257 ms, 45.4
-  tok/s**; live two-Mac delegated completion measured at **TTFT 317 ms / 100.7 tok/s**;
-  broker load-shed answered an overflow turn from a peer in **2.9 s at 100+ tok/s**.
-- **A working machine economy.** On your **private mesh**, delegation between your own devices
-  is free. When the peer isn't yours, the same routing path can be **metered and settled
-  on-chain** (x402 / Permit2, USDT0). Proven across two physical Macs: a 286-token completion
-  decoded on one Mac for another and settled in a single transaction; **per-chunk metered
-  billing** settles the exact highest authorized rung in **one** tx (O(1) gas/session); a
-  cheaper provider (`500 µ/ktok` vs `1000`) is selected by the market. Wired against a local
-  `anvil` fork for local testing only — no real chain is ever touched.
-- **The Conductor** routes every turn — local vs. peer — by intent, sensitivity, and live
-  capacity, with a **non-overridable privacy gate** (private prompts never reach a public mesh).
-- **Acts as an agent system.** Skills that auto-load from natural language and run as
-  deterministic pipelines; specialist **sub-agents** (research, coding, medical…) the main
-  agent can delegate to; Claude-compatible **plugins** (skills + agents + MCP, quarantined on
-  import); per-tool **"Ask first"** approval cards; **computer use** (screenshot · jailed file I/O ·
-  shell · mouse/keyboard); **plan mode**; MCP servers with **elicitation** forms rendered in chat.
-- **Proactive, not just reactive.** A heartbeat loop reads your **constitution** (soul +
-  goals + a watch-checklist) every ~30 minutes during waking hours, runs a read-only agent
-  turn, and surfaces budgeted, deduplicated notifications tiered **auto / notify / ask**. Plus
-  user-schedulable tasks and nightly jobs (**dream** chat-consolidation, **evolve** LoRA, photo tagging).
-- **Ambient sensing.** An opt-in screen watcher (`apps/leash-watch`) captures a frame, has the
-  on-device VLM summarize it, and writes an activity trail that feeds RAG and the heartbeat — it
-  never leaves the device, and the raw frame is deleted immediately.
-- **The Understory — an autonomous paper.** A background newsroom daemon discovers leads, stages a
-  personal brief from your private graph, then researches → drafts → reviews → generates hero art →
-  publishes editions, all on-device — proof the platform does more than answer direct chat.
-- **File attachments.** Attach an **image** (→ vision VLM) **or any text/code/markdown/
-  CSV/JSON/log file** (read straight into the chat model). Web + desktop.
-- **Nightly self-improvement (memory-evolution loop).** Curates training pairs from your
-  memories, chats, and notes; trains a personal LoRA on-device via QVAC Fabric (**152.7 s,
-  ~20 MB adapter, val-acc 0.85** at the spike); evals on three axes; charts base-vs-adapter
-  at `/grow`; shares the adapter P2P (byte-identical, CRDT-pointered).
-- **Clients everywhere.** Web dashboard (Brain · Tasks · Alerts · Economy · Services), an
-  Electron **desktop** app, and **iOS Leash** on a real iPhone with on-device voice and full
-  dashboard parity.
+- multi-agent orchestration
+- local multimodal work
+- advanced RAG over private data
+- P2P delegated inference
+- local fine-tuning/LoRA
+- privacy-first tooling
+- reproducible logs and performance evidence
 
----
+### Psy Models
+
+The same build also includes a Psy-Models path. Leash serves a dedicated QVAC health
+specialist alias and routes health intent to it with health-record RAG, citations, verifier
+checks, and an explicit clinician disclaimer. It is a first-class capability inside the
+General Purpose system, not a separate demo.
+
+See [`docs/hackathon/overview.mdx`](docs/hackathon/overview.mdx),
+[`docs/hackathon/medpsy-workflow.mdx`](docs/hackathon/medpsy-workflow.mdx), and
+[`docs/hackathon/how-we-meet-the-criteria.mdx`](docs/hackathon/how-we-meet-the-criteria.mdx).
+
+## What is real now
+
+Every item below is implemented as QVAC-backed code and backed by committed logs, smoke
+scripts, structured JSON, or local-fork settlement evidence.
+
+- **Private grounded chat.** The chat surface answers from local notes, files, memories,
+  activity, attachments, and prior chats. It streams reasoning, tool results, source chips,
+  citations, conductor events, and approval cards.
+- **On-device inference, embeddings, and RAG.** The spike gate proved local streaming,
+  embeddings, cited retrieval, and no-context refusal behavior. Runtime paths use the same
+  `@qvac/sdk` serve boundary. Representative spike numbers: Llama-3.2-1B warm TTFT
+  **56 ms / 70.6 tok/s**; RAG retrieval **23 ms** with top score **0.768**.
+- **Chats as evidence.** The structured bundle includes chat indexes for Mac mini and MacBook
+  Pro, with message counts, date windows, and hashes. Start at
+  [`evidence/chats/mac-mini/index.json`](evidence/chats/mac-mini/index.json) and
+  [`evidence/chats/mbp/index.json`](evidence/chats/mbp/index.json).
+- **Vision, voice, and image generation.** Image turns route to the VLM; speech uses local
+  STT/TTS aliases; image generation is wired through local model capability routes.
+- **Encrypted P2P delegated compute.** A weak device can hand a heavy turn to a stronger peer
+  over an encrypted Hyperswarm path. Hypha exposes local health, peers, OpenAI-shaped shim
+  routes, provider firewalling, and delegation logs. The spike measured **1.27 s** round trip,
+  **257 ms** TTFT, and **45.4 tok/s** on the provider; live two-Mac delegated completion was
+  measured at **317 ms** TTFT and **100.7 tok/s**.
+- **A machine economy path.** Private-mesh delegation is free. Public/paid routes can meter
+  delegated work and settle on a local `anvil` fork through x402/Permit2-style receipts for
+  reproducible proof without touching a live public chain. The proof path settled a 286-token
+  delegated completion and uses per-session highest-rung settlement so gas is O(1) per session.
+- **Conductor routing.** The Conductor decides local vs peer using intent, modality,
+  sensitivity, capability, cost, and live capacity. Its privacy gate is non-overridable:
+  private prompts never route to public mesh providers.
+- **Agent system.** Leash runs as the default agent, with markdown-defined specialist
+  sub-agents, Claude-compatible skill/plugin concepts, deterministic skill pipelines, MCP
+  tool groups, and explicit approval gates.
+- **Proactivity.** The heartbeat loop reads the local constitution, recent activity, memory,
+  and scheduled jobs, then writes bounded notifications and tasks through local tools.
+- **Ambient sensing.** The watcher can summarize screen activity locally with the VLM and
+  delete raw frames immediately after extraction.
+- **Understory.** The newsroom daemon discovers leads, stages a private brief, researches,
+  drafts, checks claims, generates art, and publishes editions locally.
+- **File attachments.** Image attachments route to the vision model; text, code, markdown,
+  CSV, JSON, and logs are bounded into the chat turn as local context.
+- **Nightly memory evolution.** The memory layer curates training pairs from chats, notes,
+  and memories; trains/evals a personal LoRA on-device; and can publish adapters over the mesh.
+  The spike produced a roughly **20 MB** adapter in **152.7 s** with **0.85** validation accuracy.
+- **Clients.** Web, desktop, mobile, Telegram, and headless daemons share the same runtime
+  instead of faking separate surfaces.
 
 ## How it works
 
-This section is the map a judge (or a new contributor) needs: the algorithms, the moving
-parts, and how they relate. Each subsystem links to its deep doc under [`docs/`](docs/).
-
 ### A chat turn, end to end
 
-The web app (`apps/web/app/api/leash/chat/route.ts`) is an [AI SDK](https://sdk.vercel.ai)
-`streamText` loop over a **QVAC local provider** (`@qvac/ai-sdk-provider`) talking to a local
-OpenAI-compatible `qvac serve`. The transport sends only the last message + a trigger; the
-server rebuilds history from the store. One turn flows through these stages:
+The web app (`apps/web/app/api/leash/chat/route.ts`) is an AI SDK `streamText` loop over
+a local QVAC-compatible provider. The transport sends the current user turn and trigger;
+the server rebuilds usable history from local stores and then routes the turn.
 
 ```mermaid
 flowchart TD
-  A[user message] --> B[rebuild history from store]
-  B --> C[validate vs tool/metadata schemas]
-  C --> D[Conductor grade]
-  D --> E{route?}
-  E -->|image| V["Vision VLM (qwen3vl)<br/>single-shot, no tools"]
-  E -->|files| F["sandboxed bash over a<br/>read-only file snapshot"]
-  E -->|computer| G["computer-use tools<br/>screenshot · file · shell · cliclick"]
-  E -->|plan| P["submit_plan → you approve →<br/>deterministic step pipeline"]
-  E -->|chat| H["Conductor route:<br/>local device OR a paid mesh peer"]
-  V --> I
+  A["user message"] --> B["rebuild history from local store"]
+  B --> C["validate tool and metadata schema"]
+  C --> D["Conductor grades intent, sensitivity, modality"]
+  D --> E{route}
+  E -->|"image"| V["vision VLM"]
+  E -->|"files"| F["bounded attachment reader"]
+  E -->|"computer"| G["approval-gated computer tools"]
+  E -->|"plan"| P["submit_plan · approve · execute"]
+  E -->|"chat"| H["local model or mesh peer"]
+  V --> I["focused prompt + active tools"]
   F --> I
   G --> I
   P --> I
-  H --> I["compaction (summary+tail) →<br/>system prompt: soul·goals·prefs·skills·notes →<br/>focused toolset for this turn"]
-  I --> K[stream: reasoning · tools · sources · citations]
+  H --> I
+  I --> K["stream text · reasoning · tools · sources · citations"]
 ```
 
-Two load-bearing details that make a 4B model behave on-device:
+Two design choices matter on constrained hardware:
 
-- **Focused toolset per turn.** The serve folds every offered tool schema into a 4096-token
-  prompt; offering all ~28 at once hangs the decode at zero tokens (verified 2026-06-07). So a
-  computer turn offers only the six computer tools, a skill turn offers exactly its declared
-  `tools:`, and everything else keeps the lean registry. Stored threads still validate against
-  the full set.
-- **Dynamic effort.** Each non-image turn is graded into `quick / standard / deep`, which sets
-  step cap, token ceiling, `/no_think` vs full `<think>`, and whether reasoning streams. Voice
-  always runs `/no_think` (it must answer in seconds).
+- **Focused toolsets.** The model is not offered every possible tool on every turn. A computer
+  turn gets computer tools, a skill turn gets that skill's declared tools, and ordinary chat
+  stays lean.
+- **Dynamic effort.** Turns are graded into quick, standard, or deep. That adjusts token budget,
+  step cap, reasoning style, and whether to use faster `/no_think` paths.
 
-### The Conductor — routing local vs. peer
+### The Conductor
 
-`packages/leash-core/routing` + `apps/web/lib/leash/conductor.ts`. For a generalist chat turn
-the Conductor decides *where* it runs:
+The Conductor is the routing layer in `packages/leash-core/routing` and
+`apps/web/lib/leash/conductor.ts`. For a general turn it decides where the work runs:
 
-1. **Fast-path** — a trivial `quick` text turn (arithmetic/greeting/lookup, scored by a
-   zero-embed regex + cosine effort classifier) stays on the local device; no classifier LLM call.
-2. **Grade** — otherwise a warm **1.7B classifier** (`qwen3-1.7b`) grades the first 2000 chars of
-   the turn into an **≤80-token JSON** verdict at `temperature 0`: `{ modality, difficulty,
-   sensitivity, specialist }` (`conductor.ts`).
-3. **Capability bar** — `difficulty=high` demands a "mid" param-class model; else "small".
-4. **Rank** — over the live route options (local warm aliases from `hypha /health`, peers from
-   `hypha /peers`): **(1) privacy gate first and non-overridable** — `sensitivity=private`
-   rejects any public-tier route; **(2)** filter by modality + param-class + specialist; **(3)**
-   score `cost(µ/ktok) + inflight×penalty + tier_bias`, lowest wins.
+1. Fast-path trivial local turns without invoking a classifier.
+2. Grade non-trivial turns into modality, difficulty, sensitivity, and specialist hints.
+3. Filter routes by capability and model class.
+4. Rank local and peer options by privacy, cost, inflight load, and tier.
 
-Specialist routes (vision / files / computer) keep dedicated models and are never overridden;
-the route decision streams to the UI as a `data-conductor` part and is audited to
-`logs/conductor.jsonl`. → [`docs/explanation/architecture`](docs/explanation/).
+Specialist routes such as vision, files, and computer-use stay dedicated. General chat can
+run locally or through Hypha on a paired peer. Privacy filtering happens before cost ranking.
 
-### Agents — everything is an agent
+### Agents
 
-Leash *is* the default agent (its system prompt base is `apps/web/builtin-agents/leash.md`).
-Specialist agents are markdown files (`data/leash-agents/<slug>.md`, or namespaced
-`<plugin>:<name>` from a plugin) with Claude-subagent-compatible frontmatter — `name`,
-`description`, `tools` / `disallowed-tools`, `model`, `skills`, `max-turns`, `mcpServers`, plus
-reserved fields (`memory`, `permissionMode`, hooks…) parsed for forward-parity. (`agents-store.ts`)
+Leash itself is the default agent. Specialist agents are markdown files with frontmatter
+describing name, description, tools, model, skills, maximum turns, MCP servers, and reserved
+fields for forward compatibility. Enabled agents become callable tools for the parent model.
 
-`buildAgentTools` (`agent-runner.ts`) turns each **enabled** agent into ONE callable tool
-(`agent__<plugin>__<name>`). When the main model invokes it, the sub-agent runs as an **isolated
-`ToolLoopAgent`** with its own model + restricted toolset; its tool calls and text **stream** to
-the UI for progress, but `toModelOutput` offloads its full transcript down to just a final summary
-for the parent — context stays lean. Sub-agents are **leaf nodes**: they can't call `run_skill` or
-invoke other agents, and they can't use approval-gated tools (a stream can't pause on a human
-card). `smoke:agents`, `smoke:orchestration`.
+Sub-agents run isolated loops with restricted tools. They stream progress to the UI, but their
+transcripts are summarized before returning to the parent so context stays bounded.
 
-### Skills — instructions, pipelines, and progressive disclosure
+### Skills
 
-Skills follow the agentskills.io layout: `data/leash-skills/<slug>/SKILL.md` + `references/` +
-`scripts/` + `assets/` (`skills-store.ts`). A skill carries a `body` (instructions), `tools:`,
-optional `steps:`, routing `examples:`, and attachment `files:`.
+Skills live as `SKILL.md` bundles with optional `references/`, `scripts/`, and `assets/`.
+They can be loaded explicitly or matched from natural language. A skill can run as:
 
-- **Matching** — explicit (`@slug` or exact name) loads a skill deterministically; otherwise a
-  semantic router (lexical + embedding RRF, floors lexical ≥0.45 / embedding ≥0.81) may auto-match
-  **one** skill. No skill is force-active on a general turn. (`skill-tools.ts`)
-- **Progressive disclosure** — an active skill's declared `tools:` *become* that turn's exact
-  toolset; the model can still reach the rest of the catalog with `read_skill` / `read_skill_file`
-  mid-flow (multi-skill orchestration without bloating context).
-- **Deterministic pipeline vs. free-run** — if a skill declares `steps:`, the harness drives each
-  step as an isolated `generateText` with prior results fed forward (`runSkillAsPipeline`,
-  `skill-runner.ts`); the model does one atomic sub-task per step and can't drop a dependent one.
-  This is the single biggest reliability win on a 4B: **pipeline 3/3 vs. free-run ~1/3** on a
-  dependent chain (verified 2026-06-12). Skills without `steps:` free-run with their tools.
-- **`run_skill`** delegates a sub-task to another skill as a sub-agent; **`run_skill_script`** runs
-  a bundled script (node/python/bash by extension, argv-spawn, realpath-jailed, stripped env, 60 s
-  SIGKILL, 16 KB caps) — **real code execution as the web-app user, hence approval-gated.** Imports
-  and any `SKILL.md` without explicit `enabled: true` land **disabled** (prompt-injection posture).
+- an instruction bundle with a focused toolset
+- a deterministic step pipeline
+- a script-backed capability with approval gates
+- a sub-task invoked through `run_skill`
 
-### Tools & MCP groups
+Imported skills and plugins land disabled until reviewed.
 
-Capability tools are hosted by `apps/leash-tools-mcp` (`:11440`), one MCP server per group on
-`/mcp/<group>`: Home-Assistant · Feed · Memory · Tasks · Context · Photos · Image · Research ·
-Skills · Computer · Files · Scheduler · Router · MCP-admin. Each group toggles independently
-(Brain → Tools); `leashMcpTools()` merges the enabled groups + any user-added MCP servers
-(`data/leash-mcp.json` / `LEASH_MCP_SERVERS`) into the turn's registry. Marked tools are
-**approval-gated** ("Ask first" → an in-chat Approve/Deny card; Deny is acknowledged, never
-retried). Leash advertises MCP **elicitation**, so a server can render a typed form
-(string/number/boolean/enum) mid-call — e.g. the bundled `leash-mcp` (`:11439`) turns *"pair this
-device with my laptop"* into a 6-digit-PIN prompt.
+### Tools and MCP groups
 
-### The mesh — pairing, CRDT graph, delegated compute
+`apps/leash-tools-mcp` hosts capability groups as MCP servers: memory, tasks, context,
+photos, image, research, skills, computer, files, scheduler, router, MCP admin, and related
+local tools. Each group can be toggled. Tools that touch local files, shell, computer control,
+or external services require explicit approval.
 
-`apps/hypha` is the headless daemon each device runs (`:11437`): it joins the encrypted mesh,
-serves a delegated-inference **provider** (firewall = paired peers only), pre-warms peer models,
-and exposes a local OpenAI **shim** so the web app can borrow a peer transparently. Devices share
-**one replicated context graph** over multi-writer **Autobase** (Hypercore/Hyperbee) — a node
-sensed on one device becomes queryable on another, with **CRDT** tombstones/retractions giving
-deterministic, offline-safe convergence. Models distribute P2P too (mac3 pulled Qwen3-4B,
-**2382 MB in 159 s**, zero cloud). `smoke:registry`, `smoke:failover`, `mesh:smoke`,
-`test:mesh:tasks`. → [`docs/help/operations-mesh`](docs/help/).
+### Mesh
 
-### The economy — metered, settled, self-hosted
+`apps/hypha` is the headless mesh daemon. It joins the encrypted mesh, serves delegated
+inference to paired peers, exposes an OpenAI-shaped local shim, tracks peer capabilities,
+replicates context graph state, and records delegation/economy evidence.
 
-When a borrowed peer isn't yours, hypha meters the work and settles it via a **self-hosted x402
-facilitator** (EVM/Permit2, USDT0). A **metered session** authorizes spend as an escalating
-ladder of rungs (`HYPHA_ECONOMY_CHUNK_TOKENS`); the provider settles the **single highest
-authorized rung** in one transaction (O(1) gas), with an idle watchdog
-(`HYPHA_ECONOMY_ADVANCE_WINDOW_MS`) that force-settles a stalled consumer. Receipts replicate
-through CRDT; reputation scoring catches self-dealing (one-payer volume scores below many-payer).
-**Off by default** (`HYPHA_ECONOMY_ENABLED=0`). **The economy is wired against a local `anvil`
-fork of Plasma testnet (chain `9746`) for local testing only** — it is pure localhost, no real
-chain is ever touched, and there is no public-chain or hosted-market deployment. It's a
-metering/trust mechanism for borrowing your own (or a friend's) device, not a compute marketplace.
-See [Reproduce the proofs](#reproduce-the-proofs), [`docs/platforms/economy`](docs/platforms/economy.mdx),
-and the runbook [`docs/help/local-settlement-anvil.mdx`](docs/help/local-settlement-anvil.mdx).
+The mesh uses private device identity and encrypted P2P links. It is not a central server.
+The local web app can ask Hypha for routes, but Hypha owns peer membership and provider state.
+Models can move over the mesh too; one recorded peer pull moved a Qwen3-4B weight set of
+**2382 MB** in **159 s**.
 
-### Proactivity — the heartbeat and the constitution
+### Economy
 
-Leash acts on its own. Your **constitution** is three editable markdown files —
-`soul.md` (who you are), `goals.md` (what you're working toward), `heartbeat.md` (what to watch)
-— edited at **Brain → Proactivity** (`constitution.ts`, `ProactivityPanel.tsx`). `soul` + `goals`
-inject into **every** chat turn (goal-aware on demand), and an `mcp-cron` schedule fires
-`runHeartbeat()` (`apps/web/lib/leash/heartbeat.ts`) ~every 30 min within waking hours
-(09:00–22:00, daily budget). The heartbeat reads recent screen activity + the checklist, runs a
-**propose-only, read-only** agent turn (`search_graph`, `recall`, `understory_search`,
-`create_task`), then — if the proposal is non-empty, on-goal, within budget, and not a duplicate
-(exact + embedding dedup) — classifies it **auto / notify / ask** and writes a notification
-(bell feed + OS toast on desktop). The same scheduler runs **user-defined tasks** and the nightly
-jobs — **`dream`** (consolidates the day's chats into typed memory), **`evolve`** (the LoRA below),
-and photo tagging. → [`docs/agents/heartbeat`](docs/agents/heartbeat.mdx), [`docs/capabilities/scheduler`](docs/capabilities/scheduler.mdx).
+When the peer is not one of your own private devices, the same delegation path can become a
+metered session. The local proof uses an `anvil` fork and self-hosted facilitator state so the
+settlement path is reproducible without spending real funds or relying on hosted infrastructure.
 
-### Memory — the nightly evolution loop
+The economy is a metering/trust mechanism for device-to-device compute. It is not presented as
+a hosted marketplace.
 
-`packages/memory` curates training pairs from typed memory + chats + notes (zero eval-leak,
-dedupe, a min-pair gate), trains a personal adapter on-device via **QVAC Fabric**, evals it on
-three axes, and renders base-vs-adapter at `/grow`. The adapter publishes as Hypercore blob chunks
-with a CRDT pointer (LWW newest-wins; corrupt/truncated transfers are rejected on sha256). Set
-`LEASH_CHAT_MODEL=qwen3-4b-me` to chat with your nightly self. `memory:smoke`, `evolve`,
-`medpsy:demo`. → [`docs/explanation/the-memory-evolution-loop`](docs/explanation/the-memory-evolution-loop.mdx).
+### Proactivity
 
-### The Understory — the autonomous paper
+The constitution is local markdown: `soul.md`, `goals.md`, and `heartbeat.md`. The heartbeat
+reads recent activity, memory, and the checklist, then proposes bounded notifications or tasks.
+It uses the same local model/tool path as chat and respects the same QVAC-only rule.
 
-The newsroom daemon (`apps/newsroom`) is the clearest proof Leash does more than answer chat. On a
-cadence it (1) discovers fresh leads from your feeds, (2) stages a **personal brief** from your
-private graph (offline), then (3) drains a queue one article at a time through the full pipeline —
-**research → draft → review claims → on-device hero art → publish** — emitting a `DaemonRun` + audit
-record per step. It reads at **Paper** in the dashboard. → [`docs/explanation/what-the-understory-is`](docs/explanation/what-the-understory-is.mdx).
+### Memory
 
-### Clients — same engine, different reach
+The memory layer keeps explicit typed facts and implicit retrieval context separate. It curates
+training pairs from real interactions, evaluates outputs, and trains adapters on-device through
+QVAC Fabric. Adapter artifacts can be shared through the mesh with hashes and CRDT pointers.
 
-Every client drives the same Mycelium engine; what differs is *where* the work runs and how much
-of the dashboard a device can host. Deep docs: [`docs/platforms/`](docs/platforms/) and
-[`docs/install/`](docs/install/).
+### Clients
 
-```mermaid
-flowchart TD
-  subgraph dev["your devices"]
-    WEB["Web / Desktop<br/>full dashboard"]
-    IOS["iOS Leash<br/>on-device chat·voice·mesh"]
-    TG["Telegram bridge"]
-  end
-  SERVE["qvac serve (on-device inference)"]
-  HYPHA["hypha daemon<br/>mesh · delegate · pay"]
-  WEB --> SERVE
-  IOS --> IOS_SDK["@qvac/sdk in-process"]
-  TG --> WEB
-  SERVE --> HYPHA
-  IOS_SDK -.->|borrow a stronger peer| HYPHA
-  HYPHA <-->|encrypted P2P · CRDT graph| HYPHA
+Every client uses the same engine:
+
+- **Web** (`apps/web`): full dashboard, chat, Brain, Models, Tasks, Economy, Services, Settings.
+- **Desktop** (`apps/desktop`): Electron wrapper around the same local web app and supervised runtime.
+- **Mobile** (`apps/mobile`): on-device chat/voice and iOS mesh worklet paths, with honest limits where desktop still owns heavier jobs.
+- **Telegram** (`apps/leash-telegram`): owner-only bridge into the local Leash agent.
+- **Daemons** (`apps/hypha`, `apps/leash-watch`, `apps/newsroom`): mesh, sensing, and background work.
+
+## Structured evidence
+
+The evidence tree is intentionally organized by capability and device:
+
+```text
+evidence/
+  manifest.json
+  chats/
+    mac-mini/
+    mbp/
+  qvac/
+    mac-mini/
+    mbp/
+  hypha/
+    mac-mini/
+    mbp/
+  leash/
+    mac-mini/
+    mbp/
+  data/
+    mac-mini/
+    mbp/
 ```
 
-- **Web** (`apps/web`) — the full surface: chat, Brain (Models · Skills · Tools · Agents · MCP ·
-  Proactivity), Tasks, Alerts, Economy, Services. Everything else wraps it. → [`docs/platforms/overview`](docs/platforms/overview.mdx)
-- **Desktop** (`apps/desktop`, Electron, macOS) — **not a separate UI**: an Electron window around
-  the *same web app + shared supervisor* (`apps/web/server-launch.mjs`). It picks a data folder on
-  first run, then **downloads the qvac runtime + daemons on demand** (sha256-verified) so the DMG
-  stays small, runs Node *via Electron's own binary* (no system Node needed), and fires **native OS
-  notifications** for heartbeat alerts. Packaging compromises (all documented): the SDK is
-  root-hoisted and ships `node-gyp-build` prebuilds, so `install-app-deps` / `npmRebuild` are **off**
-  (an in-place rebuild would break the Node daemons); an `after-pack` hook restores the standalone
-  `node_modules` electron-builder strips; and the `.app` gets a **deep ad-hoc re-sign** with
-  JIT/WASM/dyld entitlements (notarization is manual). → [`docs/platforms/desktop`](docs/platforms/desktop.mdx)
-- **Mobile** (`apps/mobile`, Expo/React Native — **iOS Leash**) — runs `@qvac/sdk` **on-device in
-  the JS thread**, no server: on-device chat (selectable Qwen3 0.6B/1.7B/4B + Llama 1B, 4k ctx),
-  **on-device voice** (Whisper STT → reply → Supertonic TTS with VAD, progressive playback,
-  barge-in), real **mesh membership** (a Bare worklet replicates the task CRDT P2P), and delegated
-  inference to a stronger peer. Compromises: **JSC, not Hermes** (Hermes 0.81.5 can't compile the
-  SDK's RN polyfills); **mesh is iOS-only** (the Bare runtime has no Android build → Android runs
-  chat only); the **heartbeat loop, RAG recall, tools/skills, LoRA and the economy run on desktop**
-  (the phone shows an honest "runs on desktop" note, never a fake panel); **real device only** (no
-  simulator — the native bindings need Metal/Vulkan). → [`docs/platforms/mobile`](docs/platforms/mobile.mdx) · [`docs/install/ios`](docs/install/ios.mdx)
-- **Telegram** (`apps/leash-telegram`) — an owner-only bridge: messages POST to your local Leash;
-  inference still runs on your device. → [`docs/channels/telegram`](docs/channels/telegram.mdx)
+Start with:
 
----
+| File                                                                           | What it shows                                                       |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| [`evidence/manifest.json`](evidence/manifest.json)                             | top-level counts, date windows, generated files, and source mapping |
+| [`evidence/chats/mac-mini/index.json`](evidence/chats/mac-mini/index.json)     | Mac mini chat count, message count, date range, and hashes          |
+| [`evidence/chats/mbp/index.json`](evidence/chats/mbp/index.json)               | MacBook Pro chat count, message count, date range, and hashes       |
+| [`evidence/qvac/mac-mini/summary.json`](evidence/qvac/mac-mini/summary.json)   | model, RAG, delegation, and LoRA evidence from the Mac mini         |
+| [`evidence/qvac/mbp/summary.json`](evidence/qvac/mbp/summary.json)             | QVAC primitive evidence folded from the MacBook Pro                 |
+| [`evidence/hypha/mac-mini/summary.json`](evidence/hypha/mac-mini/summary.json) | mesh, delegation, and provider events from the Mac mini             |
+| [`evidence/hypha/mbp/summary.json`](evidence/hypha/mbp/summary.json)           | mesh and delegation events from the MacBook Pro                     |
+| [`evidence/data/mac-mini/summary.json`](evidence/data/mac-mini/summary.json)   | folded runtime data evidence from the Mac mini                      |
+| [`evidence/data/mbp/summary.json`](evidence/data/mbp/summary.json)             | folded runtime data evidence from the MacBook Pro                   |
+
+Quick checks:
+
+```bash
+jq '.outputs | keys' evidence/manifest.json
+jq '.outputs.chats' evidence/manifest.json
+jq '.dateWindow' evidence/chats/mac-mini/index.json
+jq '.counts' evidence/chats/mbp/index.json
+```
+
+The older raw spike logs are still useful for primitive reproduction:
+
+- [`spike/logs/`](spike/logs/) for inference, RAG, P2P, LoRA, Autobase, and OCR JSONL records.
+- [`evidence/medpsy-demo.jsonl`](evidence/medpsy-demo.jsonl) for the health-specialist RAG run.
+- [`evidence/remote-api-calls.json`](evidence/remote-api-calls.json) for outbound-call disclosure.
 
 ## Repo layout
 
-```
+```text
 mycelium/
   packages/
-    shared/        # foundation: DeviceCapability, AuditRecord, GraphNode, logger (no SDK dep)
-    senses/        # L2: context-graph nodes · RAG index · STT/OCR · incremental embed
-    mind/          # L3: council (proposer+critic) · router · generic runAgent + tool registry
-    mesh/          # L1: delegated-inference provider/consumer · MeshGraph (CRDT sync + adapter share)
-    memory/        # L4: curate → nightly LoRA → 3-axis eval → adapter manifest + apply
-    leash-core/    # shared backing for Leash: agents · skills · tools-groups · routing · stores · vault
-    db/            # Prisma schema + generated client
+    shared/          foundation types and audit logging
+    senses/          RAG, embeddings, OCR/STT/photo pipelines
+    mind/            council, agent runner, tool registry
+    mesh/            P2P graph, delegation, registry, adapter sharing
+    memory/          curation, LoRA, evaluation
+    leash-core/      agents, skills, stores, tools, routing, vault
+    db/              Prisma schema and generated client
   apps/
-    web/           # Leash dashboard (Next.js) — chat = AI SDK + @qvac/ai-sdk-provider; Brain/Tasks/Economy
-    desktop/       # Electron client — bundles the QVAC runtime + Leash daemons + OS notifications
-    mobile/        # Expo (React Native) — iOS Leash (JSC), on-device voice + dashboard parity
-    hypha/         # headless mesh daemon: delegated provider · OpenAI shim · economy · CRDT graph
-    leash-broker/  # priority queue / reverse-proxy in front of qvac serve (wedge-safe, load-shed)
-    leash-mcp/     # MCP server — mesh pairing exposed as chat tools (PIN/device elicitation)
-    leash-tools-mcp/ # MCP daemon hosting each capability group (HA·Memory·Tasks·Photos·…) per-path
-    leash-watch/   # on-device activity sensing (capture → VLM summary → activity trail)
-    leash-telegram/  # owner-only Telegram bridge to the local Leash agent
-    newsroom/      # autonomous editor daemon (discover → brief → research → draft → publish)
-    hub/  edge-node/ # original mesh demo: strong "brain" + weak "phone" over a CRDT graph
-    landing/       # marketing site
-  spike/           # the de-risk gates (runnable, proven GO) — see "Reproduce the proofs"
-  scripts/         # smoke/gate/probe tests + anvil-plasma-setup.sh
-  patches/         # patch-package patches over @qvac/cli (e.g. multimodal chat — tetherto/qvac#2459)
-  docs/            # Mintlify docs site (the ONLY product-docs markdown allowed in mycelium/)
-  evidence/        # committed audit-log evidence (e.g. medpsy-demo.jsonl)
-  qvac.config.base.json   # serve config (~/.qvac/... paths) — wrapped by qvac.config.mjs
+    web/             Leash dashboard and chat API
+    desktop/         Electron wrapper and supervised local runtime
+    mobile/          Expo/iOS client with on-device chat and mesh worklet
+    hypha/           mesh daemon, OpenAI shim, delegated compute, economy
+    leash-broker/    queue/reverse proxy in front of qvac serve
+    leash-mcp/       mesh pairing exposed as chat tools
+    leash-tools-mcp/ built-in MCP capability groups
+    leash-watch/     local activity watcher
+    leash-telegram/  owner-only Telegram bridge
+    newsroom/        autonomous paper daemon
+    landing/         public marketing site
+  docs/              Mintlify docs site
+  evidence/          structured JSON evidence bundle
+  spike/             runnable de-risking gates
+  scripts/           smoke tests, probes, local settlement setup
+  patches/           patch-package patches over upstream dependencies
 ```
-
-Full product documentation (vision, architecture, hackathon criteria, evidence, known issues)
-lives in [`docs/`](docs/) — start at [`docs/index.mdx`](docs/index.mdx) and
-[`docs/hackathon/`](docs/hackathon/). The SDK reference is the published
-[`@qvac/sdk`](https://www.npmjs.com/package/@qvac/sdk) package.
-
----
 
 ## Quickstart
 
-**Prerequisites:** Node ≥ 22 (developed on v24.13), npm 11+. Internet **once** to warm the model
-cache; fully offline thereafter.
+Prerequisites:
+
+- Node 22+; developed on Node 24.x
+- npm 11+
+- Internet once to warm model weights and bootstrap the DHT
+- After warm-cache: local chat, retrieval, and mesh operations are designed to run offline
 
 ```bash
 cd mycelium
 npm install
-npm run spike:warm        # one-time, online: downloads GGUF weights + bootstraps the DHT
+npm run spike:warm
 ```
 
-Run Leash — three processes (model server, dashboard, and optionally the mesh daemon):
+Run Leash:
 
 ```bash
-# Terminal A — the on-device model server (qvac serve). Loads qvac.config.mjs:
-#   qwen3-4b chat + gte-large embeddings + vision/STT/TTS aliases, tools enabled.
-npm run qvac              # → OpenAI-compatible server on http://127.0.0.1:11435/v1
+# Terminal A: local QVAC OpenAI-compatible serve
+npm run qvac
 
-# Terminal B — the dashboard. Open http://localhost:6801 (→ /chat); "Paper" = The Understory.
+# Terminal B: dashboard at http://localhost:6801
 npm run web:dev
 
-# Terminal C (optional) — join the encrypted mesh + serve/borrow delegated compute.
-npm run hypha            # → daemon on :11437; pre-warms peer models, OpenAI shim, economy
+# Terminal C: optional mesh daemon
+npm run hypha
 ```
 
-Other clients, same engine:
+Other clients:
 
 ```bash
-cd apps/desktop && npm run dev     # Electron desktop app
-cd apps/mobile  && npm run ios     # iOS Leash on a connected iPhone (Expo dev-client)
+cd apps/desktop && npm run dev
+cd apps/mobile && npm run ios
 ```
 
-### Key env vars (web)
+Important defaults:
 
-| env | default | purpose |
-|---|---|---|
-| `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | local QVAC server the provider targets (point at `:11436` to go via the broker) |
-| `LEASH_CHAT_MODEL` | `qwen3-4b` | chat model alias (must match the serve config); `qwen3-4b-me` chats with your nightly LoRA |
-| `LEASH_EMBED_MODEL` | `gte-large` | embedding alias for `search_graph` |
-| `LEASH_BROKER_HYPHA_URL` | `http://127.0.0.1:11437` | hypha daemon the Conductor queries for peer routes |
-| `LEASH_COMPUTER_MODEL` | _(= chat model)_ | larger alias for computer-use turns, optionally served on a mesh peer |
-| `LEASH_MCP_SERVERS` | _(empty)_ | comma-separated MCP server URLs merged into the registry |
-| `LEASH_HA_URL` / `LEASH_HA_TOKEN` | _(empty)_ | Home Assistant base URL + long-lived token (server-side only) |
+| env                      | default                     | purpose                                                       |
+| ------------------------ | --------------------------- | ------------------------------------------------------------- |
+| `QVAC_OPENAI_URL`        | `http://127.0.0.1:11435/v1` | local QVAC server targeted by the provider                    |
+| `LEASH_CHAT_MODEL`       | `qwen3-4b`                  | main chat model alias                                         |
+| `LEASH_EMBED_MODEL`      | `gte-large`                 | embedding alias for graph search                              |
+| `LEASH_BROKER_HYPHA_URL` | `http://127.0.0.1:11437`    | Hypha daemon queried for peer routes                          |
+| `LEASH_COMPUTER_MODEL`   | chat model                  | model alias for computer-use turns                            |
+| `LEASH_MCP_SERVERS`      | empty                       | comma-separated MCP server URLs merged into the tool registry |
 
-| port | service |
-|---|---|
-| `6801` | web dashboard · `11435` qvac serve · `11436` broker · `11437` hypha · `11439` leash-mcp · `11440` tools-mcp · `8545` anvil (economy) |
+Ports:
 
----
+| port    | service                            |
+| ------- | ---------------------------------- |
+| `6801`  | web dashboard                      |
+| `11435` | QVAC serve                         |
+| `11436` | broker                             |
+| `11437` | Hypha                              |
+| `11439` | leash MCP                          |
+| `11440` | tools MCP                          |
+| `8545`  | local anvil fork for economy proof |
 
 ## Reproduce the proofs
 
-Everything is real — real inference, real encrypted P2P, real on-chain settles on a local fork.
-Each spike prints to stdout **and** appends JSONL audit records under `spike/logs/`.
-
-**The spike gate — the four de-risked primitives:**
+Spike gates:
 
 ```bash
-npm run spike:inference          # (a) on-device streaming + embeddings + tok/s
-npm run spike:rag                # (b) on-device RAG: grounded, cited answer
-npm run spike:p2p:provider       # (c) prints a provider public key …
-npm run spike:p2p:consumer -- <provider-public-key>   #   … encrypted delegated compute
-npm run spike:lora               # (d) on-device LoRA via QVAC Fabric; base vs adapter
-npm run spike:autobase hub       # bonus: CRDT graph-sync gate (prints an invite)
+npm run spike:inference
+npm run spike:rag
+npm run spike:p2p:provider
+npm run spike:p2p:consumer -- <provider-public-key>
+npm run spike:lora
+npm run spike:autobase hub
 npm run spike:autobase edge <invite>
 ```
 
-→ recorded GO/NO-GO + how to regenerate from a fresh clone:
-[`docs/hackathon/evidence-and-reproducibility.mdx`](docs/hackathon/evidence-and-reproducibility.mdx).
-
-**Layer + feature smokes** (pure, fast, no network):
+Layer and feature smokes:
 
 ```bash
-npm run senses:smoke             # L2: graph RAG pipeline
-npm run mind:smoke               # L3: tool-calling council
-npm run memory:smoke             # L4: memory curation for the nightly LoRA
-npm run mesh:smoke               # L1: CRDT graph replication (bidirectional)
-npm run smoke:agents             # sub-agent delegation
-npm run smoke:orchestration      # skill/agent orchestration
-npm run smoke:chat-attachments-text   # any-file attachments → model input
-npm run medpsy:demo              # Psy-track: MedGemma grounded in health records, cited+verified
-npm run typecheck                # tsc -b across the workspaces
+npm run senses:smoke
+npm run mind:smoke
+npm run memory:smoke
+npm run mesh:smoke
+npm run smoke:agents
+npm run smoke:orchestration
+npm run smoke:chat-attachments-text
+npm run medpsy:demo
+npm run typecheck
 ```
 
-**The economy on a local anvil fork** (no real chain is touched — chain `9746`, RPC `:8545`):
+Local settlement proof:
 
 ```bash
-# 1. bring up the fork + facilitator state (idempotent; re-run after any anvil restart)
 scripts/anvil-plasma-setup.sh
-# 2. confirm settlement end-to-end (real ethers wallets, real on-fork settles)
-npm run smoke:metered            # escalating-authorization ladder, replay-guards, idle watchdog
-npm run smoke:identity           # wallet↔provider-key binding + on-chain receipt verification
-npm run smoke:reputation         # self-dealing scores below honest multi-payer volume
-npm run gate:firewall-revocation # a revoked consumer is cut off cleanly
+npm run smoke:metered
+npm run smoke:identity
+npm run smoke:reputation
+npm run gate:firewall-revocation
 ```
 
-Full runbook (clock-drift + RPC gotchas): [`docs/help/local-settlement-anvil.mdx`](docs/help/local-settlement-anvil.mdx).
+Offline acceptance: warm the cache once, disable networking, then re-run local inference, RAG,
+and Mac-to-Mac P2P checks. They must still produce tokens and grounded answers without a live
+internet connection.
 
-**Offline acceptance** — after warming the cache, disable networking (airplane mode / pull the
-cable) and re-run `spike:inference`, `spike:rag`, and the Mac↔Mac `spike:p2p:*` pair. They must
-still produce tokens and grounded answers with **zero connectivity** — that's the release bar.
-
----
-
-## Security & privacy
+## Security and privacy
 
 Privacy is the architecture, not a setting:
 
-- **On-device only — no cloud AI.** Every inference, embedding, RAG retrieval, and multimodal call
-  routes through `@qvac/sdk` to a local serve; a single cloud-AI call would disqualify the submission.
-  → [`docs/hackathon/qvac-only-proof`](docs/hackathon/qvac-only-proof.mdx).
-- **Encrypted P2P, firewalled.** Mesh links are Noise-encrypted over Hyperswarm; the provider
-  firewall admits only paired peers; the Conductor's **privacy gate is non-overridable** — a
-  `private` turn never routes to a public mesh.
-- **Jailed + gated execution.** Computer-use / file tools are realpath-jailed under
-  `LEASH_COMPUTER_ROOT`; shell/file/MCP tools are **approval-gated** ("Ask first"); imported skills
-  and plugins land **disabled (quarantined)** until you review and enable them.
-- **Your data stays yours.** Per-user data dir; raw screen-watcher frames are deleted immediately
-  after the on-device VLM reads them; exactly what touches the network, and when, is itemized in
-  [`docs/hackathon/network-disclosure`](docs/hackathon/network-disclosure.mdx).
-
----
+- **No cloud AI.** Every inference, embedding, RAG retrieval, multimodal call, delegated turn,
+  and LoRA run goes through `@qvac/sdk` and local model weights. See
+  [`docs/hackathon/qvac-only-proof.mdx`](docs/hackathon/qvac-only-proof.mdx).
+- **Encrypted P2P.** Mesh links are Noise-encrypted over Hyperswarm, with provider firewalling
+  for paired peers and explicit route tiers.
+- **Non-overridable privacy gate.** The Conductor filters sensitivity before cost; private turns
+  cannot be routed to public providers.
+- **Jailed execution.** Computer-use and file tools are realpath-jailed under the configured root.
+  Shell, file, computer, and external-service tools require approval cards.
+- **Quarantined extensions.** Imported skills and plugins land disabled until reviewed.
+- **Local data ownership.** Per-user data directories hold chats, memory, skills, services, and
+  Hypha state. Raw screen frames are deleted immediately after local VLM summarization.
+- **Network disclosure.** Every non-AI outbound call is listed in
+  [`docs/hackathon/network-disclosure.mdx`](docs/hackathon/network-disclosure.mdx) and
+  [`evidence/remote-api-calls.json`](evidence/remote-api-calls.json).
 
 ## Honest limitations
 
-The judging framework rewards transparency; the single source of truth is
-[`docs/hackathon/known-issues.mdx`](docs/hackathon/known-issues.mdx). In brief:
+The source of truth is [`docs/hackathon/known-issues.mdx`](docs/hackathon/known-issues.mdx).
+Important current limits:
 
-- **Partial — computer-use over the mesh.** Local computer-use (screenshot · jailed file I/O ·
-  shell · `cliclick`, approval-gated) works; routing the *computer* model to a peer
-  (`LEASH_COMPUTER_MODEL`) is wired but not yet hardened in a live two-Mac run.
-- **By design — the economy is personal-device P2P.** It settles against a local anvil fork, not
-  a public chain; it's a metering/trust mechanism for borrowing your own (or a friend's) device,
-  not a hosted compute market.
-- **Pending — airplane-mode re-run on the final build.** Proven in Week 1; must be re-run on the
-  shipped build before we call it *passing* (until then: *expected to pass*).
-- **Resolved (was broken).** On-device TTS (`supertonic`, current 0.13.5 runtime) and **cross-mesh vision
-  delegation** now work — the serve's `/v1/chat/completions` accepts OpenAI multimodal `image_url`
-  content (upstreamed as **tetherto/qvac#2459**, applied in-tree via
-  [`patches/`](patches/)), so a consumer can borrow a peer's GPU for an *image* turn.
-
-On-device text-to-video (Wan 2.1) OOMs on the 24 GB M4 and is deferred — see known-issues for the
-full, unsanded list.
+- Windows is not supported yet.
+- Android is chat-only today; iOS has the real mesh worklet.
+- Public paid compute is a local-fork proof path, not a hosted public market.
+- Some advanced flows require warm model caches and macOS permissions.
+- Local computer-use works; routing computer-use-heavy flows to a peer still needs hardening.
 
 ## Hard rules
 
-- **All inference / embeddings / RAG / fine-tuning via `@qvac/sdk` only** — never a cloud API.
-- **Apache-2.0**, fully open-source and reproducible.
-- How we meet each judging criterion:
-  [`docs/hackathon/how-we-meet-the-criteria.mdx`](docs/hackathon/how-we-meet-the-criteria.mdx);
-  proof that nothing leaves the device:
-  [`docs/hackathon/qvac-only-proof.mdx`](docs/hackathon/qvac-only-proof.mdx).
+- All inference, embeddings, RAG, speech, vision, delegation, and fine-tuning go through
+  `@qvac/sdk` only.
+- The hot path must be offline-capable after a one-time warm cache.
+- License is Apache-2.0.
+- No mocks, placeholders, or empty implementation stubs.
+- Audit logs stay on. Spike JSONL and structured evidence are part of the verification bundle.
+- Machine-local `data/` and `logs/` are not rsynced between devices as source code.
 
 ## Documentation
 
-The full Mintlify site is in [`docs/`](docs/) (start at [`docs/index.mdx`](docs/index.mdx)):
+The Mintlify docs live in [`docs/`](docs/):
 
-- **Get started / install** — [`docs/quickstart`](docs/quickstart.mdx), [`docs/install/`](docs/install/) (macOS · iOS · Android · Windows · Linux)
-- **Channels** — [chat](docs/channels/chat.mdx) · [voice](docs/channels/voice.mdx) · [computer-use](docs/channels/computer-use.mdx) · [mobile](docs/channels/mobile.mdx) · [telegram](docs/channels/telegram.mdx)
-- **Capabilities** — [skills](docs/capabilities/skills.mdx) · [tools](docs/capabilities/tools.mdx) · [plugins](docs/capabilities/plugins.mdx) · [scheduler](docs/capabilities/scheduler.mdx) · [MCP](docs/capabilities/mcp.mdx)
-- **Agents & routing** — [architecture](docs/explanation/architecture.mdx) · [council](docs/agents/council.mdx) · [delegation](docs/agents/delegation.mdx) · [sub-agents](docs/agents/subagents.mdx) · [heartbeat](docs/agents/heartbeat.mdx)
-- **Mesh & economy** — [the hypha daemon](docs/explanation/the-hypha-daemon.mdx) · [the agent economy](docs/explanation/the-agent-economy.mdx) · [mesh & membership](docs/explanation/mesh-and-membership.mdx)
-- **Models** — [overview](docs/models/overview.mdx) · [catalog](docs/models/catalog.mdx) · [aliases](docs/models/aliases.mdx)
-- **Reference** — [ports & processes](docs/reference/runtime-ports-and-processes.mdx) · [scripts & smoke tests](docs/reference/scripts-and-smoke-tests.mdx) · [benchmarks](docs/reference/benchmarks.mdx) · [workspace map](docs/reference/workspace-map.mdx)
-- **Hackathon** — [overview](docs/hackathon/overview.mdx) · [criteria](docs/hackathon/how-we-meet-the-criteria.mdx) · [evidence](docs/hackathon/evidence-and-reproducibility.mdx) · [known issues](docs/hackathon/known-issues.mdx)
+- Get started: [`docs/index.mdx`](docs/index.mdx), [`docs/quickstart.mdx`](docs/quickstart.mdx)
+- Install: [`docs/install/`](docs/install/)
+- Channels: [`docs/channels/chat.mdx`](docs/channels/chat.mdx), [`docs/channels/voice.mdx`](docs/channels/voice.mdx), [`docs/channels/computer-use.mdx`](docs/channels/computer-use.mdx), [`docs/channels/telegram.mdx`](docs/channels/telegram.mdx)
+- Capabilities: [`docs/capabilities/skills.mdx`](docs/capabilities/skills.mdx), [`docs/capabilities/tools.mdx`](docs/capabilities/tools.mdx), [`docs/capabilities/plugins.mdx`](docs/capabilities/plugins.mdx), [`docs/capabilities/mcp.mdx`](docs/capabilities/mcp.mdx)
+- Agents and routing: [`docs/agents/overview.mdx`](docs/agents/overview.mdx), [`docs/agents/subagents.mdx`](docs/agents/subagents.mdx), [`docs/agents/heartbeat.mdx`](docs/agents/heartbeat.mdx)
+- Mesh and economy: [`docs/platforms/mesh.mdx`](docs/platforms/mesh.mdx), [`docs/earn/overview.mdx`](docs/earn/overview.mdx), [`docs/explanation/the-agent-economy.mdx`](docs/explanation/the-agent-economy.mdx)
+- Models: [`docs/models/overview.mdx`](docs/models/overview.mdx), [`docs/models/catalog.mdx`](docs/models/catalog.mdx), [`docs/models/aliases.mdx`](docs/models/aliases.mdx)
+- Reference: [`docs/reference/runtime-ports-and-processes.mdx`](docs/reference/runtime-ports-and-processes.mdx), [`docs/reference/scripts-and-smoke-tests.mdx`](docs/reference/scripts-and-smoke-tests.mdx), [`docs/reference/audit-log.mdx`](docs/reference/audit-log.mdx), [`docs/reference/workspace-map.mdx`](docs/reference/workspace-map.mdx)
+- Hackathon: [`docs/hackathon/overview.mdx`](docs/hackathon/overview.mdx), [`docs/hackathon/how-we-meet-the-criteria.mdx`](docs/hackathon/how-we-meet-the-criteria.mdx), [`docs/hackathon/evidence-and-reproducibility.mdx`](docs/hackathon/evidence-and-reproducibility.mdx), [`docs/hackathon/known-issues.mdx`](docs/hackathon/known-issues.mdx)

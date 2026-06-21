@@ -8,6 +8,21 @@ The day-by-day release history of Leash / Mycelium across the QVAC Hackathon bui
 (May 31 – June 21, 2026). Everything here runs on-device through `@qvac/sdk` — no cloud AI.
 Filter by tag, or pair this page with the public [Hackathon overview](/hackathon/overview).
 
+<Update label="June 21" description="Structured evidence bundle, public receipts, and submission docs refresh" tags={["Evidence", "Docs", "Hackathon"]}>
+  The submission evidence was folded into a reviewer-readable `evidence/**/{device}` tree:
+  chats, QVAC primitive logs, Hypha mesh/delegation events, Leash runtime events, and folded
+  data summaries now have per-device JSON entry points for `mac-mini` and `mbp`. The bundle keeps
+  the old JSONL audit trail available while giving reviewers stable summaries, date windows,
+  counts, hashes, and source mapping through `evidence/manifest.json`.
+
+The public receipt payloads were sanitized so local proof files remain useful without leaking
+sensitive machine state, and the README plus hackathon docs now point at the structured evidence
+bundle rather than process artifacts.
+
+`115e738` structured evidence bundle + shim
+
+</Update>
+
 <Update label="June 20" description="Durable orchestration, Apple Notes UI, MCP consolidation & skill routing fixes" tags={["Leash", "Agent", "MCP", "Skills"]}>
   The agent runtime gained a durable **goal-run ledger** and context capsules so long work is
   observable as steps, outputs, errors, final synthesis, and model traces instead of an opaque
@@ -17,12 +32,13 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   path, while Brain folded the old Tools tab into the **MCP** surface so built-in and connected
   tool groups are managed from one place.
 
-  The skill layer was also corrected at the root: built-in `SKILL.md` manifests now route through
-  the same parser/metadata path as user/plugin skills, the Skills panel surfaces the corrected
-  manifest data, and a new chat-API smoke covers skill routing end to end.
+The skill layer was also corrected at the root: built-in `SKILL.md` manifests now route through
+the same parser/metadata path as user/plugin skills, the Skills panel surfaces the corrected
+manifest data, and a new chat-API smoke covers skill routing end to end.
 
-  `8a5a652` Brain tools → MCP · `6e5764d` durable orchestration + Apple Notes UI · `8c2c8d7`
-  skill manifest routing
+`8a5a652` Brain tools → MCP · `6e5764d` durable orchestration + Apple Notes UI · `8c2c8d7`
+skill manifest routing
+
 </Update>
 
 <Update label="June 19" description="Conductor refactor, SDK 0.13.5, prompt cleanup & app-dialog UX" tags={["Agent", "Models", "UI"]}>
@@ -33,12 +49,13 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   worklets. Prompt text was centralized and aligned with QVAC/Qwen guidance, including specialist
   identity and health-routing improvements.
 
-  The web UI also replaced native browser prompts with in-app dialogs and added toast feedback
-  across actions, tightening the product surface without changing the local-only inference rule.
+The web UI also replaced native browser prompts with in-app dialogs and added toast feedback
+across actions, tightening the product surface without changing the local-only inference rule.
 
-  `f0fd143` SDK/CLI 0.13.5/0.7.0 dedupe · `ed0e380` rebuild mobile worklets · `fa5309a`
-  Conductor refactor · `2a755ad` app dialogs · `08bd32b` toast feedback · `8a4dc64`
-  centralize prompts · `d88f509` QVAC prompt guidance · `a9f49f0` specialist identities + health routing
+`f0fd143` SDK/CLI 0.13.5/0.7.0 dedupe · `ed0e380` rebuild mobile worklets · `fa5309a`
+Conductor refactor · `2a755ad` app dialogs · `08bd32b` toast feedback · `8a4dc64`
+centralize prompts · `d88f509` QVAC prompt guidance · `a9f49f0` specialist identities + health routing
+
 </Update>
 
 <Update label="June 18" description="Cancel-when-safe replaces the old drain discipline" tags={["Agent", "Mesh", "Mobile", "Economy"]}>
@@ -48,15 +65,16 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   disconnect; hypha cancels local delegated decodes on disconnect, TTFB timeout, or auth stop; and
   mobile cancels the active on-device turn by `requestId` with `modelId` as fallback.
 
-  Forward mesh cancellation was wired too: a consumer cancel reaches the provider, which aborts its
-  local serve fetch, and metered sessions settle **actual emitted tokens** rather than a full quote.
-  The mobile forward worklet flushes the cancel frame before tearing down the swarm, and docs were
-  updated to describe cancel-when-safe with drain as fallback.
+Forward mesh cancellation was wired too: a consumer cancel reaches the provider, which aborts its
+local serve fetch, and metered sessions settle **actual emitted tokens** rather than a full quote.
+The mobile forward worklet flushes the cancel frame before tearing down the swarm, and docs were
+updated to describe cancel-when-safe with drain as fallback.
 
-  `b65d46c` abort-safety probes · `a267294` web/desktop Stop cancels decode · `4455b04` hypha
-  delegated cancel · `f523ab9` broker aborts upstream · `e835277` mobile requestId cancel ·
-  `13c7b35` forward cancel · `3f97628` bill actual cancelled tokens · `68eb710` flush mobile
-  forward cancel · `1f0038a` cancel-when-safe docs
+`b65d46c` abort-safety probes · `a267294` web/desktop Stop cancels decode · `4455b04` hypha
+delegated cancel · `f523ab9` broker aborts upstream · `e835277` mobile requestId cancel ·
+`13c7b35` forward cancel · `3f97628` bill actual cancelled tokens · `68eb710` flush mobile
+forward cancel · `1f0038a` cancel-when-safe docs
+
 </Update>
 
 <Update label="June 17" description="Conductor, Leash-as-agent, specialist delegates, frontmatter parity, mobile model selection & file attachments" tags={["Agent", "Mobile", "Leash", "Docs"]}>
@@ -67,21 +85,22 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   Specialist delegates then joined it as built-in subagents — Joy, Sage, Bree, and Grace — with
   model-driven delegation replacing the hardcoded health regex.
 
-  Agent frontmatter reached Claude-compatible parity for the fields Leash can safely support:
-  `mcpServers`, sandboxed per-agent `memory`, reserved fields, inline MCP connection/disconnect,
-  referenced MCP grants, and PUT/toggle preservation. Mobile got the missing Brain surfaces:
-  a read-only Agents roster and a global chat-model selector with curated phone-runnable models,
-  persisted selection, progress reporting, and failure-safe switching. Chat attachments became real
-  for any file: images still route to the VLM, while text/code/CSV/JSON/log attachments are folded
-  into the model input as bounded text and binaries get an honest note.
+Agent frontmatter reached Claude-compatible parity for the fields Leash can safely support:
+`mcpServers`, sandboxed per-agent `memory`, reserved fields, inline MCP connection/disconnect,
+referenced MCP grants, and PUT/toggle preservation. Mobile got the missing Brain surfaces:
+a read-only Agents roster and a global chat-model selector with curated phone-runnable models,
+persisted selection, progress reporting, and failure-safe switching. Chat attachments became real
+for any file: images still route to the VLM, while text/code/CSV/JSON/log attachments are folded
+into the model input as bounded text and binaries get an honest note.
 
-  The README and docs were also truthed up into a submission-grade front door, and the landing/web
-  brand assets switched back to the real PNG logo with matted screenshot plates.
+The README and docs were also truthed up into a submission-grade front door, and the landing/web
+brand assets switched back to the real PNG logo with matted screenshot plates.
 
-  `a07867e` MedPsy RAG workflow · `a8aeaee` route ranking · `c9d534c` capability-discovery MCP ·
-  `a558de0` Conductor in chat · `1d86d56` route UI/audit event · `428bab3` Leash default agent ·
-  `84fc462` specialist delegates · `24c03ae` Claude frontmatter parity · `d2ffca0` mobile model
-  selection · `bc3e65c` mobile Agents roster · `e7e1da2` any-file chat attachments + README/docs
+`a07867e` MedPsy RAG workflow · `a8aeaee` route ranking · `c9d534c` capability-discovery MCP ·
+`a558de0` Conductor in chat · `1d86d56` route UI/audit event · `428bab3` Leash default agent ·
+`84fc462` specialist delegates · `24c03ae` Claude frontmatter parity · `d2ffca0` mobile model
+selection · `bc3e65c` mobile Agents roster · `e7e1da2` any-file chat attachments + README/docs
+
 </Update>
 
 <Update label="June 16" description="Plugins, first-class subagents, mesh-native task sync & the phone as a real mesh member" tags={["Leash", "Skills", "Mesh", "Agent"]}>
@@ -96,13 +115,14 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   worklet), syncing the task list peer-to-peer, plus a redesigned Mesh tab, QR-invite scanning with
   expiry timers, and 1:1 dashboard parity with an on-device data layer.
 
-  `202674e` plugin system · `c935453` first-class subagents · `20a4888` subagents on AI-SDK
-  primitives · `b7b4cde` MeshTask type · `4f04879` LWW task + delete tombstones · `9a1dfec`
-  publishTask/deleteTask/tasksSince · `5cb02d9` oldest-active-member leader · `2630c3c` task ops +
-  leader on the mesh controller · `73cd6b6` /tasks routes · `f3ca21a` mesh task bridge ·
-  `f6e3ea4` web tasks over hypha + SSE · `6544576` one-time task migration · `017da55` mobile
-  dashboard parity + on-device data layer · `7dd0e9a` mesh worklet + RN bridge · `bf4967b` mobile
-  task sync · `5914c39` scan invite QR to join · `4e99666` iPhone replication + dedup + QR timers
+`202674e` plugin system · `c935453` first-class subagents · `20a4888` subagents on AI-SDK
+primitives · `b7b4cde` MeshTask type · `4f04879` LWW task + delete tombstones · `9a1dfec`
+publishTask/deleteTask/tasksSince · `5cb02d9` oldest-active-member leader · `2630c3c` task ops +
+leader on the mesh controller · `73cd6b6` /tasks routes · `f3ca21a` mesh task bridge ·
+`f6e3ea4` web tasks over hypha + SSE · `6544576` one-time task migration · `017da55` mobile
+dashboard parity + on-device data layer · `7dd0e9a` mesh worklet + RN bridge · `bf4967b` mobile
+task sync · `5914c39` scan invite QR to join · `4e99666` iPhone replication + dedup + QR timers
+
 </Update>
 
 <Update label="June 15" description="The proactive assistant + the mcp-cron scheduler" tags={["Leash", "Agent", "Models"]}>
@@ -111,18 +131,19 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   folded into every turn, and a cron-driven **heartbeat** that proposes nudges, dedups them on
   `gte-large`, and classifies each into an **auto / notify / ask** tier with a notifications feed.
 
-  The scheduler moved wholesale onto **mcp-cron** (retiring `leash-cron`): a supervised HTTP
-  daemon, a typed MCP client, a schedules-store backed by it with idempotent default seeds, and a
-  curated agent-facing scheduling MCP group. Plus the **SDK 0.12.1 → 0.13.1** upgrade with the
-  vision patch wired into the runtime, chat models defaulting to a **32 768-token** context window,
-  natural-language memory recall + TTS-engine config fixes, mcp-cron bundled into the packaged
-  desktop app, and a new **Telegram** channel bridge (owner-only, on-device inference).
+The scheduler moved wholesale onto **mcp-cron** (retiring `leash-cron`): a supervised HTTP
+daemon, a typed MCP client, a schedules-store backed by it with idempotent default seeds, and a
+curated agent-facing scheduling MCP group. Plus the **SDK 0.12.1 → 0.13.1** upgrade with the
+vision patch wired into the runtime, chat models defaulting to a **32 768-token** context window,
+natural-language memory recall + TTS-engine config fixes, mcp-cron bundled into the packaged
+desktop app, and a new **Telegram** channel bridge (owner-only, on-device inference).
 
-  `643a724` proactive assistant (kit + constitution + heartbeat + tiers) · `7a31477` mcp-cron spike ·
-  `f0cbbbc` supervise mcp-cron · `871125a` typed cron client · `75aa01c` schedules-store on mcp-cron ·
-  `3288c77` seed default schedules · `66f1008` scheduler MCP group · `02bf729` retire leash-cron ·
-  `cc7eae8` bundle mcp-cron in desktop · `db70dc5` 32768 default context · `78bf0f0` NL recall + TTS config ·
-  `7fd5b1a` SDK 0.13.x + vision patch · `de67def` desktop runtime manifest · `46ffc72` Telegram channel
+`643a724` proactive assistant (kit + constitution + heartbeat + tiers) · `7a31477` mcp-cron spike ·
+`f0cbbbc` supervise mcp-cron · `871125a` typed cron client · `75aa01c` schedules-store on mcp-cron ·
+`3288c77` seed default schedules · `66f1008` scheduler MCP group · `02bf729` retire leash-cron ·
+`cc7eae8` bundle mcp-cron in desktop · `db70dc5` 32768 default context · `78bf0f0` NL recall + TTS config ·
+`7fd5b1a` SDK 0.13.x + vision patch · `de67def` desktop runtime manifest · `46ffc72` Telegram channel
+
 </Update>
 
 <Update label="June 14" description="Desktop app matures + a standalone tools server" tags={["Leash", "UI", "Skills"]}>
@@ -134,10 +155,11 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   downloads stay retryable, and the chat picker lists only chat models with actionable
   not-loaded errors).
 
-  `2219b80` standalone tools MCP server · `044998a` native shell + multi-user auth · `e29a726`
-  built-in skills + Agent Skills format · `46c2aa3` first-run onboarding · `8065863` retryable
-  dropped downloads · `87a2499` cancel removes partial weight · `8b6c8aa` chat-only model picker ·
-  `c6edbb7` daemon overlay + release pipeline
+`2219b80` standalone tools MCP server · `044998a` native shell + multi-user auth · `e29a726`
+built-in skills + Agent Skills format · `46c2aa3` first-run onboarding · `8065863` retryable
+dropped downloads · `87a2499` cancel removes partial weight · `8b6c8aa` chat-only model picker ·
+`c6edbb7` daemon overlay + release pipeline
+
 </Update>
 
 <Update label="June 13" description="Chat overhaul, plan mode, the landing site & the docs rebuild" tags={["Leash", "UI", "Docs"]}>
@@ -145,8 +167,9 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   broadsheet marketing front page (useleash.xyz) with live in-app previews, the standalone
   mesh view, and a full rebuild of the Mintlify **docs site** around the current surfaces.
 
-  `2e42360` chat overhaul + plan mode + steering · `a4b4a71` broadsheet landing site ·
-  `1310886` mesh view · `0405246` docs site rebuild
+`2e42360` chat overhaul + plan mode + steering · `a4b4a71` broadsheet landing site ·
+`1310886` mesh view · `0405246` docs site rebuild
+
 </Update>
 
 <Update label="June 12" description="The skills-first harness" tags={["Skills", "Agent"]}>
@@ -155,10 +178,11 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   qwen3-4b, 80% context compaction, a forgiving-parser detector, and a stop to tracking env
   secrets (commit `.env.example` only).
 
-  `e9e6389` skills-first harness · `e600399` multi-skill orchestration + 80% compaction ·
-  `ff42ac8` run_skill sub-agents · `e69d200` deterministic step pipelines · `d5d6a62`
-  multi-utterance + RRF matching · `4e27e8e` calibrate match floors · `3d8b470` Qwen3 sampling fix ·
-  `6718d04` forgiving-parser detector · `b04b7a1` stop tracking env secrets
+`e9e6389` skills-first harness · `e600399` multi-skill orchestration + 80% compaction ·
+`ff42ac8` run_skill sub-agents · `e69d200` deterministic step pipelines · `d5d6a62`
+multi-utterance + RRF matching · `4e27e8e` calibrate match floors · `3d8b470` Qwen3 sampling fix ·
+`6718d04` forgiving-parser detector · `b04b7a1` stop tracking env secrets
+
 </Update>
 
 <Update label="June 11" description="Catalog, mesh view & settlement on the forward path" tags={["UI", "Mesh", "Economy", "Models"]}>
@@ -169,11 +193,12 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   with x402 settlement (default metered), the `/economy/receipts` ledger, a sandboxed bash files
   route, the feed move to `/feed`, Growth folded into Brain, and icon-affordance sweeps.
 
-  `93ec9d8` tabbed Settings · `139a2ae` Models v2 catalog · `ec489c8` per-model sharing ·
-  `b0541d6` Devices view · `3103b97` modality borrowing · `096f4dc` forward failover + STT ·
-  `09b26d4` supersede ghost cleanup · `2a7b32a` /mesh/leave · `7f85d7a` x402 forward settlement ·
-  `c0c6e62` crash-safe settlement · `aa0f3ea` metering default on · `40b77d6` receipts ledger ·
-  `1444943` sandboxed bash files route · `6bc31cf` Growth → Brain tab
+`93ec9d8` tabbed Settings · `139a2ae` Models v2 catalog · `ec489c8` per-model sharing ·
+`b0541d6` Devices view · `3103b97` modality borrowing · `096f4dc` forward failover + STT ·
+`09b26d4` supersede ghost cleanup · `2a7b32a` /mesh/leave · `7f85d7a` x402 forward settlement ·
+`c0c6e62` crash-safe settlement · `aa0f3ea` metering default on · `40b77d6` receipts ledger ·
+`1444943` sandboxed bash files route · `6bc31cf` Growth → Brain tab
+
 </Update>
 
 <Update label="June 10" description="The P2P agent economy" tags={["Economy", "UI"]}>
@@ -181,8 +206,9 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   roadmap (P2–P5) with resilient reconnection and a restorePeer fix, plus the first Settings
   surfaces — per-model context-size slider, CPU/GPU toggle, Storage, and About.
 
-  `6128718` P2P agent economy · `d0ca63f` credibility roadmap + reconnection · `8fe56ee` context
-  slider · `eb2e94f` CPU/GPU toggle · `323b678` Settings + About · `ae12597` Settings → Storage
+`6128718` P2P agent economy · `d0ca63f` credibility roadmap + reconnection · `8fe56ee` context
+slider · `eb2e94f` CPU/GPU toggle · `323b678` Settings + About · `ae12597` Settings → Storage
+
 </Update>
 
 <Update label="June 8" description="Layer 4 — the memory evolution loop" tags={["Memory"]}>
@@ -190,8 +216,9 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   share** LoRA loop, plus live mesh adapter sync (publish/fetch) on the live hypha mesh, with a
   replication smoke test.
 
-  `50846fe` Layer 4 evolution loop · `d9eca98` live mesh adapter sync · `8185ec3` adapter
-  replication smoke · `160bb19` adapter sync on the live mesh
+`50846fe` Layer 4 evolution loop · `d9eca98` live mesh adapter sync · `8185ec3` adapter
+replication smoke · `160bb19` adapter sync on the live mesh
+
 </Update>
 
 <Update label="June 7" description="Computer use, agent core & the first docs site" tags={["Agent", "Mesh", "Docs"]}>
@@ -199,9 +226,10 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   (PIN entry as an in-chat elicitation), **computer use** over a jailed Mac with a ToolLoopAgent
   core and cross-chat recall, a pending-state chat indicator, and the first Mintlify docs site.
 
-  `aa5b07f` kvCache sessions · `b6f52cf` mesh-pairing MCP server · `26044df` computer use +
-  agent core · `dbe6bec` merge agentic + computer use · `d70c3e2` pending indicator · `38d64b5`
-  Mintlify docs
+`aa5b07f` kvCache sessions · `b6f52cf` mesh-pairing MCP server · `26044df` computer use +
+agent core · `dbe6bec` merge agentic + computer use · `d70c3e2` pending indicator · `38d64b5`
+Mintlify docs
+
 </Update>
 
 <Update label="June 6" description="LAN pairing + the agentic upgrades" tags={["Mesh", "Agent"]}>
@@ -211,17 +239,19 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   machine-neutral config (`~/` prefix + `.mjs` wrapper), broker overflow to the local hypha shim,
   and jsonrepair self-healing of malformed model JSON.
 
-  `dd0fb70` LAN click-to-pair · `f8238e6` vision fork (patch-package) · `a06a788` skills ·
-  `66d402a` tool approval · `9e0ec5a` MCP elicitation · `b5bd118` machine-neutral config ·
-  `3eb9e5f` broker → hypha shim · `ca36448` jsonrepair · `68480c8` TTFB guard
+`dd0fb70` LAN click-to-pair · `f8238e6` vision fork (patch-package) · `a06a788` skills ·
+`66d402a` tool approval · `9e0ec5a` MCP elicitation · `b5bd118` machine-neutral config ·
+`3eb9e5f` broker → hypha shim · `ca36448` jsonrepair · `68480c8` TTFB guard
+
 </Update>
 
 <Update label="June 5" description="The web app becomes the full dashboard" tags={["Leash", "UI"]}>
   A voice **call mode**, then the web app turned into the full Mycelium dashboard: the serve
   broker, Forage, context compaction, and a secret vault.
 
-  `aca27af` voice call mode · `161c169` improve voice call mode · `7aadb50` full dashboard ·
-  `8a2dedc` broker + Forage + compaction + vault
+`aca27af` voice call mode · `161c169` improve voice call mode · `7aadb50` full dashboard ·
+`8a2dedc` broker + Forage + compaction + vault
+
 </Update>
 
 <Update label="June 4" description="Leash — the on-device assistant" tags={["Leash", "Senses"]}>
@@ -229,8 +259,9 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   paper refactor, a GGML image-classification auto-tagger, read-aloud pause/restart controls, and
   a fix to stop the Bare runtime from crashing the client bundle.
 
-  `4501ba0` Leash on-device assistant · `8ef7bb4` image auto-tagger · `2a1f9a0` read-aloud
-  pause/restart · `52dc38d` stop Bare crashing the bundle
+`4501ba0` Leash on-device assistant · `8ef7bb4` image auto-tagger · `2a1f9a0` read-aloud
+pause/restart · `52dc38d` stop Bare crashing the bundle
+
 </Update>
 
 <Update label="June 3" description="The Understory + SDK 0.12 multimedia" tags={["Senses", "Understory"]}>
@@ -238,8 +269,9 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   0.11 → 0.12 with new model-constant shims, and the media stack landed: Flux2-klein hero art,
   on-device TTS read-aloud, and Parakeet diarization.
 
-  `ef15a9b` Understory newspaper · `445d532` SDK 0.11→0.12 · `5a586fc` Flux2-klein hero art ·
-  `fb8095c` on-device TTS · `b2deef6` Parakeet diarization
+`ef15a9b` Understory newspaper · `445d532` SDK 0.11→0.12 · `5a586fc` Flux2-klein hero art ·
+`fb8095c` on-device TTS · `b2deef6` Parakeet diarization
+
 </Update>
 
 <Update label="June 2" description="Capability gossip, failover & on-device OCR" tags={["Mesh", "Senses"]}>
@@ -247,8 +279,9 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   and a blind-pairing allow-list. On-device OCR was proven and wired: an image directory becomes
   retrievable `kind:photo` nodes, with the detector + recognizer warm-cached for offline use.
 
-  `d1551d4` capability gossip · `866b81f` failover selection · `29bb9af` blind-pairing allow-list ·
-  `3241d9b` OCR spike GO · `ef7914b` photo OCR connector · `7951322` senses:photo gate
+`d1551d4` capability gossip · `866b81f` failover selection · `29bb9af` blind-pairing allow-list ·
+`3241d9b` OCR spike GO · `ef7914b` photo OCR connector · `7951322` senses:photo gate
+
 </Update>
 
 <Update label="June 1" description="Week-1 vertical slice + CRDT mesh" tags={["Senses", "Mind", "Mesh"]}>
@@ -258,14 +291,16 @@ Filter by tag, or pair this page with the public [Hackathon overview](/hackathon
   Autobase + Hyperbee with blind-pairing graph sync, incremental embed-delta, and a hub/edge
   pair-replicate path.
 
-  `f5fba27` search_graph loop · `01c8456` GraphStore + RAG · `32d951a` 2-model council ·
-  `fac0880` delegated council over P2P · `673ec1a` voice STT · `d5f618d` merge week-1 slice ·
-  `54c4ebb` MeshGraph over Autobase · `dd174d1` edge pair + replicate · `64cb9e7` merge CRDT sync
+`f5fba27` search_graph loop · `01c8456` GraphStore + RAG · `32d951a` 2-model council ·
+`fac0880` delegated council over P2P · `673ec1a` voice STT · `d5f618d` merge week-1 slice ·
+`54c4ebb` MeshGraph over Autobase · `dd174d1` edge pair + replicate · `64cb9e7` merge CRDT sync
+
 </Update>
 
 <Update label="May 31" description="Spike — all four primitives GO" tags={["Spike"]}>
   The de-risking spike. Proved on-device inference + embeddings, on-device RAG, encrypted P2P
   delegated compute, and on-device LoRA — all real, all GO. Codebase then cleaned to real-only.
 
-  `2b69868` scaffold + spike · `1a61f7d` all four primitives GO · `90853cb` clean to real-only
+`2b69868` scaffold + spike · `1a61f7d` all four primitives GO · `90853cb` clean to real-only
+
 </Update>
