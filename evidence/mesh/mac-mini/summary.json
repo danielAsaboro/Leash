@@ -1,0 +1,33 @@
+{
+  "totalEvents": 445,
+  "firstTs": "2026-06-01T03:46:36.299Z",
+  "lastTs": "2026-06-09T22:42:21.979Z",
+  "countsByEvent": {
+    "graph_sync": 117,
+    "pairing": 60,
+    "capability": 42,
+    "unknown": 8,
+    "model_load": 53,
+    "rag_ingest": 18,
+    "delegation": 26,
+    "completion": 36,
+    "rag_search": 11,
+    "note": 32,
+    "model_unload": 42
+  },
+  "countsBySource": {
+    "allowlist-smoke-hub": 16,
+    "mesh-smoke-edge": 9,
+    "mesh-smoke-hub": 9,
+    "registry-smoke-edge": 8,
+    "registry-smoke-hub": 14,
+    "data/notes/mesh-setup.md": 2,
+    "data/notes/preferences.md": 2,
+    "data/notes/project.md": 2,
+    "data/voice/dani-backup-memo.wav": 2,
+    "edge-append": 1,
+    "edge-node": 155,
+    "hub": 225
+  },
+  "parseErrors": []
+}

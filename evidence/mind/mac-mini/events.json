@@ -1,0 +1,2604 @@
+[
+  {
+    "stream": "council-graph",
+    "id": "17a90097-b5a1-4aa7-af90-9345f58063e4",
+    "ts": "2026-06-20T10:07:37.314Z",
+    "kind": "file",
+    "source": "spike/fixtures/notes/mesh-setup.md",
+    "text": "# Dani's Mycelium mesh — setup notes\n\nDani runs a four-device personal mesh codenamed \"Hollowood\".\n\n- The hub is a Mac mini called **Sporangium**. It hosts the delegated-inference\n  provider and runs the nightly LoRA. Its provider seed is rotated every Sunday.\n- The secondary compute node is a MacBook Pro called **Hypha**.\n- The always-on edge node is a Raspberry Pi 5 called **Rhizo**. Rhizo runs the\n  `QWEN3_600M_INST_Q4` model because anything larger overheats its passive case.\n- The phone is an iPhone called **Conidia**; it is a delegated-compute consumer\n  and the primary sensor (camera + microphone).\n\nDani's rule of thumb: the Pi never runs a model above 1B parameters, and the Mac\nmini is the only device allowed to fine-tune adapters."
+  },
+  {
+    "stream": "council-graph",
+    "id": "95a1152d-39a7-4cf6-ba11-4eb6e25437c3",
+    "ts": "2026-06-20T10:07:37.315Z",
+    "kind": "file",
+    "source": "spike/fixtures/notes/preferences.md",
+    "text": "# Dani's preferences\n\n- Dani prefers answers that lead with the bottom line first, then the reasoning.\n- Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings.\n- Dani is vegetarian and allergic to walnuts; recipe suggestions must avoid both.\n- Dani's working hours are 06:00–14:00; schedule heavy compute (like the nightly\n  LoRA) for 02:00 when every device is idle and charging.\n- When Dani says \"the usual\", they mean a flat white with oat milk."
+  },
+  {
+    "stream": "council-graph",
+    "id": "8f8a225c-ff78-42b7-8d38-ee3a9069655d",
+    "ts": "2026-06-20T10:07:37.316Z",
+    "kind": "file",
+    "source": "spike/fixtures/notes/project.md",
+    "text": "# Project Mycelium — facts\n\nMycelium is a private, offline, end-to-end-encrypted exocortex across a device\nmesh. It is built entirely on the QVAC SDK and submitted to QVAC Hackathon I.\n\n- The closed loop is Senses → Mind → Memory → sharper Senses.\n- The \"council\" is 2–4 small models with the roles proposer, critic, specialist,\n  and verifier, debating with tool-calling over a RAG-grounded context graph.\n- The demo's mic-drop moment is putting every device in airplane mode and showing\n  it keeps sensing, reasoning, and learning.\n- The project license is Apache-2.0."
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:19.768Z",
+    "source": "medpsy-demo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:20.125Z",
+    "source": "medpsy-demo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 10,
+    "durationMs": 357,
+    "extra": {
+      "workspace": "mycelium-health-records",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:23.789Z",
+    "source": "medpsy-demo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "MEDGEMMA_4B_IT_Q4_1",
+      "src": "registry://hf/unsloth/medgemma-4b-it-GGUF/blob/fa17ea2647ef236db91adfe1465a61ab6562cf2c/medgemma-4b-it-Q4_1.gguf",
+      "registryPath": "unsloth/medgemma-4b-it-GGUF/blob/fa17ea2647ef236db91adfe1465a61ab6562cf2c/medgemma-4b-it-Q4_1.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 66566,
+      "blobBlockLength": 39125,
+      "blobByteOffset": 4362105144,
+      "modelId": "medgemma-4b-it-Q4_1.gguf",
+      "expectedSize": 2564052800,
+      "sha256Checksum": "8e1a72c5dc9e89cde340114ad1d7915686b16bcb6fef1372a2c3ee564fb721e0",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_1",
+      "params": "4B"
+    },
+    "modelId": "2cad8908d106037e"
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:23.818Z",
+    "source": "medpsy-demo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 28,
+    "extra": {
+      "workspace": "mycelium-health-records",
+      "query": "What were my most recent cholesterol numbers, are they improving, and should I be worried?",
+      "topK": 5,
+      "scores": [
+        0.6736257130215817,
+        0.6108494372136506,
+        0.6046863575275581
+      ]
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:29.474Z",
+    "source": "medpsy-demo",
+    "event": "completion",
+    "modelId": "2cad8908d106037e",
+    "tokens": 218,
+    "extra": {
+      "role": "medpsy-proposer",
+      "sources": 3
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:30.690Z",
+    "source": "medpsy-demo",
+    "event": "completion",
+    "modelId": "2cad8908d106037e",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:30.690Z",
+    "source": "medpsy-demo",
+    "event": "note",
+    "extra": {
+      "phase": "medpsy",
+      "cited": true,
+      "verdict": "pass",
+      "redFlag": false,
+      "disclaimerAppended": false,
+      "sources": 3
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:30.713Z",
+    "source": "medpsy-demo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-health-records",
+      "query": "I've had crushing chest pain and shortness of breath for the last 20 minutes — what should I do?",
+      "topK": 5,
+      "scores": [
+        0.6391564097166629,
+        0.5910489787545107,
+        0.5485633395213976
+      ]
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:32.026Z",
+    "source": "medpsy-demo",
+    "event": "completion",
+    "modelId": "2cad8908d106037e",
+    "tokens": 37,
+    "extra": {
+      "role": "medpsy-proposer",
+      "sources": 3
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:32.835Z",
+    "source": "medpsy-demo",
+    "event": "completion",
+    "modelId": "2cad8908d106037e",
+    "extra": {
+      "role": "verifier",
+      "verdict": "revise"
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:32.836Z",
+    "source": "medpsy-demo",
+    "event": "note",
+    "extra": {
+      "phase": "medpsy",
+      "cited": false,
+      "verdict": "revise",
+      "redFlag": true,
+      "disclaimerAppended": false,
+      "sources": 3
+    }
+  },
+  {
+    "stream": "medpsy-demo",
+    "ts": "2026-06-17T09:10:32.890Z",
+    "source": "medpsy-demo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "medpsy-graph",
+    "id": "02e926c9-cebf-4d2f-a11f-e8553c26a7a4",
+    "ts": "2026-06-17T09:10:17.334Z",
+    "kind": "file",
+    "source": "health-records/history-and-sleep.md",
+    "text": "# Personal health history & sleep notes\n\n## History\n- Hypertension — diagnosed 2024-10, managed with lisinopril (see medications).\n- Vitamin D deficiency — 2025; on D3 supplementation, recheck due late 2026.\n- Appendectomy — 2016, no complications.\n- No diabetes; most recent HbA1c (2025-09) was 5.4% (normal).\n\n## Family history\n- Father: high cholesterol, heart attack at 61.\n- Mother: hypothyroidism.\n\n## Sleep journal (self-tracked, last 4 weeks)\n- Average ~6 h 10 min/night, target 7 h 30 min. Frequent late screen time.\n- Caffeine after 4pm correlates with the worst nights in the log.\n- Dr. Okafor flagged the short sleep as worth addressing — it can affect both blood\n  pressure and weight. Plan: no caffeine after 2pm, wind-down routine, reassess in a month."
+  },
+  {
+    "stream": "medpsy-graph",
+    "id": "f8d6d0af-54f4-4e4e-91c9-140e62023d97",
+    "ts": "2026-06-17T09:10:17.335Z",
+    "kind": "file",
+    "source": "health-records/lipid-panel-2026-03.md",
+    "text": "# Lab result — Lipid panel (fasting)\n\nCollected: 2026-03-14. Ordered by Dr. Okafor (primary care). Lab: Meridian Diagnostics.\n\n| Analyte | Result | Reference range | Flag |\n|---|---|---|---|\n| Total cholesterol | 214 mg/dL | < 200 | High |\n| LDL cholesterol | 139 mg/dL | < 100 (optimal) | High |\n| HDL cholesterol | 48 mg/dL | > 40 | Normal |\n| Triglycerides | 156 mg/dL | < 150 | Borderline high |\n\nPrior panel (2025-09-02): total 228, LDL 151, HDL 45, triglycerides 180. So total\ncholesterol and LDL are both **down** versus six months ago, but LDL is still above\nthe optimal target. Dr. Okafor's note: \"continue dietary changes; recheck in 6 months;\ndiscuss statin only if LDL stays > 130 at next draw.\""
+  },
+  {
+    "stream": "medpsy-graph",
+    "id": "f9e221b1-2c6a-4307-8c39-1a29b5e3ce1c",
+    "ts": "2026-06-17T09:10:17.335Z",
+    "kind": "file",
+    "source": "health-records/medications-and-allergies.md",
+    "text": "# Medications & allergies (current)\n\nLast reviewed: 2026-03-14 with Dr. Okafor.\n\n## Current medications\n- **Lisinopril 10 mg** — once daily, morning. For blood pressure. Started 2024-11.\n- **Vitamin D3 2000 IU** — once daily. For a documented deficiency (see 2025 labs).\n- **Cetirizine 10 mg** — as needed for seasonal allergies (spring).\n\n## Allergies\n- **Penicillin** — hives + facial swelling as a child. Recorded as a true allergy; avoid\n  penicillin-class antibiotics. Use alternatives (e.g. a macrolide) per clinician.\n- **No known food allergies.**\n\n## Notes\n- No NSAIDs (ibuprofen/naproxen) on a regular basis — Dr. Okafor advised caution given\n  blood-pressure management; prefer acetaminophen for routine pain."
+  },
+  {
+    "stream": "medpsy-graph",
+    "id": "7159139d-3a84-447f-baa2-ae7ece99baa7",
+    "ts": "2026-06-17T09:10:17.335Z",
+    "kind": "file",
+    "source": "health-records/visit-2026-02-bp.md",
+    "text": "# Visit summary — Primary care, 2026-02-20\n\nProvider: Dr. Okafor. Reason: routine blood-pressure follow-up.\n\n## Vitals\n- Blood pressure: **128/82 mmHg** (seated, right arm). Home log average over the prior\n  two weeks: 126/80. Improved from 138/88 at the 2025-08 visit.\n- Heart rate: 68 bpm, regular.\n- Weight: 81.2 kg (down 2.4 kg since August). BMI 25.1.\n\n## Assessment & plan\n- Hypertension, well controlled on lisinopril 10 mg. Continue current dose.\n- Reinforced low-sodium diet and 30 min brisk walking 5×/week — the BP and weight trend\n  are responding; keep going.\n- Lipids to be rechecked in March (see the March lipid panel).\n- Next BP review in 6 months unless home readings exceed 140/90."
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:08.194Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:08.612Z",
+    "source": "mind-council",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 417,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:13.121Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:30.435Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 38,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 1
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:30.479Z",
+    "source": "mind-council",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 37,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:37.552Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 52,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 0
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:42.604Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:42.605Z",
+    "source": "mind-council",
+    "event": "note",
+    "extra": {
+      "phase": "council",
+      "cited": true,
+      "verdict": "pass",
+      "baselineCorrect": false,
+      "councilCorrect": true
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:42.646Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:43.693Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:43.799Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d",
+    "prompt": "What is 2 + 2?",
+    "tokens": 8,
+    "ttftMs": 20,
+    "tokensPerSecond": 177.42686686331479,
+    "extra": {
+      "role": "trivial"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:43.819Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T03:28:43.847Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:22.577Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:22.971Z",
+    "source": "mind-council",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 393,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:27.415Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:43.443Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 38,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 1
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:43.480Z",
+    "source": "mind-council",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 36,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:49.438Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 52,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 0
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:54.792Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:54.794Z",
+    "source": "mind-council",
+    "event": "note",
+    "extra": {
+      "phase": "council",
+      "cited": true,
+      "verdict": "pass",
+      "baselineCorrect": false,
+      "councilCorrect": true
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:54.851Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:56.219Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:56.326Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d",
+    "prompt": "What is 2 + 2?",
+    "tokens": 8,
+    "ttftMs": 26,
+    "tokensPerSecond": 143.5569831499991,
+    "extra": {
+      "role": "trivial"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:56.351Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T04:22:56.370Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:10.871Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:11.141Z",
+    "source": "mind-council",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 261,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:14.953Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:31.899Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 38,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 1
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:31.928Z",
+    "source": "mind-council",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:37.684Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 50,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 0
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:43.138Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:43.140Z",
+    "source": "mind-council",
+    "event": "note",
+    "extra": {
+      "phase": "council",
+      "cited": true,
+      "verdict": "pass",
+      "baselineCorrect": false,
+      "councilCorrect": true
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:43.186Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:44.275Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:44.382Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d",
+    "prompt": "What is 2 + 2?",
+    "tokens": 8,
+    "ttftMs": 24,
+    "tokensPerSecond": 171.8360683907552,
+    "extra": {
+      "role": "trivial"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:44.400Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-01T07:34:44.419Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:22:27.301Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:22:27.697Z",
+    "source": "mind-council",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 393,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:22:34.232Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:22:51.423Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 38,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 1
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:22:51.458Z",
+    "source": "mind-council",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 32,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:22:57.760Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 52,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 0
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:02.765Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:02.767Z",
+    "source": "mind-council",
+    "event": "note",
+    "extra": {
+      "phase": "council",
+      "cited": true,
+      "verdict": "pass",
+      "baselineCorrect": false,
+      "councilCorrect": true
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:02.827Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:03.947Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:04.053Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d",
+    "prompt": "What is 2 + 2?",
+    "tokens": 8,
+    "ttftMs": 21,
+    "tokensPerSecond": 168.97957459392094,
+    "extra": {
+      "role": "trivial"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:04.073Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-02T09:23:04.094Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:34:15.256Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:34:15.918Z",
+    "source": "mind-council",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 661,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:34:22.401Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:34:47.968Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 38,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 1
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:34:48.050Z",
+    "source": "mind-council",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 72,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.7679102484372887,
+        0.7590659534009219,
+        0.688229824194651
+      ]
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:34:55.574Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 52,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 0
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:02.261Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:02.264Z",
+    "source": "mind-council",
+    "event": "note",
+    "extra": {
+      "phase": "council",
+      "cited": true,
+      "verdict": "pass",
+      "baselineCorrect": false,
+      "councilCorrect": true
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:02.340Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:03.855Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:04.165Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d",
+    "prompt": "What is 2 + 2?",
+    "tokens": 8,
+    "ttftMs": 222,
+    "tokensPerSecond": 141.8993224307354,
+    "extra": {
+      "role": "trivial"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:04.195Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-03T20:35:04.225Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:38.962Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:39.197Z",
+    "source": "mind-council",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 4,
+    "durationMs": 233,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "added": 3,
+      "changed": 0,
+      "deleted": 0,
+      "unchanged": 0,
+      "chunksSaved": 4,
+      "chunksDeleted": 0,
+      "reindexed": false
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:42.331Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:49.907Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 32,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 1
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:49.936Z",
+    "source": "mind-council",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 28,
+    "extra": {
+      "workspace": "mycelium-council-smoke",
+      "topK": 3,
+      "returned": 3,
+      "topScore": 0.8241675962705081
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:53.372Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "tokens": 89,
+    "extra": {
+      "role": "proposer",
+      "toolCalls": 0
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:55.090Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelId": "140889a05c50d00f",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:55.091Z",
+    "source": "mind-council",
+    "event": "note",
+    "extra": {
+      "phase": "council",
+      "cited": true,
+      "verdict": "pass",
+      "baselineCorrect": false,
+      "councilCorrect": true
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:55.122Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:56.099Z",
+    "source": "mind-council",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:56.306Z",
+    "source": "mind-council",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d",
+    "prompt": "What is 2 + 2?",
+    "tokens": 8,
+    "ttftMs": 36,
+    "tokensPerSecond": 115.55683952043911,
+    "extra": {
+      "role": "trivial"
+    }
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:56.329Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "QWEN3_600M_INST_Q4",
+      "src": "registry://hf/unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registryPath": "unsloth/Qwen3-0.6B-GGUF/blob/50968a4468ef4233ed78cd7c3de230dd1d61a56b/Qwen3-0.6B-Q4_0.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 380426,
+      "blobBlockLength": 5832,
+      "blobByteOffset": 24929383097,
+      "modelId": "Qwen3-0.6B-Q4_0.gguf",
+      "expectedSize": 382156480,
+      "sha256Checksum": "33bcc57074ec7b6eada5a90651ee546ec0c2b271002c22baf9f1b2dd1e8f75cb",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4",
+      "params": "600M"
+    },
+    "modelId": "cbda813268f1b27d"
+  },
+  {
+    "stream": "mind-council",
+    "ts": "2026-06-20T10:07:56.354Z",
+    "source": "mind-council",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:03:52.159Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:04:35.803Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "LLAMA_TOOL_CALLING_1B_INST_Q4_K",
+      "src": "registry://hf/mav23/Llama_3.2_1B_Intruct_Tool_Calling_V2-GGUF/blob/main/llama_3.2_1b_intruct_tool_calling_v2.Q4_K.gguf",
+      "registryPath": "mav23/Llama_3.2_1B_Intruct_Tool_Calling_V2-GGUF/blob/main/llama_3.2_1b_intruct_tool_calling_v2.Q4_K.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 529475,
+      "blobBlockLength": 12325,
+      "blobByteOffset": 34696195331,
+      "modelId": "llama_3.2_1b_intruct_tool_calling_v2.Q4_K.gguf",
+      "expectedSize": 807691648,
+      "sha256Checksum": "406bd5983096cc49e1019e9c295e1b011d7b17ccae9e066266eb1734a4743bf7",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_k",
+      "params": "1B"
+    },
+    "modelId": "c60e0fc047c6ef2c"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:04:38.285Z",
+    "source": "mind-smoke",
+    "event": "note",
+    "extra": {
+      "error": "Error: proposer emitted no search_graph tool call under any dialect — tool-calling loop FAILED"
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:05:47.331Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:05:49.568Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "LLAMA_TOOL_CALLING_1B_INST_Q4_K",
+      "src": "registry://hf/mav23/Llama_3.2_1B_Intruct_Tool_Calling_V2-GGUF/blob/main/llama_3.2_1b_intruct_tool_calling_v2.Q4_K.gguf",
+      "registryPath": "mav23/Llama_3.2_1B_Intruct_Tool_Calling_V2-GGUF/blob/main/llama_3.2_1b_intruct_tool_calling_v2.Q4_K.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 529475,
+      "blobBlockLength": 12325,
+      "blobByteOffset": 34696195331,
+      "modelId": "llama_3.2_1b_intruct_tool_calling_v2.Q4_K.gguf",
+      "expectedSize": 807691648,
+      "sha256Checksum": "406bd5983096cc49e1019e9c295e1b011d7b17ccae9e066266eb1734a4743bf7",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_k",
+      "params": "1B"
+    },
+    "modelId": "c60e0fc047c6ef2c"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:05:51.630Z",
+    "source": "mind-smoke",
+    "event": "note",
+    "extra": {
+      "error": "Error: proposer emitted no search_graph tool call under any dialect — tool-calling loop FAILED"
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:13:37.748Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:13:42.423Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:13:45.303Z",
+    "source": "mind-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 33,
+    "extra": {
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-01T03:13:49.956Z",
+    "source": "mind-smoke",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f",
+    "prompt": "Which model does Dani run on the Raspberry Pi node, and why?",
+    "tokens": 47,
+    "extra": {
+      "role": "proposer",
+      "cited": true,
+      "namesCorrectModel": true,
+      "sources": 3
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:57:48.342Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:57:52.852Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:57:56.224Z",
+    "source": "mind-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:58:00.167Z",
+    "source": "mind-smoke",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f",
+    "prompt": "Which model does Dani run on the Raspberry Pi node, and why?",
+    "tokens": 45,
+    "extra": {
+      "role": "proposer",
+      "cited": true,
+      "namesCorrectModel": true,
+      "sources": 3
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:59:18.702Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:59:22.606Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:59:26.496Z",
+    "source": "mind-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 35,
+    "extra": {
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-02T21:59:31.544Z",
+    "source": "mind-smoke",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f",
+    "prompt": "Which model does Dani run on the Raspberry Pi node, and why?",
+    "tokens": 52,
+    "extra": {
+      "role": "proposer",
+      "cited": true,
+      "namesCorrectModel": true,
+      "sources": 3
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-09T22:43:38.987Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-09T22:43:47.117Z",
+    "source": "mind-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f"
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-09T22:43:50.880Z",
+    "source": "mind-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 606,
+    "extra": {
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.7679102484372887,
+        0.7590659534009219,
+        0.688229824194651
+      ]
+    }
+  },
+  {
+    "stream": "mind-smoke",
+    "ts": "2026-06-09T22:43:55.156Z",
+    "source": "mind-smoke",
+    "event": "completion",
+    "modelSrc": {
+      "name": "QWEN3_4B_INST_Q4_K_M",
+      "src": "registry://s3/qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registryPath": "qvac_models_compiled/ggml/Qwen3-4B/2025-06-27/Qwen3-4B-Q4_K_M.gguf",
+      "registrySource": "s3",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 28460,
+      "blobBlockLength": 38106,
+      "blobByteOffset": 1864824888,
+      "modelId": "Qwen3-4B-Q4_K_M.gguf",
+      "expectedSize": 2497280256,
+      "sha256Checksum": "7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5",
+      "addon": "llm",
+      "engine": "llamacpp-completion",
+      "quantization": "q4_K_M",
+      "params": "4B"
+    },
+    "modelId": "140889a05c50d00f",
+    "prompt": "Which model does Dani run on the Raspberry Pi node, and why?",
+    "tokens": 47,
+    "extra": {
+      "role": "proposer",
+      "cited": true,
+      "namesCorrectModel": true,
+      "sources": 3
+    }
+  }
+]

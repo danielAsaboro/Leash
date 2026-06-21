@@ -1,0 +1,2010 @@
+[
+  {
+    "stream": "data/personal-graph",
+    "id": "f5427310-dedb-4cd1-aa95-e0727a3e3066",
+    "ts": "2026-06-03T12:15:45.366Z",
+    "kind": "file",
+    "source": "data/notes/mesh-setup.md",
+    "text": "# Dani's Mycelium mesh — setup notes\n\nDani runs a four-device personal mesh codenamed \"Hollowood\".\n\n- The hub is a Mac mini called **Sporangium**. It hosts the delegated-inference\n  provider and runs the nightly LoRA. Its provider seed is rotated every Sunday.\n- The secondary compute node is a MacBook Pro called **Hypha**.\n- The always-on edge node is a Raspberry Pi 5 called **Rhizo**. Rhizo runs the\n  `QWEN3_600M_INST_Q4` model because anything larger overheats its passive case.\n- The phone is an iPhone called **Conidia**; it is a delegated-compute consumer\n  and the primary sensor (camera + microphone).\n\nDani's rule of thumb: the Pi never runs a model above 1B parameters, and the Mac\nmini is the only device allowed to fine-tune adapters."
+  },
+  {
+    "stream": "data/personal-graph",
+    "id": "fa800d20-ee69-419c-8a38-502d1fb0b791",
+    "ts": "2026-06-03T12:15:45.366Z",
+    "kind": "file",
+    "source": "data/notes/preferences.md",
+    "text": "# Dani's preferences\n\n- Dani prefers answers that lead with the bottom line first, then the reasoning.\n- Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings.\n- Dani is vegetarian and allergic to walnuts; recipe suggestions must avoid both.\n- Dani's working hours are 06:00–14:00; schedule heavy compute (like the nightly\n  LoRA) for 02:00 when every device is idle and charging.\n- When Dani says \"the usual\", they mean a flat white with oat milk."
+  },
+  {
+    "stream": "data/personal-graph",
+    "id": "ddf8660d-1e82-477d-98eb-ae939110a642",
+    "ts": "2026-06-03T12:15:45.367Z",
+    "kind": "file",
+    "source": "data/notes/project.md",
+    "text": "# Project Mycelium — facts\n\nMycelium is a private, offline, end-to-end-encrypted exocortex across a device\nmesh. It is built entirely on the QVAC SDK and submitted to QVAC Hackathon I.\n\n- The closed loop is Senses → Mind → Memory → sharper Senses.\n- The \"council\" is 2–4 small models with the roles proposer, critic, specialist,\n  and verifier, debating with tool-calling over a RAG-grounded context graph.\n- The demo's mic-drop moment is putting every device in airplane mode and showing\n  it keeps sensing, reasoning, and learning.\n- The project license is Apache-2.0."
+  },
+  {
+    "stream": "data/personal-graph",
+    "id": "4e3ad5af-df20-43e0-9c90-86aee5cd7e47",
+    "ts": "2026-06-03T12:15:45.781Z",
+    "kind": "voice",
+    "source": "data/voice/dani-backup-memo.wav",
+    "text": "Voice memo from Danny, the emergency backup battery on the Raspberry Pi lasts 12 hours.",
+    "meta": {
+      "transcribed": true
+    }
+  },
+  {
+    "stream": "data/personal-graph",
+    "id": "fd17efdb-2b49-4ff5-bc88-7b7a33ff0fe6",
+    "ts": "2026-06-03T12:15:47.487Z",
+    "kind": "photo",
+    "source": "data/photos/calibration-card.png",
+    "text": "Greenhouse calibration card The greenhouse sensor was last calibrated on 2026-05-28 Reference batch QV-2026-0601",
+    "meta": {
+      "ocr": true
+    }
+  },
+  {
+    "stream": "logs/flux-test",
+    "ts": "2026-06-03T20:47:08.555Z",
+    "source": "flux-test",
+    "event": "model_load",
+    "modelSrc": "FLUX_2_KLEIN_4B_Q4_0",
+    "modelId": "8c2eee45418d338f",
+    "extra": {
+      "role": "diffusion",
+      "engine": "flux2-klein"
+    }
+  },
+  {
+    "stream": "logs/flux-test",
+    "ts": "2026-06-03T20:50:58.079Z",
+    "source": "flux-test",
+    "event": "note",
+    "durationMs": 229514,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy158yq0000e11c7pt5afxt",
+      "bytes": 1035730
+    }
+  },
+  {
+    "stream": "logs/flux-verify",
+    "ts": "2026-06-03T21:06:13.872Z",
+    "source": "flux-verify",
+    "event": "model_load",
+    "modelSrc": "FLUX_2_KLEIN_4B_Q4_0",
+    "modelId": "8c2eee45418d338f",
+    "extra": {
+      "role": "diffusion",
+      "engine": "flux2-klein"
+    }
+  },
+  {
+    "stream": "logs/flux-verify",
+    "ts": "2026-06-03T21:07:07.233Z",
+    "source": "flux-verify",
+    "event": "note",
+    "durationMs": 53346,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy158yq0000e11c7pt5afxt",
+      "bytes": 1045140
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:28.784Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:33.491Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:43.730Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:45.361Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:45.781Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 414,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:47.487Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 1705,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:47.502Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:47.545Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:48.982Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 1,
+    "durationMs": 451,
+    "extra": {
+      "workspace": "understory-cmpy158yq0000e11c7pt5afxt",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:49.011Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 24,
+    "extra": {
+      "workspace": "understory-cmpy158yq0000e11c7pt5afxt",
+      "query": "DeepSeek to Make Permanent 75% Discount on Flagship AI Model",
+      "topK": 1,
+      "scores": [
+        0.8113854867385777
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:15:58.118Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 135,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:16:00.261Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:16:09.410Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 152,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:19:47.891Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "SD_V2_1_1B_Q8_0",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:21:35.199Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 107306,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy158yq0000e11c7pt5afxt",
+      "bytes": 1127385
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:21:35.862Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 646,
+    "extra": {
+      "workspace": "understory-cmpy15cgs0002e11cv39358ke",
+      "nodes": 5
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:21:35.892Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 24,
+    "extra": {
+      "workspace": "understory-cmpy15cgs0002e11cv39358ke",
+      "query": "Your private brief for 2026-06-03",
+      "topK": 5,
+      "scores": [
+        0.5853005291192822,
+        0.5807790100875861,
+        0.5373921562382067
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:22:02.339Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 341,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:22:07.201Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:22:24.765Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 243,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:24:11.083Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 106307,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy15cgs0002e11cv39358ke",
+      "bytes": 1102827
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:24:11.127Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:24:11.187Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:24:11.305Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:37:34.369Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:37:38.241Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:37:44.857Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 4,
+    "durationMs": 608,
+    "extra": {
+      "workspace": "understory-cmpy1xjbj0000e1gs3joc77wa",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:37:44.885Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "understory-cmpy1xjbj0000e1gs3joc77wa",
+      "query": "Models.dev: open-source database of AI model specs, pricing, and capabilities",
+      "topK": 1,
+      "scores": [
+        0.8698113295838815
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:38:01.358Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 235,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:38:08.874Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:38:24.132Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 193,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:38:30.897Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "SD_V2_1_1B_Q8_0",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:40:08.946Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 98047,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy1xjbj0000e1gs3joc77wa",
+      "bytes": 1087263
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:42:04.515Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T12:42:08.184Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:29.213Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:34.671Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:41.821Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:43.421Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:43.442Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:43.477Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:44.973Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 3,
+    "durationMs": 503,
+    "extra": {
+      "workspace": "understory-cmpyaputh0000e10evhqmjc1d",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:43:45.006Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 28,
+    "extra": {
+      "workspace": "understory-cmpyaputh0000e10evhqmjc1d",
+      "query": "Arena AI Model ELO History",
+      "topK": 1,
+      "scores": [
+        0.8683771876482671
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:44:05.641Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 251,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:44:15.049Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:44:35.750Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 218,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:44:47.655Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "SD_V2_1_1B_Q8_0",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:47:14.274Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 146618,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpyaputh0000e10evhqmjc1d",
+      "bytes": 1032885
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:47:15.355Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 1,
+    "durationMs": 199,
+    "extra": {
+      "workspace": "understory-cmpyaputm0002e10exks2f367",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:47:15.403Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 29,
+    "extra": {
+      "workspace": "understory-cmpyaputm0002e10exks2f367",
+      "query": "Google Chrome silently installs 4 GB Gemini Nano AI model without consent",
+      "topK": 1,
+      "scores": [
+        0.8290525843955472
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:47:25.139Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 137,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:47:27.063Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:47:39.572Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 190,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:50:10.404Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 150821,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpyaputm0002e10exks2f367",
+      "bytes": 1135975
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:50:10.973Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 546,
+    "extra": {
+      "workspace": "understory-cmpyapwqf0004e10eq8gmnhh0",
+      "nodes": 5
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:50:11.012Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 29,
+    "extra": {
+      "workspace": "understory-cmpyapwqf0004e10eq8gmnhh0",
+      "query": "Your private brief for 2026-06-01",
+      "topK": 5,
+      "scores": [
+        0.5829953769955651,
+        0.5787617344604187,
+        0.5403321495486675
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:50:27.787Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 156,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:50:32.435Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:50:59.162Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 289,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:23.797Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 144630,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpyapwqf0004e10eq8gmnhh0",
+      "bytes": 1118820
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:23.828Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:23.890Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:24.010Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:29.357Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:33.745Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:35.772Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:37.592Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:37.613Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:37.740Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:40.020Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 4,
+    "durationMs": 1306,
+    "extra": {
+      "workspace": "understory-cmpyb2l480000e1jozf1a0r0m",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:53:40.055Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 30,
+    "extra": {
+      "workspace": "understory-cmpyb2l480000e1jozf1a0r0m",
+      "query": "Google Chrome silently installs a 4 GB AI model on your device without consent",
+      "topK": 1,
+      "scores": [
+        0.8744643135504416
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:54:01.311Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 195,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:54:10.713Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:54:38.803Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 249,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:54:43.766Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "SD_V2_1_1B_Q8_0",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:57:17.726Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 153959,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpyb2l480000e1jozf1a0r0m",
+      "bytes": 934782
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:57:19.198Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 4,
+    "durationMs": 423,
+    "extra": {
+      "workspace": "understory-cmpyb2l4f0002e1jo50pqt24w",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:57:19.226Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "understory-cmpyb2l4f0002e1jo50pqt24w",
+      "query": "US summons bank bosses over cyber risks from Anthropic's latest AI model",
+      "topK": 1,
+      "scores": [
+        0.8918066054967531
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:57:44.837Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 208,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:57:54.908Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T16:58:11.999Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 194,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:00:35.477Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 143474,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpyb2l4f0002e1jo50pqt24w",
+      "bytes": 1153072
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:00:35.910Z",
+    "source": "newsroom",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 392,
+    "extra": {
+      "workspace": "understory-cmpyb2n9q0004e1jo307vadp8",
+      "nodes": 5
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:00:35.938Z",
+    "source": "newsroom",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 20,
+    "extra": {
+      "workspace": "understory-cmpyb2n9q0004e1jo307vadp8",
+      "query": "Your private brief for 2026-06-02",
+      "topK": 5,
+      "scores": [
+        0.5872156444514168,
+        0.5826163972376731,
+        0.5379121399289869
+      ]
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:00:59.221Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 211,
+    "extra": {
+      "role": "drafter"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:01:03.674Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "verifier",
+      "verdict": "pass"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:01:31.170Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 304,
+    "extra": {
+      "role": "critic"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:03:36.348Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 125172,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpyb2n9q0004e1jo307vadp8",
+      "bytes": 1105094
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:03:36.377Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:03:36.420Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T17:03:36.479Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "e4292300149f0eb3",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:09:10.124Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:09:15.102Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:09:47.220Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "FLUX_2_KLEIN_4B_Q4_0",
+    "modelId": "8c2eee45418d338f",
+    "extra": {
+      "role": "diffusion",
+      "engine": "flux2-klein"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:09:53.453Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 17,
+    "extra": {
+      "role": "hero-subject"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:10:49.805Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 56352,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy158yq0000e11c7pt5afxt",
+      "bytes": 1068725
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:10:49.898Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:10:50.005Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:10:50.211Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "8c2eee45418d338f",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:12:04.811Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:12:09.733Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "QWEN3_4B_INST_Q4_K_M",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:12:42.879Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": "FLUX_2_KLEIN_4B_Q4_0",
+    "modelId": "8c2eee45418d338f",
+    "extra": {
+      "role": "diffusion",
+      "engine": "flux2-klein"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:12:48.510Z",
+    "source": "newsroom",
+    "event": "completion",
+    "modelId": "ed8b55c638cfbc11",
+    "tokens": 21,
+    "extra": {
+      "role": "hero-subject"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:13:40.170Z",
+    "source": "newsroom",
+    "event": "note",
+    "durationMs": 51659,
+    "extra": {
+      "role": "diffusion",
+      "articleId": "cmpy158yq0000e11c7pt5afxt",
+      "bytes": 1063377
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:13:40.206Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:13:40.253Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "ed8b55c638cfbc11",
+    "extra": {
+      "role": "council"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-03T21:13:40.421Z",
+    "source": "newsroom",
+    "event": "model_unload",
+    "modelId": "8c2eee45418d338f",
+    "extra": {
+      "role": "diffusion"
+    }
+  },
+  {
+    "stream": "logs/newsroom",
+    "ts": "2026-06-05T16:08:08.127Z",
+    "source": "newsroom",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "logs/tts-verify",
+    "ts": "2026-06-03T21:26:53.673Z",
+    "source": "tts-verify",
+    "event": "model_load",
+    "modelSrc": "TTS_EN_SUPERTONIC_Q8_0",
+    "modelId": "b2bba0a2bc01ebce"
+  },
+  {
+    "stream": "logs/tts-verify",
+    "ts": "2026-06-03T21:26:55.760Z",
+    "source": "tts-verify",
+    "event": "note",
+    "durationMs": 2084,
+    "extra": {
+      "role": "tts",
+      "outPath": "/Volumes/Development/qvac/mycelium/apps/web/public/audio/cmpy158yq0000e11c7pt5afxt.wav",
+      "chars": 537,
+      "samples": 1420407
+    }
+  }
+]

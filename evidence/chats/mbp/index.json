@@ -1,0 +1,1933 @@
+{
+  "chatCount": 192,
+  "messageCount": 1122,
+  "firstTs": "2026-06-04T11:26:29.366Z",
+  "lastTs": "2026-06-21T07:50:59.207Z",
+  "roles": {
+    "user": 561,
+    "assistant": 561
+  },
+  "parseErrors": [],
+  "chats": [
+    {
+      "id": "KW9I2LoSuEUCP6L0",
+      "createdAt": "2026-06-04T11:26:29.366Z",
+      "updatedAt": "2026-06-04T11:26:29.366Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "3C2oEuk1ZIkOIekB",
+      "createdAt": "2026-06-04T11:43:50.802Z",
+      "updatedAt": "2026-06-04T11:57:08.002Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "vis-e2e",
+      "createdAt": "2026-06-04T16:30:14.363Z",
+      "updatedAt": "2026-06-04T16:30:14.363Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "Q7PVw0TFhVjkvHrd",
+      "createdAt": "2026-06-04T17:59:45.884Z",
+      "updatedAt": "2026-06-04T17:59:45.884Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "otSdYdwCnkncns1w",
+      "createdAt": "2026-06-04T18:00:28.637Z",
+      "updatedAt": "2026-06-04T18:01:10.665Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "QCEtAoyK0qDPes18",
+      "createdAt": "2026-06-04T22:36:00.289Z",
+      "updatedAt": "2026-06-05T06:00:52.299Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "KeyW4cUs24un4pC3",
+      "createdAt": "2026-06-05T06:04:47.082Z",
+      "updatedAt": "2026-06-05T06:11:06.741Z",
+      "messageCount": 8,
+      "roles": {
+        "user": 4,
+        "assistant": 4
+      }
+    },
+    {
+      "id": "verif-quick-v",
+      "createdAt": "2026-06-05T06:45:20.649Z",
+      "updatedAt": "2026-06-05T06:45:20.649Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "v-std",
+      "createdAt": "2026-06-05T06:46:07.574Z",
+      "updatedAt": "2026-06-05T06:46:07.574Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "O4bUeWGvG4jwyXU2",
+      "createdAt": "2026-06-05T07:04:45.341Z",
+      "updatedAt": "2026-06-05T07:11:00.539Z",
+      "messageCount": 12,
+      "roles": {
+        "user": 6,
+        "assistant": 6
+      }
+    },
+    {
+      "id": "voice-verify-1",
+      "createdAt": "2026-06-05T07:46:20.733Z",
+      "updatedAt": "2026-06-05T07:46:20.733Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "fMUncOW7pyweb7qo",
+      "createdAt": "2026-06-05T08:09:18.760Z",
+      "updatedAt": "2026-06-05T08:11:20.793Z",
+      "messageCount": 10,
+      "roles": {
+        "user": 5,
+        "assistant": 5
+      }
+    },
+    {
+      "id": "cnTwnYx4vNLyyXFO",
+      "createdAt": "2026-06-05T08:13:44.559Z",
+      "updatedAt": "2026-06-05T08:13:44.559Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "K1Tbx0CAETGk7GMg",
+      "createdAt": "2026-06-05T09:21:17.958Z",
+      "updatedAt": "2026-06-05T09:26:34.165Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "abort-test-1",
+      "createdAt": "2026-06-05T09:36:42.118Z",
+      "updatedAt": "2026-06-05T09:40:45.176Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "recovery-check-1",
+      "createdAt": "2026-06-05T09:49:19.821Z",
+      "updatedAt": "2026-06-05T09:49:19.821Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "p3-verify",
+      "createdAt": "2026-06-05T11:42:31.186Z",
+      "updatedAt": "2026-06-05T11:45:47.675Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "WkuBWMCmnhCnUzQQ",
+      "createdAt": "2026-06-05T21:46:25.024Z",
+      "updatedAt": "2026-06-05T21:46:25.024Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "mPlAT4ED7ybCvGoV",
+      "createdAt": "2026-06-05T22:46:34.138Z",
+      "updatedAt": "2026-06-05T22:47:53.282Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "KkpdSuuXjKHwCBHV",
+      "createdAt": "2026-06-05T22:54:01.972Z",
+      "updatedAt": "2026-06-05T22:55:37.884Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "N22Q7GDH3WfFCfeW",
+      "createdAt": "2026-06-05T22:56:30.696Z",
+      "updatedAt": "2026-06-05T22:57:48.535Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "verify-agent1",
+      "createdAt": "2026-06-07T15:57:00.567Z",
+      "updatedAt": "2026-06-07T16:39:08.899Z",
+      "messageCount": 8,
+      "roles": {
+        "user": 4,
+        "assistant": 4
+      }
+    },
+    {
+      "id": "verify-agent2",
+      "createdAt": "2026-06-07T15:59:20.780Z",
+      "updatedAt": "2026-06-07T15:59:20.780Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "verify-agent3",
+      "createdAt": "2026-06-07T16:00:39.660Z",
+      "updatedAt": "2026-06-07T16:06:43.571Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "mcp-chat-test-7",
+      "createdAt": "2026-06-12T11:26:02.329Z",
+      "updatedAt": "2026-06-12T11:28:25.911Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781269006406",
+      "createdAt": "2026-06-12T12:59:55.851Z",
+      "updatedAt": "2026-06-12T12:59:55.851Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781281182278",
+      "createdAt": "2026-06-12T16:22:01.937Z",
+      "updatedAt": "2026-06-12T16:22:01.937Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781281321984",
+      "createdAt": "2026-06-12T16:22:53.344Z",
+      "updatedAt": "2026-06-12T16:22:53.344Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781281373392",
+      "createdAt": "2026-06-12T16:23:42.800Z",
+      "updatedAt": "2026-06-12T16:23:42.800Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781281677231",
+      "createdAt": "2026-06-12T16:29:21.481Z",
+      "updatedAt": "2026-06-12T16:29:21.481Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781281861846",
+      "createdAt": "2026-06-12T16:32:09.127Z",
+      "updatedAt": "2026-06-12T16:32:09.127Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "spin-mcp-1781281929175",
+      "createdAt": "2026-06-12T16:33:06.838Z",
+      "updatedAt": "2026-06-12T16:33:06.838Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "loop-probe-1781294320334",
+      "createdAt": "2026-06-12T20:00:27.865Z",
+      "updatedAt": "2026-06-12T20:00:27.865Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "loop-probe-1781294693248",
+      "createdAt": "2026-06-12T20:07:31.676Z",
+      "updatedAt": "2026-06-12T20:07:31.676Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "automatch-1781301412641",
+      "createdAt": "2026-06-12T21:57:46.277Z",
+      "updatedAt": "2026-06-12T21:57:46.277Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "0w7fIgz6BLtsdhSx",
+      "createdAt": "2026-06-13T00:57:32.106Z",
+      "updatedAt": "2026-06-13T00:57:32.106Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "tdJqhxgrEfPIiJEV",
+      "createdAt": "2026-06-14T15:21:22.288Z",
+      "updatedAt": "2026-06-14T15:21:22.288Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "VBZVznqzTMQznaKp",
+      "createdAt": "2026-06-16T15:55:37.645Z",
+      "updatedAt": "2026-06-16T16:01:29.992Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-smoke-hi-auth2",
+      "createdAt": "2026-06-19T17:32:20.574Z",
+      "updatedAt": "2026-06-19T17:32:20.574Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-hi-live",
+      "createdAt": "2026-06-19T17:33:20.775Z",
+      "updatedAt": "2026-06-19T17:33:20.775Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-hi-fixed",
+      "createdAt": "2026-06-19T17:40:59.573Z",
+      "updatedAt": "2026-06-19T17:40:59.573Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-hi-available-prompt",
+      "createdAt": "2026-06-19T17:44:03.695Z",
+      "updatedAt": "2026-06-19T17:44:03.695Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-hi-local-only",
+      "createdAt": "2026-06-19T17:56:00.440Z",
+      "updatedAt": "2026-06-19T17:56:00.440Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-hi-nothink-live",
+      "createdAt": "2026-06-19T17:59:54.993Z",
+      "updatedAt": "2026-06-19T17:59:54.993Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-search-nothink-live",
+      "createdAt": "2026-06-19T18:00:08.416Z",
+      "updatedAt": "2026-06-19T18:00:08.416Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-hi-8k-prompt-webfirst",
+      "createdAt": "2026-06-19T18:07:04.775Z",
+      "updatedAt": "2026-06-19T18:07:04.775Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-search-8k-prompt-webfirst",
+      "createdAt": "2026-06-19T18:07:24.546Z",
+      "updatedAt": "2026-06-19T18:07:24.546Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-override-medpsy-8k",
+      "createdAt": "2026-06-19T18:07:52.127Z",
+      "updatedAt": "2026-06-19T18:07:52.127Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ttft-hi",
+      "createdAt": "2026-06-19T18:09:52.634Z",
+      "updatedAt": "2026-06-19T18:09:52.634Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ttft-search",
+      "createdAt": "2026-06-19T18:10:04.653Z",
+      "updatedAt": "2026-06-19T18:10:04.653Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-mesh-router-hi",
+      "createdAt": "2026-06-19T18:24:40.804Z",
+      "updatedAt": "2026-06-19T18:24:40.804Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-mesh-router-notes-2",
+      "createdAt": "2026-06-19T18:26:07.079Z",
+      "updatedAt": "2026-06-19T18:26:07.079Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-mesh-router-medpsy",
+      "createdAt": "2026-06-19T18:27:10.928Z",
+      "updatedAt": "2026-06-19T18:27:10.928Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-mesh-router-notes-3",
+      "createdAt": "2026-06-19T18:28:45.072Z",
+      "updatedAt": "2026-06-19T18:28:45.072Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-conductor-hi",
+      "createdAt": "2026-06-19T18:53:52.600Z",
+      "updatedAt": "2026-06-19T18:53:52.600Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-conductor-notes",
+      "createdAt": "2026-06-19T18:54:23.481Z",
+      "updatedAt": "2026-06-19T18:54:23.481Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-smoke-conductor-notes2",
+      "createdAt": "2026-06-19T18:55:21.330Z",
+      "updatedAt": "2026-06-19T18:55:21.330Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-orchestration-e2e",
+      "createdAt": "2026-06-20T03:20:53.627Z",
+      "updatedAt": "2026-06-20T03:20:53.627Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-orchestration-e2e-final",
+      "createdAt": "2026-06-20T03:23:11.234Z",
+      "updatedAt": "2026-06-20T03:23:11.234Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-chat-gauntlet-mqlt1267",
+      "createdAt": "2026-06-20T03:35:19.116Z",
+      "updatedAt": "2026-06-20T03:35:40.133Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-apple-notes-smoke",
+      "createdAt": "2026-06-20T04:03:41.422Z",
+      "updatedAt": "2026-06-20T04:03:41.422Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-smoke-2",
+      "createdAt": "2026-06-20T04:05:04.334Z",
+      "updatedAt": "2026-06-20T04:05:04.334Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-smoke-3",
+      "createdAt": "2026-06-20T04:08:44.559Z",
+      "updatedAt": "2026-06-20T04:08:44.559Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-smoke-4",
+      "createdAt": "2026-06-20T04:11:42.590Z",
+      "updatedAt": "2026-06-20T04:11:42.590Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-chat-gauntlet-mqlud9dh",
+      "createdAt": "2026-06-20T04:12:45.895Z",
+      "updatedAt": "2026-06-20T04:13:07.112Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-apple-notes-real-search",
+      "createdAt": "2026-06-20T04:18:19.779Z",
+      "updatedAt": "2026-06-20T04:18:19.779Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-real-search-2",
+      "createdAt": "2026-06-20T04:20:11.547Z",
+      "updatedAt": "2026-06-20T04:20:11.547Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-write-smoke",
+      "createdAt": "2026-06-20T04:21:10.792Z",
+      "updatedAt": "2026-06-20T04:22:26.792Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-write-smoke-2",
+      "createdAt": "2026-06-20T04:23:21.778Z",
+      "updatedAt": "2026-06-20T04:24:16.373Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-created-search",
+      "createdAt": "2026-06-20T04:25:34.964Z",
+      "updatedAt": "2026-06-20T04:25:34.964Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-hi-after-qvac-restart",
+      "createdAt": "2026-06-20T04:30:19.555Z",
+      "updatedAt": "2026-06-20T04:30:19.555Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-update-smoke-2",
+      "createdAt": "2026-06-20T04:31:06.340Z",
+      "updatedAt": "2026-06-20T04:32:17.338Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-readback-smoke",
+      "createdAt": "2026-06-20T04:36:28.659Z",
+      "updatedAt": "2026-06-20T04:36:28.659Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-ui-smoke",
+      "createdAt": "2026-06-20T04:43:21.530Z",
+      "updatedAt": "2026-06-20T04:43:21.530Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-link-smoke",
+      "createdAt": "2026-06-20T05:00:13.172Z",
+      "updatedAt": "2026-06-20T05:00:13.172Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-link-smoke-2",
+      "createdAt": "2026-06-20T05:03:33.036Z",
+      "updatedAt": "2026-06-20T05:03:33.036Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-apple-notes-link-smoke-3",
+      "createdAt": "2026-06-20T05:05:42.575Z",
+      "updatedAt": "2026-06-20T05:05:42.575Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm691tz-short-greeting",
+      "createdAt": "2026-06-20T09:45:07.465Z",
+      "updatedAt": "2026-06-20T09:45:07.465Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm69cbl-short-greeting",
+      "createdAt": "2026-06-20T09:45:21.029Z",
+      "updatedAt": "2026-06-20T09:45:21.029Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6awnz-short-greeting",
+      "createdAt": "2026-06-20T09:46:34.351Z",
+      "updatedAt": "2026-06-20T09:46:34.351Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6axgv-general-small-talk",
+      "createdAt": "2026-06-20T09:46:43.249Z",
+      "updatedAt": "2026-06-20T09:46:43.249Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6e064-short-greeting",
+      "createdAt": "2026-06-20T09:48:58.596Z",
+      "updatedAt": "2026-06-20T09:48:58.596Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6e0ro-general-small-talk",
+      "createdAt": "2026-06-20T09:49:07.162Z",
+      "updatedAt": "2026-06-20T09:49:07.162Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6fp2g-short-greeting",
+      "createdAt": "2026-06-20T09:50:17.478Z",
+      "updatedAt": "2026-06-20T09:50:17.478Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6fpmv-general-small-talk",
+      "createdAt": "2026-06-20T09:50:18.674Z",
+      "updatedAt": "2026-06-20T09:50:18.674Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6fqk1-computer",
+      "createdAt": "2026-06-20T09:50:41.077Z",
+      "updatedAt": "2026-06-20T09:50:41.077Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6g7ua-context",
+      "createdAt": "2026-06-20T09:50:47.689Z",
+      "updatedAt": "2026-06-20T09:50:47.689Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6gcxx-daily-paper",
+      "createdAt": "2026-06-20T09:50:50.307Z",
+      "updatedAt": "2026-06-20T09:50:50.307Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6geyo-research",
+      "createdAt": "2026-06-20T09:50:58.289Z",
+      "updatedAt": "2026-06-20T09:50:58.289Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6gl4f-file-finder",
+      "createdAt": "2026-06-20T09:51:09.666Z",
+      "updatedAt": "2026-06-20T09:51:09.666Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6gtwg-health-metadata-example",
+      "createdAt": "2026-06-20T09:51:16.489Z",
+      "updatedAt": "2026-06-20T09:51:16.489Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6gz5z-image-generation",
+      "createdAt": "2026-06-20T09:51:23.318Z",
+      "updatedAt": "2026-06-20T09:51:23.318Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6h4fn-mcp-install",
+      "createdAt": "2026-06-20T09:51:30.894Z",
+      "updatedAt": "2026-06-20T09:51:30.894Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6haa4-memory",
+      "createdAt": "2026-06-20T09:51:38.421Z",
+      "updatedAt": "2026-06-20T09:51:38.421Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6hg36-photo-finder",
+      "createdAt": "2026-06-20T09:51:46.345Z",
+      "updatedAt": "2026-06-20T09:51:46.345Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6hm7b-smart-home",
+      "createdAt": "2026-06-20T09:51:48.679Z",
+      "updatedAt": "2026-06-20T09:51:48.679Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm6ho05-task-manager",
+      "createdAt": "2026-06-20T09:51:56.513Z",
+      "updatedAt": "2026-06-20T09:51:56.513Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-chat-gauntlet-mqm77k72",
+      "createdAt": "2026-06-20T10:13:02.386Z",
+      "updatedAt": "2026-06-20T10:13:43.840Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-chat-gauntlet-mqm7d6ti",
+      "createdAt": "2026-06-20T10:16:55.917Z",
+      "updatedAt": "2026-06-20T10:17:17.218Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-computer-gauntlet-1781951700",
+      "createdAt": "2026-06-20T10:35:44.467Z",
+      "updatedAt": "2026-06-20T10:46:45.515Z",
+      "messageCount": 8,
+      "roles": {
+        "user": 4,
+        "assistant": 4
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm95n92-short-greeting",
+      "createdAt": "2026-06-20T11:06:28.194Z",
+      "updatedAt": "2026-06-20T11:06:28.194Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm95of6-general-small-talk",
+      "createdAt": "2026-06-20T11:06:36.453Z",
+      "updatedAt": "2026-06-20T11:06:36.453Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm95ush-computer",
+      "createdAt": "2026-06-20T11:07:00.317Z",
+      "updatedAt": "2026-06-20T11:07:00.317Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm96d7c-context",
+      "createdAt": "2026-06-20T11:07:07.376Z",
+      "updatedAt": "2026-06-20T11:07:07.376Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm96inh-daily-paper",
+      "createdAt": "2026-06-20T11:07:14.916Z",
+      "updatedAt": "2026-06-20T11:07:14.916Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm96ogx-research",
+      "createdAt": "2026-06-20T11:07:22.380Z",
+      "updatedAt": "2026-06-20T11:07:22.380Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm96u84-file-finder",
+      "createdAt": "2026-06-20T11:07:29.922Z",
+      "updatedAt": "2026-06-20T11:07:29.922Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm9701q-health-metadata-example",
+      "createdAt": "2026-06-20T11:07:37.055Z",
+      "updatedAt": "2026-06-20T11:07:37.055Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm975jw-image-generation",
+      "createdAt": "2026-06-20T11:07:43.690Z",
+      "updatedAt": "2026-06-20T11:07:43.690Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm97ao7-mcp-install",
+      "createdAt": "2026-06-20T11:07:51.519Z",
+      "updatedAt": "2026-06-20T11:07:51.519Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm97gpo-memory",
+      "createdAt": "2026-06-20T11:07:59.148Z",
+      "updatedAt": "2026-06-20T11:07:59.148Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm97mlk-photo-finder",
+      "createdAt": "2026-06-20T11:08:01.971Z",
+      "updatedAt": "2026-06-20T11:08:01.971Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm97os0-smart-home",
+      "createdAt": "2026-06-20T11:08:09.166Z",
+      "updatedAt": "2026-06-20T11:08:09.166Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqm97ubu-task-manager",
+      "createdAt": "2026-06-20T11:08:16.098Z",
+      "updatedAt": "2026-06-20T11:08:16.098Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-chat-gauntlet-mqm99xc6",
+      "createdAt": "2026-06-20T11:10:19.002Z",
+      "updatedAt": "2026-06-20T11:10:40.179Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-ocu-stress-mqm9c3bl",
+      "createdAt": "2026-06-20T11:11:43.483Z",
+      "updatedAt": "2026-06-20T11:11:43.483Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-stress-mqm9dck0",
+      "createdAt": "2026-06-20T11:12:46.024Z",
+      "updatedAt": "2026-06-20T11:12:46.024Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqm9ecva",
+      "createdAt": "2026-06-20T11:13:38.401Z",
+      "updatedAt": "2026-06-20T11:15:04.516Z",
+      "messageCount": 10,
+      "roles": {
+        "user": 5,
+        "assistant": 5
+      }
+    },
+    {
+      "id": "codex-ocu-list-mqm9ejkb",
+      "createdAt": "2026-06-20T11:13:47.812Z",
+      "updatedAt": "2026-06-20T11:13:47.812Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-main-mqm9gonx",
+      "createdAt": "2026-06-20T11:15:03.287Z",
+      "updatedAt": "2026-06-20T11:15:03.287Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-main-mqm9kjkt",
+      "createdAt": "2026-06-20T11:18:07.303Z",
+      "updatedAt": "2026-06-20T11:18:07.303Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqm9kg0d",
+      "createdAt": "2026-06-20T11:18:14.619Z",
+      "updatedAt": "2026-06-20T11:31:09.864Z",
+      "messageCount": 42,
+      "roles": {
+        "user": 21,
+        "assistant": 21
+      }
+    },
+    {
+      "id": "codex-ocu-main-mqm9lvvp",
+      "createdAt": "2026-06-20T11:19:49.251Z",
+      "updatedAt": "2026-06-20T11:19:49.251Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-state-mqm9n7ai",
+      "createdAt": "2026-06-20T11:21:12.562Z",
+      "updatedAt": "2026-06-20T11:21:12.562Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-approval-mqm9p3rx",
+      "createdAt": "2026-06-20T11:22:07.259Z",
+      "updatedAt": "2026-06-20T11:22:07.259Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-approval-mqm9rz19",
+      "createdAt": "2026-06-20T11:24:05.525Z",
+      "updatedAt": "2026-06-20T11:24:50.669Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-approved-mqm9tuie",
+      "createdAt": "2026-06-20T11:25:39.394Z",
+      "updatedAt": "2026-06-20T11:26:49.965Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-browser-mqm9wfck",
+      "createdAt": "2026-06-20T11:28:24.556Z",
+      "updatedAt": "2026-06-20T11:28:24.556Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-chat-gauntlet-mqma56vs",
+      "createdAt": "2026-06-20T11:34:33.950Z",
+      "updatedAt": "2026-06-20T11:34:57.843Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-focused-run-skill-1781955262",
+      "createdAt": "2026-06-20T11:35:51.616Z",
+      "updatedAt": "2026-06-20T11:35:51.616Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-agent-mqma7uh6",
+      "createdAt": "2026-06-20T11:36:51.326Z",
+      "updatedAt": "2026-06-20T11:36:51.326Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-ocu-agent-forced-mqma9mea",
+      "createdAt": "2026-06-20T11:37:48.522Z",
+      "updatedAt": "2026-06-20T11:37:48.522Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-agent-boundary-mqmacwhm",
+      "createdAt": "2026-06-20T11:40:20.060Z",
+      "updatedAt": "2026-06-20T11:40:20.060Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmad54u",
+      "createdAt": "2026-06-20T11:40:40.683Z",
+      "updatedAt": "2026-06-20T11:51:24.883Z",
+      "messageCount": 16,
+      "roles": {
+        "user": 8,
+        "assistant": 8
+      }
+    },
+    {
+      "id": "codex-agent-only-mqmado93",
+      "createdAt": "2026-06-20T11:40:48.862Z",
+      "updatedAt": "2026-06-20T11:40:48.862Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmanoh1-short-greeting",
+      "createdAt": "2026-06-20T11:49:02.597Z",
+      "updatedAt": "2026-06-20T11:49:02.597Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmaofet-general-small-talk",
+      "createdAt": "2026-06-20T11:49:05.642Z",
+      "updatedAt": "2026-06-20T11:49:05.642Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmaohr7-computer",
+      "createdAt": "2026-06-20T11:49:08.200Z",
+      "updatedAt": "2026-06-20T11:49:08.200Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmaojqc-context",
+      "createdAt": "2026-06-20T11:49:32.014Z",
+      "updatedAt": "2026-06-20T11:49:32.014Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmap23v-daily-paper",
+      "createdAt": "2026-06-20T11:49:48.737Z",
+      "updatedAt": "2026-06-20T11:49:48.737Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmapf0f-research",
+      "createdAt": "2026-06-20T11:49:58.901Z",
+      "updatedAt": "2026-06-20T11:49:58.901Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmapmuq-file-finder",
+      "createdAt": "2026-06-20T11:50:01.340Z",
+      "updatedAt": "2026-06-20T11:50:01.340Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmapoqh-health-metadata-example",
+      "createdAt": "2026-06-20T11:50:03.470Z",
+      "updatedAt": "2026-06-20T11:50:03.470Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmapqdm-image-generation",
+      "createdAt": "2026-06-20T11:50:11.061Z",
+      "updatedAt": "2026-06-20T11:50:11.061Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmapw8i-mcp-install",
+      "createdAt": "2026-06-20T11:50:13.739Z",
+      "updatedAt": "2026-06-20T11:50:13.739Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmapyav-memory",
+      "createdAt": "2026-06-20T11:50:16.119Z",
+      "updatedAt": "2026-06-20T11:50:16.119Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmaq04y-photo-finder",
+      "createdAt": "2026-06-20T11:50:21.513Z",
+      "updatedAt": "2026-06-20T11:50:21.513Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmaq4au-smart-home",
+      "createdAt": "2026-06-20T11:50:32.380Z",
+      "updatedAt": "2026-06-20T11:50:32.380Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-route-mqmaqcoo-task-manager",
+      "createdAt": "2026-06-20T11:50:40.624Z",
+      "updatedAt": "2026-06-20T11:50:40.624Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmasv7x",
+      "createdAt": "2026-06-20T11:53:19.676Z",
+      "updatedAt": "2026-06-20T11:58:41.576Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-skill-verify-toolchoice-none",
+      "createdAt": "2026-06-20T12:05:21.339Z",
+      "updatedAt": "2026-06-20T12:05:21.339Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-verify-capped",
+      "createdAt": "2026-06-20T12:09:39.827Z",
+      "updatedAt": "2026-06-20T12:09:39.827Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-skill-verify-files-default",
+      "createdAt": "2026-06-20T12:16:08.670Z",
+      "updatedAt": "2026-06-20T12:16:08.670Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmbnko5",
+      "createdAt": "2026-06-20T12:42:06.699Z",
+      "updatedAt": "2026-06-20T12:42:06.699Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmcobz3",
+      "createdAt": "2026-06-20T12:48:57.185Z",
+      "updatedAt": "2026-06-20T12:53:58.524Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmd0t77",
+      "createdAt": "2026-06-20T12:59:20.443Z",
+      "updatedAt": "2026-06-20T13:04:51.499Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-quick-lean-tools",
+      "createdAt": "2026-06-20T13:07:46.989Z",
+      "updatedAt": "2026-06-20T13:07:46.989Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmdskgq",
+      "createdAt": "2026-06-20T13:20:55.449Z",
+      "updatedAt": "2026-06-20T13:51:09.690Z",
+      "messageCount": 60,
+      "roles": {
+        "user": 30,
+        "assistant": 30
+      }
+    },
+    {
+      "id": "codex-file-finder-probe-mqmh47iw",
+      "createdAt": "2026-06-20T14:51:50.582Z",
+      "updatedAt": "2026-06-20T14:51:50.582Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-file-finder-probe-mqmh7qqr",
+      "createdAt": "2026-06-20T15:09:04.825Z",
+      "updatedAt": "2026-06-20T15:09:04.825Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-file-finder-probe-mqmhw53b",
+      "createdAt": "2026-06-20T15:11:01.893Z",
+      "updatedAt": "2026-06-20T15:11:01.893Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmizxe6",
+      "createdAt": "2026-06-20T15:43:37.602Z",
+      "updatedAt": "2026-06-20T15:43:37.602Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmj6dng",
+      "createdAt": "2026-06-20T15:48:41.134Z",
+      "updatedAt": "2026-06-20T15:49:51.388Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmjfte3",
+      "createdAt": "2026-06-20T15:54:21.826Z",
+      "updatedAt": "2026-06-20T15:54:22.529Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmjhgce",
+      "createdAt": "2026-06-20T15:55:33.793Z",
+      "updatedAt": "2026-06-20T15:57:35.080Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmjliqx",
+      "createdAt": "2026-06-20T15:58:44.866Z",
+      "updatedAt": "2026-06-20T16:02:24.985Z",
+      "messageCount": 8,
+      "roles": {
+        "user": 4,
+        "assistant": 4
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmjtkck",
+      "createdAt": "2026-06-20T16:05:01.302Z",
+      "updatedAt": "2026-06-20T16:08:57.349Z",
+      "messageCount": 14,
+      "roles": {
+        "user": 7,
+        "assistant": 7
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmk2lyv",
+      "createdAt": "2026-06-20T16:12:01.454Z",
+      "updatedAt": "2026-06-20T16:15:08.510Z",
+      "messageCount": 60,
+      "roles": {
+        "user": 30,
+        "assistant": 30
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmm275n",
+      "createdAt": "2026-06-20T17:07:42.485Z",
+      "updatedAt": "2026-06-20T17:07:59.928Z",
+      "messageCount": 60,
+      "roles": {
+        "user": 30,
+        "assistant": 30
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmm4nhn",
+      "createdAt": "2026-06-20T17:09:35.615Z",
+      "updatedAt": "2026-06-20T17:09:42.271Z",
+      "messageCount": 60,
+      "roles": {
+        "user": 30,
+        "assistant": 30
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmm592x",
+      "createdAt": "2026-06-20T17:10:03.343Z",
+      "updatedAt": "2026-06-20T17:10:10.182Z",
+      "messageCount": 100,
+      "roles": {
+        "user": 50,
+        "assistant": 50
+      }
+    },
+    {
+      "id": "codex-long-chat-mqmm8twb",
+      "createdAt": "2026-06-20T17:12:52.040Z",
+      "updatedAt": "2026-06-20T17:13:06.018Z",
+      "messageCount": 100,
+      "roles": {
+        "user": 50,
+        "assistant": 50
+      }
+    },
+    {
+      "id": "codex-resilience-noqvac",
+      "createdAt": "2026-06-20T17:17:31.457Z",
+      "updatedAt": "2026-06-20T17:17:31.457Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-resilience-noqvac-general",
+      "createdAt": "2026-06-20T17:17:54.903Z",
+      "updatedAt": "2026-06-20T17:17:54.903Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmve2qj",
+      "createdAt": "2026-06-20T21:28:52.433Z",
+      "updatedAt": "2026-06-20T21:28:52.486Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmvg9vz",
+      "createdAt": "2026-06-20T21:30:37.335Z",
+      "updatedAt": "2026-06-20T21:33:12.814Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmvlqzp",
+      "createdAt": "2026-06-20T21:35:11.846Z",
+      "updatedAt": "2026-06-20T21:43:11.890Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmwwe4i",
+      "createdAt": "2026-06-20T22:11:07.612Z",
+      "updatedAt": "2026-06-20T22:11:07.854Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmwzi74",
+      "createdAt": "2026-06-20T22:13:42.410Z",
+      "updatedAt": "2026-06-20T22:19:15.631Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmxa9hn",
+      "createdAt": "2026-06-20T22:21:57.695Z",
+      "updatedAt": "2026-06-20T22:21:57.960Z",
+      "messageCount": 6,
+      "roles": {
+        "user": 3,
+        "assistant": 3
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmxcjy1",
+      "createdAt": "2026-06-20T22:31:28.565Z",
+      "updatedAt": "2026-06-20T22:31:28.565Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-clueless-gauntlet-mqmxoviu",
+      "createdAt": "2026-06-20T22:38:00.385Z",
+      "updatedAt": "2026-06-20T22:38:00.385Z",
+      "messageCount": 2,
+      "roles": {
+        "user": 1,
+        "assistant": 1
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqmydtue",
+      "createdAt": "2026-06-20T22:52:42.576Z",
+      "updatedAt": "2026-06-20T22:52:55.152Z",
+      "messageCount": 22,
+      "roles": {
+        "user": 11,
+        "assistant": 11
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqmz046y",
+      "createdAt": "2026-06-20T23:09:58.737Z",
+      "updatedAt": "2026-06-20T23:16:00.256Z",
+      "messageCount": 10,
+      "roles": {
+        "user": 5,
+        "assistant": 5
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqn0qlxq",
+      "createdAt": "2026-06-20T23:58:36.179Z",
+      "updatedAt": "2026-06-21T00:01:12.438Z",
+      "messageCount": 18,
+      "roles": {
+        "user": 9,
+        "assistant": 9
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqn0w4jr",
+      "createdAt": "2026-06-21T00:04:42.145Z",
+      "updatedAt": "2026-06-21T00:05:50.238Z",
+      "messageCount": 10,
+      "roles": {
+        "user": 5,
+        "assistant": 5
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqnf4lf9",
+      "createdAt": "2026-06-21T06:41:30.774Z",
+      "updatedAt": "2026-06-21T06:45:58.991Z",
+      "messageCount": 18,
+      "roles": {
+        "user": 9,
+        "assistant": 9
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqnfbzeh",
+      "createdAt": "2026-06-21T06:47:15.820Z",
+      "updatedAt": "2026-06-21T06:50:50.720Z",
+      "messageCount": 18,
+      "roles": {
+        "user": 9,
+        "assistant": 9
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqnfk0rt",
+      "createdAt": "2026-06-21T06:53:30.493Z",
+      "updatedAt": "2026-06-21T07:03:06.694Z",
+      "messageCount": 12,
+      "roles": {
+        "user": 6,
+        "assistant": 6
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqnfxyzs",
+      "createdAt": "2026-06-21T07:05:49.379Z",
+      "updatedAt": "2026-06-21T07:05:57.558Z",
+      "messageCount": 4,
+      "roles": {
+        "user": 2,
+        "assistant": 2
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqnh6av0",
+      "createdAt": "2026-06-21T07:38:59.136Z",
+      "updatedAt": "2026-06-21T07:47:47.889Z",
+      "messageCount": 16,
+      "roles": {
+        "user": 8,
+        "assistant": 8
+      }
+    },
+    {
+      "id": "codex-multiorch-showcase-mqnhm3nc",
+      "createdAt": "2026-06-21T07:50:59.207Z",
+      "updatedAt": "2026-06-21T07:58:05.814Z",
+      "messageCount": 10,
+      "roles": {
+        "user": 5,
+        "assistant": 5
+      }
+    }
+  ]
+}

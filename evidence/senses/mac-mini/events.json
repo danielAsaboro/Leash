@@ -1,0 +1,4459 @@
+[
+  {
+    "stream": "classify-graph",
+    "id": "35bf3a41-63d3-460c-9971-b5c6708b0528",
+    "ts": "2026-06-04T04:30:12.908Z",
+    "kind": "photo",
+    "source": "data/photos/calibration-card.png",
+    "text": "Greenhouse calibration card The greenhouse sensor was last calibrated on 2026-05-28 Reference batch QV-2026-0601",
+    "meta": {
+      "ocr": true,
+      "classification": "other",
+      "classConfidence": 0.7499528527259827,
+      "isDocument": false
+    }
+  },
+  {
+    "stream": "diarize-graph",
+    "id": "e7c40e18-b3b4-4072-9e9c-86fc3f6727f1",
+    "ts": "2026-06-03T21:35:45.881Z",
+    "kind": "voice",
+    "source": "data/voice/standup-2spk.wav",
+    "text": "Speaker 0: Hey, quick update on the greenhouse mesh.\nSpeaker 1: Go ahead, I am listening.\nSpeaker 0: The Raspberry Pi node runs the small Quen model, and the backup battery lasts 12 hours.\nSpeaker 1: Good, I will note that the sensor was recalibrated last week.",
+    "meta": {
+      "diarized": true,
+      "speakers": 2,
+      "segments": [
+        {
+          "speaker": 0,
+          "start": 0,
+          "end": 2.8,
+          "text": "Hey, quick update on the greenhouse mesh."
+        },
+        {
+          "speaker": 1,
+          "start": 2.8,
+          "end": 4.48,
+          "text": "Go ahead, I am listening."
+        },
+        {
+          "speaker": 0,
+          "start": 4.48,
+          "end": 9.76,
+          "text": "The Raspberry Pi node runs the small Quen model, and the backup battery lasts 12 hours."
+        },
+        {
+          "speaker": 1,
+          "start": 9.76,
+          "end": 13.28,
+          "text": "Good, I will note that the sensor was recalibrated last week."
+        }
+      ]
+    }
+  },
+  {
+    "stream": "graph-smoke",
+    "id": "0b8fe71e-762f-4faa-9e2f-74e0a729e0e8",
+    "ts": "2026-06-20T10:07:29.779Z",
+    "kind": "file",
+    "source": "spike/fixtures/notes/mesh-setup.md",
+    "text": "# Dani's Mycelium mesh — setup notes\n\nDani runs a four-device personal mesh codenamed \"Hollowood\".\n\n- The hub is a Mac mini called **Sporangium**. It hosts the delegated-inference\n  provider and runs the nightly LoRA. Its provider seed is rotated every Sunday.\n- The secondary compute node is a MacBook Pro called **Hypha**.\n- The always-on edge node is a Raspberry Pi 5 called **Rhizo**. Rhizo runs the\n  `QWEN3_600M_INST_Q4` model because anything larger overheats its passive case.\n- The phone is an iPhone called **Conidia**; it is a delegated-compute consumer\n  and the primary sensor (camera + microphone).\n\nDani's rule of thumb: the Pi never runs a model above 1B parameters, and the Mac\nmini is the only device allowed to fine-tune adapters."
+  },
+  {
+    "stream": "graph-smoke",
+    "id": "d02d5601-f976-43f8-9660-81937fdadb80",
+    "ts": "2026-06-20T10:07:29.780Z",
+    "kind": "file",
+    "source": "spike/fixtures/notes/preferences.md",
+    "text": "# Dani's preferences\n\n- Dani prefers answers that lead with the bottom line first, then the reasoning.\n- Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings.\n- Dani is vegetarian and allergic to walnuts; recipe suggestions must avoid both.\n- Dani's working hours are 06:00–14:00; schedule heavy compute (like the nightly\n  LoRA) for 02:00 when every device is idle and charging.\n- When Dani says \"the usual\", they mean a flat white with oat milk."
+  },
+  {
+    "stream": "graph-smoke",
+    "id": "8c8ceca2-734f-4eb1-8b51-d892f9b43ed5",
+    "ts": "2026-06-20T10:07:29.780Z",
+    "kind": "file",
+    "source": "spike/fixtures/notes/project.md",
+    "text": "# Project Mycelium — facts\n\nMycelium is a private, offline, end-to-end-encrypted exocortex across a device\nmesh. It is built entirely on the QVAC SDK and submitted to QVAC Hackathon I.\n\n- The closed loop is Senses → Mind → Memory → sharper Senses.\n- The \"council\" is 2–4 small models with the roles proposer, critic, specialist,\n  and verifier, debating with tool-calling over a RAG-grounded context graph.\n- The demo's mic-drop moment is putting every device in airplane mode and showing\n  it keeps sensing, reasoning, and learning.\n- The project license is Apache-2.0."
+  },
+  {
+    "stream": "photo-graph",
+    "id": "2ecdccd0-543e-4a7b-b9a1-7a90347e492a",
+    "ts": "2026-06-04T04:30:37.318Z",
+    "kind": "file",
+    "source": "data/notes/mesh-setup.md",
+    "text": "# Dani's Mycelium mesh — setup notes\n\nDani runs a four-device personal mesh codenamed \"Hollowood\".\n\n- The hub is a Mac mini called **Sporangium**. It hosts the delegated-inference\n  provider and runs the nightly LoRA. Its provider seed is rotated every Sunday.\n- The secondary compute node is a MacBook Pro called **Hypha**.\n- The always-on edge node is a Raspberry Pi 5 called **Rhizo**. Rhizo runs the\n  `QWEN3_600M_INST_Q4` model because anything larger overheats its passive case.\n- The phone is an iPhone called **Conidia**; it is a delegated-compute consumer\n  and the primary sensor (camera + microphone).\n\nDani's rule of thumb: the Pi never runs a model above 1B parameters, and the Mac\nmini is the only device allowed to fine-tune adapters."
+  },
+  {
+    "stream": "photo-graph",
+    "id": "35e1b5ff-be1b-494d-8ae8-62d8f6ee3ecd",
+    "ts": "2026-06-04T04:30:37.319Z",
+    "kind": "file",
+    "source": "data/notes/preferences.md",
+    "text": "# Dani's preferences\n\n- Dani prefers answers that lead with the bottom line first, then the reasoning.\n- Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings.\n- Dani is vegetarian and allergic to walnuts; recipe suggestions must avoid both.\n- Dani's working hours are 06:00–14:00; schedule heavy compute (like the nightly\n  LoRA) for 02:00 when every device is idle and charging.\n- When Dani says \"the usual\", they mean a flat white with oat milk."
+  },
+  {
+    "stream": "photo-graph",
+    "id": "85577939-c514-46d4-b82e-9d4401d0bb59",
+    "ts": "2026-06-04T04:30:37.319Z",
+    "kind": "file",
+    "source": "data/notes/project.md",
+    "text": "# Project Mycelium — facts\n\nMycelium is a private, offline, end-to-end-encrypted exocortex across a device\nmesh. It is built entirely on the QVAC SDK and submitted to QVAC Hackathon I.\n\n- The closed loop is Senses → Mind → Memory → sharper Senses.\n- The \"council\" is 2–4 small models with the roles proposer, critic, specialist,\n  and verifier, debating with tool-calling over a RAG-grounded context graph.\n- The demo's mic-drop moment is putting every device in airplane mode and showing\n  it keeps sensing, reasoning, and learning.\n- The project license is Apache-2.0."
+  },
+  {
+    "stream": "photo-graph",
+    "id": "3bd4a90b-a385-4556-a216-6c4ff346c21d",
+    "ts": "2026-06-04T04:30:38.698Z",
+    "kind": "photo",
+    "source": "data/photos/calibration-card.png",
+    "text": "Greenhouse calibration card The greenhouse sensor was last calibrated on 2026-05-28 Reference batch QV-2026-0601",
+    "meta": {
+      "ocr": true
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:29:44.239Z",
+    "source": "senses-classify",
+    "event": "model_load",
+    "modelSrc": "ggml-classification",
+    "modelId": "a5e13bfe6e0d49be"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:29:44.242Z",
+    "source": "senses-classify",
+    "event": "note",
+    "extra": {
+      "error": "Error: ENOENT: no such file or directory, open '/Volumes/Development/qvac/mycelium/packages/senses/scripts/fixtures/ocr-note.png'"
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:29:44.260Z",
+    "source": "senses-classify",
+    "event": "model_unload",
+    "modelSrc": "ggml-classification",
+    "modelId": "a5e13bfe6e0d49be"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:07.417Z",
+    "source": "senses-classify",
+    "event": "model_load",
+    "modelSrc": "ggml-classification",
+    "modelId": "a5e13bfe6e0d49be"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:07.467Z",
+    "source": "senses-classify",
+    "event": "note",
+    "durationMs": 49,
+    "extra": {
+      "role": "classify",
+      "imagePath": "/Volumes/Development/qvac/mycelium/spike/fixtures/ocr-note.png",
+      "top": "report",
+      "confidence": 0.7139508128166199
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:07.506Z",
+    "source": "senses-classify",
+    "event": "note",
+    "durationMs": 33,
+    "extra": {
+      "role": "classify",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "top": "other",
+      "confidence": 0.7499528527259827
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:08.931Z",
+    "source": "senses-classify",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:10.099Z",
+    "source": "senses-classify",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:10.146Z",
+    "source": "senses-classify",
+    "event": "note",
+    "durationMs": 36,
+    "extra": {
+      "role": "classify",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "top": "other",
+      "confidence": 0.7499528527259827
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:12.907Z",
+    "source": "senses-classify",
+    "event": "note",
+    "durationMs": 2761,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:13.217Z",
+    "source": "senses-classify",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 1,
+    "durationMs": 308,
+    "extra": {
+      "workspace": "mycelium-classify-smoke",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:13.225Z",
+    "source": "senses-classify",
+    "event": "model_unload",
+    "modelSrc": "ggml-classification",
+    "modelId": "a5e13bfe6e0d49be"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:13.312Z",
+    "source": "senses-classify",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-classify",
+    "ts": "2026-06-04T04:30:13.327Z",
+    "source": "senses-classify",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:34:26.336Z",
+    "source": "senses-diarize",
+    "event": "model_load",
+    "modelSrc": "PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0",
+    "modelId": "70d07473b3efa5f6"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:34:27.729Z",
+    "source": "senses-diarize",
+    "event": "model_load",
+    "modelSrc": "PARAKEET_TDT_0_6B_V3_Q8_0",
+    "modelId": "90bbbb31f2aa34ca"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:34:28.453Z",
+    "source": "senses-diarize",
+    "event": "note",
+    "durationMs": 723,
+    "extra": {
+      "role": "diarize",
+      "audioPath": "/Volumes/Development/qvac/mycelium/packages/senses/scripts/fixtures/standup-2spk.wav",
+      "speakers": 0,
+      "segments": 0,
+      "chars": 0
+    }
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:34:28.455Z",
+    "source": "senses-diarize",
+    "event": "note",
+    "extra": {
+      "error": "Error: expected ≥2 speakers, got 0"
+    }
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:34:28.472Z",
+    "source": "senses-diarize",
+    "event": "model_unload",
+    "modelId": "70d07473b3efa5f6"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:34:28.496Z",
+    "source": "senses-diarize",
+    "event": "model_unload",
+    "modelId": "90bbbb31f2aa34ca"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:35.904Z",
+    "source": "senses-diarize",
+    "event": "model_load",
+    "modelSrc": "PARAKEET_SORTFORMER_4SPK_V2_1_Q8_0",
+    "modelId": "70d07473b3efa5f6"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:37.482Z",
+    "source": "senses-diarize",
+    "event": "model_load",
+    "modelSrc": "PARAKEET_TDT_0_6B_V3_Q8_0",
+    "modelId": "90bbbb31f2aa34ca"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:42.069Z",
+    "source": "senses-diarize",
+    "event": "note",
+    "durationMs": 4586,
+    "extra": {
+      "role": "diarize",
+      "audioPath": "/Volumes/Development/qvac/mycelium/packages/senses/scripts/fixtures/standup-2spk.wav",
+      "speakers": 2,
+      "segments": 4,
+      "chars": 261
+    }
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:43.315Z",
+    "source": "senses-diarize",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:45.881Z",
+    "source": "senses-diarize",
+    "event": "note",
+    "durationMs": 2551,
+    "extra": {
+      "role": "diarize",
+      "audioPath": "/Volumes/Development/qvac/mycelium/packages/senses/scripts/fixtures/standup-2spk.wav",
+      "speakers": 2,
+      "segments": 4,
+      "chars": 261
+    }
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:46.007Z",
+    "source": "senses-diarize",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 1,
+    "durationMs": 126,
+    "extra": {
+      "workspace": "mycelium-diarize-smoke",
+      "nodes": 1
+    }
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:46.018Z",
+    "source": "senses-diarize",
+    "event": "model_unload",
+    "modelId": "70d07473b3efa5f6"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:46.039Z",
+    "source": "senses-diarize",
+    "event": "model_unload",
+    "modelId": "90bbbb31f2aa34ca"
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:46.061Z",
+    "source": "senses-diarize",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 21,
+    "extra": {
+      "workspace": "mycelium-diarize-smoke",
+      "query": "What did the standup say about the backup battery?",
+      "topK": 3,
+      "scores": [
+        0.6772198142351287
+      ]
+    }
+  },
+  {
+    "stream": "senses-diarize",
+    "ts": "2026-06-03T21:35:46.084Z",
+    "source": "senses-diarize",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:42.988Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:44.961Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1972,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:46.468Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:47.961Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1473,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:48.279Z",
+    "source": "senses-photo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 318,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:48.334Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:48.360Z",
+    "source": "senses-photo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 25,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "query": "When was the greenhouse sensor last calibrated?",
+      "topK": 3,
+      "scores": [
+        0.8644551955138602,
+        0.6961121211208963,
+        0.6175843583301461
+      ]
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:05:48.380Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:13.531Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:15.085Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1552,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:15.993Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:17.169Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1163,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:17.489Z",
+    "source": "senses-photo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 319,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:17.536Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:17.561Z",
+    "source": "senses-photo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 24,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "query": "When was the greenhouse sensor last calibrated?",
+      "topK": 3,
+      "scores": [
+        0.8644551955138602,
+        0.6961121211208963,
+        0.6175843583301461
+      ]
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T09:23:17.580Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:20.222Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:21.776Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1552,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:22.794Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:23.905Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1097,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:24.166Z",
+    "source": "senses-photo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 260,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:24.207Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:24.229Z",
+    "source": "senses-photo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "query": "When was the greenhouse sensor last calibrated?",
+      "topK": 3,
+      "scores": [
+        0.8644551955138602,
+        0.6961121211208963,
+        0.6175843583301461
+      ]
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:24.245Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:37.483Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:39.106Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1621,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:39.989Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:41.051Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1053,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:41.312Z",
+    "source": "senses-photo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 259,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:41.347Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:41.367Z",
+    "source": "senses-photo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 20,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "query": "When was the greenhouse sensor last calibrated?",
+      "topK": 3,
+      "scores": [
+        0.8644551955138602,
+        0.6961121211208963,
+        0.6175843583301461
+      ]
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-02T22:01:41.382Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:44.083Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:45.737Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1652,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:46.774Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:47.922Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1130,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:48.222Z",
+    "source": "senses-photo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 299,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:48.458Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:48.480Z",
+    "source": "senses-photo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "query": "When was the greenhouse sensor last calibrated?",
+      "topK": 3,
+      "scores": [
+        0.8644653903397925,
+        0.6961027905876671,
+        0.6175830262276203
+      ]
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-03T20:35:48.501Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:34.604Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:36.139Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1532,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:37.303Z",
+    "source": "senses-photo",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:38.697Z",
+    "source": "senses-photo",
+    "event": "note",
+    "durationMs": 1377,
+    "extra": {
+      "role": "ocr",
+      "imagePath": "/Volumes/Development/qvac/mycelium/data/photos/calibration-card.png",
+      "chars": 112
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:39.091Z",
+    "source": "senses-photo",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 393,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:39.193Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "OCR_LATIN_RECOGNIZER_1",
+      "src": "registry://s3/qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registryPath": "qvac_models_compiled/ocr/2026-02-12/rec_dyn/recognizer_latin.onnx",
+      "registrySource": "s3",
+      "blobCoreKey": "6309722b3460d91d38ad7526875ecfa29183245826b717949c55ba443093d963",
+      "blobBlockOffset": 806729,
+      "blobBlockLength": 235,
+      "blobByteOffset": 52865952011,
+      "modelId": "recognizer_latin.onnx",
+      "expectedSize": 15398841,
+      "sha256Checksum": "fbae7f3d321cf4891ed8c5da7599d0695acc93c638056d837383f9b317730273",
+      "addon": "ocr",
+      "engine": "onnx-ocr",
+      "quantization": "",
+      "params": ""
+    },
+    "modelId": "b3887054a0357c70"
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:39.218Z",
+    "source": "senses-photo",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 23,
+    "extra": {
+      "workspace": "mycelium-photo-smoke",
+      "query": "When was the greenhouse sensor last calibrated?",
+      "topK": 3,
+      "scores": [
+        0.8644653903397925,
+        0.6961027905876671,
+        0.6175830262276203
+      ]
+    }
+  },
+  {
+    "stream": "senses-photo",
+    "ts": "2026-06-04T04:30:39.238Z",
+    "source": "senses-photo",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:22:30.767Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:22:31.162Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 394,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:22:31.188Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:22:31.207Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:37:54.549Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:37:54.893Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 344,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:37:54.915Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T03:37:54.929Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T04:07:32.110Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T04:07:32.467Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 355,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T04:07:32.490Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T04:07:32.506Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T05:54:16.051Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T05:54:16.582Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 526,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T05:54:16.608Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T05:54:16.633Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:02:45.072Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:02:45.558Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 484,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:02:45.582Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 23,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:02:45.607Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:10:03.808Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:10:04.124Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 315,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:10:04.147Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:10:04.167Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:13:49.728Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:13:50.148Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 418,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:13:50.174Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:13:50.199Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:33:51.833Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:33:52.284Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 449,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:33:52.316Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 30,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-01T07:33:52.348Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:46:51.344Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:46:51.693Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 347,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:46:51.717Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 23,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:46:51.734Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:56:02.261Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:56:02.844Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 578,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:56:02.870Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T08:56:02.891Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T09:22:23.239Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T09:22:23.723Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 482,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T09:22:23.747Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 24,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.767904002161171,
+        0.7590717127736747,
+        0.6882305339680713
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-02T09:22:23.765Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-03T20:33:56.343Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-03T20:33:56.710Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 367,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-03T20:33:56.737Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 25,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.7679102484372887,
+        0.7590659534009219,
+        0.688229824194651
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-03T20:33:56.763Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-09T22:43:22.396Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-09T22:43:22.705Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 7,
+    "durationMs": 307,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "nodes": 3
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-09T22:43:22.727Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "query": "Which model does Dani run on the Raspberry Pi node, and why?",
+      "topK": 3,
+      "scores": [
+        0.7679102484372887,
+        0.7590659534009219,
+        0.688229824194651
+      ]
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-09T22:43:22.750Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-20T10:07:31.736Z",
+    "source": "senses-smoke",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-20T10:07:32.004Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 4,
+    "durationMs": 267,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "added": 3,
+      "changed": 0,
+      "deleted": 0,
+      "unchanged": 0,
+      "chunksSaved": 4,
+      "chunksDeleted": 0,
+      "reindexed": false
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-20T10:07:32.025Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 20,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "topK": 3,
+      "returned": 3,
+      "topScore": 0.7544647231978309
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-20T10:07:32.040Z",
+    "source": "senses-smoke",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 0,
+    "durationMs": 6,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "added": 0,
+      "changed": 0,
+      "deleted": 1,
+      "unchanged": 2,
+      "chunksSaved": 0,
+      "chunksDeleted": 2,
+      "reindexed": false
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-20T10:07:32.056Z",
+    "source": "senses-smoke",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 16,
+    "extra": {
+      "workspace": "mycelium-senses-smoke",
+      "topK": 5,
+      "returned": 2,
+      "topScore": 0.6882307012108804
+    }
+  },
+  {
+    "stream": "senses-smoke",
+    "ts": "2026-06-20T10:07:32.075Z",
+    "source": "senses-smoke",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:30.404Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:30.920Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 515,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:32.047Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:32.570Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 510,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:33.124Z",
+    "source": "senses-voice",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 553,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:33.138Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:33.161Z",
+    "source": "senses-voice",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "query": "How long does the Raspberry Pi emergency backup battery last?",
+      "topK": 3,
+      "scores": [
+        0.843725363791922,
+        0.6400394286447416,
+        0.6078456906785094
+      ]
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T03:55:33.178Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:00.137Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:00.657Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 520,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:01.604Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:02.131Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 511,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:02.438Z",
+    "source": "senses-voice",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 306,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:02.447Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:02.470Z",
+    "source": "senses-voice",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "query": "How long does the Raspberry Pi emergency backup battery last?",
+      "topK": 3,
+      "scores": [
+        0.843725363791922,
+        0.6400394286447416,
+        0.6078456906785094
+      ]
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T04:23:02.486Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:55.814Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:56.239Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 416,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:57.403Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:57.926Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 508,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:58.257Z",
+    "source": "senses-voice",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 330,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:58.270Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:58.297Z",
+    "source": "senses-voice",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 26,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "query": "How long does the Raspberry Pi emergency backup battery last?",
+      "topK": 3,
+      "scores": [
+        0.843725363791922,
+        0.6400394286447416,
+        0.6078456906785094
+      ]
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-01T07:33:58.353Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:07.951Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:08.370Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 416,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:09.327Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:09.751Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 407,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:10.054Z",
+    "source": "senses-voice",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 302,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:10.064Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:10.086Z",
+    "source": "senses-voice",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 22,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "query": "How long does the Raspberry Pi emergency backup battery last?",
+      "topK": 3,
+      "scores": [
+        0.843725363791922,
+        0.6400394286447416,
+        0.6078456906785094
+      ]
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-02T09:23:10.101Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:37.341Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:37.859Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 516,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:38.884Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:39.308Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 408,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:39.644Z",
+    "source": "senses-voice",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 336,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:39.658Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:39.686Z",
+    "source": "senses-voice",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 28,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "query": "How long does the Raspberry Pi emergency backup battery last?",
+      "topK": 3,
+      "scores": [
+        0.8437290943938223,
+        0.6400440028176333,
+        0.6078485256400404
+      ]
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T20:35:39.711Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:07.705Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:08.226Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 519,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:09.615Z",
+    "source": "senses-voice",
+    "event": "model_load",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:10.419Z",
+    "source": "senses-voice",
+    "event": "note",
+    "durationMs": 777,
+    "extra": {
+      "role": "transcribe",
+      "audioPath": "/Volumes/Development/qvac/mycelium/data/voice/dani-backup-memo.wav",
+      "chars": 87
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:11.045Z",
+    "source": "senses-voice",
+    "event": "rag_ingest",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "tokens": 8,
+    "durationMs": 625,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "nodes": 4
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:11.064Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "WHISPER_BASE_Q8_0",
+      "src": "registry://hf/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registryPath": "ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-base-q8_0.bin",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 4774,
+      "blobBlockLength": 1248,
+      "blobByteOffset": 312744408,
+      "modelId": "ggml-base-q8_0.bin",
+      "expectedSize": 81768585,
+      "sha256Checksum": "c577b9a86e7e048a0b7eada054f4dd79a56bbfa911fbdacf900ac5b567cbb7d9",
+      "addon": "whisper",
+      "engine": "whispercpp-transcription",
+      "quantization": "q8_0",
+      "params": ""
+    },
+    "modelId": "c7cc14ceafa1cbc6"
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:11.094Z",
+    "source": "senses-voice",
+    "event": "rag_search",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854",
+    "durationMs": 30,
+    "extra": {
+      "workspace": "mycelium-voice-smoke",
+      "query": "How long does the Raspberry Pi emergency backup battery last?",
+      "topK": 3,
+      "scores": [
+        0.8437290943938223,
+        0.6400440028176333,
+        0.6078485256400404
+      ]
+    }
+  },
+  {
+    "stream": "senses-voice",
+    "ts": "2026-06-03T21:36:11.130Z",
+    "source": "senses-voice",
+    "event": "model_unload",
+    "modelSrc": {
+      "name": "GTE_LARGE_FP16",
+      "src": "registry://hf/ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registryPath": "ChristianAzinn/gte-large-gguf/blob/f9fa5479908e72c2a8b9d6ba112911cd1e51be53/gte-large_fp16.gguf",
+      "registrySource": "hf",
+      "blobCoreKey": "4035e66388340ff7c1f291e7c0101855f5d0b2c7085f3ff62213573a2cd5dd17",
+      "blobBlockOffset": 180512,
+      "blobBlockLength": 10218,
+      "blobByteOffset": 11829586648,
+      "modelId": "gte-large_fp16.gguf",
+      "expectedSize": 669603712,
+      "sha256Checksum": "939f1fb3fcc70f2a250a7e7ad7c2fbdc1397d46f9a8055d053e451829c5293fb",
+      "addon": "embeddings",
+      "engine": "llamacpp-embedding",
+      "quantization": "fp16",
+      "params": ""
+    },
+    "modelId": "c8fb5f8badf52854"
+  },
+  {
+    "stream": "voice-graph",
+    "id": "e02b9dc7-7c10-4f9c-8535-cb70a03a926d",
+    "ts": "2026-06-03T21:36:09.640Z",
+    "kind": "file",
+    "source": "data/notes/mesh-setup.md",
+    "text": "# Dani's Mycelium mesh — setup notes\n\nDani runs a four-device personal mesh codenamed \"Hollowood\".\n\n- The hub is a Mac mini called **Sporangium**. It hosts the delegated-inference\n  provider and runs the nightly LoRA. Its provider seed is rotated every Sunday.\n- The secondary compute node is a MacBook Pro called **Hypha**.\n- The always-on edge node is a Raspberry Pi 5 called **Rhizo**. Rhizo runs the\n  `QWEN3_600M_INST_Q4` model because anything larger overheats its passive case.\n- The phone is an iPhone called **Conidia**; it is a delegated-compute consumer\n  and the primary sensor (camera + microphone).\n\nDani's rule of thumb: the Pi never runs a model above 1B parameters, and the Mac\nmini is the only device allowed to fine-tune adapters."
+  },
+  {
+    "stream": "voice-graph",
+    "id": "42a4dccc-a904-4cf9-8165-784da5c6f535",
+    "ts": "2026-06-03T21:36:09.640Z",
+    "kind": "file",
+    "source": "data/notes/preferences.md",
+    "text": "# Dani's preferences\n\n- Dani prefers answers that lead with the bottom line first, then the reasoning.\n- Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings.\n- Dani is vegetarian and allergic to walnuts; recipe suggestions must avoid both.\n- Dani's working hours are 06:00–14:00; schedule heavy compute (like the nightly\n  LoRA) for 02:00 when every device is idle and charging.\n- When Dani says \"the usual\", they mean a flat white with oat milk."
+  },
+  {
+    "stream": "voice-graph",
+    "id": "2652d82b-1be2-4f93-98c7-1548f839147c",
+    "ts": "2026-06-03T21:36:09.641Z",
+    "kind": "file",
+    "source": "data/notes/project.md",
+    "text": "# Project Mycelium — facts\n\nMycelium is a private, offline, end-to-end-encrypted exocortex across a device\nmesh. It is built entirely on the QVAC SDK and submitted to QVAC Hackathon I.\n\n- The closed loop is Senses → Mind → Memory → sharper Senses.\n- The \"council\" is 2–4 small models with the roles proposer, critic, specialist,\n  and verifier, debating with tool-calling over a RAG-grounded context graph.\n- The demo's mic-drop moment is putting every device in airplane mode and showing\n  it keeps sensing, reasoning, and learning.\n- The project license is Apache-2.0."
+  },
+  {
+    "stream": "voice-graph",
+    "id": "140c0ac1-592b-4504-ba5c-66e387de3d31",
+    "ts": "2026-06-03T21:36:10.420Z",
+    "kind": "voice",
+    "source": "data/voice/dani-backup-memo.wav",
+    "text": "Voice memo from Danny, the emergency backup battery on the Raspberry Pi lasts 12 hours.",
+    "meta": {
+      "transcribed": true
+    }
+  }
+]

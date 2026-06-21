@@ -1,0 +1,26 @@
+{
+  "totalEvents": 119,
+  "firstTs": "2026-06-03T12:15:28.784Z",
+  "lastTs": "2026-06-05T16:08:08.127Z",
+  "countsByEvent": {
+    "unknown": 5,
+    "model_load": 30,
+    "note": 16,
+    "model_unload": 21,
+    "rag_ingest": 9,
+    "rag_search": 9,
+    "completion": 29
+  },
+  "countsBySource": {
+    "data/notes/mesh-setup.md": 1,
+    "data/notes/preferences.md": 1,
+    "data/notes/project.md": 1,
+    "data/voice/dani-backup-memo.wav": 1,
+    "data/photos/calibration-card.png": 1,
+    "flux-test": 2,
+    "flux-verify": 2,
+    "newsroom": 108,
+    "tts-verify": 2
+  },
+  "parseErrors": []
+}

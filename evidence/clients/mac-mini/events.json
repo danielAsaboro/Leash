@@ -1,0 +1,977 @@
+[
+  {
+    "stream": "leash-telegram/logs/leash-telegram",
+    "ts": "2026-06-15T20:49:35.259Z",
+    "source": "leash-telegram",
+    "event": "note",
+    "extra": {
+      "role": "telegram",
+      "phase": "polling-start"
+    }
+  },
+  {
+    "stream": "leash-telegram/logs/leash-telegram",
+    "ts": "2026-06-15T20:51:53.379Z",
+    "source": "leash-telegram",
+    "event": "pairing",
+    "extra": {
+      "role": "telegram",
+      "userId": 6491612100
+    }
+  },
+  {
+    "stream": "leash-telegram/logs/leash-telegram",
+    "ts": "2026-06-15T20:52:04.747Z",
+    "source": "leash-telegram",
+    "event": "note",
+    "extra": {
+      "role": "telegram",
+      "phase": "inbound",
+      "chatId": 6491612100,
+      "fromId": 6491612100,
+      "len": 22
+    }
+  },
+  {
+    "stream": "leash-telegram/logs/leash-telegram",
+    "ts": "2026-06-15T20:52:04.894Z",
+    "source": "leash-telegram",
+    "event": "note",
+    "extra": {
+      "role": "telegram",
+      "phase": "error",
+      "chatId": 6491612100,
+      "error": "TypeError: fetch failed"
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:24:28.543Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 49,
+    "ttftMs": 42649,
+    "durationMs": 42651,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window is open on a post about the Emir of Qatar and a separate terminal window is open on a task to debug a GPU driver error with qvac, which is a process stuck in an uninterruptible kernel call."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:26:19.576Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 42,
+    "ttftMs": 50298,
+    "durationMs": 50299,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The screenshot shows a user on X (formerly Twitter) reading a post by Trey Goff about using GPT for a presentation, and simultaneously running a debug script in the terminal to fix a GPU driver issue."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:28:03.545Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 31,
+    "ttftMs": 43116,
+    "durationMs": 43116,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot of a Chrome browser window displaying a Leash assistant page and a VS Code terminal with a QVAC error related to a GPU driver issue."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:29:41.294Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 42,
+    "ttftMs": 36996,
+    "durationMs": 36996,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "In the foreground, the Chrome browser is open to a QVAC blog page, while the Terminal app shows a terminal session with a QVAC SDK debugging task involving GPU driver issues and a restart process."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:31:26.362Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 37,
+    "ttftMs": 44379,
+    "durationMs": 44379,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is using Chrome on a Mac to report a glitch with a GPU driver on the X.com platform and is troubleshooting it via the QVAC command line in a terminal window."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:38:45.410Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 50,
+    "ttftMs": 45882,
+    "durationMs": 45884,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window shows the ScienceExpand website with a post about CDs and a Discord chat window open with a terminal running `qvac` to set up and test a voice recognition system, using `urls.md` and `note.md` files."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:42:13.933Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 42,
+    "ttftMs": 44243,
+    "durationMs": 44244,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The screen shows the X.com social media interface with a post by sc, and a side panel for the terminal and code editor with a QVAC application running, suggesting an interactive development or testing environment."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:45:22.717Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 47,
+    "ttftMs": 46653,
+    "durationMs": 46654,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser on the Lookonchain app is showing a user's wallet overview and tweets about the ZEC token, while a Terminal on the qVAC app is running a script to test a GPU and manage a voice call."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T09:47:06.158Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 37,
+    "ttftMs": 42746,
+    "durationMs": 42747,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is on the X (formerly Twitter) app, viewing a news feed, while simultaneously using the QVAC app with a terminal to debug and manage a machine learning model."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:10:05.629Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 41,
+    "ttftMs": 46354,
+    "durationMs": 46355,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screen capture of a Chrome browser on a Mac with a YouTube video about the Odysseus AI agent, a code editor with a terminal, and a code snippet for setting up the tool."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:13:38.667Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 31,
+    "ttftMs": 44637,
+    "durationMs": 44638,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window shows the Google Sign-in page for a Google Account, which is being used to sign in to a Google app in the browser."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:15:25.637Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 38,
+    "ttftMs": 46213,
+    "durationMs": 46213,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window is open to the Google accounts page with a pop-up for managing a passkey, while the desktop shows a wallpaper of the character Moana from Moana from Disney."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:17:10.224Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 46,
+    "ttftMs": 43872,
+    "durationMs": 43872,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser on a \"Resilient Agents - Online Hackathon\" event page, with a terminal open in the \"QVAC\" app, showing a bash script in a `.md` file for a debugging task."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:32:53.237Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 51,
+    "ttftMs": 45264,
+    "durationMs": 45265,
+    "extra": {
+      "app": "Code",
+      "summary": "The user is working on a local AI agent project called \"Odysseus\" in a dark-themed code editor, while simultaneously watching a YouTube video about the \"Odysseus\" AI agent, which is currently showing an error in the terminal."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:34:37.845Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 34,
+    "ttftMs": 43492,
+    "durationMs": 43492,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot of the Claude AI Chrome browser window showing the \"Usage\" settings page, with a dark interface and a pink sunset background featuring the Pepe the Frog image."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:38:08.882Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 52,
+    "ttftMs": 42954,
+    "durationMs": 42954,
+    "extra": {
+      "app": "Code",
+      "summary": "The screen shows a multi-tasking interface where a YouTube video is being watched on the Odysseus AI channel, while a developer is using the VS Code app to work on a project involving the QVAC and note.md files in the terminal."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:43:53.952Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 51,
+    "ttftMs": 42686,
+    "durationMs": 42686,
+    "extra": {
+      "app": "Code",
+      "summary": "A screen capture of a user on X (formerly Twitter), where the user is viewing a post about a Polish driver's license, while also running a terminal task to test the Leash screen watcher application and a file that is being processed in the background."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:45:36.886Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 44,
+    "ttftMs": 42298,
+    "durationMs": 42298,
+    "extra": {
+      "app": "Code",
+      "summary": "The image shows the X (formerly Twitter) app with a focus on a post about SpaceX IPOs, while the user is simultaneously working on a Node.js project in the terminal for a task related to a web application."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:48:23.490Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 47,
+    "ttftMs": 45426,
+    "durationMs": 45427,
+    "extra": {
+      "app": "Code",
+      "summary": "A screenshot shows a developer's workflow in two apps: a dark-themed social media app displaying news and content, and a code editor for a Node.js project that's running a Leash UI dashboard and port configuration task in a terminal."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:51:56.818Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 35,
+    "ttftMs": 41873,
+    "durationMs": 41875,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window open to the Vercel domain management page, which lists various domains for a user, including one that expires in May 2027."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T10:53:39.963Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 36,
+    "ttftMs": 42190,
+    "durationMs": 42191,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window is open on the Vercel domain checkout page, which displays a dark-themed interface with billing information fields, while a lion wallpaper is visible on the desktop."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:01:04.093Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 48,
+    "ttftMs": 40615,
+    "durationMs": 40617,
+    "extra": {
+      "app": "Code",
+      "summary": "The image shows the X (formerly Twitter) app with a user browsing news and social posts, while a developer is working on a TypeScript project in a code editor, using the `leash` and `vqac` tools."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:05:27.889Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 42,
+    "ttftMs": 39305,
+    "durationMs": 39306,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window shows Gmail with various emails, while a Visual Studio Code window displays a TypeScript file for a project named `leash` with a `plan` and `dashboard` task in progress."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:07:11.280Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 39,
+    "ttftMs": 42646,
+    "durationMs": 42647,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Google search is being performed in Chrome to find information about reaching out to customer care, while a developer is working on a TypeScript file called `generate-brand-assets.ts` in a code editor."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:08:55.188Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 39,
+    "ttftMs": 43086,
+    "durationMs": 43086,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser is open with a web page that is a news site, and a Visual Studio Code window is open with a TypeScript file and the terminal is showing a terminal prompt with a text."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:16:07.305Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 40,
+    "ttftMs": 40944,
+    "durationMs": 40944,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The screen shows the X (formerly Twitter) app with a post activity page, and the task is to \"add a verifiable quirk to the system prompt\" in the source control panel."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:17:50.757Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 20,
+    "ttftMs": 42752,
+    "durationMs": 42753,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is browsing a social media app and working on a JavaScript code task in a code editor."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:22:47.500Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 30,
+    "ttftMs": 54537,
+    "durationMs": 54538,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot showing the Leash app with a \"say hello\" task and the note.md and generate-brand-assets.ts files open in a code editor."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:24:38.432Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 38,
+    "ttftMs": 50220,
+    "durationMs": 50221,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screen capture showing the Chrome browser on the x.com homepage with a \"Leash Dashboard\" application being developed in the mycelium development environment, which is also shown in a terminal."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:26:30.871Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 43,
+    "ttftMs": 51525,
+    "durationMs": 51527,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is browsing a post on the X (formerly Twitter) app, where they're viewing a video and reading comments, while simultaneously working on a Node.js project in the mycelium app using the terminal."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:28:15.164Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 47,
+    "ttftMs": 43559,
+    "durationMs": 43560,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is using the X (formerly Twitter) app to browse news and social media content, while simultaneously working on a Node.js project in the terminal, using a code editor to manage a project called 'leash-dashboard-mvp'."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:31:00.013Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 40,
+    "ttftMs": 43695,
+    "durationMs": 43696,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot of a multi-tasking screen on a Mac, showing WhatsApp with a conversation with \"Favour Abel's Bro\" and the developer's terminal and code editor, all running in the background."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:32:52.189Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 49,
+    "ttftMs": 51342,
+    "durationMs": 51342,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The user is in the Chrome browser on x.com, where a tweet about a zero-day vulnerability in Ffmpeg is visible, and they are simultaneously managing a Node.js application in a terminal, with the task \"note the app and task.\""
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:35:37.347Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 49,
+    "ttftMs": 44040,
+    "durationMs": 44041,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is on a dark-themed WhatsApp chat with Zig-i MTN Chatbot, and on the right, they're using a terminal in a Node.js project to run a web application, with a terminal output indicating a server failed to start."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:40:14.561Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 50,
+    "ttftMs": 52831,
+    "durationMs": 52832,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot showing a Chrome browser open to X (formerly Twitter) with the \"Running on Trust and Luck\" article and the X development environment, showing the \"generate-brand-assets.ts\" file in the \"leash-dashboard-mvp\" project."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:44:44.159Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 52,
+    "ttftMs": 45392,
+    "durationMs": 45392,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The Chrome browser shows a \"Transfer Out Domain\" popup for the \"Mycelium\" app, which is currently in the process of transferring a domain with a 10-day wait, and the task is to manage and transfer out domain settings."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T11:55:31.791Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 41,
+    "ttftMs": 43464,
+    "durationMs": 43466,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is on the Vercel domain checkout page in a browser, attempting to purchase a domain, but is unable to authenticate their payment method, while a WhatsApp conversation is open in the background."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T14:47:03.640Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 51,
+    "ttftMs": 62894,
+    "durationMs": 62895,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The image shows a split-screen view: on the left, the LEASH WORK Tasks page in a task management application, and on the right, a video player page on XVIDEOS for a video titled \"Quietly fiddling with her phone...\""
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T14:48:56.640Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 28,
+    "ttftMs": 55144,
+    "durationMs": 55145,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A split-screen view shows a LEASH WORK tasks page on the left and a video playing on the XVIDEOS website on the right."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T14:51:25.617Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 45,
+    "ttftMs": 87672,
+    "durationMs": 87674,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Chrome browser window shows the 'Tasks' application, which has no tasks listed, while another window displays the XVIDEOS website with a video titled \"Hot young girl getting on...\" and a \"FREE WEEK\" advertisement."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T14:56:31.822Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 31,
+    "ttftMs": 42736,
+    "durationMs": 42738,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The Leash dashboard shows the app's tasks and the terminal on the right, with the last task being \"What shipped tonight\" in the terminal."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:01:22.930Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 49,
+    "ttftMs": 49972,
+    "durationMs": 49973,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A Google Meet video call is in progress with the participant \"daniel asaboro\" on a screen that is overlaid with a video call interface, while the desktop background is a scenic image of a character from the animated movie Moana."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:03:26.089Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 41,
+    "ttftMs": 62327,
+    "durationMs": 62328,
+    "extra": {
+      "app": "Telegram",
+      "summary": "A multitasking screen showing a Gmail email with a 30-minute meeting invite from Calendly, a WhatsApp chat with Gyan and Zerion, and a YouTube video thumbnail in the background."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:07:28.572Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 33,
+    "ttftMs": 63630,
+    "durationMs": 63632,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot showing a multi-window desktop setup with Chrome, a WhatsApp chat with the \"Gyan | Zerion\" contact, and the Google search page."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:11:24.423Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 30,
+    "ttftMs": 57745,
+    "durationMs": 57747,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot showing a WhatsApp chat with a Calendly link, and a browser window displaying an error page for a site that cannot be reached."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:13:22.401Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 45,
+    "ttftMs": 57219,
+    "durationMs": 57219,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A split-screen view shows the Chrome browser on a Mac desktop, displaying the X (formerly Twitter) website in the right window, and the WhatsApp chat application in the left window, with a stormy landscape in the background."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:15:13.504Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 46,
+    "ttftMs": 50277,
+    "durationMs": 50277,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot shows a multi-tasking view on a Mac, with the Chrome browser open to a Twitter post and a WhatsApp chat window for \"Gyan | Zerion\" that includes a link to a Calendly meeting."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:17:04.640Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 31,
+    "ttftMs": 50494,
+    "durationMs": 50496,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The Leash Brain app is showing a skills management interface with a new skill form and an active terminal on the right, where a task is being executed."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:18:59.226Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 35,
+    "ttftMs": 53858,
+    "durationMs": 53858,
+    "extra": {
+      "app": "Finder",
+      "summary": "A Mac screen showing a Leash dashboard with a terminal running a Bash script, and a Finder window open to a directory called StartupItems, which is not the main directory."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:20:41.761Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 36,
+    "ttftMs": 41783,
+    "durationMs": 41783,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The image shows the Leash AI dashboard, a tool for managing AI skills and workflows, with the user actively creating and editing a skill share in the Chrome browser's developer tools."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:25:56.001Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 33,
+    "ttftMs": 39312,
+    "durationMs": 39312,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "The screen shows the Odysseus app's \"leash-dashboard-mvp\" task being monitored in the terminal, which is actively running in the background."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:31:03.197Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 47,
+    "ttftMs": 40799,
+    "durationMs": 40799,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot of a dual-monitor setup showing the Reddit website in a browser on the left and a QVAC development environment with the \"leash-dashboard-mvp\" file open in the right, likely running a local AI project."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:36:16.926Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 38,
+    "ttftMs": 50254,
+    "durationMs": 50255,
+    "extra": {
+      "app": "Mail",
+      "summary": "The screen shows a mail application with a Jumia order confirmation, and a DoraHacks website page for PrivateDAO, both open in parallel on a Mac with multiple tabs."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:37:59.024Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 34,
+    "ttftMs": 41418,
+    "durationMs": 41419,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is working on the QVAC configuration page in the QVAC app, using a terminal to run a command in the leash-dashboard-mvp project."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:39:43.455Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 33,
+    "ttftMs": 43725,
+    "durationMs": 43725,
+    "extra": {
+      "app": "Code",
+      "summary": "The screen shows a QVAC configuration page on the left and a terminal on the right with the task of running the `leash-dashboard-mvp` command."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-05T15:43:15.064Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "qwen3vl",
+    "prompt": "Summarize what's on screen in one line; note the app and task.",
+    "tokens": 41,
+    "ttftMs": 43496,
+    "durationMs": 43497,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A user is browsing Reddit and writing code in a local development environment, using tools like `curl`, `python`, and `nodejs` to test and develop a Python application for a web service."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-21T14:06:12.068Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "vision",
+    "prompt": "Task: summarize the screen frame in one sentence. Include the visible app and likely task only when supported by visible evidence. Do not infer private content, unreadable text, names, messages, or intent beyond the frame. Output plain text only; mention uncertainty only when the frame is unclear.",
+    "tokens": 67,
+    "ttftMs": 85407,
+    "durationMs": 85410,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A screenshot of a Chrome browser window displaying the \"Services\" page of the QVAC by Tether: the Infinite S platform, with a focus on various running and stopped system services like MODEL SERVE, SCREEN WATCHER, and MESH (HYPHA), and a notification that the Screen Watcher has been requested to start."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-21T14:08:09.760Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "vision",
+    "prompt": "Task: summarize the screen frame in one sentence. Include the visible app and likely task only when supported by visible evidence. Do not infer private content, unreadable text, names, messages, or intent beyond the frame. Output plain text only; mention uncertainty only when the frame is unclear.",
+    "tokens": 39,
+    "ttftMs": 82210,
+    "durationMs": 82211,
+    "extra": {
+      "app": "Code",
+      "summary": "The screen shows a local QVAC development environment with several services running, including a screen watcher, scheduler, and serve broker, and the user is actively managing them in a local development setup."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-21T14:10:19.781Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "vision",
+    "prompt": "Task: summarize the screen frame in one sentence. Include the visible app and likely task only when supported by visible evidence. Do not infer private content, unreadable text, names, messages, or intent beyond the frame. Output plain text only; mention uncertainty only when the frame is unclear.",
+    "tokens": 43,
+    "ttftMs": 91405,
+    "durationMs": 91406,
+    "extra": {
+      "app": "Code",
+      "summary": "The screen shows a QVAC AI interface with a focus on the \"Brain\" section, which displays memory, local context, and screen activity, while the audio track in the browser's media library is visible."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-21T14:12:04.007Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "vision",
+    "prompt": "Task: summarize the screen frame in one sentence. Include the visible app and likely task only when supported by visible evidence. Do not infer private content, unreadable text, names, messages, or intent beyond the frame. Output plain text only; mention uncertainty only when the frame is unclear.",
+    "tokens": 30,
+    "ttftMs": 74777,
+    "durationMs": 74779,
+    "extra": {
+      "app": "Code",
+      "summary": "The screen shows the CapCut video editing application with media imported into the timeline, and a settings panel open in the center displaying device and app configuration."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-21T14:14:00.510Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "vision",
+    "prompt": "Task: summarize the screen frame in one sentence. Include the visible app and likely task only when supported by visible evidence. Do not infer private content, unreadable text, names, messages, or intent beyond the frame. Output plain text only; mention uncertainty only when the frame is unclear.",
+    "tokens": 52,
+    "ttftMs": 70341,
+    "durationMs": 70342,
+    "extra": {
+      "app": "Code",
+      "summary": "A screenshot of a video editing software interface with a Chrome browser tab open to a new tab page, showing a search bar and shortcuts for various websites, including Google, Fast, igetintopc, Bing, and an AI Mode button, in the foreground."
+    }
+  },
+  {
+    "stream": "leash-watch/logs/leash-watch",
+    "ts": "2026-06-21T14:15:56.762Z",
+    "source": "leash-watch",
+    "event": "completion",
+    "modelId": "vision",
+    "prompt": "Task: summarize the screen frame in one sentence. Include the visible app and likely task only when supported by visible evidence. Do not infer private content, unreadable text, names, messages, or intent beyond the frame. Output plain text only; mention uncertainty only when the frame is unclear.",
+    "tokens": 44,
+    "ttftMs": 65391,
+    "durationMs": 65393,
+    "extra": {
+      "app": "Google Chrome",
+      "summary": "A computer screen shows a multi-application workspace with several open windows, including a video editing software, a document viewer, a terminal, and various file folders, along with a desktop background featuring a cartoon frog and a car."
+    }
+  }
+]

@@ -1,0 +1,527 @@
+{
+  "generatedAt": "2026-06-21T14:25:51.266Z",
+  "sourceRoot": "submission/evidence",
+  "destinationRoot": "mycelium/evidence",
+  "devices": [
+    "mac-mini",
+    "mbp"
+  ],
+  "note": "Structured JSON evidence populated from submission evidence without deleting or moving source files.",
+  "outputs": {
+    "chats": {
+      "mac-mini": {
+        "chatCount": 192,
+        "messageCount": 1122,
+        "firstTs": "2026-06-04T11:26:29.366Z",
+        "lastTs": "2026-06-21T07:50:59.207Z",
+        "roles": {
+          "user": 561,
+          "assistant": 561
+        },
+        "parseErrors": []
+      },
+      "mbp": {
+        "chatCount": 192,
+        "messageCount": 1122,
+        "firstTs": "2026-06-04T11:26:29.366Z",
+        "lastTs": "2026-06-21T07:50:59.207Z",
+        "roles": {
+          "user": 561,
+          "assistant": 561
+        },
+        "parseErrors": []
+      }
+    },
+    "qvac": {
+      "mac-mini": {
+        "totalEvents": 246,
+        "firstTs": "2026-05-31T18:11:52.984Z",
+        "lastTs": "2026-06-17T21:07:48.533Z",
+        "countsByEvent": {
+          "model_load": 43,
+          "completion": 28,
+          "model_unload": 21,
+          "embedding": 4,
+          "rag_ingest": 5,
+          "rag_search": 5,
+          "delegation": 12,
+          "note": 22,
+          "finetune_progress": 76,
+          "finetune_result": 2,
+          "pairing": 14,
+          "graph_sync": 14
+        },
+        "countsBySource": {
+          "00-warm-cache": 5,
+          "01-inference": 58,
+          "02-rag": 26,
+          "03-p2p-consumer": 4,
+          "03-p2p-provider": 16,
+          "04-lora": 90,
+          "05-autobase-edge": 15,
+          "05-autobase-hub": 15,
+          "06-ocr": 17
+        },
+        "parseErrors": [],
+        "kvcache": {
+          "totalEvents": 4,
+          "firstTs": "2026-06-06T23:10:17.851Z",
+          "lastTs": "2026-06-06T23:11:30.879Z",
+          "countsByEvent": {
+            "completion": 4
+          },
+          "countsBySource": {
+            "hypha": 4
+          },
+          "parseErrors": []
+        }
+      },
+      "mbp": {
+        "totalEvents": 234,
+        "firstTs": "2026-05-31T18:11:52.984Z",
+        "lastTs": "2026-06-04T04:25:01.971Z",
+        "countsByEvent": {
+          "model_load": 43,
+          "completion": 27,
+          "model_unload": 21,
+          "embedding": 4,
+          "rag_ingest": 5,
+          "rag_search": 5,
+          "delegation": 5,
+          "note": 18,
+          "finetune_progress": 76,
+          "finetune_result": 2,
+          "pairing": 14,
+          "graph_sync": 14
+        },
+        "countsBySource": {
+          "00-warm-cache": 5,
+          "01-inference": 58,
+          "02-rag": 26,
+          "03-p2p-consumer": 2,
+          "03-p2p-provider": 6,
+          "04-lora": 90,
+          "05-autobase-edge": 15,
+          "05-autobase-hub": 15,
+          "06-ocr": 17
+        },
+        "parseErrors": []
+      }
+    },
+    "hypha": {
+      "mac-mini": {
+        "totalEvents": 59868,
+        "firstTs": "2026-06-05T23:49:57.631Z",
+        "lastTs": "2026-06-26T12:37:49.162Z",
+        "countsByEvent": {
+          "pairing": 672,
+          "note": 2222,
+          "delegation": 56951,
+          "completion": 19,
+          "adapter_publish": 4
+        },
+        "countsBySource": {
+          "hypha": 59868
+        },
+        "parseErrors": [],
+        "rawEventCount": 177136,
+        "rawCountsByEvent": {
+          "pairing": 672,
+          "note": 2222,
+          "delegation": 56951,
+          "capability": 117268,
+          "completion": 19,
+          "adapter_publish": 4
+        },
+        "retainedEvents": [
+          "adapter_fetch",
+          "adapter_publish",
+          "completion",
+          "delegation",
+          "note",
+          "pairing"
+        ]
+      },
+      "mbp": {
+        "totalEvents": 66902,
+        "firstTs": "2026-06-05T23:49:57.631Z",
+        "lastTs": "2026-06-13T23:15:11.104Z",
+        "countsByEvent": {
+          "pairing": 274,
+          "note": 7234,
+          "delegation": 59380,
+          "adapter_fetch": 2,
+          "completion": 10,
+          "adapter_publish": 2
+        },
+        "countsBySource": {
+          "hypha": 66902
+        },
+        "parseErrors": [],
+        "rawEventCount": 135124,
+        "rawCountsByEvent": {
+          "pairing": 274,
+          "note": 7234,
+          "delegation": 59380,
+          "capability": 68222,
+          "adapter_fetch": 2,
+          "completion": 10,
+          "adapter_publish": 2
+        },
+        "retainedEvents": [
+          "adapter_fetch",
+          "adapter_publish",
+          "completion",
+          "delegation",
+          "note",
+          "pairing"
+        ]
+      }
+    },
+    "leash": {
+      "mac-mini": {
+        "activity": {
+          "totalEvents": 18,
+          "firstTs": "2026-06-05T09:24:28.558Z",
+          "lastTs": "2026-06-05T10:45:36.888Z",
+          "countsByEvent": {
+            "unknown": 18
+          },
+          "countsBySource": {
+            "leash-activity": 18
+          },
+          "parseErrors": []
+        },
+        "cronRuns": {
+          "totalEvents": 2,
+          "firstTs": null,
+          "lastTs": null,
+          "countsByEvent": {
+            "unknown": 2
+          },
+          "countsBySource": {
+            "leash-cron-runs": 2
+          },
+          "parseErrors": []
+        }
+      },
+      "mbp": {
+        "conductor": {
+          "totalEvents": 561,
+          "firstTs": "2026-06-18T20:32:59.842Z",
+          "lastTs": "2026-06-21T07:58:02.946Z",
+          "countsByEvent": {
+            "note": 561
+          },
+          "countsBySource": {
+            "conductor": 561
+          },
+          "parseErrors": []
+        },
+        "goalRuns": {
+          "type": "array",
+          "count": 265
+        },
+        "services": {
+          "count": 3
+        }
+      }
+    },
+    "senses": {
+      "mac-mini": {
+        "totalEvents": 197,
+        "firstTs": "2026-06-01T03:22:30.767Z",
+        "lastTs": "2026-06-20T10:07:32.075Z",
+        "countsByEvent": {
+          "unknown": 13,
+          "model_load": 47,
+          "note": 33,
+          "model_unload": 47,
+          "rag_ingest": 29,
+          "rag_search": 28
+        },
+        "countsBySource": {
+          "data/photos/calibration-card.png": 2,
+          "data/voice/standup-2spk.wav": 1,
+          "spike/fixtures/notes/mesh-setup.md": 1,
+          "spike/fixtures/notes/preferences.md": 1,
+          "spike/fixtures/notes/project.md": 1,
+          "data/notes/mesh-setup.md": 2,
+          "data/notes/preferences.md": 2,
+          "data/notes/project.md": 2,
+          "senses-classify": 14,
+          "senses-diarize": 16,
+          "senses-photo": 48,
+          "senses-smoke": 58,
+          "senses-voice": 48,
+          "data/voice/dani-backup-memo.wav": 1
+        },
+        "parseErrors": []
+      }
+    },
+    "mind": {
+      "mac-mini": {
+        "totalEvents": 119,
+        "firstTs": "2026-06-01T03:03:52.159Z",
+        "lastTs": "2026-06-20T10:07:56.354Z",
+        "countsByEvent": {
+          "unknown": 7,
+          "model_load": 32,
+          "rag_ingest": 7,
+          "rag_search": 12,
+          "completion": 32,
+          "note": 10,
+          "model_unload": 19
+        },
+        "countsBySource": {
+          "spike/fixtures/notes/mesh-setup.md": 1,
+          "spike/fixtures/notes/preferences.md": 1,
+          "spike/fixtures/notes/project.md": 1,
+          "medpsy-demo": 12,
+          "health-records/history-and-sleep.md": 1,
+          "health-records/lipid-panel-2026-03.md": 1,
+          "health-records/medications-and-allergies.md": 1,
+          "health-records/visit-2026-02-bp.md": 1,
+          "mind-council": 78,
+          "mind-smoke": 22
+        },
+        "parseErrors": []
+      }
+    },
+    "memory": {
+      "mac-mini": {
+        "totalEvents": 1421,
+        "firstTs": "2026-06-08T14:22:46.396Z",
+        "lastTs": "2026-06-26T02:30:01.097Z",
+        "countsByEvent": {
+          "curate": 16,
+          "model_load": 14,
+          "note": 11,
+          "finetune_progress": 1362,
+          "finetune_result": 2,
+          "model_unload": 12,
+          "eval": 4
+        },
+        "countsBySource": {
+          "memory-evolve": 1416,
+          "memory-smoke": 5
+        },
+        "parseErrors": []
+      }
+    },
+    "mesh": {
+      "mac-mini": {
+        "totalEvents": 445,
+        "firstTs": "2026-06-01T03:46:36.299Z",
+        "lastTs": "2026-06-09T22:42:21.979Z",
+        "countsByEvent": {
+          "graph_sync": 117,
+          "pairing": 60,
+          "capability": 42,
+          "unknown": 8,
+          "model_load": 53,
+          "rag_ingest": 18,
+          "delegation": 26,
+          "completion": 36,
+          "rag_search": 11,
+          "note": 32,
+          "model_unload": 42
+        },
+        "countsBySource": {
+          "allowlist-smoke-hub": 16,
+          "mesh-smoke-edge": 9,
+          "mesh-smoke-hub": 9,
+          "registry-smoke-edge": 8,
+          "registry-smoke-hub": 14,
+          "data/notes/mesh-setup.md": 2,
+          "data/notes/preferences.md": 2,
+          "data/notes/project.md": 2,
+          "data/voice/dani-backup-memo.wav": 2,
+          "edge-append": 1,
+          "edge-node": 155,
+          "hub": 225
+        },
+        "parseErrors": []
+      }
+    },
+    "media": {
+      "mac-mini": {
+        "totalEvents": 119,
+        "firstTs": "2026-06-03T12:15:28.784Z",
+        "lastTs": "2026-06-05T16:08:08.127Z",
+        "countsByEvent": {
+          "unknown": 5,
+          "model_load": 30,
+          "note": 16,
+          "model_unload": 21,
+          "rag_ingest": 9,
+          "rag_search": 9,
+          "completion": 29
+        },
+        "countsBySource": {
+          "data/notes/mesh-setup.md": 1,
+          "data/notes/preferences.md": 1,
+          "data/notes/project.md": 1,
+          "data/voice/dani-backup-memo.wav": 1,
+          "data/photos/calibration-card.png": 1,
+          "flux-test": 2,
+          "flux-verify": 2,
+          "newsroom": 108,
+          "tts-verify": 2
+        },
+        "parseErrors": []
+      }
+    },
+    "clients": {
+      "mac-mini": {
+        "totalEvents": 66,
+        "firstTs": "2026-06-05T09:24:28.543Z",
+        "lastTs": "2026-06-21T14:15:56.762Z",
+        "countsByEvent": {
+          "note": 3,
+          "pairing": 1,
+          "completion": 62
+        },
+        "countsBySource": {
+          "leash-telegram": 4,
+          "leash-watch": 62
+        },
+        "parseErrors": []
+      }
+    },
+    "build": {
+      "mac-mini": {
+        "documents": 5,
+        "mediaInventory": 4,
+        "remoteApiCalls": 9
+      },
+      "mbp": {}
+    },
+    "data": {
+      "mac-mini": {
+        "fileCount": 360,
+        "stagedFileCount": 45,
+        "totalBytes": 50389752,
+        "stateDocumentCount": 97,
+        "logFileCount": 48,
+        "chatSummary": {
+          "chatCount": 192,
+          "messageCount": 1122,
+          "firstTs": "2026-06-04T11:26:29.366Z",
+          "lastTs": "2026-06-21T07:50:59.207Z",
+          "roles": {
+            "user": 561,
+            "assistant": 561
+          },
+          "duplicateCount": 21,
+          "parseErrors": []
+        }
+      },
+      "mbp": {
+        "fileCount": 289,
+        "stagedFileCount": 273,
+        "totalBytes": 445010253,
+        "stateDocumentCount": 50,
+        "logFileCount": 11,
+        "chatSummary": {
+          "chatCount": 156,
+          "messageCount": 998,
+          "firstTs": "2026-06-14T15:21:22.288Z",
+          "lastTs": "2026-06-21T07:50:59.207Z",
+          "roles": {
+            "user": 499,
+            "assistant": 499
+          },
+          "duplicateCount": 0,
+          "parseErrors": []
+        }
+      }
+    }
+  },
+  "redactions": {
+    "invite": 135,
+    "writerKey": 191
+  },
+  "outputFileCount": 46,
+  "outputsWritten": [
+    "build/mac-mini/evidence.json",
+    "build/mac-mini/remote-api-calls.json",
+    "build/mbp/evidence.json",
+    "chats/mac-mini/chats.json",
+    "chats/mac-mini/index.json",
+    "chats/mbp/chats.json",
+    "chats/mbp/index.json",
+    "clients/mac-mini/events.json",
+    "clients/mac-mini/summary.json",
+    "data/mac-mini/chats.json",
+    "data/mac-mini/files.json",
+    "data/mac-mini/logs.json",
+    "data/mac-mini/state.json",
+    "data/mac-mini/summary.json",
+    "data/mbp/chats.json",
+    "data/mbp/files.json",
+    "data/mbp/logs.json",
+    "data/mbp/state.json",
+    "data/mbp/summary.json",
+    "hypha/mac-mini/events.json",
+    "hypha/mac-mini/summary.json",
+    "hypha/mbp/events.json",
+    "hypha/mbp/summary.json",
+    "leash/mac-mini/activity.json",
+    "leash/mac-mini/cron-runs.json",
+    "leash/mac-mini/summary.json",
+    "leash/mbp/conductor-events.json",
+    "leash/mbp/goal-runs.json",
+    "leash/mbp/services.json",
+    "leash/mbp/summary.json",
+    "media/mac-mini/events.json",
+    "media/mac-mini/summary.json",
+    "memory/mac-mini/events.json",
+    "memory/mac-mini/summary.json",
+    "mesh/mac-mini/events.json",
+    "mesh/mac-mini/summary.json",
+    "mind/mac-mini/events.json",
+    "mind/mac-mini/summary.json",
+    "qvac/mac-mini/events.json",
+    "qvac/mac-mini/kvcache-events.json",
+    "qvac/mac-mini/summary.json",
+    "qvac/mbp/events.json",
+    "qvac/mbp/summary.json",
+    "senses/mac-mini/events.json",
+    "senses/mac-mini/summary.json"
+  ],
+  "dataFold": {
+    "generatedAt": "2026-06-21T14:34:18.890Z",
+    "outputs": [
+      "data/mac-mini/chats.json",
+      "data/mac-mini/files.json",
+      "data/mac-mini/logs.json",
+      "data/mac-mini/state.json",
+      "data/mac-mini/summary.json",
+      "data/mbp/chats.json",
+      "data/mbp/files.json",
+      "data/mbp/logs.json",
+      "data/mbp/state.json",
+      "data/mbp/summary.json"
+    ],
+    "redactions": {
+      ".leash-key": 1,
+      "HYPHA_DATA_DIR": 2,
+      "HYPHA_ECONOMY_ENABLED": 2,
+      "HYPHA_ECONOMY_FLOAT": 2,
+      "HYPHA_ECONOMY_MAX_PER_COUNTERPARTY": 2,
+      "HYPHA_ECONOMY_MAX_PER_HOUR": 2,
+      "HYPHA_ECONOMY_MAX_PER_TX": 2,
+      "HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS": 2,
+      "HYPHA_ECONOMY_PLASMA_ASSET_MINT": 2,
+      "HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL": 2,
+      "HYPHA_ECONOMY_PLASMA_MNEMONIC": 2,
+      "HYPHA_ECONOMY_PLASMA_NETWORK_ID": 2,
+      "HYPHA_ECONOMY_PLASMA_RPC_URL": 2,
+      "HYPHA_ECONOMY_PRICE_PER_KTOK": 2,
+      "HYPHA_NAME": 2,
+      "HYPHA_PORT": 2,
+      "seed.txt": 2
+    }
+  }
+}

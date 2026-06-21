@@ -1,0 +1,33 @@
+{
+  "totalEvents": 59868,
+  "firstTs": "2026-06-05T23:49:57.631Z",
+  "lastTs": "2026-06-26T12:37:49.162Z",
+  "countsByEvent": {
+    "pairing": 672,
+    "note": 2222,
+    "delegation": 56951,
+    "completion": 19,
+    "adapter_publish": 4
+  },
+  "countsBySource": {
+    "hypha": 59868
+  },
+  "parseErrors": [],
+  "rawEventCount": 177136,
+  "rawCountsByEvent": {
+    "pairing": 672,
+    "note": 2222,
+    "delegation": 56951,
+    "capability": 117268,
+    "completion": 19,
+    "adapter_publish": 4
+  },
+  "retainedEvents": [
+    "adapter_fetch",
+    "adapter_publish",
+    "completion",
+    "delegation",
+    "note",
+    "pairing"
+  ]
+}

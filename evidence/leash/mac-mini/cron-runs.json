@@ -1,0 +1,24 @@
+[
+  {
+    "stream": "leash-cron-runs",
+    "id": "run-1780670807187-ak84lp",
+    "scheduleId": "PEtj6Ua79lOmFAni",
+    "name": "Cron e2e check",
+    "kind": "task",
+    "startedAt": 1780670807184,
+    "finishedAt": 1780670807187,
+    "ok": true
+  },
+  {
+    "stream": "leash-cron-runs",
+    "id": "run-1780670901021-6lkgse",
+    "scheduleId": "sexhVKa6QItmmbR6",
+    "name": "Job e2e — tag photos",
+    "kind": "job",
+    "startedAt": 1780670897162,
+    "finishedAt": 1780670901021,
+    "ok": true,
+    "exitCode": 0,
+    "outputTail": "\n> mycelium@0.0.0 tag-photos\n> tsx apps/web/scripts/tag-photos.mts\n\n🏷  tagging 1 image(s) with on-device classify()…\n[sdk:server] Another worker (PID 34514) is still running — lock file exists at /Users/cartel/.qvac/.worker.lock\n[sdk:server] 🐻 Hello from Bare\n[sdk:server] Parsed RPC configuration from arguments\n[sdk:server] Running in desktop mode, connecting to IPC socket: /var/folders/z0/5lcpnk1n7gz59qhygnqzcfj00000gn/T/qvac-worker-92353-mq11h6to-d76c.sock\n[sdk:server] Connecting to IPC socket at /var/folders/z0/5lcpnk1n7gz59qhygnqzcfj00000gn/T/qvac-worker-92353-mq11h6to-d76c.sock\n[sdk:server] Bare worker started and listening for RPC requests\n[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json\n[sdk:server] Connected to IPC server\n[sdk:server] ✅ Swarm relays configured: 0 relay(s)\n   calibration-card.png → other (75%)\n🏷  wrote 1 tag(s) → /Volumes/Development/qvac/mycelium/data/leash-photo-tags.json\n"
+  }
+]

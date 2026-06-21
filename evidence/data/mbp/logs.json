@@ -1,0 +1,180 @@
+[
+  {
+    "bucket": "leash-install",
+    "path": "logs/conductor.jsonl",
+    "totalEvents": 561,
+    "firstTs": "2026-06-18T20:32:59.842Z",
+    "lastTs": "2026-06-21T07:58:02.946Z",
+    "countsByEvent": {
+      "note": 561
+    },
+    "countsBySource": {
+      "conductor": 561
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "apps/hypha/logs/hypha.jsonl",
+    "totalEvents": 135124,
+    "firstTs": "2026-06-05T23:49:57.631Z",
+    "lastTs": "2026-06-13T23:15:11.104Z",
+    "countsByEvent": {
+      "pairing": 274,
+      "note": 7234,
+      "delegation": 59380,
+      "capability": 68222,
+      "adapter_fetch": 2,
+      "completion": 10,
+      "adapter_publish": 2
+    },
+    "countsBySource": {
+      "hypha": 135124
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/00-warm-cache.jsonl",
+    "totalEvents": 5,
+    "firstTs": "2026-06-01T04:08:08.573Z",
+    "lastTs": "2026-06-01T04:08:14.370Z",
+    "countsByEvent": {
+      "model_load": 5
+    },
+    "countsBySource": {
+      "00-warm-cache": 5
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/01-inference.jsonl",
+    "totalEvents": 58,
+    "firstTs": "2026-05-31T18:12:37.480Z",
+    "lastTs": "2026-06-04T04:25:01.971Z",
+    "countsByEvent": {
+      "model_load": 20,
+      "completion": 15,
+      "model_unload": 19,
+      "embedding": 4
+    },
+    "countsBySource": {
+      "01-inference": 58
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/02-rag.jsonl",
+    "totalEvents": 26,
+    "firstTs": "2026-05-31T18:11:52.984Z",
+    "lastTs": "2026-06-02T21:50:52.499Z",
+    "countsByEvent": {
+      "model_load": 9,
+      "rag_ingest": 5,
+      "rag_search": 5,
+      "completion": 7
+    },
+    "countsBySource": {
+      "02-rag": 26
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/03-p2p-consumer.jsonl",
+    "totalEvents": 2,
+    "firstTs": "2026-05-31T18:53:13.277Z",
+    "lastTs": "2026-05-31T18:53:14.553Z",
+    "countsByEvent": {
+      "delegation": 1,
+      "completion": 1
+    },
+    "countsBySource": {
+      "03-p2p-consumer": 2
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/03-p2p-provider.jsonl",
+    "totalEvents": 6,
+    "firstTs": "2026-05-31T18:50:54.210Z",
+    "lastTs": "2026-06-02T21:48:57.005Z",
+    "countsByEvent": {
+      "delegation": 4,
+      "note": 2
+    },
+    "countsBySource": {
+      "03-p2p-provider": 6
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/04-lora.jsonl",
+    "totalEvents": 90,
+    "firstTs": "2026-05-31T18:47:40.230Z",
+    "lastTs": "2026-06-02T21:56:35.333Z",
+    "countsByEvent": {
+      "model_load": 4,
+      "completion": 4,
+      "finetune_progress": 76,
+      "finetune_result": 2,
+      "model_unload": 2,
+      "note": 2
+    },
+    "countsBySource": {
+      "04-lora": 90
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/05-autobase-edge.jsonl",
+    "totalEvents": 15,
+    "firstTs": "2026-06-01T07:00:19.569Z",
+    "lastTs": "2026-06-01T07:56:22.616Z",
+    "countsByEvent": {
+      "pairing": 7,
+      "graph_sync": 7,
+      "note": 1
+    },
+    "countsBySource": {
+      "05-autobase-edge": 15
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/05-autobase-hub.jsonl",
+    "totalEvents": 15,
+    "firstTs": "2026-06-01T07:00:15.771Z",
+    "lastTs": "2026-06-01T07:56:21.858Z",
+    "countsByEvent": {
+      "pairing": 7,
+      "graph_sync": 7,
+      "note": 1
+    },
+    "countsBySource": {
+      "05-autobase-hub": 15
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/06-ocr.jsonl",
+    "totalEvents": 17,
+    "firstTs": "2026-06-02T08:32:58.975Z",
+    "lastTs": "2026-06-02T09:01:42.222Z",
+    "countsByEvent": {
+      "note": 12,
+      "model_load": 5
+    },
+    "countsBySource": {
+      "06-ocr": 17
+    },
+    "parseErrors": []
+  }
+]

@@ -1,0 +1,21 @@
+{
+  "conductor": {
+    "totalEvents": 561,
+    "firstTs": "2026-06-18T20:32:59.842Z",
+    "lastTs": "2026-06-21T07:58:02.946Z",
+    "countsByEvent": {
+      "note": 561
+    },
+    "countsBySource": {
+      "conductor": 561
+    },
+    "parseErrors": []
+  },
+  "goalRuns": {
+    "type": "array",
+    "count": 265
+  },
+  "services": {
+    "count": 3
+  }
+}

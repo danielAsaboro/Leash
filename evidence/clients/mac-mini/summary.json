@@ -1,0 +1,15 @@
+{
+  "totalEvents": 66,
+  "firstTs": "2026-06-05T09:24:28.543Z",
+  "lastTs": "2026-06-21T14:15:56.762Z",
+  "countsByEvent": {
+    "note": 3,
+    "pairing": 1,
+    "completion": 62
+  },
+  "countsBySource": {
+    "leash-telegram": 4,
+    "leash-watch": 62
+  },
+  "parseErrors": []
+}

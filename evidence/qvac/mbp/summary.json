@@ -1,0 +1,31 @@
+{
+  "totalEvents": 234,
+  "firstTs": "2026-05-31T18:11:52.984Z",
+  "lastTs": "2026-06-04T04:25:01.971Z",
+  "countsByEvent": {
+    "model_load": 43,
+    "completion": 27,
+    "model_unload": 21,
+    "embedding": 4,
+    "rag_ingest": 5,
+    "rag_search": 5,
+    "delegation": 5,
+    "note": 18,
+    "finetune_progress": 76,
+    "finetune_result": 2,
+    "pairing": 14,
+    "graph_sync": 14
+  },
+  "countsBySource": {
+    "00-warm-cache": 5,
+    "01-inference": 58,
+    "02-rag": 26,
+    "03-p2p-consumer": 2,
+    "03-p2p-provider": 6,
+    "04-lora": 90,
+    "05-autobase-edge": 15,
+    "05-autobase-hub": 15,
+    "06-ocr": 17
+  },
+  "parseErrors": []
+}

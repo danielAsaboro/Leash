@@ -1,0 +1,2603 @@
+[
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": ".economy.cons.env",
+    "ext": "env",
+    "bytes": 842,
+    "sha256": "f722c415b9c8adb461adf36e25bc9a64edf8ecedc64f103ccfdf673310339fdd",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": ".economy.prov.env",
+    "ext": "env",
+    "bytes": 837,
+    "sha256": "0e23a7ebd450531043ea24557b2c491940149c2a4fdc6ec07b1c73fb4b1cb708",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": ".leash-key",
+    "ext": null,
+    "bytes": 64,
+    "sha256": "04a457df6073e186436322f0a7b06455d02586eb2c3678588604dd430f9bdd2e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/forgotten.json",
+    "ext": "json",
+    "bytes": 2,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000208.blob",
+    "ext": "blob",
+    "bytes": 12461,
+    "sha256": "35e4b89b629a6b341a8c8e3754dc4356bb72f1bb28840668cc678f1860ee4b91",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000212.blob",
+    "ext": "blob",
+    "bytes": 24860,
+    "sha256": "ec9870d228769799cb15ac26a97cdc28aeccbcdb757ea101b787baa06cc2bc75",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000218.blob",
+    "ext": "blob",
+    "bytes": 16594,
+    "sha256": "6f47cae2dd6965d56a2c9a97732a3e850a83af00a1fae1e4bf39ddaddd97a338",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000230.blob",
+    "ext": "blob",
+    "bytes": 12461,
+    "sha256": "b087d2cd9f5bcb7a98a1de495e3bfca820dae29ddb404de5ecc2ddcd7806dee9",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000235.sst",
+    "ext": "sst",
+    "bytes": 67551989,
+    "sha256": "ed9a2dc4c5313c70e231e69a687e69f7394c9e9d32b1a142976cc8261748850c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000236.blob",
+    "ext": "blob",
+    "bytes": 4195,
+    "sha256": "4beb01d8167f76dfdfbd4d94bab8083196028c131c73abb452585fc30949e374",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000237.sst",
+    "ext": "sst",
+    "bytes": 18507443,
+    "sha256": "0d702eb2719e3c004cdffb01568819f1fd09345ec010c59fcfab4be573dd01b1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000238.log",
+    "ext": "log",
+    "bytes": 31856848,
+    "sha256": "01afa71cb2403bf17c4f52d3a5287ec51dd935149224f2350bc41bd2b2304f82",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000239.sst",
+    "ext": "sst",
+    "bytes": 30860742,
+    "sha256": "6a99b3b77096ae0bfed96b31ae367f0f618375dfc35c0e23c4ec816a1012949c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/000240.blob",
+    "ext": "blob",
+    "bytes": 12461,
+    "sha256": "b3638ac5145680d241d279105916072b5302540c3890d5817ef0b8988e9e4350",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/CURRENT",
+    "ext": null,
+    "bytes": 16,
+    "sha256": "d1e1ee13bfa3e7b0a668736a3839ce3acc8aa0035aebfef920f7f4022d6d76d3",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/IDENTITY",
+    "ext": null,
+    "bytes": 36,
+    "sha256": "1423e9f9fdbb3befc4e5cd7c04e931e15d7b64c77bc66745af23938eeaeb183c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOCK",
+    "ext": null,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG",
+    "ext": null,
+    "bytes": 207251,
+    "sha256": "d54ac97ea65f017ae865e30bfc5686862317350689414482aebb58eabb61a2ef",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781051739351046",
+    "ext": "1781051739351046",
+    "bytes": 46985,
+    "sha256": "02957bd561499de13e87d0eddb68148370f4e3aaf5faa2b5fa08bfbe13225ab1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781053488207375",
+    "ext": "1781053488207375",
+    "bytes": 67955,
+    "sha256": "ae81d737e59e8cd4ba86f58de249a8ff1e3c94e11516dbcac55c2158a992c7e0",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781054874115387",
+    "ext": "1781054874115387",
+    "bytes": 63259,
+    "sha256": "87c237615aaebfad0e64adeda3471cb81d27fb4cd09856760e728fe9eaeaf456",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781054893189657",
+    "ext": "1781054893189657",
+    "bytes": 50254,
+    "sha256": "78f4a5b0629e19003e0a1e6fd0d74d4a30e3e580d3aff5f7b6187570905fb13c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781054908178195",
+    "ext": "1781054908178195",
+    "bytes": 57209,
+    "sha256": "9bd4037f92f0eaa00472319c53939591efc9fba7addb80eb1c2503edadcf6366",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781054928289573",
+    "ext": "1781054928289573",
+    "bytes": 49165,
+    "sha256": "3009edfbe7a0afd84cab45b17b4875f1f21aaa8130f766bf6e2d88ef68f86199",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781056128240218",
+    "ext": "1781056128240218",
+    "bytes": 54325,
+    "sha256": "48ee34a0777468b8e1be9cb512d26da3050154d8350bf26a1b45dc0e575bbb70",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781059134757624",
+    "ext": "1781059134757624",
+    "bytes": 65444,
+    "sha256": "2d845a3e1d76449d8d8cf704d7fcbf801942798617d5f5321352ff67083144c8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781060622453414",
+    "ext": "1781060622453414",
+    "bytes": 63942,
+    "sha256": "634ae99417ec1e68291a5f472cbc5c7caebdbf05b02a0056dfb559243c6dc87d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781063679366221",
+    "ext": "1781063679366221",
+    "bytes": 57380,
+    "sha256": "d8f4aa30e6f4c550950b1f5f304ae7d48489f3fac8f167aaa2c26b01fb321334",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781064371101116",
+    "ext": "1781064371101116",
+    "bytes": 65751,
+    "sha256": "c5be298e5563736d8efad2880706f5e29c762ebe2dbf840f554efeef36986a9b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781064983650084",
+    "ext": "1781064983650084",
+    "bytes": 54009,
+    "sha256": "2ddaa8ee747799dd1b62aba1ef167efd777176e6b80f9de87a099a9629ac8b52",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781065369645842",
+    "ext": "1781065369645842",
+    "bytes": 50796,
+    "sha256": "5929a925ecea3ef0af9c41592a63f57b1df67a8e33bf1b0cfca1a1e7a19f07c1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781065870588047",
+    "ext": "1781065870588047",
+    "bytes": 50806,
+    "sha256": "60713d2d9a73056be60cc936e0ba65545b2a0ab9246fc8d46c77395b6ddc29c4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781066627790118",
+    "ext": "1781066627790118",
+    "bytes": 65839,
+    "sha256": "1aadfd96ece4d1a9633339a573504208383cce9748a3e6e62cfe9fc9f20ebf81",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781067093442547",
+    "ext": "1781067093442547",
+    "bytes": 53372,
+    "sha256": "56c0ae6afa7a2be54eeb6e6feb7da1c6bd5d56bda53a217c0b10aabd19e4c587",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781067370570621",
+    "ext": "1781067370570621",
+    "bytes": 50805,
+    "sha256": "15a6536990d8f00a57b938232d9aa55934dfd4ff65d1e7309fd39584b079c1ff",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781067594670528",
+    "ext": "1781067594670528",
+    "bytes": 50808,
+    "sha256": "6635a3cb634fbb03df1539b9e7d83b7142b44091ffcc511a1a70a94b68e82372",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781068429372229",
+    "ext": "1781068429372229",
+    "bytes": 66279,
+    "sha256": "f4ecfb1b8e63a08196f2c220885016d6a41f792eb65334aa1ec59c072c6d4c4d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781068665313270",
+    "ext": "1781068665313270",
+    "bytes": 54029,
+    "sha256": "c97117a46ea881f31eafdd6541f1561d796eb5dcc165b04038676915fe0bf490",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781069019470601",
+    "ext": "1781069019470601",
+    "bytes": 50793,
+    "sha256": "2b4631aca1b7745668e01ef35fe0d8f820f3c8db7535344511194217a05352d7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781069936087893",
+    "ext": "1781069936087893",
+    "bytes": 57392,
+    "sha256": "2a45addf82ddea444a6d889dd9bf79204149cbe3c543523e294381fb23d1ad28",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781092563647417",
+    "ext": "1781092563647417",
+    "bytes": 134036,
+    "sha256": "313043e5b4725c97b16a31c24ec2594785c4db4b1228426b80c2dcb60d663f2c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781093593699098",
+    "ext": "1781093593699098",
+    "bytes": 60619,
+    "sha256": "2a4a6e5574378971e311994674c03865360d5f4e72ea9397f73a50aeceb6bfbb",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781093949614483",
+    "ext": "1781093949614483",
+    "bytes": 50820,
+    "sha256": "ef02f11afb6bb6170b5a070cd622771c3efddf4e4fdee6766d2bdfa2a432f608",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781095173173150",
+    "ext": "1781095173173150",
+    "bytes": 66300,
+    "sha256": "db438dcd01f68a09ebf734be1330f26da4c6c89fafd7789e9a6638437e5d8af6",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781096222360075",
+    "ext": "1781096222360075",
+    "bytes": 60603,
+    "sha256": "9c4c4bfdf6f9ce9098b6ec0800cb338b6a4829f1e89154f178b479107b9528c5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781098870355085",
+    "ext": "1781098870355085",
+    "bytes": 65239,
+    "sha256": "21109fdbb0d25859e8ca87c44295f0688e68608511b884f7195d1cd54516a27d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781102181609703",
+    "ext": "1781102181609703",
+    "bytes": 66055,
+    "sha256": "10859a764de40fe919494b399e54733179d325fce321b16f5fdf8e9d9d0fab24",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781103023537759",
+    "ext": "1781103023537759",
+    "bytes": 66028,
+    "sha256": "0c009a04afcdb0cc6e1ead1c04a0a44e02b4c2d552816544cc7c1528e428ec4c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781121819042770",
+    "ext": "1781121819042770",
+    "bytes": 107078,
+    "sha256": "ed1688aa46f82bcaa1674f4b0792e353f0d20db1639bdd8d8f219ded8531ba66",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781122054885439",
+    "ext": "1781122054885439",
+    "bytes": 50527,
+    "sha256": "e93a9e81aa5b84a15cd08ea481eff207f7a69ec7c5ba89175a74409902ce7ef0",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/LOG.old.1781128566561505",
+    "ext": "1781128566561505",
+    "bytes": 75770,
+    "sha256": "ed11900b6e01d06376a4b5b75b8a9ad9e7402f39af6c8c224c4b7dded44bdfb8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/MANIFEST-000232",
+    "ext": null,
+    "bytes": 1176,
+    "sha256": "3cb4a762d6f9a5181960f925a443d2e2a82b70bf42862cdc7bf90dcfb8ec82f0",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/OPTIONS-000228",
+    "ext": null,
+    "bytes": 12526,
+    "sha256": "6810fb02584559881971a8b025f7f81622a85368d31cdb0272e8aac8b7cd2fdf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/OPTIONS-000234",
+    "ext": null,
+    "bytes": 12526,
+    "sha256": "6810fb02584559881971a8b025f7f81622a85368d31cdb0272e8aac8b7cd2fdf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/mesh-store/db/SESSION_ID",
+    "ext": null,
+    "bytes": 20,
+    "sha256": "c0112ccc1a4f34e05d4f8b0f2bb814830fdfb4415f5221243c14e5aeaca80914",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/meshes.json",
+    "ext": "json",
+    "bytes": 125,
+    "sha256": "c831eeb90ada50d7c4100cea33442a9ae8684bc40368b11f9b0ff6981372e32f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/seed.txt",
+    "ext": "txt",
+    "bytes": 64,
+    "sha256": "131832ae7f55015207f142725e8c7f5ade49b79796059dec38b30347ef43f8d5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha-econ/unpair-ack.json",
+    "ext": "json",
+    "bytes": 333,
+    "sha256": "066e23f95711321a8a43a976cc6c33662d46c2cf0ec3604c0fb0f1ac4d01ec36",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/economy/active-sessions.json",
+    "ext": "json",
+    "bytes": 3,
+    "sha256": "ca3d163bab055381827226140568f3bef7eaac187cebd76878e0b63e9e442356",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/economy/settled-receipts.json",
+    "ext": "json",
+    "bytes": 3303,
+    "sha256": "4d8b8c8f4a2cd79efcdd6f24b18411bfffdb7ff69279ba144ed50360c4f56f95",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/economy/used-authorizations.json",
+    "ext": "json",
+    "bytes": 543,
+    "sha256": "e3017a61682a0ee5983a600ed8e8f72d8105d20d299c2ddf346fa6ac000f471d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000041.blob",
+    "ext": "blob",
+    "bytes": 8328,
+    "sha256": "a3292291437b5649b182d7b7f9b156b8147baf5542c7947e57f559207899acbb",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000045.blob",
+    "ext": "blob",
+    "bytes": 20727,
+    "sha256": "98fc9b430da23564c9efbe681e23eb0c7511a153800ea5fdabbd65774bdbc591",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000057.log",
+    "ext": "log",
+    "bytes": 23687951,
+    "sha256": "4ed1687e46330f52cc9b3ba6ba9f78d7a4d8bbe940cbff44cdc4f158f7eafcbd",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000059.blob",
+    "ext": "blob",
+    "bytes": 16594,
+    "sha256": "81001fb8e9ce8f83ce140fa42a70ac8658d73760df4988b5241a0fa3519a5cbf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000060.sst",
+    "ext": "sst",
+    "bytes": 67373503,
+    "sha256": "1987323083e2e685a6a0c6efda5656e3dc39a9558cafb6f27f7c1ef8cc948702",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000061.blob",
+    "ext": "blob",
+    "bytes": 87673762,
+    "sha256": "7583d54d8b708399b48679ac5cdd9950ad9063523933d3a419bc621782cc01d0",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000062.sst",
+    "ext": "sst",
+    "bytes": 67606015,
+    "sha256": "5b85c2749ecbfada0a60aef4c6f55f645a1509ec21b0a80497a206e0b3e26dce",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/000063.sst",
+    "ext": "sst",
+    "bytes": 5572089,
+    "sha256": "a072be1ae5c9a06168719d1c78e67473ca8256fdfbf67564b8a5d42ac4619895",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/CURRENT",
+    "ext": null,
+    "bytes": 16,
+    "sha256": "8348ac867ece6ffb411692796aed0953f28efb594f03201c8babcb2c56029375",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/IDENTITY",
+    "ext": null,
+    "bytes": 36,
+    "sha256": "68ed165d175707e927924911bed77abfe97bc1409b934f9b2d78fcdcd5bc681c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/LOCK",
+    "ext": null,
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/LOG",
+    "ext": null,
+    "bytes": 254913,
+    "sha256": "9523ce223a01ee77be74ca61aa24bc0025bf1919e57dcf1ad5b566c1a720373e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/LOG.old.1781214132289998",
+    "ext": "1781214132289998",
+    "bytes": 62951,
+    "sha256": "af5caf06f51f2836b69a95f26b06701f35ea660d71ce948a19c630e7b62a4a96",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/LOG.old.1781317811928802",
+    "ext": "1781317811928802",
+    "bytes": 423067,
+    "sha256": "79d7f14969d786822eb09b7e7276411cbb86e27c8a94cd0bb35de6ddc443ce02",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/MANIFEST-000054",
+    "ext": null,
+    "bytes": 1271,
+    "sha256": "1477b8b9f8dbd8f45e5aa45045f0a0d629bc1b5302f1effeac5b46b5a7171200",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/OPTIONS-000019",
+    "ext": null,
+    "bytes": 12526,
+    "sha256": "6810fb02584559881971a8b025f7f81622a85368d31cdb0272e8aac8b7cd2fdf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/OPTIONS-000056",
+    "ext": null,
+    "bytes": 12526,
+    "sha256": "6810fb02584559881971a8b025f7f81622a85368d31cdb0272e8aac8b7cd2fdf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/mesh-store/db/SESSION_ID",
+    "ext": null,
+    "bytes": 20,
+    "sha256": "f96b181ca6506f5cbcdaac2f649ef1105f830fff91ad2541e25472170cd440fb",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/meshes.json",
+    "ext": "json",
+    "bytes": 214,
+    "sha256": "ddb27219063feddedc973443f10f5b8fe76ed25b7ebee03901a11303f0afce46",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "hypha/seed.txt",
+    "ext": "txt",
+    "bytes": 64,
+    "sha256": "7a6558b90303bf323860a6c929cbae1f513cbc5be4b8406e4ba94d089a0bcbb7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-memories.json",
+    "ext": "json",
+    "bytes": 238,
+    "sha256": "cff8b3b42029f06165f071d4bea82f5e4d75e3f2f566d05cdf6c636b5d50a5d9",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-models-catalog.json",
+    "ext": "json",
+    "bytes": 269286,
+    "sha256": "1bd084b967e81388327e36db5d81057f49c6ca28f669e665dbab3074bb12d3da",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-secrets.enc",
+    "ext": "enc",
+    "bytes": 2,
+    "sha256": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-serve.json",
+    "ext": "json",
+    "bytes": 48,
+    "sha256": "8475120cf056a2924b5f28dff139069cd85609f7b974edc1e2a7ee15f9c8a54c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-serve.log",
+    "ext": "log",
+    "bytes": 1022096,
+    "sha256": "4b1eaf2e0cd08e242b842d989548931ef5e40dc242bef4e3fec08073add6e71b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/hypha.json",
+    "ext": "json",
+    "bytes": 48,
+    "sha256": "340bdfbede0dd68703a717c676206d3f5b621ce9f477f5a9a85ab3e938f535b2",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/hypha.log",
+    "ext": "log",
+    "bytes": 114449,
+    "sha256": "dd64a696ad133e602c8ad9eee8713cdfc18a0709300013f475078bfeefc83a5f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/leash-cron.heartbeat",
+    "ext": "heartbeat",
+    "bytes": 24,
+    "sha256": "b30e82b2a8634cbcf13099e7ca55bbda23a5d4c8fc26fd83c25807ffa4fb0178",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/leash-cron.json",
+    "ext": "json",
+    "bytes": 4,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/leash-cron.log",
+    "ext": "log",
+    "bytes": 565,
+    "sha256": "8a17aea2c9e3a8b4cc3d54cf35b6db98a7f82c89554f3c5f818580cac0babd62",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/leash-mcp.json",
+    "ext": "json",
+    "bytes": 4,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/leash-mcp.log",
+    "ext": "log",
+    "bytes": 89,
+    "sha256": "e2f66ae4ddcb8fc320904a4539cfcdd59972e092ff84f462f1d97b7e6a5a3fe7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/newsroom.json",
+    "ext": "json",
+    "bytes": 4,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/newsroom.log",
+    "ext": "log",
+    "bytes": 1965,
+    "sha256": "0a54bd5f5dcb7bd3ba2cfa68f1ea7d8c7d99114165d379de843ef068842c62a4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/watcher.json",
+    "ext": "json",
+    "bytes": 4,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-services/watcher.log",
+    "ext": "log",
+    "bytes": 12187,
+    "sha256": "19e7225f67cc1994395436aa7348f31975f26143e37b754e2f8e7b9e2b4962c1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "device-state",
+    "path": "leash-tasks.json",
+    "ext": "json",
+    "bytes": 2,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/goals.md",
+    "ext": "md",
+    "bytes": 157,
+    "sha256": "03d64c5adbf894c4140a0e8cb7decdf973c3f4e980e68237b6ce14dc4310823d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/heartbeat.md",
+    "ext": "md",
+    "bytes": 586,
+    "sha256": "1376498061f9964d34fa230f12a1f23cb76575d5efa720e2871a35c268e75777",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/leash-goal-runs.json",
+    "ext": "json",
+    "bytes": 607653,
+    "sha256": "249bf04c8d5c0bebe44f157d0755cb13a18220e074a32faeaf67a34350b3cde7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/leash-mcp-icons.json",
+    "ext": "json",
+    "bytes": 12606,
+    "sha256": "334aaf2c8d55418776fc23876196d6a0f7022a6d6b1ad85b2f5e6974b9b7eaac",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/leash-mcp.json",
+    "ext": "json",
+    "bytes": 10434,
+    "sha256": "41ed14ce14be7ecde969bc1148ce2691af3e1630fca20489b5de4e1428354e40",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/leash-serve.json",
+    "ext": "json",
+    "bytes": 48,
+    "sha256": "55dc9ef669a267d4ef66057e28dff9ec6a660c854e9bb06d7a298dc0cfb3a4b9",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/leash-serve.log",
+    "ext": "log",
+    "bytes": 230600,
+    "sha256": "057aec5edcc01401a8c67f694bf93b2de16282cf09e94044c304374805276efb",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/leash-tasks.json",
+    "ext": "json",
+    "bytes": 2,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "data/soul.md",
+    "ext": "md",
+    "bytes": 184,
+    "sha256": "aa0e42dd187e92572cc6db9a6f35f6b280a779b1cfd54b0ab79edfce7715e83f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-agent-boundary-mqmacwhm.json",
+    "ext": "json",
+    "bytes": 5679,
+    "sha256": "6e19386094f90c19ae41f2225688c516d4513a7d28e2ba0b2fb496f76c57085f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-agent-only-mqmado93.json",
+    "ext": "json",
+    "bytes": 1202,
+    "sha256": "d0ce2f9934811d389968ca3f33082d7f7ee7116e56d812b26ca579f330778148",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-created-search.json",
+    "ext": "json",
+    "bytes": 4771,
+    "sha256": "339b097f64608c0bb62ed710fd2c6bffcf483b34f1edafa80b8d0e0e4aebd89d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-link-smoke-2.json",
+    "ext": "json",
+    "bytes": 6213,
+    "sha256": "f90f88187f29a50b41554024f93ba18e5587e29a51afd3dac411ebec23663edc",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-link-smoke-3.json",
+    "ext": "json",
+    "bytes": 6213,
+    "sha256": "c19da830b0064125bb6378bd64aaa10b2991aa0edee7b2e3dd13840a8a8de8ad",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-link-smoke.json",
+    "ext": "json",
+    "bytes": 6207,
+    "sha256": "ffb2e4676559f00b5525f002b36ca226ae6b619b6c91726c4d52eb1c6ccbf153",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-readback-smoke.json",
+    "ext": "json",
+    "bytes": 4321,
+    "sha256": "1c7a1201fa6b76a4a6f1da3fa7a2200872d3a584f660e88b1dc4284beb29180b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-real-search-2.json",
+    "ext": "json",
+    "bytes": 6292,
+    "sha256": "cb6c15a392a8192fb9db4570b0c38cb8f7e72aae86ab0ff181219d58c93c14e7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-real-search.json",
+    "ext": "json",
+    "bytes": 4561,
+    "sha256": "b50dd34ea686657f7f916d2997f546ee78af7b3c5605a528d2e60e785e057633",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-smoke-2.json",
+    "ext": "json",
+    "bytes": 3302,
+    "sha256": "51b9f8d83b079a2c3c6cd246a80d7c916c10ee354f27d83d368f8485d4976df4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-smoke-3.json",
+    "ext": "json",
+    "bytes": 3303,
+    "sha256": "7163a9ed31e02ec88c89d5f630701ce11c84220af457f43ccb042cf3145059b5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-smoke-4.json",
+    "ext": "json",
+    "bytes": 5564,
+    "sha256": "35288347440632398df0a040063d0f44da3ee3777104260b7a6b9015bc688ae3",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-smoke.json",
+    "ext": "json",
+    "bytes": 3841,
+    "sha256": "fa13c4e6ece92295131be52e5390aa4c2ba9bcd74807c012edf4bab55d580d3c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-ui-smoke.json",
+    "ext": "json",
+    "bytes": 5994,
+    "sha256": "0ab40b2c8f48545fc14338e95bd422f95037a11198c8a4db3c10d4983b92daf0",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-update-smoke-2.json",
+    "ext": "json",
+    "bytes": 8463,
+    "sha256": "e74bf94ad43a171366ce07076f8290696dec3eb5473d0d64c2e228535a507f9e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-write-smoke-2.json",
+    "ext": "json",
+    "bytes": 7615,
+    "sha256": "e6c7ab56c1e41083116507c236fb18988c2fab19d57ee7109b6604f6c9ed53c8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-apple-notes-write-smoke.json",
+    "ext": "json",
+    "bytes": 9173,
+    "sha256": "b1e6a1ed21007433f8e8d8976d8aaf981d07c42e8ca7f70b0d5eddf42ab1090a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-chat-gauntlet-mqlt1267.json",
+    "ext": "json",
+    "bytes": 11811,
+    "sha256": "30043d465242ea642f9b256957afb5226cac5393bab5ee95427d71be7cdb555a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-chat-gauntlet-mqlud9dh.json",
+    "ext": "json",
+    "bytes": 11838,
+    "sha256": "fb08d9cb95e496dab84716ebc0f2fee3ed939cd93296aff531b6732cd85b1651",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-chat-gauntlet-mqm77k72.json",
+    "ext": "json",
+    "bytes": 12619,
+    "sha256": "d169239954ba2d14224ea887a204ea3b0706689759ced98d47317dcab32eeec7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-chat-gauntlet-mqm7d6ti.json",
+    "ext": "json",
+    "bytes": 14094,
+    "sha256": "0b20d5fbcc05b075bd7ac5e5f5ea4e901190d65ff36f48690b9055e9453cb036",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-chat-gauntlet-mqm99xc6.json",
+    "ext": "json",
+    "bytes": 11762,
+    "sha256": "a93dcd657f984a49cb79bea1947589b1259e6267917c1a7894379fe23143277b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-chat-gauntlet-mqma56vs.json",
+    "ext": "json",
+    "bytes": 11004,
+    "sha256": "b72f931839aa4282e69a6b0f2495c7fa979d0290701b5db760de495ef6c2a4bf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmve2qj.json",
+    "ext": "json",
+    "bytes": 4198,
+    "sha256": "fe4f2d8cc58bffdeecbabe18a3b6a7de9a70855362d66b0e5642ec9d555ab9c8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmvg9vz.json",
+    "ext": "json",
+    "bytes": 21025,
+    "sha256": "d88b812f9ec4c750f71df14e914da0430c7b707a85297cffd94ac84754be4a8f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmvlqzp.json",
+    "ext": "json",
+    "bytes": 15610,
+    "sha256": "4bd2c9cb7c40ca31a7c105c0ce75d5f647c7feaf04fe56418b490f123240c70d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmwwe4i.json",
+    "ext": "json",
+    "bytes": 4180,
+    "sha256": "f7a6dce05af738166c22ac846dd8c61073a7ff189bc5dfb3eed92405c88c8969",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmwzi74.json",
+    "ext": "json",
+    "bytes": 18651,
+    "sha256": "3b58f7f8a4c43da30a80399b949d4c754c4b5709097993fdf3c882d0fc5bb97e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmxa9hn.json",
+    "ext": "json",
+    "bytes": 4108,
+    "sha256": "930a005a723e7f094b0fc50fd2f15dd073cc1d78df6b7cabd206db9b4498c854",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmxcjy1.json",
+    "ext": "json",
+    "bytes": 10191,
+    "sha256": "c91323d23c2cf4b6a3b9d248979be739c37b64e3699243843dfc3abfb674e982",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-clueless-gauntlet-mqmxoviu.json",
+    "ext": "json",
+    "bytes": 5240,
+    "sha256": "c09ccd4b7af2c00f0c5b440b005092f0e050d29edc27b4e664b9b54dd2bd0cff",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-computer-gauntlet-1781951700.json",
+    "ext": "json",
+    "bytes": 31965,
+    "sha256": "e261f95526bb6b18c38a31f0e3256752a6359715a5b46412d0463a4a52d8c4d9",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-file-finder-probe-mqmh47iw.json",
+    "ext": "json",
+    "bytes": 2844,
+    "sha256": "0d7a268d847724fd6613d2105dc02d2c0f7cd3103737d87ce3bd72e30b22c685",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-file-finder-probe-mqmh7qqr.json",
+    "ext": "json",
+    "bytes": 4623,
+    "sha256": "f03cbab5cb79455a1b4a7fc5daa7a1f9181bd8634820f2c95553e6dff15b1607",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-file-finder-probe-mqmhw53b.json",
+    "ext": "json",
+    "bytes": 2781,
+    "sha256": "8d474b3f769a09604a007cc0ababb54fe7cfca7c59ff1759652fe3ecfb5baf5d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-focused-run-skill-1781955262.json",
+    "ext": "json",
+    "bytes": 4574,
+    "sha256": "3f546bcf8d3049020f3922a7a7492bad601912f978178a25c2c2a20d78f49633",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-hi-after-qvac-restart.json",
+    "ext": "json",
+    "bytes": 882,
+    "sha256": "8fd5941fb03b4daebceb75601d9a2284b8116f76578d50e42fb01a0de31bd06f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqm9ecva.json",
+    "ext": "json",
+    "bytes": 22387,
+    "sha256": "e3ee27abb8c50bf58f401b6f2bbd30124584045ea6318084f80f005733c9b5be",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqm9kg0d.json",
+    "ext": "json",
+    "bytes": 116375,
+    "sha256": "372f864c4aae299386349a9ab014e4320526e1f018d212c0310c85d268d99a28",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmad54u.json",
+    "ext": "json",
+    "bytes": 39574,
+    "sha256": "b8080fc8c1883a61cef917072ae7edb0496e2cc224b4821580d83669dca7683d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmasv7x.json",
+    "ext": "json",
+    "bytes": 8652,
+    "sha256": "572c89b3f1791092cd2d269b8c9e23bbb7b80427932be19d85022a2fd11e0fa5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmbnko5.json",
+    "ext": "json",
+    "bytes": 2447,
+    "sha256": "50b766212c00b6cdd30c8509f7f156e042378de3c4862c784556a9a786f7d4b9",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmcobz3.json",
+    "ext": "json",
+    "bytes": 14508,
+    "sha256": "9e417af039b366f917bf19f36e972521411b3aa9c2807ab42856ef86821866d1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmd0t77.json",
+    "ext": "json",
+    "bytes": 9893,
+    "sha256": "d51ce706e3cdcb8dc5584678997a279123d8e59a4ab4e1792d7146b75565455e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmdskgq.json",
+    "ext": "json",
+    "bytes": 36264,
+    "sha256": "5f7b861456420da628699a2ad13d7755bffb2a8776e7c9fbd7440d6780ca0995",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmizxe6.json",
+    "ext": "json",
+    "bytes": 2173,
+    "sha256": "21048ce35c8fc05cf24414c70cc04c34afbdf39da9ff0791b535074bebe489a8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmj6dng.json",
+    "ext": "json",
+    "bytes": 4716,
+    "sha256": "831a88022c0182eed0da17d9bb511cf28c43025725b98d74753ec51aedbab110",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmjfte3.json",
+    "ext": "json",
+    "bytes": 2058,
+    "sha256": "91458fcf968405dbb8ded98be6183504fd1125f179904966e619d749c8ed6baf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmjhgce.json",
+    "ext": "json",
+    "bytes": 4829,
+    "sha256": "31184e41c286c0bb15061663e2828f14343e1614c9dc4cca923f1631ea9addfa",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmjliqx.json",
+    "ext": "json",
+    "bytes": 8192,
+    "sha256": "f7812eb475201b611b179bbad684afcb269c3e2fa7ecef84d35944181afa2a0b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmjtkck.json",
+    "ext": "json",
+    "bytes": 18413,
+    "sha256": "65af4ee9e875918d5a3d2f2c96be077e92f26c4f890687cc50ad11e6168a64a7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmk2lyv.json",
+    "ext": "json",
+    "bytes": 45436,
+    "sha256": "1a23aab80df696cb17e20302190140e870f7988a151f2d56e382075213e3a035",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmm275n.json",
+    "ext": "json",
+    "bytes": 47729,
+    "sha256": "853c56f6d6d67c5fa985d66485332c9119ed35c92f47f508c34f1e5c11b739f5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmm4nhn.json",
+    "ext": "json",
+    "bytes": 47558,
+    "sha256": "60125274d396b342f4769639838ca6ec2b0fc7b83ea053d55e7af4d089e9cc57",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmm592x.json",
+    "ext": "json",
+    "bytes": 64498,
+    "sha256": "1abe973e7ed93b8b67d9059d7821936d0d925736de2bda53e4fc87d277fed6af",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-long-chat-mqmm8twb.json",
+    "ext": "json",
+    "bytes": 64216,
+    "sha256": "47a50c8da7e5664c988270054e6bbef7a6892132bb023ab4ae49d1f97d0fd708",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-mesh-router-hi.json",
+    "ext": "json",
+    "bytes": 875,
+    "sha256": "046af3887afc358a4f55183b285bb2b7f51c948a05b4a21d19a26ae31c718df3",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-mesh-router-medpsy.json",
+    "ext": "json",
+    "bytes": 1850,
+    "sha256": "4656fc5b44d3daeea6693ceadb1f95d46327c71abe13a938ce37ecadeff324c9",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-mesh-router-notes-2.json",
+    "ext": "json",
+    "bytes": 2375,
+    "sha256": "19fa748d7c3a08ff9b6b86d5fd40bcfe6e154dafabc68e308e69e70ff5bd7db7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-mesh-router-notes-3.json",
+    "ext": "json",
+    "bytes": 2334,
+    "sha256": "1f7795825d5c63175112ff6999392758818e65026daeab4d0fa06e5d753b2aed",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqmydtue.json",
+    "ext": "json",
+    "bytes": 32017,
+    "sha256": "c9c51e956babe727220f0710fda06e6aaabd28202e1a67542fa341f30bc81cdc",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqmz046y.json",
+    "ext": "json",
+    "bytes": 21255,
+    "sha256": "c39d26b444ad452880b5da9f8d218bc810983eaa6840329eced6a835a5e40217",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqn0qlxq.json",
+    "ext": "json",
+    "bytes": 35414,
+    "sha256": "732cca84e9fc51e413d03dece36610ae7360a0454ae1c5283ca33817566e4958",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqn0w4jr.json",
+    "ext": "json",
+    "bytes": 18669,
+    "sha256": "e493bc80ba3b9e755000b86626da7f302088ee22489355d77c3708add5f9239d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqnf4lf9.json",
+    "ext": "json",
+    "bytes": 67461,
+    "sha256": "07649ca32363f4f515ee06083690e2bab1234ed6e0680587e3e8c2da2e0b4c0d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqnfbzeh.json",
+    "ext": "json",
+    "bytes": 55906,
+    "sha256": "3690fb5f0a33a53f15638d4056ac959c6a3670f295075471388ced31b6fe91fa",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqnfk0rt.json",
+    "ext": "json",
+    "bytes": 33305,
+    "sha256": "b4c85b54a075fa8f8183f1ba6deee0d2a8cc050eff97cc7f76f40010200778bf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqnfxyzs.json",
+    "ext": "json",
+    "bytes": 8882,
+    "sha256": "640cb6a07b6cbb56dc5294a98cb20698bf50847fe0194993fdbb268e08e28a34",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqnh6av0.json",
+    "ext": "json",
+    "bytes": 45731,
+    "sha256": "3c6959c9c6fc8553ab0e503258df4b1a08b4e7d0d6920e093fe3837df85280f5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-multiorch-showcase-mqnhm3nc.json",
+    "ext": "json",
+    "bytes": 25399,
+    "sha256": "95bdca4f197a6f131ab62049e58abd7012665f0222103271b25d2e0070393938",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-agent-forced-mqma9mea.json",
+    "ext": "json",
+    "bytes": 2729,
+    "sha256": "96573df29d3ab7f099d073eaf2d0241d6783211117bd3fa25ce3d4438328e029",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-agent-mqma7uh6.json",
+    "ext": "json",
+    "bytes": 8235,
+    "sha256": "0bf8104917bed91d9316a5a557051481adf8b3cb534a8d875b90d904a70f23cf",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-approval-mqm9p3rx.json",
+    "ext": "json",
+    "bytes": 3656,
+    "sha256": "f7c8bd695e619b0ea74fcb3afcf8c57697da3163dd60dda4a53d8f6d386dd975",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-approval-mqm9rz19.json",
+    "ext": "json",
+    "bytes": 7227,
+    "sha256": "18736744ffad3edca8f1f0b6137b31be7422dd498863201fec6e426b594e4fc5",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-approved-mqm9tuie.json",
+    "ext": "json",
+    "bytes": 9604,
+    "sha256": "89d73d10a11eec08a06cf32296a6a0e8eb7f8f8ca426ea02383212acfed27b57",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-browser-mqm9wfck.json",
+    "ext": "json",
+    "bytes": 4741,
+    "sha256": "773a3ce8283567e9f0a0f1215dddd0fa9b5e5d7b11ad18476660f44b4e5a4739",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-list-mqm9ejkb.json",
+    "ext": "json",
+    "bytes": 4165,
+    "sha256": "5998cdd9e59994be0c4096bb228a61d19c12039eb0dfb0ec3d24deb8ea5fbcb2",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-main-mqm9gonx.json",
+    "ext": "json",
+    "bytes": 1051,
+    "sha256": "aec1d2ab8be660d2ba23721a6306cdb03ccc0bc9fb4d621a2ec7f3461c0ec33f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-main-mqm9kjkt.json",
+    "ext": "json",
+    "bytes": 1051,
+    "sha256": "12585a8bc00f8d3e632a12edd9bdb84a73392b1f32a0e0cc8f90cb314388ffa4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-main-mqm9lvvp.json",
+    "ext": "json",
+    "bytes": 6273,
+    "sha256": "c0951763cb664484daf02d3a20148c57bac2481bdd83e0cc6bed9401a30081c7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-state-mqm9n7ai.json",
+    "ext": "json",
+    "bytes": 20239,
+    "sha256": "02a730a1b8cd435521288c7cb2f37017dcad9eef8767c903a10e3150add2bb31",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-stress-mqm9c3bl.json",
+    "ext": "json",
+    "bytes": 12028,
+    "sha256": "2f09c7bec97ef3f9384bf567a103f9ea57d4658aef32d1ccf94090e1533a2808",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ocu-stress-mqm9dck0.json",
+    "ext": "json",
+    "bytes": 4106,
+    "sha256": "1a20e6782ccf0195c5d71b2036f548ca8e21cb5a59c9983cfaf915aec2e6823a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-orchestration-e2e-final.json",
+    "ext": "json",
+    "bytes": 11100,
+    "sha256": "ca6837d94feeb3e1fcf1e91beec54551e6444e0630be741eccf8877959f03221",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-orchestration-e2e.json",
+    "ext": "json",
+    "bytes": 4383,
+    "sha256": "53ca543cf1698e409b98b060b6a617f27e62f8f04e7a499eb399bacbb46e541a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-quick-lean-tools.json",
+    "ext": "json",
+    "bytes": 1060,
+    "sha256": "3ee6040a71a3b47087f7ab1c06815079b39c1bdcd4bb943a461955216f9d417d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-resilience-noqvac-general.json",
+    "ext": "json",
+    "bytes": 1215,
+    "sha256": "1a54cb45f9764b084d0443250512a6b67a908f6da87b3394d9eb3740ce8fea51",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-resilience-noqvac.json",
+    "ext": "json",
+    "bytes": 2124,
+    "sha256": "48834c3cefef7d465d6a369e93c3021347b2b599537281ab56213acca8788bfa",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm691tz-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "f41de1d05efe195dacdf634b0334303dfbb95a4ad93efc06bf717e873e060e78",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm69cbl-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "6b51751ba8e7f89c8981dbb5ef24cc05e03f877ee3086e25854a2cb8f018a684",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6awnz-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "dc4a794bcc054fefb72c359aa22b579a57468f3bfca541bb17938493a4764b0e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6axgv-general-small-talk.json",
+    "ext": "json",
+    "bytes": 1859,
+    "sha256": "a62bb5341620464b8fffd23520f74ad20a818639afb56288891edc3efc89fe07",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6e064-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "d7537493d6e926422e50efdab8cd1e189ae3c4b43740eaa3e14cd153dcd83ea4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6e0ro-general-small-talk.json",
+    "ext": "json",
+    "bytes": 1859,
+    "sha256": "ff4752fd4e54d36a114ed1787efd150e0e7b31da396d55b9ad3853095e7b9085",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6fp2g-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "7701ae9880573b1f616e56c4c67ff8403d78077fec6c9df3dc86509cf2771c17",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6fpmv-general-small-talk.json",
+    "ext": "json",
+    "bytes": 1859,
+    "sha256": "91810ddef6a3a4aa535759a5c95947c2cc383eb1b347ab970495516a966f4c1a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6fqk1-computer.json",
+    "ext": "json",
+    "bytes": 2190,
+    "sha256": "ee94985ea982f8aa61127efc9573f011b019cd48bc6a11ba006aa1a1cdddc358",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6g7ua-context.json",
+    "ext": "json",
+    "bytes": 2194,
+    "sha256": "287a7c1ee26a51326ce321c999a8456b25f7dadaf7a0781c940e694be7fa4fd1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6gcxx-daily-paper.json",
+    "ext": "json",
+    "bytes": 2154,
+    "sha256": "408b2b3784dc15c3dc7526599bbeaa3f34b0a8222a351a9090544015fa68e09f",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6geyo-research.json",
+    "ext": "json",
+    "bytes": 2189,
+    "sha256": "5304d87978b53a29097e3f582c3467e43553c2a6f188c87a5db68e19d2e2f13a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6gl4f-file-finder.json",
+    "ext": "json",
+    "bytes": 2176,
+    "sha256": "1206ce7714715e7c3be874f1d85e716a95a978497606ec978c371c7127ec4d3c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6gtwg-health-metadata-example.json",
+    "ext": "json",
+    "bytes": 2232,
+    "sha256": "583c050e6a29cb123c9a1eeab4a41a611cb376c855438822a12c30dc8df748d6",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6gz5z-image-generation.json",
+    "ext": "json",
+    "bytes": 2191,
+    "sha256": "f843b26c16ad1dd8a53e2e55e05073ec8813d50951f135211a55c680b392ad75",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6h4fn-mcp-install.json",
+    "ext": "json",
+    "bytes": 2180,
+    "sha256": "5d83a42dd70a73389f4eb715161ed47f0e8f669c0cda71f64b407051143b2cb8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6haa4-memory.json",
+    "ext": "json",
+    "bytes": 2113,
+    "sha256": "4119f800fd90c7e5a30ff4c6dbe39461eb1d2c4247813f225fb049d2aee3c8f6",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6hg36-photo-finder.json",
+    "ext": "json",
+    "bytes": 2141,
+    "sha256": "d222153891da5af28dfc00e25ce98ebae3dfa98d57fe01f387e5216e57c21969",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6hm7b-smart-home.json",
+    "ext": "json",
+    "bytes": 2123,
+    "sha256": "f1514a8c099af4ff2625126a57ea6be3fb6ac0efc70e42fcf0961db64f99bbf8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm6ho05-task-manager.json",
+    "ext": "json",
+    "bytes": 2159,
+    "sha256": "c08817e3eaf63b79a1288661c94eed59ff05a6e21ed637ad484834dc780ef415",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm95n92-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "9baa5ed24f65decb129e4a6a65d150c32139ef21757daa80a275c8048420e0df",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm95of6-general-small-talk.json",
+    "ext": "json",
+    "bytes": 1859,
+    "sha256": "062320223533e6424034ab583072803cb2bd234de64bbedee73e298b6628c389",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm95ush-computer.json",
+    "ext": "json",
+    "bytes": 2190,
+    "sha256": "4a3358070eb619689e846b6fc341f964a1e2f07e7553390d3089066111b576ee",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm96d7c-context.json",
+    "ext": "json",
+    "bytes": 2194,
+    "sha256": "46c78f316d8f01af836534d3f7c90cb84841fd4d78f1bf805c8073852bb83912",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm96inh-daily-paper.json",
+    "ext": "json",
+    "bytes": 2154,
+    "sha256": "088ee182e242d1be31ed1f08ed67f4993321aab9bcfcf6c96de6a9de2cea7b82",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm96ogx-research.json",
+    "ext": "json",
+    "bytes": 2189,
+    "sha256": "f8418ff4777d59303a3767cac51000095c8b2386c9fe111a3b749badd8920efb",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm96u84-file-finder.json",
+    "ext": "json",
+    "bytes": 2176,
+    "sha256": "bd437cb44cb895c2119616ca8dcb30d5a9de819b74f095f7cbce3f851062e0a7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm9701q-health-metadata-example.json",
+    "ext": "json",
+    "bytes": 2232,
+    "sha256": "1f2b65d43b85cd11293961e883f059f747138b2431c34a7aef9cfb63970b4e8e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm975jw-image-generation.json",
+    "ext": "json",
+    "bytes": 2191,
+    "sha256": "f6af18224bb2766839db3ee17bc26962aeca6ba112bfc33fcca69297706ab650",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm97ao7-mcp-install.json",
+    "ext": "json",
+    "bytes": 2180,
+    "sha256": "4f8eb021363e3ec0f4d36b98c5718b64f4969f9bd74e9ef44fc2874550cf2063",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm97gpo-memory.json",
+    "ext": "json",
+    "bytes": 2113,
+    "sha256": "40dabfd32d3280ba89df0d01d14e90af7d15fd969b0bdc55458fddd9b6f146e7",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm97mlk-photo-finder.json",
+    "ext": "json",
+    "bytes": 2141,
+    "sha256": "932e3dfab09c7a376592943c3b5a72a6a896295be7f54543497eacdb346e3a11",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm97os0-smart-home.json",
+    "ext": "json",
+    "bytes": 2123,
+    "sha256": "94928db68555470a2b9575eb2ba1cbb45223f0230499a35c71c6926560705dcb",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqm97ubu-task-manager.json",
+    "ext": "json",
+    "bytes": 2159,
+    "sha256": "99d5597424388e86c624dbff6ca4b2577e74898b043c0f74e8e8b1b5c77b49c4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmanoh1-short-greeting.json",
+    "ext": "json",
+    "bytes": 917,
+    "sha256": "0c02241fe434e44f4bbb0b294aa9472d38b2343533d738e85c591f9e8e520dd4",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmaofet-general-small-talk.json",
+    "ext": "json",
+    "bytes": 1859,
+    "sha256": "3769336572e6a0c1d5d39875ca0513e510bd28f71d8bcf09c95210a7f3ee22bc",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmaohr7-computer.json",
+    "ext": "json",
+    "bytes": 2198,
+    "sha256": "3f2e9a28788b54e3f7ff69a4c0d8fb0fb364d1e045c08f57af56c9de854d23a6",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmaojqc-context.json",
+    "ext": "json",
+    "bytes": 2194,
+    "sha256": "c631e743724d5330e282fd0489fa4d5eeac21c2b042eab79b59701c12584606b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmap23v-daily-paper.json",
+    "ext": "json",
+    "bytes": 2154,
+    "sha256": "b49c88412b3fb92524a77899676cde01d580d8e9a8b75c471ccb5f86aac25f14",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmapf0f-research.json",
+    "ext": "json",
+    "bytes": 2189,
+    "sha256": "6542f32229802a74275980ffead100db5abfcde0f48817bb9713191cf71482f1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmapmuq-file-finder.json",
+    "ext": "json",
+    "bytes": 2176,
+    "sha256": "77d13b011dba58e08abaed2ac44c7b884713b6802b6e76ca74fa4fc11b0c6586",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmapoqh-health-metadata-example.json",
+    "ext": "json",
+    "bytes": 2232,
+    "sha256": "c98014f98bb726c95759a84e1d408f979c7cad6a4074622904c4f6689b942f29",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmapqdm-image-generation.json",
+    "ext": "json",
+    "bytes": 2191,
+    "sha256": "730452fb29aabdefda5723e4d899db009d14d26e34454563e30e38337beac669",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmapw8i-mcp-install.json",
+    "ext": "json",
+    "bytes": 2180,
+    "sha256": "34f2112797a20000e965631386b778fd3fc0aa1aa9cc6596186dad1f9dbf49ba",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmapyav-memory.json",
+    "ext": "json",
+    "bytes": 2113,
+    "sha256": "02c4227428bafb9a27ab7e70e4c1f9df2d569e7cfd417dacffde8cf7c1f84799",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmaq04y-photo-finder.json",
+    "ext": "json",
+    "bytes": 2141,
+    "sha256": "12a9b9da479a27ef5493e4fb28153712d892066193d21bb0cf1ecedc95bcc2cd",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmaq4au-smart-home.json",
+    "ext": "json",
+    "bytes": 2123,
+    "sha256": "d64eb4265ab44c1a8e07c2dff3b2a8684aa84d5de066c0bb023759341e7457ad",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-route-mqmaqcoo-task-manager.json",
+    "ext": "json",
+    "bytes": 2159,
+    "sha256": "dd40404961fa5ebcb43bada460c7eda32bdf2531142ccf4a819d1f1325c6de2e",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-verify-capped.json",
+    "ext": "json",
+    "bytes": 5840,
+    "sha256": "e1f18707b8d1aa6a42edc019270cf4d5e1c23048b6345d5094e22c47225491df",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-verify-files-default.json",
+    "ext": "json",
+    "bytes": 4669,
+    "sha256": "a0fc6586ab106f438d7b923b21278856ea9bbfb7a783d7260e0f7e7130170ff1",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-skill-verify-toolchoice-none.json",
+    "ext": "json",
+    "bytes": 3234,
+    "sha256": "bba72ca2076dd9ff5fa64906d43fad4cda91deaf1c9c32943be1f0d64f87c079",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-conductor-hi.json",
+    "ext": "json",
+    "bytes": 875,
+    "sha256": "a0244601d051d3d6a50cd7c47fb3f58e9840ec8cd0a6cfaebe006d1caa4ca032",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-conductor-notes.json",
+    "ext": "json",
+    "bytes": 2410,
+    "sha256": "2418471448aaab2dd9974a2d1486507507c464453b32ddb2f1352807453f934b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-conductor-notes2.json",
+    "ext": "json",
+    "bytes": 2323,
+    "sha256": "497a5b0e72bd2b442acc36ba13508d39dececa35b9076c175608a7d23d7dfa64",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-8k-prompt-webfirst.json",
+    "ext": "json",
+    "bytes": 894,
+    "sha256": "3ce059ed87fb3677a5d7aa603736c0e8fc1f655f28d68d35047727967696e572",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-auth2.json",
+    "ext": "json",
+    "bytes": 771,
+    "sha256": "8a9b9caad995a10b4a289c581998d0d17aff04d958303660eae146ec37252034",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-available-prompt.json",
+    "ext": "json",
+    "bytes": 1062,
+    "sha256": "422a9519d3aa8cea51d2f5c907011b07ec23818b548e6239fd5418852f7b1e4c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-fixed.json",
+    "ext": "json",
+    "bytes": 1040,
+    "sha256": "2354d1f214285324e8c3130a000fd4727f9f6e30672c5ceb52bf4f266023b43d",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-live.json",
+    "ext": "json",
+    "bytes": 769,
+    "sha256": "27b4e2ac716bef23089be57238186d57af09afebf82bdf44afb9e4ec0bb569f6",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-local-only.json",
+    "ext": "json",
+    "bytes": 878,
+    "sha256": "3d2836820c7c8501c48d5415005da5bb4f14e4148a6867aefc475775673cf6ba",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-hi-nothink-live.json",
+    "ext": "json",
+    "bytes": 882,
+    "sha256": "0d29b61013b48d6f9abaad20a383cd80fa03e80ca84a1a4a585c3280120aff79",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-override-medpsy-8k.json",
+    "ext": "json",
+    "bytes": 1252,
+    "sha256": "e65257bc55ca67a1cd5e9a5e168f2fc9abf0de23b5a79525bc77e1b4daeb8baa",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-search-8k-prompt-webfirst.json",
+    "ext": "json",
+    "bytes": 2407,
+    "sha256": "ff28b9771c6dc176076487dc925f2d8352c1d5dcb7c320b6d8029f46e347be8b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-smoke-search-nothink-live.json",
+    "ext": "json",
+    "bytes": 996,
+    "sha256": "e9bd5cb04c2716f2badca46024ae10455c9ddb4ff979ef4df6f162fb0b47cff8",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ttft-hi.json",
+    "ext": "json",
+    "bytes": 860,
+    "sha256": "4650a5186674dd75f80f758cfdf45cfdf952641a62dcb4a95565d7d032637a65",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/codex-ttft-search.json",
+    "ext": "json",
+    "bytes": 2390,
+    "sha256": "bc60d5abb63061958eac0d74fb986a4bd6acd52d3e359f58cb965701f6278dba",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/tdJqhxgrEfPIiJEV.json",
+    "ext": "json",
+    "bytes": 797,
+    "sha256": "e15f13dda9f27cfddd5ebcaa0f99f9cbb8f1d45f9836084f02bcd1b0728a1c10",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-chats/VBZVznqzTMQznaKp.json",
+    "ext": "json",
+    "bytes": 2798,
+    "sha256": "4392804b2e2191f02c68e905f2c7112d63964ec7db1064bc5ab4fa4429a0d2d2",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/hypha.json",
+    "ext": "json",
+    "bytes": 4,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/hypha.log",
+    "ext": "log",
+    "bytes": 3441,
+    "sha256": "5db78ed00db8efadab0e25162eb981bb8eb9700358e5ef3a6a8290f11db8771c",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/leash-tools-mcp.json",
+    "ext": "json",
+    "bytes": 48,
+    "sha256": "c97b94855a430313a35773489ca799c66069c46976282be902796e5a00b8a622",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/leash-tools-mcp.log",
+    "ext": "log",
+    "bytes": 1375,
+    "sha256": "1e867ad729e3885314fb69a53167e29c23dfe39cc394d8594a4a489d1b14ac57",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/mcp-cron.disabled",
+    "ext": "disabled",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/mcp-cron.json",
+    "ext": "json",
+    "bytes": 48,
+    "sha256": "4535af0ced04cd24c045fa14fd6bb69d4281756c3ee2da654fba074910e1321a",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "leash-services/mcp-cron.log",
+    "ext": "log",
+    "bytes": 308,
+    "sha256": "af771584dce5f8d5cd37c16140970fde9c881245eb79bb0030f11e60fb59c651",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "leash-install",
+    "path": "logs/conductor.jsonl",
+    "ext": "jsonl",
+    "bytes": 175442,
+    "sha256": "a39f4b92b8646e38f485947d854f2f3944ef71f896ba81abed4392b7eb7a6107",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "local-state",
+    "path": "leash-memories.json",
+    "ext": "json",
+    "bytes": 2,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "local-state",
+    "path": "leash-models-catalog.json",
+    "ext": "json",
+    "bytes": 269286,
+    "sha256": "3b3b1ffe449015fad0c9e325f847fdc1bb82a2530e349d46ae159ee15a65f4ec",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "local-state",
+    "path": "leash-tasks.json",
+    "ext": "json",
+    "bytes": 617,
+    "sha256": "3e5c6d13431a95eb42a70bf865e77d56f0e9840e3a1bc068771d3f6d81a1b699",
+    "staged": true
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "apps/hypha/logs/hypha.jsonl",
+    "ext": "jsonl",
+    "bytes": 36769252,
+    "sha256": "7e7dbe8089f418a67c4ce3a7616b8f9416ff5f2679ab36cedd34c11711ced2c3",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/00-warm-cache.jsonl",
+    "ext": "jsonl",
+    "bytes": 4207,
+    "sha256": "e872e5f90c6ecbf4479d7079cccfd3dacea89b9ab5934c207c65263bb9c85fa6",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/01-inference.jsonl",
+    "ext": "jsonl",
+    "bytes": 50041,
+    "sha256": "2d1c3b801087cfff5da9b3f447ef29ff1ec8ee716a3c7c8e4e1462a8036931d8",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/01-run.out",
+    "ext": "out",
+    "bytes": 7385,
+    "sha256": "53d5bf63139f1b506eb00ec92c6276a9427be73e8360e680bfbccddacfd87f68",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/02-rag.jsonl",
+    "ext": "jsonl",
+    "bytes": 22237,
+    "sha256": "8347075e47f59b9f43af7f242693ae82a3d42ac1d96ded08c3a6f39b727e6dd8",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/02-run.out",
+    "ext": "out",
+    "bytes": 3186,
+    "sha256": "3436248ece496e3fee23f465a8274b19ecadfc12433971cc0a02bf9fa1c9d5b9",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/03-consumer.out",
+    "ext": "out",
+    "bytes": 1706,
+    "sha256": "e90c4c53185ac9831fe3ef6b4374e1268ae86ceb0400525ffaa8a2d2e83fb7d0",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/03-p2p-consumer.jsonl",
+    "ext": "jsonl",
+    "bytes": 2158,
+    "sha256": "f383db6074056e8afa0fc253e3718871db9fe9f8e2fabe2edc6ea014fbf6bf7c",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/03-p2p-provider.jsonl",
+    "ext": "jsonl",
+    "bytes": 1165,
+    "sha256": "4780974ea139dfe679b217a92a67002c3ba3c4d347aa1cae2e20819a7ea86eb3",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/03-provider.out",
+    "ext": "out",
+    "bytes": 1582,
+    "sha256": "0f23d94ce16daebfe9607e6d6bfba35093f9455f69448bbf78c14932b831ea65",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/04-lora.jsonl",
+    "ext": "jsonl",
+    "bytes": 77674,
+    "sha256": "13444d292fbe4aeb940f741c45d81fbb34cac1c6fcb6ac7842667d8ad3ba0936",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/04-run.out",
+    "ext": "out",
+    "bytes": 8060,
+    "sha256": "3cf7bd060e0ccbfcb98b3fd51a016e00d13565d6910e815089e705862732af46",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/05-autobase-edge.jsonl",
+    "ext": "jsonl",
+    "bytes": 2367,
+    "sha256": "df8232efb26884cdc8c8c9888b521b6e45723b9f05facd9e5003340f6ad2032d",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/05-autobase-hub.jsonl",
+    "ext": "jsonl",
+    "bytes": 2333,
+    "sha256": "0c828fa07042a9aad092542cb8de051b64757831a612502d1937c26af4bde2b9",
+    "staged": false
+  },
+  {
+    "device": "mbp",
+    "bucket": "mycelium-runtime",
+    "path": "spike/logs/06-ocr.jsonl",
+    "ext": "jsonl",
+    "bytes": 2991,
+    "sha256": "6485ebfe025df2bf4dd05055c3bfc21f9b5b846b58af6d8fb04688c21be00f47",
+    "staged": false
+  }
+]

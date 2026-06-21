@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "document": "Remote / outbound network-call disclosure for Leash (Mycelium engine)",
+  "generated": "2026-06-17",
+  "method": "Derived from an exhaustive grep of apps/, packages/, scripts/ (excluding node_modules, .next, dist); each hit read and classified. Human-readable source of truth: mycelium/docs/hackathon/network-disclosure.mdx",
+  "headline": "Zero cloud-AI calls. Every AI path (chat, embeddings, RAG, vision, STT, TTS, image gen, LoRA) goes through the on-device QVAC serve at 127.0.0.1:11435. Every remote call below is non-AI, and is either a one-time first-run warm-cache or an explicitly opt-in feature.",
+  "ai_chokepoint": {
+    "client": "apps/web/lib/leash/provider.ts",
+    "constant": "QVAC_OPENAI_URL",
+    "value": "http://127.0.0.1:11435/v1",
+    "note": "Re-exported by provider-core.ts, models.ts, serve-control.ts, and the speak/transcribe routes. No code path to a cloud LLM API exists. Mesh delegation targets a PEER's QVAC serve over the encrypted DHT (apps/hypha/src/forward-provider.ts), never a cloud API."
+  },
+  "summary": {
+    "total_calls": 17,
+    "ai_calls": 0,
+    "remote_non_ai": 15,
+    "localhost_only": 2
+  },
+  "calls": [
+    {
+      "call": "On-device inference / embeddings / vision / STT / TTS / image",
+      "host": "127.0.0.1:11435",
+      "triggered_by": "every AI turn",
+      "ai": false,
+      "category": "localhost-only",
+      "when": "always (hot path, never leaves device)",
+      "code_location": "apps/web/lib/leash/provider.ts:QVAC_OPENAI_URL"
+    },
+    {
+      "call": "Mesh DHT bootstrap (provider/consumer)",
+      "host": "public Hyperdht bootstrap nodes",
+      "triggered_by": "first pair / mesh join",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "when": "first-run, then mesh-only (Noise-encrypted P2P)",
+      "code_location": "apps/hypha/src/payment-control.ts:new Hyperswarm; packages/mesh/src/mesh-host.ts:new Hyperswarm"
+    },
+    {
+      "call": "Mesh DHT bootstrap (forward / public-mesh / graph)",
+      "host": "public Hyperdht bootstrap nodes",
+      "triggered_by": "mesh activity",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "when": "first-run, then mesh-only",
+      "code_location": "apps/hypha/src/forward-control.ts:new Hyperswarm; packages/mesh/src/mesh-graph.ts:new Hyperswarm; packages/mesh/src/public-mesh.ts:new Hyperswarm"
+    },
+    {
+      "call": "Model weight download",
+      "host": "QVAC registry over Hypercore/DHT blobs (registry://...)",
+      "triggered_by": "first use of an alias / explicit pull",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "when": "first-run, then offline",
+      "code_location": "apps/mobile/modelsInventory.ts:downloadAsset; apps/mobile/voice.ts:downloadAsset; apps/hypha/src/catalog.ts:sdkRegistryDescriptor"
+    },
+    {
+      "call": "Web search — DuckDuckGo HTML",
+      "host": "html.duckduckgo.com",
+      "triggered_by": "deep-research run",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in",
+      "code_location": "apps/web/lib/leash/search.ts:duckduckgo"
+    },
+    {
+      "call": "Web search — SearXNG (optional)",
+      "host": "LEASH_SEARXNG_URL (self-hosted)",
+      "triggered_by": "deep research, when configured",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in",
+      "code_location": "apps/web/lib/leash/search.ts:searxng"
+    },
+    {
+      "call": "Readable-page fetch",
+      "host": "the result URLs (any host)",
+      "triggered_by": "deep-research run",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in",
+      "code_location": "apps/web/lib/leash/search.ts:fetchReadable"
+    },
+    {
+      "call": "Skill / plugin import (GitHub)",
+      "host": "api.github.com (zipball)",
+      "triggered_by": "user imports a GitHub skill/plugin",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in",
+      "code_location": "apps/web/app/api/leash/skills/import-github/route.ts; apps/web/lib/leash/plugin-sources/github.ts:fetch"
+    },
+    {
+      "call": "MCP-server resolution (npm / GitHub)",
+      "host": "registry.npmjs.org, raw.githubusercontent.com, github.com",
+      "triggered_by": "user adds an MCP server by name",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in",
+      "code_location": "packages/leash-core/src/mcp-install.ts:fetch"
+    },
+    {
+      "call": "Plugin marketplace refresh",
+      "host": "user-supplied https:// URL",
+      "triggered_by": "user adds a marketplace",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in",
+      "code_location": "apps/web/lib/leash/plugin-sources/marketplace.ts:fetch"
+    },
+    {
+      "call": "MCP server icon fetch",
+      "host": "the icon's https:// URL",
+      "triggered_by": "rendering an MCP server with a remote icon",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in (cached)",
+      "code_location": "apps/web/lib/leash/mcp-icons.ts:resolveIconSrc"
+    },
+    {
+      "call": "On-chain settlement RPC",
+      "host": "HYPHA_ECONOMY_PLASMA_RPC_URL / HYPHA_ECONOMY_SOLANA_RPC_URL (empty unless economy enabled; typically local anvil 127.0.0.1:8545)",
+      "triggered_by": "delegated-compute settlement",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in (off by default; HYPHA_ECONOMY_ENABLED defaults to 0)",
+      "code_location": "apps/hypha/src/config.ts:HYPHA_ECONOMY_PLASMA_RPC_URL; apps/hypha/src/main.ts:rpcUrl"
+    },
+    {
+      "call": "Telegram bot client (optional app)",
+      "host": "api.telegram.org",
+      "triggered_by": "running the Telegram bridge app",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in (separate app)",
+      "code_location": "apps/leash-telegram/src/telegram-api.ts:base"
+    },
+    {
+      "call": "RSS poll (The Understory news app)",
+      "host": "hnrss.org",
+      "triggered_by": "running the newsroom daemon",
+      "ai": false,
+      "category": "opt-in-feature",
+      "when": "opt-in (separate app)",
+      "code_location": "apps/newsroom/src/feeds.ts; apps/newsroom/src/rss.ts:fetch"
+    },
+    {
+      "call": "Desktop runtime/daemon fetch",
+      "host": "GitHub Release (deps-manifest.json.baseUrl, LEASH_DEPS_URL)",
+      "triggered_by": "first launch of the desktop installer",
+      "ai": false,
+      "category": "first-run-warm-cache",
+      "when": "first-run, then offline",
+      "code_location": "apps/desktop/src/main/deps.ts:downloadTo"
+    },
+    {
+      "call": "Pairing-page callback (mobile)",
+      "host": "the pairing web page URL (LAN / localhost)",
+      "triggered_by": "phone confirms a pairing",
+      "ai": false,
+      "category": "lan-only",
+      "when": "LAN-only, fire-and-forget",
+      "code_location": "apps/mobile/mesh.ts:notifyPairing"
+    },
+    {
+      "call": "Localhost control plane (web / hypha / broker / MCP / cron)",
+      "host": "127.0.0.1 ports 6801, 11436, 11437, 11439, 11440, 11448",
+      "triggered_by": "dashboard <-> daemons",
+      "ai": false,
+      "category": "localhost-only",
+      "when": "always (loopback)",
+      "code_location": "apps/web/lib/leash/economy.server.ts; hypha.ts; mesh.server.ts; tasks-client.ts; cron-client.ts; mcp-builtins.ts"
+    }
+  ],
+  "verification": [
+    "Run in airplane mode after a warm cache — chat, RAG, vision, and a known-peer delegated turn all complete; only web search and new-model pulls fail.",
+    "grep -rn \"QVAC_OPENAI_URL\" apps packages — every AI call resolves to 127.0.0.1:11435; no cloud-LLM host anywhere.",
+    "Live socket monitor apps/web/lib/leash/netmon.ts classifies each established TCP socket loopback/lan-mesh/cloud and surfaces a cloud count that must be 0.",
+    "Read the JSONL audit log (spike/lib/audit-log.ts) — inference events are served from localhost."
+  ]
+}

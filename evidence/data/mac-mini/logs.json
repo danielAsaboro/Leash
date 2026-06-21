@@ -1,0 +1,792 @@
+[
+  {
+    "bucket": "current-data",
+    "path": "leash-activity.jsonl",
+    "totalEvents": 18,
+    "firstTs": "2026-06-05T09:24:28.558Z",
+    "lastTs": "2026-06-05T10:45:36.888Z",
+    "countsByEvent": {
+      "unknown": 18
+    },
+    "countsBySource": {
+      "unknown": 18
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/edge-node/data/graph.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-06-01T04:24:30.060Z",
+    "lastTs": "2026-06-01T04:24:31.081Z",
+    "countsByEvent": {
+      "unknown": 4
+    },
+    "countsBySource": {
+      "data/notes/mesh-setup.md": 1,
+      "data/notes/preferences.md": 1,
+      "data/notes/project.md": 1,
+      "data/voice/dani-backup-memo.wav": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/edge-node/logs/edge-append.jsonl",
+    "totalEvents": 1,
+    "firstTs": "2026-06-01T07:30:56.561Z",
+    "lastTs": "2026-06-01T07:30:56.561Z",
+    "countsByEvent": {
+      "graph_sync": 1
+    },
+    "countsBySource": {
+      "edge-append": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/edge-node/logs/edge-node.jsonl",
+    "totalEvents": 155,
+    "firstTs": "2026-06-01T03:49:01.381Z",
+    "lastTs": "2026-06-04T04:40:05.164Z",
+    "countsByEvent": {
+      "model_load": 24,
+      "rag_ingest": 9,
+      "delegation": 12,
+      "completion": 36,
+      "rag_search": 11,
+      "note": 13,
+      "model_unload": 24,
+      "pairing": 8,
+      "graph_sync": 8,
+      "capability": 10
+    },
+    "countsBySource": {
+      "edge-node": 155
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/hub/data/graph.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-06-01T04:24:25.443Z",
+    "lastTs": "2026-06-01T04:24:26.376Z",
+    "countsByEvent": {
+      "unknown": 4
+    },
+    "countsBySource": {
+      "data/notes/mesh-setup.md": 1,
+      "data/notes/preferences.md": 1,
+      "data/notes/project.md": 1,
+      "data/voice/dani-backup-memo.wav": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/hub/logs/hub.jsonl",
+    "totalEvents": 225,
+    "firstTs": "2026-06-01T03:46:36.299Z",
+    "lastTs": "2026-06-04T04:40:03.267Z",
+    "countsByEvent": {
+      "delegation": 14,
+      "model_load": 29,
+      "rag_ingest": 9,
+      "model_unload": 18,
+      "note": 19,
+      "pairing": 19,
+      "graph_sync": 94,
+      "capability": 23
+    },
+    "countsBySource": {
+      "hub": 225
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/hypha/logs/hypha.jsonl",
+    "totalEvents": 177136,
+    "firstTs": "2026-06-05T23:49:57.631Z",
+    "lastTs": "2026-06-26T12:37:49.162Z",
+    "countsByEvent": {
+      "pairing": 672,
+      "note": 2222,
+      "delegation": 56951,
+      "capability": 117268,
+      "completion": 19,
+      "adapter_publish": 4
+    },
+    "countsBySource": {
+      "hypha": 177136
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/leash-telegram/logs/leash-telegram.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-06-15T20:49:35.259Z",
+    "lastTs": "2026-06-15T20:52:04.894Z",
+    "countsByEvent": {
+      "note": 3,
+      "pairing": 1
+    },
+    "countsBySource": {
+      "leash-telegram": 4
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/leash-watch/logs/leash-watch.jsonl",
+    "totalEvents": 62,
+    "firstTs": "2026-06-05T09:24:28.543Z",
+    "lastTs": "2026-06-21T14:15:56.762Z",
+    "countsByEvent": {
+      "completion": 62
+    },
+    "countsBySource": {
+      "leash-watch": 62
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/newsroom/data/personal-graph.jsonl",
+    "totalEvents": 5,
+    "firstTs": "2026-06-03T12:15:45.366Z",
+    "lastTs": "2026-06-03T12:15:47.487Z",
+    "countsByEvent": {
+      "unknown": 5
+    },
+    "countsBySource": {
+      "data/notes/mesh-setup.md": 1,
+      "data/notes/preferences.md": 1,
+      "data/notes/project.md": 1,
+      "data/voice/dani-backup-memo.wav": 1,
+      "data/photos/calibration-card.png": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/newsroom/logs/flux-test.jsonl",
+    "totalEvents": 2,
+    "firstTs": "2026-06-03T20:47:08.555Z",
+    "lastTs": "2026-06-03T20:50:58.079Z",
+    "countsByEvent": {
+      "model_load": 1,
+      "note": 1
+    },
+    "countsBySource": {
+      "flux-test": 2
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/newsroom/logs/flux-verify.jsonl",
+    "totalEvents": 2,
+    "firstTs": "2026-06-03T21:06:13.872Z",
+    "lastTs": "2026-06-03T21:07:07.233Z",
+    "countsByEvent": {
+      "model_load": 1,
+      "note": 1
+    },
+    "countsBySource": {
+      "flux-verify": 2
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/newsroom/logs/newsroom.jsonl",
+    "totalEvents": 108,
+    "firstTs": "2026-06-03T12:15:28.784Z",
+    "lastTs": "2026-06-05T16:08:08.127Z",
+    "countsByEvent": {
+      "model_load": 27,
+      "note": 13,
+      "model_unload": 21,
+      "rag_ingest": 9,
+      "rag_search": 9,
+      "completion": 29
+    },
+    "countsBySource": {
+      "newsroom": 108
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "apps/newsroom/logs/tts-verify.jsonl",
+    "totalEvents": 2,
+    "firstTs": "2026-06-03T21:26:53.673Z",
+    "lastTs": "2026-06-03T21:26:55.760Z",
+    "countsByEvent": {
+      "model_load": 1,
+      "note": 1
+    },
+    "countsBySource": {
+      "tts-verify": 2
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "data/leash-activity.jsonl",
+    "totalEvents": 18,
+    "firstTs": "2026-06-05T09:24:28.558Z",
+    "lastTs": "2026-06-05T10:45:36.888Z",
+    "countsByEvent": {
+      "unknown": 18
+    },
+    "countsBySource": {
+      "unknown": 18
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "data/leash-cron-runs.jsonl",
+    "totalEvents": 2,
+    "firstTs": null,
+    "lastTs": null,
+    "countsByEvent": {
+      "unknown": 2
+    },
+    "countsBySource": {
+      "unknown": 2
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "evidence/medpsy-demo.jsonl",
+    "totalEvents": 12,
+    "firstTs": "2026-06-17T09:10:19.768Z",
+    "lastTs": "2026-06-17T09:10:32.890Z",
+    "countsByEvent": {
+      "model_load": 2,
+      "rag_ingest": 1,
+      "rag_search": 2,
+      "completion": 4,
+      "note": 2,
+      "model_unload": 1
+    },
+    "countsBySource": {
+      "medpsy-demo": 12
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/memory/logs/memory-evolve.jsonl",
+    "totalEvents": 1416,
+    "firstTs": "2026-06-08T15:36:23.499Z",
+    "lastTs": "2026-06-26T02:30:01.097Z",
+    "countsByEvent": {
+      "curate": 11,
+      "model_load": 14,
+      "note": 11,
+      "finetune_progress": 1362,
+      "finetune_result": 2,
+      "model_unload": 12,
+      "eval": 4
+    },
+    "countsBySource": {
+      "memory-evolve": 1416
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/memory/logs/memory-smoke.jsonl",
+    "totalEvents": 5,
+    "firstTs": "2026-06-08T14:22:46.396Z",
+    "lastTs": "2026-06-12T07:49:16.070Z",
+    "countsByEvent": {
+      "curate": 5
+    },
+    "countsBySource": {
+      "memory-smoke": 5
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mesh/logs/allowlist-smoke-hub.jsonl",
+    "totalEvents": 16,
+    "firstTs": "2026-06-02T08:25:21.359Z",
+    "lastTs": "2026-06-09T22:42:21.979Z",
+    "countsByEvent": {
+      "graph_sync": 5,
+      "pairing": 11
+    },
+    "countsBySource": {
+      "allowlist-smoke-hub": 16
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mesh/logs/mesh-smoke-edge.jsonl",
+    "totalEvents": 9,
+    "firstTs": "2026-06-01T07:08:29.240Z",
+    "lastTs": "2026-06-09T22:41:28.597Z",
+    "countsByEvent": {
+      "pairing": 3,
+      "graph_sync": 6
+    },
+    "countsBySource": {
+      "mesh-smoke-edge": 9
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mesh/logs/mesh-smoke-hub.jsonl",
+    "totalEvents": 9,
+    "firstTs": "2026-06-01T07:08:09.780Z",
+    "lastTs": "2026-06-09T22:41:23.223Z",
+    "countsByEvent": {
+      "graph_sync": 3,
+      "pairing": 6
+    },
+    "countsBySource": {
+      "mesh-smoke-hub": 9
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mesh/logs/registry-smoke-edge.jsonl",
+    "totalEvents": 8,
+    "firstTs": "2026-06-02T08:01:48.136Z",
+    "lastTs": "2026-06-09T22:42:03.550Z",
+    "countsByEvent": {
+      "pairing": 4,
+      "capability": 4
+    },
+    "countsBySource": {
+      "registry-smoke-edge": 8
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mesh/logs/registry-smoke-hub.jsonl",
+    "totalEvents": 14,
+    "firstTs": "2026-06-02T08:01:07.567Z",
+    "lastTs": "2026-06-09T22:41:58.914Z",
+    "countsByEvent": {
+      "capability": 5,
+      "pairing": 9
+    },
+    "countsBySource": {
+      "registry-smoke-hub": 14
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mind/logs/council-graph.jsonl",
+    "totalEvents": 3,
+    "firstTs": "2026-06-20T10:07:37.314Z",
+    "lastTs": "2026-06-20T10:07:37.316Z",
+    "countsByEvent": {
+      "unknown": 3
+    },
+    "countsBySource": {
+      "spike/fixtures/notes/mesh-setup.md": 1,
+      "spike/fixtures/notes/preferences.md": 1,
+      "spike/fixtures/notes/project.md": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mind/logs/medpsy-demo.jsonl",
+    "totalEvents": 12,
+    "firstTs": "2026-06-17T09:10:19.768Z",
+    "lastTs": "2026-06-17T09:10:32.890Z",
+    "countsByEvent": {
+      "model_load": 2,
+      "rag_ingest": 1,
+      "rag_search": 2,
+      "completion": 4,
+      "note": 2,
+      "model_unload": 1
+    },
+    "countsBySource": {
+      "medpsy-demo": 12
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mind/logs/medpsy-graph.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-06-17T09:10:17.334Z",
+    "lastTs": "2026-06-17T09:10:17.335Z",
+    "countsByEvent": {
+      "unknown": 4
+    },
+    "countsBySource": {
+      "health-records/history-and-sleep.md": 1,
+      "health-records/lipid-panel-2026-03.md": 1,
+      "health-records/medications-and-allergies.md": 1,
+      "health-records/visit-2026-02-bp.md": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mind/logs/mind-council.jsonl",
+    "totalEvents": 78,
+    "firstTs": "2026-06-01T03:28:08.194Z",
+    "lastTs": "2026-06-20T10:07:56.354Z",
+    "countsByEvent": {
+      "model_load": 18,
+      "rag_ingest": 6,
+      "completion": 24,
+      "rag_search": 6,
+      "note": 6,
+      "model_unload": 18
+    },
+    "countsBySource": {
+      "mind-council": 78
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/mind/logs/mind-smoke.jsonl",
+    "totalEvents": 22,
+    "firstTs": "2026-06-01T03:03:52.159Z",
+    "lastTs": "2026-06-09T22:43:55.156Z",
+    "countsByEvent": {
+      "model_load": 12,
+      "note": 2,
+      "rag_search": 4,
+      "completion": 4
+    },
+    "countsBySource": {
+      "mind-smoke": 22
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/classify-graph.jsonl",
+    "totalEvents": 1,
+    "firstTs": "2026-06-04T04:30:12.908Z",
+    "lastTs": "2026-06-04T04:30:12.908Z",
+    "countsByEvent": {
+      "unknown": 1
+    },
+    "countsBySource": {
+      "data/photos/calibration-card.png": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/diarize-graph.jsonl",
+    "totalEvents": 1,
+    "firstTs": "2026-06-03T21:35:45.881Z",
+    "lastTs": "2026-06-03T21:35:45.881Z",
+    "countsByEvent": {
+      "unknown": 1
+    },
+    "countsBySource": {
+      "data/voice/standup-2spk.wav": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/graph-smoke.jsonl",
+    "totalEvents": 3,
+    "firstTs": "2026-06-20T10:07:29.779Z",
+    "lastTs": "2026-06-20T10:07:29.780Z",
+    "countsByEvent": {
+      "unknown": 3
+    },
+    "countsBySource": {
+      "spike/fixtures/notes/mesh-setup.md": 1,
+      "spike/fixtures/notes/preferences.md": 1,
+      "spike/fixtures/notes/project.md": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/photo-graph.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-06-04T04:30:37.318Z",
+    "lastTs": "2026-06-04T04:30:38.698Z",
+    "countsByEvent": {
+      "unknown": 4
+    },
+    "countsBySource": {
+      "data/notes/mesh-setup.md": 1,
+      "data/notes/preferences.md": 1,
+      "data/notes/project.md": 1,
+      "data/photos/calibration-card.png": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/senses-classify.jsonl",
+    "totalEvents": 14,
+    "firstTs": "2026-06-04T04:29:44.239Z",
+    "lastTs": "2026-06-04T04:30:13.327Z",
+    "countsByEvent": {
+      "model_load": 4,
+      "note": 5,
+      "model_unload": 4,
+      "rag_ingest": 1
+    },
+    "countsBySource": {
+      "senses-classify": 14
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/senses-diarize.jsonl",
+    "totalEvents": 16,
+    "firstTs": "2026-06-03T21:34:26.336Z",
+    "lastTs": "2026-06-03T21:35:46.084Z",
+    "countsByEvent": {
+      "model_load": 5,
+      "note": 4,
+      "model_unload": 5,
+      "rag_ingest": 1,
+      "rag_search": 1
+    },
+    "countsBySource": {
+      "senses-diarize": 16
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/senses-photo.jsonl",
+    "totalEvents": 48,
+    "firstTs": "2026-06-02T09:05:42.988Z",
+    "lastTs": "2026-06-04T04:30:39.238Z",
+    "countsByEvent": {
+      "model_load": 12,
+      "note": 12,
+      "rag_ingest": 6,
+      "model_unload": 12,
+      "rag_search": 6
+    },
+    "countsBySource": {
+      "senses-photo": 48
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/senses-smoke.jsonl",
+    "totalEvents": 58,
+    "firstTs": "2026-06-01T03:22:30.767Z",
+    "lastTs": "2026-06-20T10:07:32.075Z",
+    "countsByEvent": {
+      "model_load": 14,
+      "rag_ingest": 15,
+      "rag_search": 15,
+      "model_unload": 14
+    },
+    "countsBySource": {
+      "senses-smoke": 58
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/senses-voice.jsonl",
+    "totalEvents": 48,
+    "firstTs": "2026-06-01T03:55:30.404Z",
+    "lastTs": "2026-06-03T21:36:11.130Z",
+    "countsByEvent": {
+      "model_load": 12,
+      "note": 12,
+      "rag_ingest": 6,
+      "model_unload": 12,
+      "rag_search": 6
+    },
+    "countsBySource": {
+      "senses-voice": 48
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "packages/senses/logs/voice-graph.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-06-03T21:36:09.640Z",
+    "lastTs": "2026-06-03T21:36:10.420Z",
+    "countsByEvent": {
+      "unknown": 4
+    },
+    "countsBySource": {
+      "data/notes/mesh-setup.md": 1,
+      "data/notes/preferences.md": 1,
+      "data/notes/project.md": 1,
+      "data/voice/dani-backup-memo.wav": 1
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/00-warm-cache.jsonl",
+    "totalEvents": 5,
+    "firstTs": "2026-06-01T04:08:08.573Z",
+    "lastTs": "2026-06-01T04:08:14.370Z",
+    "countsByEvent": {
+      "model_load": 5
+    },
+    "countsBySource": {
+      "00-warm-cache": 5
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/01-inference.jsonl",
+    "totalEvents": 58,
+    "firstTs": "2026-05-31T18:12:37.480Z",
+    "lastTs": "2026-06-04T04:25:01.971Z",
+    "countsByEvent": {
+      "model_load": 20,
+      "completion": 15,
+      "model_unload": 19,
+      "embedding": 4
+    },
+    "countsBySource": {
+      "01-inference": 58
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/02-rag.jsonl",
+    "totalEvents": 26,
+    "firstTs": "2026-05-31T18:11:52.984Z",
+    "lastTs": "2026-06-02T21:50:52.499Z",
+    "countsByEvent": {
+      "model_load": 9,
+      "rag_ingest": 5,
+      "rag_search": 5,
+      "completion": 7
+    },
+    "countsBySource": {
+      "02-rag": 26
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/03-p2p-consumer.jsonl",
+    "totalEvents": 4,
+    "firstTs": "2026-05-31T18:53:13.277Z",
+    "lastTs": "2026-06-17T21:07:48.533Z",
+    "countsByEvent": {
+      "delegation": 2,
+      "completion": 2
+    },
+    "countsBySource": {
+      "03-p2p-consumer": 4
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/03-p2p-provider.jsonl",
+    "totalEvents": 16,
+    "firstTs": "2026-05-31T18:50:54.210Z",
+    "lastTs": "2026-06-17T21:06:56.732Z",
+    "countsByEvent": {
+      "delegation": 10,
+      "note": 6
+    },
+    "countsBySource": {
+      "03-p2p-provider": 16
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/04-lora.jsonl",
+    "totalEvents": 90,
+    "firstTs": "2026-05-31T18:47:40.230Z",
+    "lastTs": "2026-06-02T21:56:35.333Z",
+    "countsByEvent": {
+      "model_load": 4,
+      "completion": 4,
+      "finetune_progress": 76,
+      "finetune_result": 2,
+      "model_unload": 2,
+      "note": 2
+    },
+    "countsBySource": {
+      "04-lora": 90
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/05-autobase-edge.jsonl",
+    "totalEvents": 15,
+    "firstTs": "2026-06-01T07:00:19.569Z",
+    "lastTs": "2026-06-01T07:56:22.616Z",
+    "countsByEvent": {
+      "pairing": 7,
+      "graph_sync": 7,
+      "note": 1
+    },
+    "countsBySource": {
+      "05-autobase-edge": 15
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/05-autobase-hub.jsonl",
+    "totalEvents": 15,
+    "firstTs": "2026-06-01T07:00:15.771Z",
+    "lastTs": "2026-06-01T07:56:21.858Z",
+    "countsByEvent": {
+      "pairing": 7,
+      "graph_sync": 7,
+      "note": 1
+    },
+    "countsBySource": {
+      "05-autobase-hub": 15
+    },
+    "parseErrors": []
+  },
+  {
+    "bucket": "local-runtime",
+    "path": "spike/logs/06-ocr.jsonl",
+    "totalEvents": 17,
+    "firstTs": "2026-06-02T08:32:58.975Z",
+    "lastTs": "2026-06-02T09:01:42.222Z",
+    "countsByEvent": {
+      "note": 12,
+      "model_load": 5
+    },
+    "countsBySource": {
+      "06-ocr": 17
+    },
+    "parseErrors": []
+  }
+]

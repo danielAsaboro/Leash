@@ -49,6 +49,20 @@ export interface Inflight {
   get(): number;
 }
 
+function publicReceiptId(receipt: SessionSettlementReceipt): string {
+  const tx = receipt.txHash.replace(/^0x/i, "").slice(0, 12);
+  if (tx) return `receipt-${tx}`;
+  const basis = `${receipt.completedAt}:${receipt.payerAddress}:${receipt.providerAddress}:${receipt.alias}`;
+  return `receipt-${createHash("sha256").update(basis).digest("hex").slice(0, 12)}`;
+}
+
+function publicReceipt(receipt: SessionSettlementReceipt): Omit<SessionSettlementReceipt, "nonce" | "providerSignature"> {
+  const rest = { ...receipt } as Partial<SessionSettlementReceipt>;
+  delete rest.nonce;
+  delete rest.providerSignature;
+  return { ...(rest as Omit<SessionSettlementReceipt, "nonce" | "providerSignature">), sessionId: publicReceiptId(receipt) };
+}
+
 /** Snapshot the dashboard polls while "Add a device" is open. */
 export interface PairingState {
   mode: boolean;
@@ -530,7 +544,7 @@ export function createShim(deps: ShimDeps): http.Server {
       return;
     }
     if (method === "GET" && url === "/receipts") {
-      return json(res, 200, { receipts: await mesh.receipts() });
+      return json(res, 200, { receipts: (await mesh.receipts()).map(publicReceipt) });
     }
     // Full mesh membership (CRDT capabilities, incl. self + non-providers) for the devices list.
     if (method === "GET" && url === "/mesh/members") {

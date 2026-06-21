@@ -1,0 +1,20 @@
+[
+  {
+    "service": "hypha",
+    "data": null
+  },
+  {
+    "service": "leash-tools-mcp",
+    "data": {
+      "pid": 71933,
+      "startedAt": 1781966972564
+    }
+  },
+  {
+    "service": "mcp-cron",
+    "data": {
+      "pid": 91611,
+      "startedAt": 1781548610220
+    }
+  }
+]

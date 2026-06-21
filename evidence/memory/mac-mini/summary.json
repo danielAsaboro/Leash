@@ -1,0 +1,19 @@
+{
+  "totalEvents": 1421,
+  "firstTs": "2026-06-08T14:22:46.396Z",
+  "lastTs": "2026-06-26T02:30:01.097Z",
+  "countsByEvent": {
+    "curate": 16,
+    "model_load": 14,
+    "note": 11,
+    "finetune_progress": 1362,
+    "finetune_result": 2,
+    "model_unload": 12,
+    "eval": 4
+  },
+  "countsBySource": {
+    "memory-evolve": 1416,
+    "memory-smoke": 5
+  },
+  "parseErrors": []
+}

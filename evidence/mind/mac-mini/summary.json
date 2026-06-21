@@ -1,0 +1,27 @@
+{
+  "totalEvents": 119,
+  "firstTs": "2026-06-01T03:03:52.159Z",
+  "lastTs": "2026-06-20T10:07:56.354Z",
+  "countsByEvent": {
+    "unknown": 7,
+    "model_load": 32,
+    "rag_ingest": 7,
+    "rag_search": 12,
+    "completion": 32,
+    "note": 10,
+    "model_unload": 19
+  },
+  "countsBySource": {
+    "spike/fixtures/notes/mesh-setup.md": 1,
+    "spike/fixtures/notes/preferences.md": 1,
+    "spike/fixtures/notes/project.md": 1,
+    "medpsy-demo": 12,
+    "health-records/history-and-sleep.md": 1,
+    "health-records/lipid-panel-2026-03.md": 1,
+    "health-records/medications-and-allergies.md": 1,
+    "health-records/visit-2026-02-bp.md": 1,
+    "mind-council": 78,
+    "mind-smoke": 22
+  },
+  "parseErrors": []
+}

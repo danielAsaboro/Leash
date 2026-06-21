@@ -1,0 +1,30 @@
+{
+  "totalEvents": 197,
+  "firstTs": "2026-06-01T03:22:30.767Z",
+  "lastTs": "2026-06-20T10:07:32.075Z",
+  "countsByEvent": {
+    "unknown": 13,
+    "model_load": 47,
+    "note": 33,
+    "model_unload": 47,
+    "rag_ingest": 29,
+    "rag_search": 28
+  },
+  "countsBySource": {
+    "data/photos/calibration-card.png": 2,
+    "data/voice/standup-2spk.wav": 1,
+    "spike/fixtures/notes/mesh-setup.md": 1,
+    "spike/fixtures/notes/preferences.md": 1,
+    "spike/fixtures/notes/project.md": 1,
+    "data/notes/mesh-setup.md": 2,
+    "data/notes/preferences.md": 2,
+    "data/notes/project.md": 2,
+    "senses-classify": 14,
+    "senses-diarize": 16,
+    "senses-photo": 48,
+    "senses-smoke": 58,
+    "senses-voice": 48,
+    "data/voice/dani-backup-memo.wav": 1
+  },
+  "parseErrors": []
+}

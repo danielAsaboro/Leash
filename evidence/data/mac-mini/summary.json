@@ -1,0 +1,36 @@
+{
+  "fileCount": 360,
+  "stagedFileCount": 45,
+  "totalBytes": 50389752,
+  "stateDocumentCount": 97,
+  "logFileCount": 48,
+  "chatSummary": {
+    "chatCount": 192,
+    "messageCount": 1122,
+    "firstTs": "2026-06-04T11:26:29.366Z",
+    "lastTs": "2026-06-21T07:50:59.207Z",
+    "roles": {
+      "user": 561,
+      "assistant": 561
+    },
+    "duplicateCount": 21,
+    "parseErrors": []
+  },
+  "buckets": {
+    "chat-snapshot": 21,
+    "current-data": 10,
+    "local-runtime": 322,
+    "text-snapshot": 7
+  },
+  "extensions": {
+    "json": 246,
+    "jsonl": 48,
+    "md": 5,
+    "png": 1,
+    "wav": 1,
+    "log": 8,
+    "[no-ext]": 42,
+    "out": 5,
+    "txt": 4
+  }
+}
