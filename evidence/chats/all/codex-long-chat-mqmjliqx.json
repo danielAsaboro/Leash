@@ -1,0 +1,276 @@
+{
+  "id": "codex-long-chat-mqmjliqx",
+  "createdAt": 1781971124866,
+  "updatedAt": 1781971344985,
+  "messages": [
+    {
+      "id": "msg-mqmjliqx-1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 1. Answer directly: marker 1 starts the run. Do not mention tools."
+        }
+      ]
+    },
+    {
+      "id": "msg-SMCJHH80qxRg7FWr",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781971124850,
+        "model": "direct",
+        "effort": "quick",
+        "finishedAt": 1781971124850
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "direct",
+            "reason": "deterministic direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Marker 1 starts the run.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqmjliqx-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 2. Do not use tools; answer one compact sentence saying marker 2 followed marker 1."
+        }
+      ]
+    },
+    {
+      "id": "msg-vOnZDmwrYev49YAi",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781971124940,
+        "model": "direct",
+        "effort": "quick",
+        "finishedAt": 1781971124940
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "direct",
+            "reason": "deterministic direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Marker 2 followed marker 1.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqmjliqx-3",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 3. Use the sandboxed bash tool to run date, then answer with the date output only."
+        }
+      ]
+    },
+    {
+      "id": "msg-OEP1cnjr1eCweCJt",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781971138084,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781971293112,
+        "totalTokens": 29
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Bash tool is available for date calculation, so route to qwen3-4b; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-DVIpW7R5c066W620",
+          "data": {
+            "id": "run-DVIpW7R5c066W620",
+            "chatId": "codex-long-chat-mqmjliqx",
+            "title": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 3. Use the sandboxed bash tool to run date, then answer with the date output only.",
+            "status": "completed",
+            "route": "files",
+            "sensitivity": "private",
+            "createdAt": 1781971137961,
+            "updatedAt": 1781971293245,
+            "startedAt": 1781971137961,
+            "finishedAt": 1781971293206,
+            "steps": [
+              {
+                "id": "lBN2prk6va48BgTe",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "files",
+                "model": "qwen3-4b",
+                "startedAt": 1781971138034,
+                "finishedAt": 1781971293159,
+                "summary": "The current date is Sat Jun 20 16:00:14 UTC 2026."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The current date is Sat Jun 20 16:00:14 UTC 2026."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "memory-keeper",
+                "name": "memory-keeper"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "bash",
+          "toolCallId": "call_4inmol_2",
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          },
+          "state": "output-available",
+          "input": {
+            "command": "date"
+          },
+          "output": {
+            "sources": [],
+            "text": "Sat Jun 20 16:00:14 UTC 2026",
+            "content": [
+              {
+                "type": "text",
+                "text": "Sat Jun 20 16:00:14 UTC 2026"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe current date is Sat Jun 20 16:00:14 UTC 2026.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqmjliqx-4",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 4. Use the file-finder skill context only. Do not search files. Say which tool that skill uses for local file search."
+        }
+      ]
+    },
+    {
+      "id": "msg-2KBkrpDiNwE1ox2t",
+      "metadata": {
+        "createdAt": 1781971304093,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: notes/files/memory request needs the full agent; conductor output invalid (conductor action was invalid); local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-5LNimNF1skCLoale",
+          "data": {
+            "id": "run-5LNimNF1skCLoale",
+            "chatId": "codex-long-chat-mqmjliqx",
+            "title": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 4. Use the file-finder skill context only. Do not search files. Say which tool that skill uses for l [truncated]",
+            "status": "active",
+            "route": "files",
+            "sensitivity": "private",
+            "createdAt": 1781971304018,
+            "updatedAt": 1781971304055,
+            "startedAt": 1781971304018,
+            "steps": [
+              {
+                "id": "8xaBqZ0DlTwLc7w3",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "files",
+                "model": "qwen3-4b",
+                "startedAt": 1781971304055
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "file-finder",
+                "name": "file-finder"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

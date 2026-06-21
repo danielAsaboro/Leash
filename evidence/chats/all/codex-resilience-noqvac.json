@@ -1,0 +1,75 @@
+{
+  "id": "codex-resilience-noqvac",
+  "createdAt": 1781975851457,
+  "updatedAt": 1781975851457,
+  "messages": [
+    {
+      "id": "msg-resilience-noqvac",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the sandboxed bash tool to run date, then answer with the date output only."
+        }
+      ]
+    },
+    {
+      "id": "msg-2AXjFLw0LXQATght",
+      "metadata": {
+        "createdAt": 1781975850760,
+        "model": "bash",
+        "effort": "quick",
+        "finishedAt": 1781975851454
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "bash",
+            "reason": "deterministic bash command fast path",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-a1jcw1n2vTJ1NOV9",
+          "data": {
+            "id": "run-a1jcw1n2vTJ1NOV9",
+            "chatId": "codex-resilience-noqvac",
+            "title": "Use the sandboxed bash tool to run date, then answer with the date output only.",
+            "status": "completed",
+            "route": "files",
+            "sensitivity": "private",
+            "createdAt": 1781975842354,
+            "updatedAt": 1781975851445,
+            "startedAt": 1781975842354,
+            "finishedAt": 1781975851445,
+            "steps": [
+              {
+                "id": "mGSCAi6iXX7mqrEs",
+                "index": 0,
+                "title": "Run deterministic tool path",
+                "status": "done",
+                "route": "files",
+                "model": "bash",
+                "startedAt": 1781975842376,
+                "finishedAt": 1781975851436,
+                "summary": "Sat Jun 20 17:17:31 UTC 2026"
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "Sat Jun 20 17:17:31 UTC 2026"
+          }
+        },
+        {
+          "type": "text",
+          "text": "Sat Jun 20 17:17:31 UTC 2026",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

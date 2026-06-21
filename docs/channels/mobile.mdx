@@ -1,11 +1,11 @@
 ---
 title: "Mobile (WIP)"
-description: "Leash on iPhone and Android — on-device chat on both, with voice and private-mesh sync on iPhone."
+description: "Leash on iPhone and Android — on-device chat and private-mesh sync on both, with voice on iPhone."
 sidebarTitle: "Mobile (WIP)"
 ---
 
 <Warning>
-  Mobile is in **early development**. Today **iPhone** does on-device chat, on-device voice, and real private-mesh membership with shared task sync. **Android** runs chat only for now. Tool execution, full RAG over your desktop notes, the proactive heartbeat, and the economy ledger still live on desktop Leash.
+  Mobile is in **early development**. iPhone and Android both do on-device chat and real private-mesh membership with shared task sync; iPhone also has on-device voice. Tool execution, full RAG over your desktop notes, the proactive heartbeat, and the economy ledger still live on desktop Leash.
 </Warning>
 
 The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@qvac/sdk` directly and runs models **natively on the phone**. Text chat works fully on-device after the first download; when you pair to your private mesh, the phone can also sync tasks and borrow a stronger provider's text or vision model over the encrypted mesh.
@@ -20,7 +20,7 @@ The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@q
     Whisper STT + Supertonic TTS on iPhone, with a full-screen call overlay.
   </Card>
   <Card title="Private-mesh membership" icon="network-wired">
-    iPhone joins your private mesh as a real member and syncs the shared task CRDT.
+    iPhone and Android join your private mesh as real members and sync the shared task CRDT.
   </Card>
   <Card title="Offline local use" icon="plane">
     After the one-time model download, local chat works fully offline — private by construction.
@@ -42,8 +42,8 @@ The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@q
     If your phone is joined to a private mesh, it can offload a turn to a provider device over the
     encrypted forward worklet instead of loading that model locally.
   </Step>
-  <Step title="Sync tasks on iPhone">
-    The iPhone mesh worklet runs a real Corestore + Autobase + Hyperbee task replica, so TODOs stay
+  <Step title="Sync tasks on mobile">
+    The mobile mesh worklet runs a real Corestore + Autobase + Hyperbee task replica, so TODOs stay
     in sync with your Macs without a cloud middleman.
   </Step>
 </Steps>
@@ -68,9 +68,9 @@ The mobile app (`apps/mobile`) is a React Native + Expo project that imports `@q
   and [iOS install](/install/ios) for the native build recipe.
 </Note>
 
-## Mesh membership (iPhone)
+## Mesh membership
 
-The iPhone is a **real member of your private mesh**, not a thin client. It runs a Corestore + multi-writer Autobase + Hyperbee + Hyperswarm + blind-pairing stack inside a Bare worklet, so it replicates the same encrypted **task** CRDT as your Macs. Pair it from the **Mesh** tab by scanning an invite QR your desktop mints; tap the mesh card to see peers and this phone's models, or **Leave mesh** to drop out. See [The mesh and membership](/explanation/mesh-and-membership) for the model and [Mesh](/platforms/mesh) for the operations.
+The phone is a **real member of your private mesh**, not a thin client. It runs a Corestore + multi-writer Autobase + Hyperbee + Hyperswarm + blind-pairing stack inside a Bare worklet, so it replicates the same encrypted **task** CRDT as your Macs. Pair it by scanning an invite QR your desktop mints; tap the mesh card to see peers and this phone's models, or **Leave mesh** to drop out. See [The mesh and membership](/explanation/mesh-and-membership) for the model and [Mesh](/platforms/mesh) for the operations.
 
 ## Still desktop-only
 

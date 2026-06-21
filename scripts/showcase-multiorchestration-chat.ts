@@ -1,7 +1,7 @@
 /**
  * Live multi-turn showcase conversation for Leash.
  *
- * Drives the real authenticated /api/leash/chat route through a long conversation that
+ * Drives the real device-scoped /api/leash/chat route through a long conversation that
  * exercises broker tools, first-class subagents, context growth, and compaction evidence.
  *
  * To force compaction in a demo run, start web with a small context budget, for example:
@@ -10,7 +10,7 @@
  * Requirements:
  * - Leash web listening on LEASH_WEB_BASE (default http://127.0.0.1:6801)
  * - QVAC serve reachable by the web app
- * - LEASH_COOKIE or /tmp/leash-cookie.txt containing a valid leash_session
+ * - the current device scope is active
  */
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -40,6 +40,7 @@ interface StreamEvent {
   type?: string;
   id?: string;
   data?: unknown;
+  delta?: string;
   toolName?: string;
   messageMetadata?: unknown;
 }
@@ -77,10 +78,11 @@ interface AgentContextEvidence {
   summaryHead: string;
 }
 
-interface TurnResult {
+export interface TurnResult {
   turn: number;
   scenario: string;
   durationMs: number;
+  responseText: string;
   finalRun: GoalRunData;
   tools: string[];
   agents: string[];
@@ -148,11 +150,6 @@ export function buildShowcaseTurns(input: { marker: string; fillerTurns?: number
   return turns;
 }
 
-async function cookieHeader(): Promise<string> {
-  if (process.env["LEASH_COOKIE"]) return process.env["LEASH_COOKIE"];
-  return (await readFile("/tmp/leash-cookie.txt", "utf8")).trim();
-}
-
 function parseSse(body: string): StreamEvent[] {
   const events: StreamEvent[] = [];
   for (const block of body.split(/\r?\n\r?\n+/)) {
@@ -205,6 +202,16 @@ function leashDataDir(): string {
   } catch {
     /* bootstrap fallback */
   }
+  const configuredRoot = process.env["LEASH_DATA_ROOT"] ?? (() => {
+    try {
+      const envText = readFileSync(join(process.cwd(), "apps", "web", ".env.local"), "utf8");
+      const line = envText.split(/\r?\n/).find((entry) => /^\s*LEASH_DATA_ROOT\s*=/.test(entry));
+      return line?.replace(/^\s*LEASH_DATA_ROOT\s*=\s*/, "").trim().replace(/^['"]|['"]$/g, "");
+    } catch {
+      return undefined;
+    }
+  })();
+  if (configuredRoot) return join(configuredRoot, userId);
   return join(leashBase, userId, "data");
 }
 
@@ -253,22 +260,23 @@ function finalRunFrom(events: StreamEvent[], chatId: string, messageId: string):
   };
 }
 
-async function postChat(input: { chatId: string; messageId: string; text: string; cookie: string }): Promise<TurnResult> {
+export async function postChat(input: { chatId: string; messageId: string; text: string; parts?: unknown[]; voice?: boolean }): Promise<TurnResult> {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error(`turn timed out after ${TURN_TIMEOUT_MS}ms`)), TURN_TIMEOUT_MS);
   try {
     const res = await fetch(`${WEB_BASE}/api/leash/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json", cookie: input.cookie },
+      headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
         id: input.chatId,
         trigger: "submit-message",
+        ...(input.voice ? { voice: true } : {}),
         message: {
           id: input.messageId,
           role: "user",
-          parts: [{ type: "text", text: input.text }],
+          parts: input.parts ?? [{ type: "text", text: input.text }],
         },
       }),
     });
@@ -284,10 +292,16 @@ async function postChat(input: { chatId: string; messageId: string; text: string
     assert.ok(TERMINAL.has(finalRun.status), `goal run did not reach terminal status: ${finalRun.status}`);
     assert.notEqual(finalRun.status, "failed", `chat run failed: ${finalRun.errors.join("; ") || finalRun.finalSynthesis || "unknown failure"}`);
     const tools = [...new Set([...collectToolNames(events), ...collectRunToolNames(finalRun)])].sort();
+    const responseText = events
+      .filter((event) => event.type === "text-delta" && typeof event.delta === "string")
+      .map((event) => event.delta)
+      .join("")
+      .trim();
     return {
       turn: Number(input.messageId.split("-").at(-1) ?? 0),
       scenario: "",
       durationMs: Date.now() - started,
+      responseText,
       finalRun,
       tools,
       agents: tools.filter((toolName) => toolName.startsWith("agent__")),
@@ -315,12 +329,19 @@ async function readChatRecord(chatId: string): Promise<{ path: string; record: C
   }
 }
 
-async function main(): Promise<void> {
-  const cookie = await cookieHeader();
-  assert.ok(cookie.includes("leash_session="), "set LEASH_COOKIE or create /tmp/leash-cookie.txt with a valid Leash session");
+async function waitForStoredMessages(chatId: string, expected: number): Promise<{ path: string; record: ChatRecord | null }> {
+  const deadline = Date.now() + 5_000;
+  let chat = await readChatRecord(chatId);
+  while ((chat.record?.messages.length ?? 0) < expected && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    chat = await readChatRecord(chatId);
+  }
+  return chat;
+}
 
-  const active = await fetch(`${WEB_BASE}/api/leash/auth/active`);
-  assert.equal(active.ok, true, "web app auth probe is reachable");
+async function main(): Promise<void> {
+  const active = await fetch(`${WEB_BASE}/api/leash/device/active`);
+  assert.equal(active.ok, true, "web app device probe is reachable");
 
   const suffix = Date.now().toString(36);
   const marker = `multi-orch-${suffix}`;
@@ -366,7 +387,6 @@ async function main(): Promise<void> {
       const result = await postChat({
         chatId,
         messageId: `msg-${suffix}-${i + 1}`,
-        cookie,
         text: turn.text,
       });
       result.scenario = turn.scenario;
@@ -393,7 +413,9 @@ async function main(): Promise<void> {
       assert.ok(packet.hasToolList, `${agentName} context packet missing selected subagent tools`);
     }
 
-    const chat = await readChatRecord(chatId);
+    // Stream completion and the server's onEnd persistence callback are separate
+    // tasks. Wait for the bounded durable write instead of racing it by milliseconds.
+    const chat = await waitForStoredMessages(chatId, turns.length * 2);
     assert.ok(chat.record, `stored chat record not found at ${chat.path}`);
     assert.equal(chat.record!.messages.length, turns.length * 2, "stored chat kept every user and assistant message");
     if (EXPECT_COMPACTION) {

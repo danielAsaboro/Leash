@@ -1,5 +1,5 @@
 ---
-name: Symptom Triage
+name: symptom-triage
 description: Structured triage of symptoms into likely categories and an urgency level, with red-flag escalation.
 when_to_use: |
   I have a symptom / I feel unwell
@@ -7,11 +7,7 @@ when_to_use: |
   should I see a doctor or go to the ER
   triage these symptoms
   is this dosage safe for a child
-examples: |
-  I've had a fever and a stiff neck since this morning — what should I do?
-  My chest feels tight after climbing stairs, is that serious?
-  What's a safe ibuprofen dose for a 6-year-old?
-  Could these symptoms be a migraine or something worse?
+metadata: {"examples":["I've had a fever and a stiff neck since this morning — what should I do?","My chest feels tight after climbing stairs, is that serious?","What's a safe ibuprofen dose for a 6-year-old?","Could these symptoms be a migraine or something worse?"]}
 ---
 
 # Symptom Triage

@@ -33,26 +33,30 @@ The harness follows an orchestrator-worker shape:
 | --- | --- |
 | Leash parent turn | Route the user turn, compact the chat, select available tools and delegates, call a worker only when useful, then synthesize. |
 | Agent disclosure planner | Decide which agent tools are visible this turn. Explicit names such as Grace/Bree outrank automatic skill lanes. |
-| Subagent context packet | Give the worker a bounded task, parent run capsule, compacted summary, latest user turn, memory digest, and selected subagent tool list. |
+| Subagent context packet | Give the worker a bounded task, parent run capsule, compacted summary, recent grounded conversation, latest user turn, memory digest, and selected subagent tool list. |
 | Goal-run ledger | Record the parent step and each delegated agent step with `contextCapsule` and `contextTokensEstimate`. |
 | Live showcase | Drive the real `/api/leash/chat` endpoint over many turns and assert brokers, agents, compaction, and durable packets. |
 
-The direct-delegate shortcut was removed. It made the worker answer the user too directly and violated the architecture: Leash has to do the final answer.
+Leash keeps the normal autonomous loop for ambiguous requests. An additional deterministic path now handles explicit, independently addressed delegation such as “Delegate Grace … Delegate Bree … After both return …”. It does not let a worker answer the user directly. Leash still performs the final synthesis.
 
 For an explicitly named single delegate, the parent loop is deterministic without bypassing Leash:
 
-1. Step 0 forces the selected `agent__*` tool through AI SDK `prepareStep`.
+1. Step 0 forces the selected `agent__*` tool through the runtime step-preparation hook.
 2. The worker runs with its own bounded context and step budget.
 3. The next parent step keeps a non-empty schema set for QVAC dynamic-tools compatibility but sets `toolChoice: "none"`.
 4. Leash synthesizes the worker result into the final user-facing answer.
 
-Both the parent delegation turn and worker context use `/no_think`. The worker output is capped at 500 tokens, while the parent agent turn is capped at 3-4 steps and 700-900 output tokens. These controls remove unnecessary deliberation without replacing Leash's synthesis responsibility.
+For an unambiguous explicit plan, Leash skips the parent planning decode. It executes explicitly mandated, approval-free read tools once as a concurrent batch, gives the same authoritative evidence to each specialist, runs specialists sequentially on a single inference device, and performs one bounded parent synthesis. Each specialist submits its finding through a forced structured tool call. The parent accepts a structured submission or visible synthesis text, then applies an exact-identifier grounding guard for requested markers, batch IDs, and reference codes.
+
+The fast path declines the turn when tasks are ambiguous, a named tool lacks a deterministic input adapter, a tool is not read-only, approval is required, or the specialist is not allowed to use that tool. Those turns retain the autonomous `ToolLoopAgent` path.
 
 ## Code changes
 
 | Area | Files |
 | --- | --- |
 | Progressive agent disclosure | `apps/web/lib/leash/agent-disclosure.ts`, `apps/web/lib/leash/agent-keys.ts`, `apps/web/lib/leash/tool-exposure.ts`, `apps/web/app/api/leash/chat/route.ts` |
+| Explicit delegation planner | `apps/web/lib/leash/agent-explicit-plan.ts`, `apps/web/app/api/leash/chat/route.ts` |
+| Shared evidence and single-device scheduler | `apps/web/lib/leash/agent-runner.ts`, `apps/web/lib/leash/agent-authoritative-results.ts`, `apps/web/lib/leash/agent-tool-idempotency.ts` |
 | Subagent context packets | `apps/web/lib/leash/agent-context.ts`, `apps/web/lib/leash/prompt.ts`, `apps/web/lib/leash/agent-runner.ts` |
 | Route and ledger propagation | `apps/web/app/api/leash/chat/route.ts`, `apps/web/lib/leash/agent-runner.ts` |
 | Explicit-agent loop control | `apps/web/lib/leash/agent.ts`, `apps/web/app/api/leash/chat/route.ts` |
@@ -85,7 +89,8 @@ Each agent tool execution now builds a packet before the worker starts. The pack
 | Delegated task | The exact self-contained subtask. |
 | Parent run capsule | A bounded `buildContextCapsule(...)` view of the current goal run. |
 | Compacted conversation summary | Parent chat summary when compaction has happened. |
-| Latest user turn | The immediate user instruction that caused delegation. |
+| Recent grounded conversation | A small text-only tail carrying prior tool and vision conclusions without replaying binary attachments. |
+| Latest user turn | The immediate user instruction plus decoded readable attachments that caused delegation. |
 | Agent memory digest | Optional worker-specific memory context. |
 | Selected subagent tools | Explicit list, including `none` when no executable tools are exposed. |
 | Token estimate | Stored with the goal-run step for auditability. |
@@ -123,9 +128,7 @@ LEASH_SHOWCASE_ONLY_SCENARIO=grace-coder-agent \
 npm run showcase:multiorchestration-chat
 ```
 
-The report reads the real active-user Leash data directory, not just `mycelium/data`, because the web launcher scopes chat and goal-run records under the active user. The verified run wrote to:
-
-`/Users/cartel/Leash/codex-gauntlet-086ab14b/data/...`
+The report reads the real active-user Leash data directory, not just `mycelium/data`, because the web launcher scopes chat and goal-run records under the active user data root.
 
 ## Verified run
 
@@ -147,6 +150,29 @@ Strict live pass:
 | Bree turn | 127,479 ms, including compaction, worker execution, and Leash synthesis |
 
 The report proves that both subagents had managed context and that Leash synthesized after worker output. A focused post-fix Grace probe also passed in 69,737 ms; the pre-fix failure consumed 409,159 ms and did not complete the full showcase.
+
+Two newer runs extend that evidence:
+
+| Run | Result |
+| --- | --- |
+| Parallel consistency | Six conversations x five turns; 30/30 passed agent selection, argument construction, execution, coordination, and synthesis. p50 11.897 s, p90 17.634 s, max 21.191 s. |
+| Unified multimodal decision | Vision read 24 degrees and batch `QV-2026-0601`; TTS and STT preserved the request; both Grace and Bree used `search_graph` and `active_context`; final synthesis compared the 24-degree observation with the private 22-degree threshold. |
+
+The original unified two-agent turn took 226.587 seconds. A first context-and-reasoning pass reduced it to 171.108 seconds. The latest accepted deterministic-evidence run completed the same strict orchestration in 58.713 seconds while preserving both agents, both read tools, the exact observed value, batch ID, threshold, escalation decision, and private marker.
+
+Accepted run:
+
+`logs/dedicated-hardware-flow-mrqf1xuz.json`
+
+| Metric | Original | Accepted local schedule | Change |
+| --- | ---: | ---: | ---: |
+| Two-agent orchestration | 226.587 s | 58.713 s | 74.1% faster |
+| Grace context estimate | 1,116 tokens | 693 tokens | 37.9% smaller |
+| Bree context estimate | 1,090 tokens | 665 tokens | 39.0% smaller |
+| Voice confirmation model turn | 60.059 s | 0.727 s observed on the accepted path | 98.8% faster |
+| Approximate complete multimodal flow | 301.327 s | 86.497 s | 71.3% faster |
+
+The complete-flow figure sums the recorded vision, TTS, STT, confirmation, and orchestration stages. Model and audio latency still vary between warm runs; the orchestration comparison uses the same strict assertions and product route.
 
 ## Service startup notes
 
@@ -182,6 +208,9 @@ The gauntlet config preloads only the three aliases used by this path. Verify `/
 | Subagent packets lacked a selected-tool line when no tools were available. | Empty tool lists were omitted. | Record `Selected subagent tools: none`. |
 | Long turns could produce repeated effort-classifier stack traces if embeddings returned 500. | Optional effort classification retried and logged on every long turn. | Add an effort-classification cooldown and fallback to `standard`. |
 | Explicit agent turns took 409 seconds and could enter another tool continuation. | The 4B parent spent tokens deciding whether to call an explicitly requested worker, the worker could over-deliberate, and synthesis still allowed tools. | Force the named agent on parent step 0, run parent and worker `/no_think`, cap worker output, then set parent `toolChoice: "none"` for Leash synthesis. |
+| Explicit two-agent evidence work still took 171 seconds. | The parent planned an already explicit delegation, each worker generated tool arguments for the same reads, concurrent workers contended for one inference device, and raw evidence was repeated into synthesis. | Parse independent tasks deterministically, execute safe reads once in parallel, run one structured specialist decode at a time, compact evidence, then run one bounded synthesis decode. |
+| A bounded specialist produced hidden reasoning but no visible text. | Free-text completion depended on Qwen's reasoning/text split under a tight output ceiling. | Force `submit_finding` with a typed schema and read the real tool input as the specialist result. |
+| Parent synthesis paraphrased an exact private marker. | Small-model synthesis preserved the marker's meaning but not its literal value. | Extract requested grounded identifiers from the current attachment and recent grounded conversation, require them in synthesis, and append only genuinely omitted identifiers. |
 | Giant synthetic filler blocks made compaction tests decode-bound. | The test increased model generation cost while trying to increase stored context. | Use short numbered continuity markers and a 900-token test context window. |
 
 ## Regression commands
@@ -191,6 +220,8 @@ Focused checks:
 ```bash
 npx tsx scripts/smoke-agent-disclosure.ts
 npx tsx scripts/smoke-agent-delegate-context.ts
+npm run smoke:explicit-agent-plan
+npm run smoke:parallel-subagent-tools
 npx tsx scripts/smoke-compound-route.ts
 npx tsx scripts/smoke-effort-cooldown.ts
 npx tsx scripts/smoke-showcase-conversation.ts

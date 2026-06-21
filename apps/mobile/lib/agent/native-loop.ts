@@ -82,7 +82,7 @@ async function execTool(tools: ToolSet, name: string, args: unknown): Promise<un
 
 export type NativeTurnOpts = {
   modelId: string;
-  system: string;
+  instructions: string;
   history: Msg[]; // user/assistant turns (no system)
   tools?: ToolSet;
   maxSteps?: number;
@@ -101,7 +101,7 @@ export async function runNativeTurn(opts: NativeTurnOpts): Promise<string> {
   const maxSteps = opts.maxSteps ?? 6;
   const lead = opts.leadingParts ?? [];
 
-  const convo: Msg[] = [{ role: "system", content: opts.system }, ...opts.history];
+  const convo: Msg[] = [{ role: "system", content: opts.instructions }, ...opts.history];
   const parts: Part[] = [...lead];
   let finalText = "";
 

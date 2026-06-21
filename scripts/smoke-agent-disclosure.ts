@@ -30,11 +30,44 @@ function agent(slug: string, name: string, description: string): Agent {
 }
 
 const agents = [
+  agent("care-edge:community-clinician", "Community Clinician", "Community care specialist for evidence review, thresholds, escalation, symptoms, and safe triage."),
   agent("coder", "Grace", "Coding specialist for writing, debugging, testing, and explaining code and scripts."),
   agent("summarizer", "Bree", "Summarization specialist for long documents, notes, transcripts, papers, and threads."),
   agent("researcher", "Ruth", "Research specialist for multi-source research, source comparison, citations, and investigation."),
   agent("health", "Joy", "Health and wellbeing specialist for medical, symptoms, medication, sleep, nutrition, and therapy questions."),
+  agent("care-edge:eye-clinician", "Eye Clinician", "Eye-care specialist for urgent symptoms and structured optometry intake."),
 ];
+
+assert.deepEqual(
+  planAgentDisclosure("Coordinate both Grace and Bree. Ask Grace to verify evidence and threshold logic, then ask Bree to summarize it.", agents),
+  {
+    mode: "explicit",
+    selected: [
+      { slug: "coder", name: "Grace", toolName: "agent__coder", reason: "explicit" },
+      { slug: "summarizer", name: "Bree", toolName: "agent__summarizer", reason: "explicit" },
+    ],
+    suppressRunSkill: true,
+    directDelegate: false,
+  },
+  "explicitly named agents outrank earlier installed specialists whose descriptions merely match the task",
+);
+
+assert.deepEqual(
+  planAgentDisclosure("auntie says sudden curtain over left eye after waking", agents, { activeSkillTools: ["eye_risk"] }),
+  { mode: "none", selected: [], suppressRunSkill: false, directDelegate: false },
+  "a domain noun does not masquerade as an explicit specialist-agent address",
+);
+
+assert.deepEqual(
+  planAgentDisclosure("Ask the Eye Clinician to review this intake.", agents),
+  {
+    mode: "explicit",
+    selected: [{ slug: "care-edge:eye-clinician", name: "Eye Clinician", toolName: "agent__care-edge__eye-clinician", reason: "explicit" }],
+    suppressRunSkill: true,
+    directDelegate: false,
+  },
+  "the full plugin agent name remains an explicit delegation",
+);
 
 assert.deepEqual(
   planAgentDisclosure("Please ask Grace to inspect this failing TypeScript route.", agents),
@@ -84,6 +117,12 @@ assert.deepEqual(
   planAgentDisclosure("Think through this and tell me what you recommend.", agents),
   { mode: "none", selected: [], suppressRunSkill: false, directDelegate: false },
   "ambiguous general chat does not expose agent tools",
+);
+
+assert.deepEqual(
+  planAgentDisclosure("Continue this same chat. Use read-only context if useful and answer in one sentence: did the previous turn persist a terminal goal-run status?", agents),
+  { mode: "none", selected: [], suppressRunSkill: false, directDelegate: false },
+  "generic delegation verbs and description stopwords do not expose unrelated specialists",
 );
 
 assert.deepEqual(

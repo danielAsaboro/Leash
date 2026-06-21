@@ -1,0 +1,101 @@
+---
+title: "Real-user capability gauntlet"
+description: "How Leash tests automatic skill selection, MCP execution, safety, and continuity with unrefined multi-turn prompts."
+sidebarTitle: "Real-user gauntlet"
+---
+
+The capability gauntlet tests whether Leash can change capabilities without replacing its identity, memory, permissions, orchestration, clients, or compute mesh. It installs five deliberately different capability packs and exercises the shared Leash runtime through the same `/api/leash/chat` route a person uses.
+
+The prompts are deliberately messy. They contain fragments, spelling mistakes, pasted hostile text, topic changes, and requests that cross approval or hardware boundaries. No prompt names a skill, agent, plugin, or MCP tool.
+
+<Note>
+The deterministic pack smoke passes 94/94 checks. The uninterrupted QVAC product-path run passes 16/16 raw turns across five sustained conversations. Its evidence file was written after the final turn passed.
+</Note>
+
+## What the run covers
+
+<Tabs>
+  <Tab title="Care">
+    A four-turn conversation starts with an informal chest-pain emergency, adds a dependent symptom fragment, changes to a different person's sudden eye problem, then switches completely off-domain.
+
+    The assertions require automatic triage selection, real `triage_red_flags` execution, bounded continuity, automatic eye-clinic reselection, and final release back to general chat. Responses must not diagnose or leak reasoning.
+  </Tab>
+  <Tab title="Trust">
+    Four unrelated prompts test prompt-injection isolation, transaction review, invoice gating, and low-confidence fallback.
+
+    Each turn must select the right specialist and run the corresponding deterministic tool. Signing and payment prompts must stop at review or approval; the test rejects language that claims an execution occurred.
+  </Tab>
+  <Tab title="Private ops">
+    Three turns test exact ledger arithmetic, bounded position sizing, and an attempted memory write.
+
+    Read-only calculations must execute. The memory import must surface its approval boundary instead of silently writing through a conversational request.
+  </Tab>
+  <Tab title="Field">
+    Three turns decode an OBD-II frame, split Unicode text for a LoRa-sized transport, and choose a trusted mesh provider for a model that does not fit locally.
+
+    The tools prove protocol logic and routing. They must not claim that a Bluetooth adapter connected, a radio transmitted, or delegated inference completed when no physical transport ran.
+  </Tab>
+  <Tab title="Family">
+    Two turns request and revise a bilingual offline story package.
+
+    The validator checks the package contract and privacy choices. The response must remain honest about whether any iPad delivery occurred.
+  </Tab>
+</Tabs>
+
+## Optimisations found through the product path
+
+<Tabs>
+  <Tab title="Routing">
+    | Observed failure | Root cause | Runtime change | Verification state |
+    | --- | --- | --- | --- |
+    | The first chat request stayed pending for minutes while the worker was idle. | The conductor used non-streaming `generateText` against the QVAC 0.13.x completion path. | The conductor now uses `streamText` and awaits accumulated text. | Direct classifier stream: 1.58 s. Subsequent full conductor turns: 2.6-3.1 s. |
+    | “he's sweaty now too” dropped the active triage skill. | The fragment had too little standalone routing signal. | A prior persisted skill carries across short dependent fragments and is released by explicit topic-switch language. | Passed in the uninterrupted 16-turn run. |
+    | A specific eye complaint lost to a broad sibling. | Rank-only fusion collapsed score distance between adjacent candidates. | Per-prototype lexical coverage is fused with calibrated cosine evidence before ranking. | 15/15 real-QVAC routing cases; the eye topic switch selected `care-edge:eye-clinic`. |
+    | “cant really breathe” initially received a non-emergency result. | The deterministic phrase table missed common unpunctuated variants. | Added informal breathing variants to the care tool's safety rules. | The raw emergency assertion subsequently passed. |
+  </Tab>
+  <Tab title="Tools and policy">
+    | Observed failure | Root cause | Runtime change | Verification state |
+    | --- | --- | --- | --- |
+    | The right skill narrated a tool result instead of invoking MCP. | Unknown plugin tools correctly failed closed, but the plugin had no narrow policy grant. | Enabled plugins may declare validated local policies scoped to their own skill and agent routes. Low-risk writes still require approval. | `triage_red_flags` executed through the real chat path. |
+    | A pipeline step could say it called a required tool without doing so. | Automatic tool choice did not enforce the authored step contract. | A step naming exactly one declared tool forces that tool and fails if no execution result exists. | Required-tool invariant passed in the observed QVAC turn. |
+    | A domain tool ran during prose-only steps. | QVAC could emit a call even with `toolChoice: none` while the schema remained visible. | Only the authored tool step receives the domain schema; prose steps receive the inert compatibility tool. | Passed across every required capability tool in the uninterrupted run. |
+    | Successful MCP output disappeared between the tool call and later pipeline steps. | Tool results live on the aggregate generation result, not necessarily the call-emitting model step. | Pipelines preserve aggregate tool results as authoritative data for later steps. | Exact ledger total `6000`, position size `10`, OBD `1726 rpm`, and provider `peer-b` passed. |
+    | Nested tool arguments lost fields. | The 4B flattened ledger and provider objects before execution. | Tools accept raw compact input and parse signed amounts or trust/price advertisements deterministically. | Ledger and provider-selection turns pass through real MCP. |
+    | An approval-gated write disappeared silently. | Policy filtering removed it before the skipped-tool ledger recorded the reason. | Approval-gated tools are recorded before subagent exclusion. | The memory-import turn reports approval/skipped and performs no pack write. |
+  </Tab>
+  <Tab title="Latency and output">
+    | Observed failure | Root cause | Runtime change | Measured result |
+    | --- | --- | --- | --- |
+    | A correct emergency pipeline took 216.384 s. | Six model cycles used hidden reasoning and a 900-token ceiling. | Deterministic steps disable reasoning, use 220/320-token ceilings, and hide domain tools from prose steps. | The same raw emergency turn later passed in 35.3 s, a 6.1x reduction; the uninterrupted final run passed in 25.1 s. |
+    | Raw `<think>` content reached the answer. | A capped decode ended before the middleware received a closing tag. | Deterministic steps run reasoning-off, and residual complete or incomplete tags are stripped. | No reasoning tag appeared in the 216 s correctness run or the later passing turns. |
+  </Tab>
+  <Tab title="Boundaries">
+    The gauntlet separates implemented protocol logic from physical effects:
+
+    - OBD decoding is real, but no Bluetooth connection is invented.
+    - UTF-8-safe LoRa chunking is real, but no radio transmission is invented.
+    - provider selection is real, but no completed delegation is claimed without a mesh task.
+    - story-package validation is real, but no device delivery is invented.
+    - memory import is a real low-risk write tool, but conversational execution remains approval-gated.
+
+    These are product constraints, not caveats hidden after the demo.
+  </Tab>
+</Tabs>
+
+## Acceptance contract
+
+The runner sends five sustained conversations containing 16 raw turns. Each turn checks HTTP success, SSE transport, automatic skill selection, expected deterministic tool execution, safety language, absence of `<think>` leakage, and topic-switch behavior. It preserves one chat ID per conversation so continuity is tested against persisted chat history.
+
+```bash
+LEASH_WEB_BASE=http://127.0.0.1:6802 npm run gauntlet:capabilities
+```
+
+The completed artifact is `demo/evidence/capability-conversations.json` at the repository root. The runner creates it only after all turns pass, so a missing file means the end-to-end claim is not proven.
+
+Run the offline capability gate separately:
+
+```bash
+npm run smoke:capability-packs
+```
+
+That gate currently reports 94 executable checks across five capability packs. See [Evidence](/optimization/evidence) for the consolidated measurements and [Skill selection](/optimization/skill-selection) for the routing design.

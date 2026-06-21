@@ -32,6 +32,10 @@ path without extension. The tabs:
 - **Capabilities** — skills, MCP and its tools, automation, plugins.
 - **Models** — the model catalog, aliases, config, and per-modality pages.
 - **Platforms** — desktop, mesh, economy, mobile.
+- **[Optimisation](./optimization/overview.mdx)** — measured agent, context, reasoning, runtime, mesh,
+  model, memory, and mobile optimisations. Start with
+  [Reasoning efficiency](./optimization/reasoning-efficiency.mdx) for adaptive Chain-of-Draft,
+  explicit QVAC reasoning control, focused tool exposure, and the before/after benchmark.
 - **Reference** — workspace map, ports/processes, configuration, the audit-log and benchmark references,
   plus the *explanation* pages (the system, the agent, the mesh, models & media).
 - **Help** — troubleshooting, debugging, FAQ, testing, an **Operations** group (multi-device mesh,

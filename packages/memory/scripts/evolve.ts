@@ -23,7 +23,7 @@ import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AuditLog } from "@mycelium/shared";
-import { runNightlyLora, type TrainBase, type AdapterManifest, type PromoteResult } from "../src/index.ts";
+import { evaluateAdapterQuality, runNightlyLora, type TrainBase, type AdapterManifest, type PromoteResult } from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const audit = new AuditLog("memory-evolve", join(here, "..", "logs"));
@@ -71,7 +71,7 @@ function upsertEvolveTask(m: AdapterManifest, served?: PromoteResult): void {
     tasks.push({
       id: `evolve-${now}`,
       title: `🌱 Nightly learning: adapter ${m.version} is better at you`,
-      detail: `Last night's on-device LoRA shipped a promotable adapter (overall ${m.evalDelta >= 0 ? "+" : ""}${m.evalDelta.toFixed(3)}; per-axis ${deltas}). See the climb at /brain?tab=growth.${activate}`.slice(0, 1000),
+      detail: `Last night's on-device LoRA passed the held-out quality gate (overall ${m.evalDelta >= 0 ? "+" : ""}${m.evalDelta.toFixed(3)}; per-axis ${deltas}). See the climb at /brain?tab=growth.${activate}`.slice(0, 1000),
       status: "open",
       priority: "normal",
       tags: ["nightly-learning"],
@@ -95,7 +95,11 @@ function customBase(): TrainBase | undefined {
   const raw = process.env["MYCELIUM_LORA_BASE_GGUF"];
   if (!raw) return undefined;
   const src = raw.startsWith("~/") ? join(homedir(), raw.slice(2)) : raw;
-  return { src, name: process.env["MYCELIUM_LORA_BASE_NAME"] ?? `custom:${basename(src)}` };
+  return {
+    src,
+    name: process.env["MYCELIUM_LORA_BASE_NAME"] ?? `custom:${basename(src)}`,
+    sourceRef: raw,
+  };
 }
 
 try {
@@ -113,19 +117,20 @@ try {
     console.log(`   Add more memories/feedback and re-run. Log: ${audit.path}`);
   } else {
     const m = outcome.manifest!;
+    const quality = evaluateAdapterQuality(m);
     console.log(`\n📦 adapter ${m.version} (${(m.sizeBytes / 1e6).toFixed(1)} MB, ${m.trainPairs} pairs)`);
     console.log(`   base    overall: ${m.base.overall.toFixed(3)}  [${m.base.axes.map((a) => `${a.axis}=${a.score.toFixed(2)}`).join(" ")}]`);
     console.log(`   adapter overall: ${m.adapter.overall.toFixed(3)}  [${m.adapter.axes.map((a) => `${a.axis}=${a.score.toFixed(2)}`).join(" ")}]`);
-    console.log(`   evalDelta: ${m.evalDelta >= 0 ? "+" : ""}${m.evalDelta.toFixed(3)} → ${m.evalDelta >= 0 ? "🟢 PROMOTABLE" : "🔴 regression (not promoted)"}`);
+    console.log(`   evalDelta: ${m.evalDelta >= 0 ? "+" : ""}${m.evalDelta.toFixed(3)} → ${quality.passed ? "🟢 PROMOTABLE" : `🔴 blocked (${quality.reasons.join("; ")})`}`);
     if (outcome.served) {
       console.log(`\n🪄 serve alias written: ${outcome.served.aliasName} → ${outcome.served.loraConfigValue}`);
       console.log(`   Activate on the web chat:  export LEASH_CHAT_MODEL=${outcome.served.aliasName}`);
       console.log(`   Then RELOAD the serve (dashboard Force-restart) — never kill a live worker.`);
-    } else if (m.evalDelta >= 0) {
+    } else if (quality.passed) {
       console.log(`\n   (base ${m.baseModel} isn't the served chat model — apply via the edge/council loadModel({lora}) path)`);
     }
     // Surface a promotable nightly adapter as one actionable task (the "it learned overnight" moment).
-    if (m.evalDelta >= 0) upsertEvolveTask(m, outcome.served);
+    if (quality.passed) upsertEvolveTask(m, outcome.served);
     console.log(`\n✅ Log: ${audit.path}`);
   }
 } catch (error) {

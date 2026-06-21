@@ -1,0 +1,187 @@
+{
+  "id": "fMUncOW7pyweb7qo",
+  "createdAt": 1780646958760,
+  "updatedAt": 1780647080793,
+  "messages": [
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "What is wrong with you?"
+        }
+      ],
+      "id": "i215Ot5AWUBdipfr",
+      "role": "user"
+    },
+    {
+      "id": "msg-V832v5Srj1V5nmah",
+      "metadata": {
+        "createdAt": 1780646948929,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780646958757,
+        "totalTokens": 27
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI am functioning as intended. If you have a specific query or need assistance with something, feel free to ask.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "What are the things that you can do?"
+        }
+      ],
+      "id": "PYFNX6B0I30Lh6X4",
+      "role": "user"
+    },
+    {
+      "id": "msg-5tyMeQPggz3y1qbL",
+      "metadata": {
+        "createdAt": 1780646971206,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780646982874,
+        "totalTokens": 54
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI can search your private notes, files, and voice memos; access your daily paper, check the current time, list your photos, generate images, control your Home Assistant devices, and track your screen activity. Let me know what you need.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "So what is your name?"
+        }
+      ],
+      "id": "b5myvXDXltyQqRnj",
+      "role": "user"
+    },
+    {
+      "id": "msg-faftmATnabnNgzKT",
+      "metadata": {
+        "createdAt": 1780647002547,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780647014908,
+        "totalTokens": 45
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI am named Leash, your private, on-device assistant. I can help with various tasks like searching your notes, controlling your home devices, and more. Let me know how I can assist you.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Um, can you list things for me?"
+        }
+      ],
+      "id": "HBr7uTJpI9o8kMIm",
+      "role": "user"
+    },
+    {
+      "id": "msg-7HNrfC70845S4lcE",
+      "metadata": {
+        "createdAt": 1780647052190,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780647062408,
+        "totalTokens": 18
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI can list things for you. Let me know what you need.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Do you have access to the internet?"
+        }
+      ],
+      "id": "78PwHuEaYvO6oLw9",
+      "role": "user"
+    },
+    {
+      "id": "msg-nkFCJxceWiFKOTOC",
+      "metadata": {
+        "createdAt": 1780647070432,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780647080755,
+        "totalTokens": 18
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI can list things for you. Let me know what you need.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

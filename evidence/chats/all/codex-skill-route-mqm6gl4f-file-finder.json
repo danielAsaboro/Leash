@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqm6gl4f-file-finder",
+  "createdAt": 1781949069666,
+  "updatedAt": 1781949069666,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm6gl4f-file-finder-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "search my files for the function that parses the skill manifest"
+        }
+      ]
+    },
+    {
+      "id": "msg-ZNOmkyHSwbfd01qy",
+      "metadata": {
+        "createdAt": 1781949069663,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "search my files for the function that parses the skill manifest; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-v0xbSuRvLYJg5rtt",
+          "data": {
+            "id": "run-v0xbSuRvLYJg5rtt",
+            "chatId": "codex-skill-route-mqm6gl4f-file-finder",
+            "title": "search my files for the function that parses the skill manifest",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781949069653,
+            "updatedAt": 1781949069658,
+            "startedAt": 1781949069653,
+            "steps": [
+              {
+                "id": "qSLBC4hwMS3lONy3",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781949069658
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "file-finder",
+                "name": "file-finder"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

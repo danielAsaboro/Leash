@@ -8,10 +8,9 @@
  * Requirements:
  * - web app listening on LEASH_WEB_BASE (default http://127.0.0.1:6801)
  * - QVAC serve + Hypha reachable if the route needs them
- * - LEASH_COOKIE set, or /tmp/leash-cookie.txt containing the browser cookie
+ * - the current device scope is active
  */
 import assert from "node:assert";
-import { readFile } from "node:fs/promises";
 
 const WEB_BASE = (process.env["LEASH_WEB_BASE"] ?? "http://127.0.0.1:6801").replace(/\/+$/, "");
 const TERMINAL = new Set(["completed", "failed", "paused", "cancelled"]);
@@ -35,12 +34,6 @@ interface GoalRunData {
   finalSynthesis?: string;
 }
 
-async function cookieHeader(): Promise<string> {
-  if (process.env["LEASH_COOKIE"]) return process.env["LEASH_COOKIE"];
-  const txt = await readFile("/tmp/leash-cookie.txt", "utf8").catch(() => "");
-  return txt.trim();
-}
-
 function parseSse(body: string): StreamEvent[] {
   const events: StreamEvent[] = [];
   for (const block of body.split(/\n\n+/)) {
@@ -55,16 +48,16 @@ function parseSse(body: string): StreamEvent[] {
   return events;
 }
 
-async function get(path: string, cookie: string): Promise<string> {
-  const res = await fetch(`${WEB_BASE}${path}`, { headers: { cookie }, redirect: "follow" });
+async function get(path: string): Promise<string> {
+  const res = await fetch(`${WEB_BASE}${path}`, { redirect: "follow" });
   assert.equal(res.ok, true, `${path} returned ${res.status}`);
   return res.text();
 }
 
-async function postChat(input: { chatId: string; messageId: string; text: string; cookie: string }): Promise<{ events: StreamEvent[]; body: string; finalRun: GoalRunData }> {
+async function postChat(input: { chatId: string; messageId: string; text: string }): Promise<{ events: StreamEvent[]; body: string; finalRun: GoalRunData }> {
   const res = await fetch(`${WEB_BASE}/api/leash/chat`, {
     method: "POST",
-    headers: { "content-type": "application/json", cookie: input.cookie },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       id: input.chatId,
       trigger: "submit-message",
@@ -92,18 +85,14 @@ async function postChat(input: { chatId: string; messageId: string; text: string
 }
 
 async function main(): Promise<void> {
-  const cookie = await cookieHeader();
-  assert.ok(cookie.includes("leash_session="), "set LEASH_COOKIE or create /tmp/leash-cookie.txt with a valid Leash session");
-
-  const active = await fetch(`${WEB_BASE}/api/leash/auth/active`);
-  assert.equal(active.ok, true, "web app auth probe is reachable");
+  const active = await fetch(`${WEB_BASE}/api/leash/device/active`);
+  assert.equal(active.ok, true, "web app device probe is reachable");
 
   const suffix = Date.now().toString(36);
   const chatId = `codex-chat-gauntlet-${suffix}`;
   const first = await postChat({
     chatId,
     messageId: `msg-${suffix}-1`,
-    cookie,
     text:
       "Live gauntlet through the normal Leash chat path. Use read-only context tools to search Apple Notes and private context for qvac, then answer in one sentence under 30 words with the visible route/model.",
   });
@@ -111,19 +100,18 @@ async function main(): Promise<void> {
   const second = await postChat({
     chatId,
     messageId: `msg-${suffix}-2`,
-    cookie,
     text:
       "Continue this same chat. Use read-only context if useful and answer in one sentence: did the previous turn persist a terminal goal-run status?",
   });
 
-  const chatPage = await get(`/chat/${chatId}`, cookie);
+  const chatPage = await get(`/chat/${chatId}`);
   assert.ok(chatPage.includes(chatId), "stored chat page renders the chat id");
   assert.ok(chatPage.includes(first.finalRun.id), "stored chat page includes first run evidence");
   assert.ok(chatPage.includes(second.finalRun.id), "stored chat page includes second run evidence");
   assert.ok(chatPage.includes(first.finalRun.status), "stored chat page includes first terminal run status");
   assert.ok(chatPage.includes(second.finalRun.status), "stored chat page includes second terminal run status");
 
-  const runsPage = await get(`/tasks?tab=runs&run=${second.finalRun.id}`, cookie);
+  const runsPage = await get(`/activity?tab=runs&run=${second.finalRun.id}`);
   assert.ok(runsPage.includes(chatId), "Tasks/Runs links the run back to the chat");
   assert.ok(runsPage.includes(`${second.finalRun.status} · ${second.finalRun.route}`), "Tasks/Runs shows terminal run detail");
 

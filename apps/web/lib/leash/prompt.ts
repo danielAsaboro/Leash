@@ -231,6 +231,7 @@ export function buildAgentDelegateContextPrompt(packet?: { text?: string }): str
     "--- Delegate operating contract ---",
     "Use this bounded packet as your working context. Do not assume access to the parent transcript beyond what is included here.",
     "Complete only the delegated task with your available tools. Keep tool use focused and stop when the task is answered.",
+    "When several read-only tool calls are independent, issue them together in one tool-call step so they can execute concurrently. Keep dependent calls, mutations, and approval-gated actions sequential; never guess an input that should come from an earlier result.",
     "Return a compact result with concrete evidence, file paths, tool findings, or artifact references when relevant. Do not repeat the task or narrate your reasoning.",
     "Leash remains responsible for final synthesis to the user, so do not write as if you are the top-level assistant.",
   ].join("\n");
@@ -381,8 +382,18 @@ export function buildDisabledToolsNote(disabled: Iterable<string>): string {
 export const CHAT_APPROVAL_NOTE =
   "Some tool calls require the user's approval before running. If the user denies a tool call, do NOT retry it — acknowledge that it was declined and continue without it.";
 
-export const CHAT_THINKING_NOTE =
-  "Private reasoning budget: keep <think> brief and focused, then write the answer. Do not spend the whole response on reasoning.";
+export const REASONING_DRAFT_PLANNER_PROMPT =
+  "Prepare a compact private reasoning plan for another model call. Use draft mode unless the task truly needs extended reasoning: more than six dependent transformations, conflicting constraints, consequential uncertainty, or a high-risk decision. Each step must be a fragment, equation, identifier, or arrow-style dependency with at most five words. Preserve numbers, negations, constraints, and dependencies. Never restate the request, write prose analysis, or solve by exploring alternatives. Select deep only when a bounded draft would hide a correctness-critical dependency.";
+
+export function buildReasoningDraftSection(input: { mode: "draft" | "deep"; steps: string[]; verification?: string }): string {
+  const steps = input.steps.map((step, i) => `${i + 1}. ${step}`).join(" ");
+  const verification = input.verification?.trim() ? ` Targeted verification: ${input.verification.trim()}.` : "";
+  return `Private reasoning plan already prepared (${input.mode}): ${steps}.${verification} Follow it without restating it or exploring alternate paths. Answer the hypothetical task concretely from general knowledge; treat missing implementation details as explicit assumptions, not a reason to refuse. Cover every explicit constraint from the request in the answer or a verification gate.`;
+}
+
+export function buildThinkingNote(tokenBudget: number): string {
+  return `Private reasoning budget: about ${tokenBudget} tokens. Think in fragments, equations, identifiers, and arrows; preserve every number, negation, constraint, dependency, and uncertainty. Do not restate the problem or narrate obvious operations. Once one solution satisfies all constraints, perform at most one targeted verification, stop reasoning, and write the answer.`;
+}
 
 export const CHAT_PLAN_MODE_NOTE =
   "Plan mode: do not answer directly. Your only action is to call submit_plan with ordered atomic steps that accomplish the request. Each step must be self-contained and runnable by the harness; even a simple request becomes a one-step plan. The user approves the plan; the harness runs the steps; then you present the combined result.";
@@ -420,7 +431,7 @@ export function buildPlanStepSystemPrompt(input: { task: string; step: string; i
   return (
     `Task: execute one approved plan step.\nPriority: do only this step; do not attempt other steps.\n\nOVERALL TASK:\n${input.task}\n\n` +
     `CURRENT STEP (${input.index + 1} of ${input.total}):\n${input.step}${input.prior}\n\n` +
-    `Output contract: call tools if needed, then briefly report what you did or found.`
+    `Output contract: call tools if needed, then briefly report what you did or found. Earlier deterministic tool results are authoritative: copy their verdict, failures, and Boolean state exactly; never infer, reverse, or embellish those fields.`
   );
 }
 
@@ -436,7 +447,7 @@ export function buildSkillStepSystemPrompt(input: {
   return (
     `Task: execute one step of the "${input.skillName}" skill for the main assistant.\nPriority: follow the skill instructions; do only this step.\n\n${input.skillBody}\n\n` +
     `OVERALL TASK:\n${input.task}\n\nCURRENT STEP (${input.index + 1} of ${input.total}):\n${input.step}${input.prior}\n\n` +
-    `Output contract: call tools if needed, then briefly report what you did or found.`
+    `Output contract: call tools if needed, then briefly report what you did or found. Earlier deterministic tool results are authoritative: copy their verdict, failures, and Boolean state exactly; never infer, reverse, or embellish those fields.`
   );
 }
 

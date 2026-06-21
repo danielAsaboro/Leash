@@ -46,6 +46,8 @@ export interface ToolPolicyContext {
   subagent?: boolean;
   background?: boolean;
   publicMesh?: boolean;
+  /** Validated, plugin-local overrides. Callers must derive these from the enabled plugin manifest. */
+  pluginPolicies?: Record<string, ToolPolicy>;
 }
 
 export interface ToolPolicyDecision {
@@ -443,7 +445,7 @@ export function assertBuiltinToolPolicyCoverage(): void {
 }
 
 export function toolPolicyDecision(name: string, context: ToolPolicyContext): ToolPolicyDecision {
-  const policy = toolPolicy(name);
+  const policy = context.pluginPolicies?.[name] ?? toolPolicy(name);
   if (!policy.allowedRoutes.includes(context.route)) {
     return { ok: false, policy, reason: `${name} is not allowed on ${context.route} route` };
   }

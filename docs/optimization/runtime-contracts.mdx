@@ -1,0 +1,74 @@
+---
+title: "Runtime contracts"
+description: "The algorithms and invariants that keep routing, tool execution, approvals, and local inference reliable."
+sidebarTitle: "Runtime contracts"
+---
+
+Leash treats orchestration as a set of explicit, testable contracts. Model output can propose intent and supply compact text, but deterministic code owns ranking, arithmetic, trust filtering, authorization, and result propagation. Every model operation terminates at the local or user-mesh QVAC serve.
+
+## Intent-prototype scoring
+
+Each capability declares representative intent prototypes. For every prototype, the router computes:
+
+```text
+lexical = 0.7 × prototype_coverage + 0.3 × query_coverage
+semantic = normalize(cosine(query_embedding, prototype_embedding), semantic_floor)
+agreement = lexical × semantic
+score = 0.35 × lexical + 0.55 × semantic + 0.10 × agreement
+```
+
+The maximum prototype score becomes the capability score. Thresholds, margin checks, conversation carry, explicit topic switches, and off-domain release then decide whether to route or abstain. This preserves score distance between close capabilities instead of reducing the decision to rank position or exact phrases.
+
+## Authoritative tool results
+
+A deterministic pipeline has one source of truth for an executed action: the aggregate tool result returned by the runtime. Later prose steps receive that value as authoritative input. They cannot replace exact arithmetic, decoded sensor values, selected providers, or policy decisions with a model-generated approximation.
+
+When an authored step requires exactly one tool, the runtime forces that tool and fails the step if no execution result exists. Prose-only steps do not receive domain tool schemas.
+
+## Compact inputs, deterministic parsers
+
+Small local models can flatten or omit fields in deeply nested arguments. The affected contracts accept compact raw text and parse it in code:
+
+- Ledger entries become signed integer minor units before summation.
+- Position sizing uses integer inputs and deterministic risk arithmetic.
+- Provider advertisements are parsed into identity, trust state, and integer price before filtering and ranking.
+- OBD bytes are decoded by the protocol formula, not interpreted by the model.
+- LoRa payloads are split on UTF-8 byte boundaries, not character count.
+
+This is a general reliability rule: use the model for language and intent; use algorithms for values that must be exact.
+
+## Routing and authorization order
+
+An installed deterministic capability runs on the available local QVAC chat model and its declared local tools. It does not inherit an unrelated model-size preference from general conversation routing.
+
+Authorization is evaluated before optional execution filters. Approval-gated work is therefore reported as blocked with a reason instead of silently disappearing. No low-risk label can bypass an explicit approval requirement.
+
+Explicit agent names are resolved before capability inference. If a user asks for Grace and Bree, an earlier installed specialist cannot consume one of the two disclosure slots merely because its description contains words from the task. Capability-based agent inference runs only when no agent was explicitly named.
+
+## Bounded model history
+
+The persisted conversation keeps complete tool inputs, outputs, images, and UI state for replay and inspection. A fresh user turn receives a smaller model-facing projection: historical tool-call payloads are removed after their assistant conclusion is recorded, prior image bytes become provenance markers, and assistant reasoning parts are omitted. Tool-approval continuations bypass tool-history projection because the live approval state is required to resume execution.
+
+This separation prevents completed MCP output from repeatedly inflating local-model prefill while preserving the full audit and UI record.
+
+## Passing gates
+
+| Gate | Result |
+| --- | --- |
+| Type safety | Root project build and mobile standalone typecheck pass. |
+| Routing | 15/15 noisy, unrefined prompts across 26 installed and built-in skills using real QVAC embeddings. |
+| Capability contracts | 94/94 executable checks across five packs. |
+| Product-path chat | Five sustained conversations; 16/16 raw turns through the normal chat route. |
+| Exact results | Ledger `6000`, position size `10`, OBD `1726 rpm`, and trusted provider `peer-b`. |
+| Safety | No reasoning tags, diagnosis assertion, false execution claim, or unauthorized memory write. |
+
+The product-path evidence is emitted only after a complete pass to `demo/evidence/capability-conversations.json`, outside the product repository.
+
+## Reproduce
+
+```bash
+npm run typecheck
+npm run benchmark:capability-routing
+npm run smoke:capability-packs
+LEASH_WEB_BASE=http://127.0.0.1:6802 npm run gauntlet:capabilities
+```

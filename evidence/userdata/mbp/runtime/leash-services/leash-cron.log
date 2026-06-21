@@ -1,0 +1,11 @@
+⏰ leash-cron up — tick every 30s, schedule: /Volumes/Development/qvac/mycelium/data/leash-schedule.json
+⏰ armed "Dream — consolidate chats into tasks" → 6/6/2026, 3:30:00 AM
+⏰ armed "Cron e2e check" → 6/5/2026, 3:46:34 PM
+▶ firing "Cron e2e check" (task)
+✓ "Cron e2e check" in 0.0s
+  (once-entry spent — it stays disabled in effect)
+⏰ armed "Job e2e — tag photos" → 6/5/2026, 3:48:13 PM
+▶ firing "Job e2e — tag photos" (job)
+✓ "Job e2e — tag photos" in 3.9s
+  (once-entry spent — it stays disabled in effect)
+⏰ leash-cron down

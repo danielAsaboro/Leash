@@ -18,6 +18,12 @@ export interface LeashMetadata {
   model?: string;
   /** Total tokens for the turn (from the finish part's usage). */
   totalTokens?: number;
+  /** Reasoning policy selected for this model-backed turn. */
+  reasoningMode?: "direct" | "draft" | "deep";
+  /** Tokens spent by the bounded local draft-planner call before the main call. */
+  reasoningDraftTokens?: number;
+  /** Wall time spent by the bounded local draft-planner call. */
+  reasoningDraftMs?: number;
   /** The dynamic-effort tier this turn was classified into. */
   effort?: EffortTier;
 }

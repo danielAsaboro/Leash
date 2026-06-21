@@ -1,0 +1,249 @@
+{
+  "id": "O4bUeWGvG4jwyXU2",
+  "createdAt": 1780643085341,
+  "updatedAt": 1780643460539,
+  "messages": [
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Hello, how are you doing today?"
+        }
+      ],
+      "id": "hlk0z1BPZu1yB4TC",
+      "role": "user"
+    },
+    {
+      "id": "msg-efnxhpPK8B0ewC06",
+      "metadata": {
+        "createdAt": 1780643006117,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "How are you doing today?"
+        }
+      ],
+      "id": "M69QKYOWIXr4nEPm",
+      "role": "user"
+    },
+    {
+      "id": "msg-AxTR8FzGfYaQs7y6",
+      "metadata": {
+        "createdAt": 1780643092089,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780643102834,
+        "totalTokens": 36
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI am doing well, thank you for asking! I am here to assist you with any questions or tasks you may have. How can I help you today?",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Well, I'm just testing this out to see how it works."
+        }
+      ],
+      "id": "z5aW4B7UGrj0QRFa",
+      "role": "user"
+    },
+    {
+      "id": "msg-h3ZXE6EsqEl475nq",
+      "metadata": {
+        "createdAt": 1780643119658,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780643129069,
+        "totalTokens": 31
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI see. You're testing how I work. Let me know if there's anything specific you'd like me to assist you with!",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Um can you tell me the tools that we have? What's what are the capabilities of this system?"
+        }
+      ],
+      "id": "Y4K8f2EbC056aQdk",
+      "role": "user"
+    },
+    {
+      "id": "msg-Ael8tPLrnCRsNVN9",
+      "metadata": {
+        "createdAt": 1780643145010,
+        "model": "qwen3-4b",
+        "effort": "deep",
+        "finishedAt": 1780643206249,
+        "totalTokens": 456
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-ha_list_entities",
+          "toolCallId": "call_5ev6ts_16",
+          "state": "output-available",
+          "input": {
+            "domain": "light"
+          },
+          "output": {
+            "text": "No Home Assistant entities in domain \"light\".",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-ha_list_entities",
+          "toolCallId": "call_rh5jxs_18",
+          "state": "output-available",
+          "input": {
+            "domain": "switch"
+          },
+          "output": {
+            "text": "No Home Assistant entities in domain \"switch\".",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\nOkay, the user asked about the tools available and their capabilities. I need to list each tool and explain what it does. Let me go through each function one by one.\n\nFirst, search_graph is for searching the user's private notes, files, etc. Then understory_search is for looking through their daily paper, and understory_today lists today's headlines. Now is for getting the current time. List_photos shows images and their tags, generate_image creates images from text. Ha functions are for controlling Home Assistant devices. Active_context and activity_recent are for screen activity tracking.\n\nWait, the user might not know all the details. I should explain each tool's purpose clearly without using technical jargon. Make sure to mention that some tools require specific parameters, like domain for Home Assistant. Also, note that certain functions need prior steps, like listing entities before checking their state. Need to present this info in an organized, easy-to-understand way.\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nHere are the tools and their capabilities:\n\n1. **search_graph**: Search private notes/files/voice memos for contextual info (e.g., \"when was I in the budget sheet?\").  \n2. **understory_search**: Find published articles in The Understory (daily summary of user's activities).  \n3. **understory_today**: List headlines from today's Understory.  \n4. **now**: Get current local date/time.  \n5. **list_photos**: View user's images and auto-generated tags (e.g., \"food,\" \"document\").  \n6. **generate_image**: Create images from text descriptions (e.g., \"a sunset over the mountains\").  \n7. **Home Assistant (HA) Tools**:  \n   - **ha_list_entities**: Discover devices (e.g., lights, switches).  \n   - **ha_get_state**: Check device status (e.g., \"is the lamp on?\").  \n   - **ha_call_service**: Control devices (e.g., \"turn on the lamp\").  \n8. **active_context**: What the user is doing on their screen right now.  \n9. **activity_recent**: Summarize screen activity over the last 30 minutes.  \n\nLet me know if you\u2019d like to use any of these!",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "All right, can can you tell me your your old thinking process? How does it work?"
+        }
+      ],
+      "id": "C3WdPTYk9pmyxQ4V",
+      "role": "user"
+    },
+    {
+      "id": "msg-wbqMyQUnP01y31H8",
+      "metadata": {
+        "createdAt": 1780643313422,
+        "model": "qwen3-4b",
+        "effort": "deep",
+        "finishedAt": 1780643338254,
+        "totalTokens": 226
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI can explain how I work. I'm a private, on-device assistant with access to the user's world. I use tools to answer questions and perform tasks. Here's how I work:\n\n1. **Tools**: I have various tools to help with different tasks, such as searching the user's private context, controlling smart home devices, generating images, and more.\n2. **Private Context**: I can search the user's private notes, files, and voice memos to find relevant information.\n3. **Smart Home Control**: I can control the user's Home Assistant devices, such as lights, switches, and fans.\n4. **Image Generation**: I can generate images based on text descriptions.\n5. **Screen Activity**: I can track what the user is doing on their screen, both currently and over the last 30 minutes.\n6. **Understory**: I can access the user's auto-written daily paper to find published articles.\n\nI use these tools to answer questions and perform tasks based on the user's needs. Let me know if you'd like to use any of these tools!",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Uh for me, yeah. I think I think that is great, right? Um that is good enough. Thank you very much."
+        }
+      ],
+      "id": "maENzhSjBZ6fj92a",
+      "role": "user"
+    },
+    {
+      "id": "msg-rcg33QnV1k1CoLiT",
+      "metadata": {
+        "createdAt": 1780643425547,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

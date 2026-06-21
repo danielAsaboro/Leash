@@ -7,7 +7,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -43,7 +42,7 @@ function failureCopy(error: string, mode: DeviceSetupMode | null, source: BootSo
   const text = error.toLowerCase();
   if (text.includes("space") || text.includes("storage") || text.includes("no space")) {
     return {
-      title: "This iPad needs more free space",
+      title: "This device needs more free space",
       body: "Leash could not finish caching its local models. Free up storage, then resume setup from here.",
     };
   }
@@ -76,7 +75,7 @@ function failureCopy(error: string, mode: DeviceSetupMode | null, source: BootSo
 
 function prepareHeadline(mode: DeviceSetupMode | null, source: BootSource) {
   if (source === "restore") return "Restoring this device";
-  if (mode === "sync-existing") return "Bringing this iPad into your workspace";
+  if (mode === "sync-existing") return "Bringing this device into your workspace";
   return "Preparing your local edition";
 }
 
@@ -85,9 +84,9 @@ function prepareBody(mode: DeviceSetupMode | null, source: BootSource) {
     return "Reopening the local runtime and private workspace this device already uses.";
   }
   if (mode === "sync-existing") {
-    return "This iPad is pairing with a device you already trust, then loading its local chat runtime.";
+    return "This device is pairing with a device you already trust, then loading its local chat runtime.";
   }
-  return "Leash is downloading the on-device models this iPad needs so it can work locally after setup.";
+  return "Leash is downloading the on-device models this device needs so it can work locally after setup.";
 }
 
 export function OnboardingFlow({
@@ -136,9 +135,12 @@ export function OnboardingFlow({
   const failure = error ? failureCopy(error, selectedMode, source) : null;
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={styles.safe}>
       <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={[styles.scroll, stage === "choose" && styles.scrollWithPinnedAction]}
+          keyboardShouldPersistTaps="handled"
+        >
           <View style={[styles.frame, wide && styles.frameWide]}>
             <View style={styles.masthead}>
               <View style={styles.mastheadRow}>
@@ -157,7 +159,7 @@ export function OnboardingFlow({
               <>
                 <Hero
                   kicker="Device setup"
-                  title="Set up this iPad"
+                  title="Set up this device"
                   body="No account. No cloud handoff. Choose whether this device starts its own private workspace or joins one you already use."
                 />
 
@@ -171,7 +173,7 @@ export function OnboardingFlow({
                 <View style={[styles.choiceGrid, wide && styles.choiceGridWide]}>
                   <ChoiceCard
                     eyebrow="New workspace"
-                    title="Start on this iPad"
+                    title="Start on this device"
                     body="Create a private local workspace here, cache the required models, and begin from a clean slate."
                     aside="Best for a first device."
                     selected={selectedMode === "first-device"}
@@ -181,7 +183,7 @@ export function OnboardingFlow({
                   <ChoiceCard
                     eyebrow="Existing workspace"
                     title="Join a device you already use"
-                    body="Scan or paste a fresh invite from another Leash device to bring this iPad into that private workspace."
+                    body="Scan or paste a fresh invite from another Leash device to bring this device into that private workspace."
                     aside="Best when another device is already set up."
                     selected={selectedMode === "sync-existing"}
                     icon={<MeshNodes size={20} color={selectedMode === "sync-existing" ? C.sageDeep : C.muted} strokeWidth={1.8} />}
@@ -189,21 +191,6 @@ export function OnboardingFlow({
                   />
                 </View>
 
-                <View style={styles.footerBlock}>
-                  <Pressable
-                    onPress={onContinue}
-                    disabled={!selectedMode}
-                    style={({ pressed }) => [
-                      styles.primaryBtn,
-                      !selectedMode && styles.primaryBtnDisabled,
-                      pressed && selectedMode && styles.primaryBtnPressed,
-                    ]}
-                  >
-                    <Text style={styles.primaryBtnText}>Continue</Text>
-                    <ChevronRight size={16} color={C.cream} strokeWidth={2.1} />
-                  </Pressable>
-                  <Text style={styles.footnote}>You can change this later from Settings.</Text>
-                </View>
               </>
             ) : stage === "decide" ? (
               <>
@@ -311,7 +298,7 @@ export function OnboardingFlow({
                     ) : null}
                     <View style={styles.infoList}>
                       <InfoRow title="Before you accept" body="This is the exact first-run scope for the setup path Leash just chose for this device." />
-                      <InfoRow title="Private local cache" body="These assets are stored on this iPad so Leash can keep running locally after setup." />
+                      <InfoRow title="Private local cache" body="These assets are stored on this device so Leash can keep running locally after setup." />
                       <InfoRow title="One-time warmup" body="Once the listed assets finish downloading, later launches should reopen the local runtime instead of repeating setup." />
                     </View>
 
@@ -330,7 +317,7 @@ export function OnboardingFlow({
               <>
                 <Hero
                   kicker="Existing workspace"
-                  title="Bring this iPad into an existing workspace"
+                  title="Bring this device into an existing workspace"
                   body="Open Leash on a device you already trust, create a fresh device invite there, then scan or paste it here."
                 />
 
@@ -404,7 +391,7 @@ export function OnboardingFlow({
                     <Text style={styles.panelLabel}>WHAT TO EXPECT</Text>
                     <View style={styles.infoList}>
                       <InfoRow title="Private pairing" body="This invite only links devices you explicitly approve." />
-                      <InfoRow title="Local runtime" body="Even after joining a workspace, this iPad still runs its own local chat model." />
+                      <InfoRow title="Local runtime" body="Even after joining a workspace, this device still runs its own local chat model." />
                       <InfoRow title="Short recovery path" body="If an invite expires, just generate a fresh one on the trusted device." />
                     </View>
                   </View>
@@ -462,7 +449,7 @@ export function OnboardingFlow({
                         <Text style={styles.panelLabel}>RECOVERY</Text>
                         <Text style={styles.panelTitle}>Take another pass</Text>
                         <Text style={styles.panelBody}>
-                          Retry from this step, or switch to a different setup path if this iPad should be configured another way.
+                          Retry from this step, or switch to a different setup path if this device should be configured another way.
                         </Text>
 
                         <Pressable onPress={onRetry} style={({ pressed }) => [styles.primaryBtn, pressed && styles.primaryBtnPressed]}>
@@ -483,9 +470,9 @@ export function OnboardingFlow({
                       <>
                         <Text style={styles.panelLabel}>WHAT LEASH IS DOING</Text>
                         <View style={styles.infoList}>
-                          <InfoRow title="Keeping chat local" body="The chat model is being downloaded and loaded on this iPad, not delegated to a cloud service." />
+                          <InfoRow title="Keeping chat local" body="The chat model is being downloaded and loaded on this device, not delegated to a cloud service." />
                           <InfoRow title="Preparing offline use" body="Once setup finishes, the local model stays available even when the network is gone." />
-                          <InfoRow title="Optional mesh later" body="Joining another device is additive. It does not stop this iPad from running its own local runtime." />
+                          <InfoRow title="Optional mesh later" body="Joining another device is additive. It does not stop this device from running its own local runtime." />
                         </View>
                       </>
                     )}
@@ -495,6 +482,28 @@ export function OnboardingFlow({
             )}
           </View>
         </ScrollView>
+        {stage === "choose" ? (
+          <View style={styles.pinnedFooter}>
+            <View style={styles.pinnedFooterInner}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ disabled: !selectedMode }}
+                onPress={onContinue}
+                disabled={!selectedMode}
+                style={({ pressed }) => [
+                  styles.primaryBtn,
+                  styles.pinnedPrimaryBtn,
+                  !selectedMode && styles.primaryBtnDisabled,
+                  pressed && selectedMode && styles.primaryBtnPressed,
+                ]}
+              >
+                <Text style={styles.primaryBtnText}>Continue</Text>
+                <ChevronRight size={16} color={C.cream} strokeWidth={2.1} />
+              </Pressable>
+              <Text style={styles.footnote}>You can change this later from Settings.</Text>
+            </View>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
 
       {scanOpen ? (
@@ -507,7 +516,7 @@ export function OnboardingFlow({
           }}
         />
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -655,6 +664,7 @@ function AnimatedProgressBar({ progressPct, active }: { progressPct: number | nu
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: C.cream },
   scroll: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 36 },
+  scrollWithPinnedAction: { paddingBottom: 116 },
   frame: { width: "100%", maxWidth: 940, alignSelf: "center" },
   frameWide: { paddingTop: 6 },
 
@@ -756,8 +766,18 @@ const styles = StyleSheet.create({
   choiceBody: { fontFamily: F.body, fontSize: 16.5, lineHeight: 24, color: C.inkSoft },
   choiceAside: { fontFamily: F.mono, fontSize: 10.5, lineHeight: 15, color: C.faint, marginTop: 16, letterSpacing: 0.5 },
 
-  footerBlock: { paddingTop: 18, gap: 10 },
   footnote: { fontFamily: F.mono, fontSize: 10.5, color: C.faint, letterSpacing: 0.5 },
+  pinnedFooter: {
+    backgroundColor: C.cream,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: C.ruleStrong,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 8,
+    elevation: 8,
+  },
+  pinnedFooterInner: { width: "100%", maxWidth: 940, alignSelf: "center", gap: 7 },
+  pinnedPrimaryBtn: { marginTop: 0 },
 
   twoUp: { gap: 14 },
   twoUpWide: { flexDirection: "row", alignItems: "stretch" },

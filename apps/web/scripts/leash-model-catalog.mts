@@ -3,10 +3,9 @@
  *
  *   npx tsx apps/web/scripts/leash-model-catalog.mts
  *
- * Source: `@qvac/ai-sdk-provider`'s `allModels` — the AUTHORITATIVE catalog (729+
- * models), which carries a clean `endpointCategory` (chat/embedding/transcription/
- * speech/image/ocr/translation) per model. That's far better than walking the raw
- * `@qvac/sdk` exports and guessing the use-case by name. Runs as a SPAWNED CHILD (the
+ * Source: the `@qvac/sdk` model registry. Endpoint categories are derived from the
+ * registry's addon field using the same stable modality mapping as QVAC Serve, never
+ * guessed from model names. Runs as a SPAWNED CHILD (the
  * Next process stays HTTP-only and never imports the SDK/provider model graph here).
  *
  * We record what the inventory + Forage need:
@@ -19,7 +18,7 @@ import { createHash } from "node:crypto";
 import { writeFileSync, renameSync, mkdirSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { fileURLToPath } from "node:url";
-import { allModels } from "@qvac/ai-sdk-provider";
+import { close, modelRegistryList, type ModelRegistryEntry } from "@qvac/sdk";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/scripts → repo root → data/. */
@@ -30,22 +29,23 @@ function cacheFile(registryPath: string): string {
   return `${createHash("sha256").update(registryPath).digest("hex").slice(0, 16)}_${basename(registryPath)}`;
 }
 
-interface ProviderModel {
-  name: string;
-  endpointCategory?: string;
-  addon?: string;
-  engine?: string;
-  params?: string;
-  quantization?: string;
-  expectedSize?: number;
-  registryPath?: string;
-}
+const ENDPOINT_BY_ADDON: Partial<Record<ModelRegistryEntry["addon"], string>> = {
+  llm: "chat",
+  whisper: "transcription",
+  embeddings: "embedding",
+  nmt: "translation",
+  tts: "speech",
+  ocr: "ocr",
+  parakeet: "transcription",
+  diffusion: "image",
+};
 
-const entries = (allModels as ProviderModel[])
-  .filter((m) => m && typeof m.name === "string")
+const registryModels = await modelRegistryList();
+const entries = registryModels
+  .filter((m) => typeof m.name === "string" && ENDPOINT_BY_ADDON[m.addon])
   .map((m) => ({
     name: m.name,
-    ...(m.endpointCategory ? { endpointCategory: m.endpointCategory } : {}),
+    endpointCategory: ENDPOINT_BY_ADDON[m.addon],
     ...(m.addon ? { addon: m.addon } : {}),
     ...(m.engine ? { engine: m.engine } : {}),
     ...(m.params ? { params: m.params } : {}),
@@ -57,6 +57,7 @@ const entries = (allModels as ProviderModel[])
 
 mkdirSync(dirname(OUT), { recursive: true });
 const tmp = join(dirname(OUT), `.catalog-${Date.now()}.tmp`);
-writeFileSync(tmp, JSON.stringify({ generatedAt: Date.now(), source: "@qvac/ai-sdk-provider", models: entries }, null, 2));
+writeFileSync(tmp, JSON.stringify({ generatedAt: Date.now(), source: "@qvac/sdk:modelRegistryList", models: entries }, null, 2));
 renameSync(tmp, OUT);
+await close();
 console.log(`📚 wrote ${entries.length} models (with endpointCategory) → ${OUT}`);

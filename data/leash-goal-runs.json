@@ -1,0 +1,119 @@
+[
+  {
+    "id": "goal-dedicated-hardware-9of10",
+    "title": "Reach 9/10 dedicated-hardware readiness",
+    "status": "active",
+    "route": "plan",
+    "sensitivity": "private",
+    "createdAt": 1784366081810,
+    "updatedAt": 1784366686938,
+    "startedAt": 1784366081810,
+    "steps": [
+      {
+        "id": "rag-scale-gate",
+        "index": 0,
+        "title": "Establish the scaled private-RAG benchmark",
+        "status": "done",
+        "route": "plan",
+        "startedAt": 1784366081868,
+        "finishedAt": 1784366686937,
+        "contextCapsule": "Build a reproducible, QVAC-backed corpus benchmark that records document count, ingest time, index size, memory use, recall@5, citation accuracy, and p50/p95 retrieval latency. Do not use mocks or cloud inference. Pass at >=90% recall@5 and >=90% citation accuracy within the <=32 GB main-device boundary.",
+        "summary": "Passed real QVAC scale benchmark: 1,000 documents, 100 queries, recall@5 98%, citation accuracy 98%, p50 25 ms, p95 35 ms, ingest 37,476 ms, 23,771,243-byte index, zero drops on 24 GB Mac mini.",
+        "artifacts": [
+          {
+            "id": "uqQzrKzBmIrM7xox",
+            "kind": "file",
+            "title": "Scaled RAG report",
+            "ref": "logs/rag-scale-mrq5ufj2.json",
+            "summary": "1,000 docs; 98% recall@5/citation accuracy",
+            "createdAt": 1784366686937
+          }
+        ],
+        "errors": []
+      },
+      {
+        "id": "multimodal-multiagent-gate",
+        "index": 1,
+        "title": "Prove one multimodal task with two specialist agents",
+        "status": "active",
+        "route": "plan",
+        "startedAt": 1784366686938,
+        "contextCapsule": "Use the real web chat path and local QVAC models. One natural task must carry image-derived evidence, voice-derived text, and private-document context, delegate to at least two specialist agents, preserve authoritative tool results, and return one grounded parent synthesis. Record the chat and GoalRun traces.",
+        "artifacts": [],
+        "errors": []
+      }
+    ],
+    "modelTrace": [],
+    "toolTrace": [],
+    "contextSummary": "Close the remaining proof gaps with four evidence gates: scaled RAG; one natural multimodal flow; one parent coordinating at least two specialist agents; and held-out base-versus-LoRA evaluation. Finish with a real physical-device, WAN-disabled run and a scored evidence manifest. Existing baseline: strict multi-tool matrix 30/30, real nested orchestration, encrypted two-Mac delegation, multimodal routes, and QVAC Fabric adapter.",
+    "artifacts": [
+      {
+        "id": "uqQzrKzBmIrM7xox",
+        "kind": "file",
+        "title": "Scaled RAG report",
+        "ref": "logs/rag-scale-mrq5ufj2.json",
+        "summary": "1,000 docs; 98% recall@5/citation accuracy",
+        "createdAt": 1784366686937
+      }
+    ],
+    "errors": []
+  },
+  {
+    "id": "gauntlet-run",
+    "title": "Research -> compare -> create tasks -> summarize",
+    "status": "failed",
+    "route": "plan",
+    "sensitivity": "private",
+    "createdAt": 1784345773516,
+    "updatedAt": 1784345773540,
+    "startedAt": 1784345773516,
+    "finishedAt": 1784345773540,
+    "steps": [
+      {
+        "id": "z4ZSoRCOeNV8s5Bd",
+        "index": 0,
+        "title": "Research",
+        "status": "done",
+        "route": "plan",
+        "model": "chat",
+        "startedAt": 1784345773527,
+        "finishedAt": 1784345773530,
+        "summary": "Research complete",
+        "artifacts": [],
+        "errors": []
+      },
+      {
+        "id": "S89Ncz9quGV5Tlty",
+        "index": 1,
+        "title": "Compare",
+        "status": "done",
+        "route": "plan",
+        "model": "chat",
+        "startedAt": 1784345773531,
+        "finishedAt": 1784345773534,
+        "summary": "Compare complete",
+        "artifacts": [],
+        "errors": []
+      },
+      {
+        "id": "XFjqeCNwRR4K1vjw",
+        "index": 2,
+        "title": "Create tasks",
+        "status": "failed",
+        "route": "plan",
+        "model": "chat",
+        "startedAt": 1784345773537,
+        "finishedAt": 1784345773538,
+        "artifacts": [],
+        "errors": [
+          "permission denied"
+        ]
+      }
+    ],
+    "modelTrace": [],
+    "toolTrace": [],
+    "artifacts": [],
+    "errors": [],
+    "finalSynthesis": "Stopped after step 3; remaining steps skipped."
+  }
+]

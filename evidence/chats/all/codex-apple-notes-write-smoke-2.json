@@ -1,0 +1,175 @@
+{
+  "id": "codex-apple-notes-write-smoke-2",
+  "createdAt": 1781929401778,
+  "updatedAt": 1781929456373,
+  "messages": [
+    {
+      "id": "msg-user-note-create-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the Apple Notes MCP create-note tool only. Create one Apple Note in folder Notes titled 'Leash Apple Notes MCP smoke 20260620T042255Z' with body 'created via Leash chat Apple Notes MCP write smoke'. Do not use any skill. Do not call update-note yet."
+        }
+      ]
+    },
+    {
+      "id": "msg-Awu3Fv0PrGvxU9Qy",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781929418435,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781929456361,
+        "totalTokens": 303
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes MCP creation needs full agent tools; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-6CRomTLk3NTAvcC5",
+          "data": {
+            "id": "run-6CRomTLk3NTAvcC5",
+            "chatId": "codex-apple-notes-write-smoke-2",
+            "title": "Use the Apple Notes MCP create-note tool only. Create one Apple Note in folder Notes titled 'Leash Apple Notes MCP smoke 20260620T042255Z' with body 'created via Leash chat Apple Notes MCP write smoke'. Do not use any skill. Do [truncated]",
+            "status": "failed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781929376588,
+            "updatedAt": 1781929401774,
+            "startedAt": 1781929376588,
+            "finishedAt": 1781929401772,
+            "steps": [
+              {
+                "id": "BfSmkLJVdnpd3bo8",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "failed",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781929376592,
+                "finishedAt": 1781929401766,
+                "summary": "I ran create-note but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary."
+              }
+            ],
+            "artifacts": [],
+            "errors": [
+              "model produced no final answer text"
+            ],
+            "finalSynthesis": "I ran create-note but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "create-note",
+          "toolCallId": "call_g4whfl_16",
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          },
+          "state": "output-available",
+          "input": {
+            "account": "iCloud",
+            "folder": "Notes",
+            "title": "Leash Apple Notes MCP smoke 20260620T042255Z",
+            "content": "created via Leash chat Apple Notes MCP write smoke",
+            "format": "plaintext"
+          },
+          "approval": {
+            "id": "aitxt-nFZB7huhr7XJ8Uf66JQufwbw",
+            "approved": true,
+            "reason": "Codex smoke test approval requested by user."
+          },
+          "output": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Note created: \"Leash Apple Notes MCP smoke 20260620T042255Z\" [id: note id x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513]"
+              }
+            ],
+            "isError": false
+          }
+        },
+        {
+          "type": "text",
+          "text": "I ran create-note but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary.",
+          "state": "done"
+        },
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-rd8TIs4inoOb0l94",
+          "data": {
+            "id": "run-rd8TIs4inoOb0l94",
+            "chatId": "codex-apple-notes-write-smoke-2",
+            "title": "Use the Apple Notes MCP create-note tool only. Create one Apple Note in folder Notes titled 'Leash Apple Notes MCP smoke 20260620T042255Z' with body 'created via Leash chat Apple Notes MCP write smoke'. Do not use any skill. Do [truncated]",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781929418426,
+            "updatedAt": 1781929456368,
+            "startedAt": 1781929418426,
+            "finishedAt": 1781929456367,
+            "steps": [
+              {
+                "id": "VExm8EvuGMvU86Xh",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781929418429,
+                "finishedAt": 1781929456364,
+                "summary": "The note \"Leash Apple Notes MCP smoke 20260620T042255Z\" has been successfully created in the Notes folder. Its Core Data ID is `note id x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513`. No further action required per your instructions."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The note \"Leash Apple Notes MCP smoke 20260620T042255Z\" has been successfully created in the Notes folder. Its Core Data ID is `note id x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513`. No further action required per your instructions."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\nOkay, the user wanted me to create a note using the Apple Notes MCP tool. Let me check the function call I made. I used the create-note function with the parameters: account set to iCloud, folder as Notes, title as \"Leash Apple Notes MCP smoke 20260620T042255Z\", content as \"created via Leash chat Apple Notes MCP write smoke\", and format as plaintext. The response from the tool says the note was created successfully with the provided title and an ID.\n\nNow, I need to confirm that the note was created and provide a clear response. The user specified not to use any other skills or call update-note yet. Since the creation was successful, I should just inform them that the note was created and mention the title and ID. Keep it concise and straightforward, as per the instructions. No need for extra steps or mentions of other functions since the task is complete. Just a confirmation of the action taken.\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe note \"Leash Apple Notes MCP smoke 20260620T042255Z\" has been successfully created in the Notes folder. Its Core Data ID is `note id x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513`. No further action required per your instructions.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

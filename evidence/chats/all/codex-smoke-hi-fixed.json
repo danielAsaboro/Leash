@@ -1,0 +1,49 @@
+{
+  "id": "codex-smoke-hi-fixed",
+  "createdAt": 1781890859573,
+  "updatedAt": 1781890859573,
+  "messages": [
+    {
+      "id": "msg-user-hi-fixed",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-S3zjdrxC5er7MK45",
+      "metadata": {
+        "createdAt": 1781890859546,
+        "model": "qwen3-5-4b-multimodal-q4",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-5-4b-multimodal-q4",
+            "reason": "fast-path: trivial turn → local",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "memory-keeper",
+                "name": "Memory Keeper"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -10,19 +10,22 @@ Leash is optimised around one constraint: the agent must feel capable while ever
 
 <CardGroup cols={2}>
   <Card title="Skill selection" icon="route" href="/optimization/skill-selection">
-    Lexical + embedding selection, RRF ranking, one active skill, and deterministic step pipelines.
+    Intent-prototype lexical coverage + calibrated embeddings, one active skill, and deterministic step pipelines.
   </Card>
   <Card title="Context and prompts" icon="brackets-curly" href="/optimization/context-and-prompts">
     Dynamic prompt assembly, focused tools, compaction, sampling, and continuation experiments.
   </Card>
+  <Card title="Reasoning efficiency" icon="brain-circuit" href="/optimization/reasoning-efficiency">
+    Adaptive Chain-of-Draft, explicit QVAC reasoning control, bounded outputs, and measured quality gates.
+  </Card>
   <Card title="Tool context bloat" icon="sitemap" href="/optimization/tool-context-bloat">
-    Capability gates, keepalive compatibility, broker tools, and lane budgets.
+    Capability gates, request-scoped dynamic tools, broker tools, and lane budgets.
   </Card>
   <Card title="Deterministic fast paths" icon="bolt" href="/optimization/deterministic-fast-paths">
     Direct answers, registered-tool shortcuts, broker calls, and health safety paths.
   </Card>
   <Card title="Multi-agent context harness" icon="network" href="/optimization/multi-agent-context-harness">
-    Progressive agent disclosure, bounded subagent packets, parent synthesis, and live chat evidence.
+    Progressive disclosure, deterministic explicit plans, shared read evidence, single-device scheduling, and bounded parent synthesis.
   </Card>
 </CardGroup>
 
@@ -38,6 +41,12 @@ Leash is optimised around one constraint: the agent must feel capable while ever
   <Card title="Inference runtime" icon="gauge-high" href="/optimization/inference-runtime">
     Broker scheduling, cancel-on-disconnect, queue aging, schema caps, and diagnostics.
   </Card>
+  <Card title="Runtime contracts" icon="code-branch" href="/optimization/runtime-contracts">
+    Prototype scoring, authoritative tool results, deterministic parsers, routing, and approval ordering.
+  </Card>
+  <Card title="Local provider assets" icon="file-up" href="/optimization/local-provider-assets">
+    OpenAI-compatible transport, local file references, native speech, transcription, and managed-runtime composition.
+  </Card>
 </CardGroup>
 
 ## Mesh and device fit
@@ -50,13 +59,19 @@ Leash is optimised around one constraint: the agent must feel capable while ever
     How Leash chooses the first-run local model defaults across iPhone, iPad, desktop, and web.
   </Card>
   <Card title="Models, memory, mobile" icon="microchip" href="/optimization/models-memory-mobile">
-    Fit estimation, warm caches, RAG defaults, MedGemma routing, LoRA honesty, and iOS constraints.
+    Fit estimation, warm caches, RAG defaults, specialist routing, and iOS constraints.
+  </Card>
+  <Card title="Fine-tuning evaluation" icon="chart-line" href="/optimization/fine-tuning-evaluation">
+    Frozen holdouts, artifact integrity, meaningful-gain promotion, per-axis regression limits, and fresh QVAC rescoring.
   </Card>
 </CardGroup>
 
 ## Validation
 
 <CardGroup cols={2}>
+  <Card title="Real-user capability gauntlet" icon="messages" href="/optimization/capability-gauntlet">
+    Raw prompts, multi-turn skill continuity, deterministic MCP execution, and honest device boundaries through the normal chat route.
+  </Card>
   <Card title="Evidence" icon="flask" href="/optimization/evidence">
     The measurements, smokes, and negative results that shaped the optimisations.
   </Card>
@@ -73,15 +88,17 @@ Leash handles those limits in the harness:
 | Too many possible skills | Select one likely skill with lexical + semantic routing. |
 | Too many tools | Gate by capability, broker many MCP actions, and keep sentinel tools inert. |
 | Long conversations | Compact only the model input; keep the full transcript intact. |
-| Multi-agent conversations | Expose one relevant worker, give it a bounded handoff, and return to Leash for synthesis. |
+| Unbounded thinking | Draft dependencies in fragments, escalate only when needed, and stop after one targeted verification. |
+| Multi-agent conversations | Parse unambiguous delegations, batch safe reads once, schedule bounded workers for the available inference device, and return to Leash for synthesis. |
 | Slow or abandoned decodes | Cancel safely on disconnect and serialize through the broker. |
 | Simple or deterministic turns | Answer early or call a narrow registered tool through the chat API. |
 | Weak local hardware | Route to local, private mesh, or public mesh by capability and sensitivity. |
 | Repeated delegated history | Reuse KV cache only when the prefix is proven identical. |
 | Phone limits | Use JSC, curated model choices, smaller contexts, and mesh borrowing. |
+| Adapter regressions | Promote only after a meaningful held-out gain with no material per-axis loss. |
 
 ## What this section is
 
 This section is the public record of the optimisation choices that shaped the shipped system. It stays close to the runtime boundaries: agent and context assembly, chat-path resilience, mesh routing, device fit, and the evidence behind each decision.
 
-It deliberately includes negative results. The continuation nudge did not improve dependent chains, the 600M LoRA recall result was 0% in one reported run, and some tempting resilience work was dropped after direct probes showed the premise was wrong. Those failures matter because they kept the shipped system simpler and more honest.
+It deliberately includes negative results. The continuation nudge did not improve dependent chains, an early 600M LoRA run failed to improve recall, and a later evaluation initially selected an incompatible base model. Those failures produced narrower routing, a stronger adapter gate, and base-identity validation before model load.

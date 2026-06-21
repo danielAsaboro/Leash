@@ -3,8 +3,8 @@
  * `{ "disabled": [names], "askFirst": { name: boolean } }`.
  *
  * Lets the dashboard switch individual assistant tools off without code changes, and
- * mark tools "Ask first" — the model's call PAUSES on a human approval card in the chat
- * (AI SDK tool approvals). `DEFAULT_ASK_FIRST` covers the two genuinely side-effectful
+ * mark tools "Ask first" — the runtime's per-call approval policy pauses the exact
+ * tool call on a human approval card. `DEFAULT_ASK_FIRST` covers the genuinely side-effectful
  * tools (Home Assistant service calls, skill script execution); the `askFirst` map
  * overrides per tool in either direction.
  *
@@ -85,10 +85,10 @@ export async function filterEnabledTools<T extends ToolSet>(tools: T): Promise<T
 }
 
 /**
- * Attach `needsApproval` gates: each tool reads the CURRENT config at call time
- * (an async fn, not a frozen boolean) so a dashboard toggle applies on the next turn
- * without restarting anything.
+ * Native per-call approval policy. It reads the current configuration every time,
+ * including when an approval response is replayed, so policy cannot be bypassed by
+ * changing a tool definition or reusing an old client message.
  */
-export function withApprovalGates(tools: ToolSet): ToolSet {
-  return Object.fromEntries(Object.entries(tools).map(([name, t]) => [name, { ...t, needsApproval: () => toolNeedsApproval(name) }]));
+export async function leashToolApproval({ toolCall }: { toolCall: { toolName: string } }): Promise<"user-approval" | "approved"> {
+  return (await toolNeedsApproval(toolCall.toolName)) ? "user-approval" : "approved";
 }

@@ -1,0 +1,149 @@
+{
+  "id": "codex-apple-notes-smoke-4",
+  "createdAt": 1781928702590,
+  "updatedAt": 1781928702590,
+  "messages": [
+    {
+      "id": "msg-user-apple-notes-doctor-4",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the Apple Notes MCP doctor tool only, then tell me in one short sentence whether Apple Notes is reachable. Do not create, update, delete, move, or export anything."
+        }
+      ]
+    },
+    {
+      "id": "msg-rq4e9TS0OyFigEmU",
+      "metadata": {
+        "createdAt": 1781928653428,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781928702559,
+        "totalTokens": 9
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes MCP doctor tool is available, and Apple Notes is reachable; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-0GIV2d9GBIizHFaS",
+          "data": {
+            "id": "run-0GIV2d9GBIizHFaS",
+            "chatId": "codex-apple-notes-smoke-4",
+            "title": "Use the Apple Notes MCP doctor tool only, then tell me in one short sentence whether Apple Notes is reachable. Do not create, update, delete, move, or export anything.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781928653404,
+            "updatedAt": 1781928702577,
+            "startedAt": 1781928653404,
+            "finishedAt": 1781928702576,
+            "steps": [
+              {
+                "id": "xDzQwjZEnIBfTdDA",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781928653408,
+                "finishedAt": 1781928702574,
+                "summary": "Apple Notes is reachable."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "Apple Notes is reachable."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "doctor",
+          "toolCallId": "call_f60lnh_6",
+          "state": "output-available",
+          "input": {},
+          "output": {
+            "healthy": true,
+            "checks": [
+              {
+                "name": "Notes.app: notes_app",
+                "status": "ok",
+                "detail": "Notes.app is accessible"
+              },
+              {
+                "name": "Notes.app: permissions",
+                "status": "ok",
+                "detail": "AppleScript automation permissions granted"
+              },
+              {
+                "name": "Notes.app: accounts",
+                "status": "ok",
+                "detail": "Found 1 account(s): iCloud"
+              },
+              {
+                "name": "Notes.app: operations",
+                "status": "ok",
+                "detail": "Basic operations working (1371 note(s) in iCloud)"
+              },
+              {
+                "name": "Accounts",
+                "status": "ok",
+                "detail": "1 account(s): iCloud"
+              },
+              {
+                "name": "Full Disk Access",
+                "status": "warn",
+                "detail": "not granted — get-checklist-state and checklist annotations in get-note-markdown won't work. Grant in System Settings > Privacy & Security > Full Disk Access."
+              }
+            ],
+            "text": "🩺 apple-notes-mcp doctor — healthy\n\n✅ Notes.app: notes_app: Notes.app is accessible\n✅ Notes.app: permissions: AppleScript automation permissions granted\n✅ Notes.app: accounts: Found 1 account(s): iCloud\n✅ Notes.app: operations: Basic operations working (1371 note(s) in iCloud)\n✅ Accounts: 1 account(s): iCloud\n⚠️  Full Disk Access: not granted — get-checklist-state and checklist annotations in get-note-markdown won't work. Grant in System Settings > Privacy & Security > Full Disk Access.",
+            "content": [
+              {
+                "type": "text",
+                "text": "🩺 apple-notes-mcp doctor — healthy\n\n✅ Notes.app: notes_app: Notes.app is accessible\n✅ Notes.app: permissions: AppleScript automation permissions granted\n✅ Notes.app: accounts: Found 1 account(s): iCloud\n✅ Notes.app: operations: Basic operations working (1371 note(s) in iCloud)\n✅ Accounts: 1 account(s): iCloud\n⚠️  Full Disk Access: not granted — get-checklist-state and checklist annotations in get-note-markdown won't work. Grant in System Settings > Privacy & Security > Full Disk Access."
+              }
+            ]
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nApple Notes is reachable.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

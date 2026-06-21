@@ -1,0 +1,79 @@
+{
+  "id": "spin-mcp-1781281321984",
+  "createdAt": 1781281373344,
+  "updatedAt": 1781281373344,
+  "messages": [
+    {
+      "id": "msg-b7cc3aaa-f183-496d-a471-cbd5a70e5a62",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "install this mcp https://github.com/very99/text-master-mcp"
+        }
+      ]
+    },
+    {
+      "id": "msg-6glPGEw8m2ot5FNA",
+      "metadata": {
+        "createdAt": 1781281323247,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781281373341,
+        "totalTokens": 59
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "mcp-installer",
+                "name": "mcp-installer"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-install_mcp_repo",
+          "toolCallId": "call_vbsyl6_4",
+          "state": "output-available",
+          "input": {
+            "url": "https://github.com/very99/text-master-mcp"
+          },
+          "output": {
+            "text": "Couldn't install the MCP server.\nError: dependency install failed: \u2026 failed, the file appears to be corrupt: \"ENOSPC: no space left on device, write\"\nerror https://registry.yarnpkg.com/@esbuild/netbsd-x64/-/netbsd-x64-0.28.1.tgz: Extracting tar content of undefined failed, the file appears to be corrupt: \"ENOSPC: no space left on device, write\"\nerror https://registry.yarnpkg.com/@esbuild/linux-s390x/-/linux-s390x-0.28.1.tgz: ENOSPC: no space left on device, write\nDownloaded copy: /Volumes/Development/leash-mcp-repos/text-master-mcp (kept so you can inspect or fix it).\n\nSteps:\n- Resolved repo: https://github.com/very99/text-master-mcp\n- Cloned into /Volumes/Development/leash-mcp-repos/text-master-mcp\n- npm install failed (\u2026NOSPC\nnpm error nospc Invalid response body while trying to fetch https://registry.npmjs.org/@types%2fnode: ENOSPC: no space left on device, write\nnpm error nospc There appears to be insufficient space on your system to finish.\nnpm error nospc Clear up some disk space and try again.\nnpm error A complete log of this run can be found in: /Users/cartel/.npm/_logs/2026-06-12T16_22_16_504Z-debug-0.log) \u2014 trying yarn"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe installation of the MCP server failed due to insufficient disk space. The error message indicates that there is \"no space left on device\" during the npm install process. To resolve this, you need to clear up some disk space on your system and then try the installation again.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

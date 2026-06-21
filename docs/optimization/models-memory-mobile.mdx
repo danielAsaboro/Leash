@@ -36,6 +36,8 @@ The exocortex defaults to consulting the graph for personal questions. That deci
 
 Embeddings are therefore not optional for grounded chat. `embed` powers RAG, skill selection, memory indexing, and heartbeat dedup.
 
+A scaled local benchmark ingested 1,000 documents and evaluated 100 queries. Recall@5 and citation accuracy both measured 0.98, with 25 ms p50 and 35 ms p95 retrieval latency. This complements the smaller three-document functional smoke with a collection-scale measurement.
+
 ## Specialist routing
 
 Health questions route to `health` when that alias is available. The MedPsy workflow uses retrieve-then-read instead of relying on the specialist model to decide to call a tool. In a high-stakes domain, grounding should be a harness rule, not a model preference.
@@ -44,9 +46,13 @@ The same principle shows up elsewhere: the Council improves citation reliability
 
 ## LoRA honesty
 
-QVAC Fabric LoRA is proven: the spike fine-tuned locally in 152.7 seconds and produced a 20 MB adapter with observable behavior change. The memory-evolution loop is more cautious. One reported 600M recall run scored 0% at 2 epochs, so the docs describe the mechanism as real and the recall improvement as unproven until stronger evidence exists.
+QVAC Fabric LoRA is proven through both the early mechanism spike and the current memory-evolution adapter. The current 8B adapter is 87,635,424 bytes, was trained on 137 curated pairs, and passes a frozen held-out promotion gate. A fresh QVAC rerun moved overall score from 0.383410 to 0.429011, improved recall from 0 to 0.125, kept preference unchanged, and improved style from 0.816896 to 0.828700.
 
-That is an optimisation too: do not spend user trust on a claim the measurements do not support.
+Promotion requires at least +0.02 overall improvement and rejects any evaluation axis that regresses by more than 0.02. See [Fine-tuning evaluation](/optimization/fine-tuning-evaluation) for the artifact hash, fixture isolation, base-identity fix, and reproduction commands.
+
+Training signal follows the same rule. A completed chat is not automatically a correct chat, so raw unreviewed transcripts no longer enter curation. Explicit positive feedback, corrections, independently accepted Council answers, memories, and graph-derived pairs remain eligible. Feedback also records the reasoning mode and aggregate token/latency telemetry without storing private reasoning text.
+
+Fresh retraining remains gated separately. The current device has 5 accepted signals against a minimum of 12, so it waits instead of lowering the threshold.
 
 ## Mobile constraints
 

@@ -1,0 +1,145 @@
+{
+  "id": "K1Tbx0CAETGk7GMg",
+  "createdAt": 1780651277958,
+  "updatedAt": 1780651594165,
+  "messages": [
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Is it true that you don't you never stop liking people?"
+        }
+      ],
+      "id": "fkbJJrSntxBa9Kzm",
+      "role": "user"
+    },
+    {
+      "id": "msg-qCL4kPn5BISPdPaf",
+      "metadata": {
+        "createdAt": 1780651262267,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780651277952,
+        "totalTokens": 43
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI don't have personal feelings or relationships, so I don't \"like\" people in the way humans do. I'm designed to assist and interact based on the user's needs and instructions.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Um well I'm just asking in general, do you um is it true? I'm not saying you, I'm saying others."
+        }
+      ],
+      "id": "1j7CETKDZxHIs7AF",
+      "role": "user"
+    },
+    {
+      "id": "msg-ACMrDE9ya8snqhKX",
+      "metadata": {
+        "createdAt": 1780651303904,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Yeah."
+        }
+      ],
+      "id": "vSMjmw4EXADiANCB",
+      "role": "user"
+    },
+    {
+      "id": "msg-EM9eRAlQMtkFgSO3",
+      "metadata": {
+        "createdAt": 1780651558456,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780651594161,
+        "totalTokens": 42
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-search_graph",
+          "toolCallId": "call_w43ft_0",
+          "state": "output-available",
+          "input": {
+            "query": "do you stop liking people",
+            "topK": 3
+          },
+          "output": {
+            "text": "(activity · Google Chrome 10:24) Google Chrome — 🧃🧃 on X: \"He fit work citizenship for person 😭😭😭\" / X - Google Chrome – Daniel (alt): A Chrome browser window is open on a post about the Emir of Qatar and a separate terminal window is open on a task to debug a GPU driver error with qvac, which is a process stuck in an uninterruptible kernel call. [google-chrome, chrome, browser, window, open]\n---\n(project.md) - The closed loop is Senses → Mind → Memory → sharper Senses. - The \"council\" is 2–4 small models with the roles proposer, critic, specialist, and verifier, debating with tool-calling over a RAG-grounded context graph. - The demo's mic-drop moment is putting every device in airplane mode and showing it keeps sensing, reasoning, and learning. - The project license is Apache-2.0.\n---\n(preferences.md) - Dani prefers answers that lead with the bottom line first, then the reasoning. - Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings. - Dani is vegetarian and allergic to walnuts; recipe suggestions must avoid both. - Dani's working hours are 06:00–14:00; schedule heavy compute (like the nightly LoRA) for 02:00 when every device is idle and charging. - When Dani says \"the usual\", they mean a flat white with oat milk.",
+            "sources": [
+              {
+                "kind": "graph",
+                "title": "Note · activity · Google Chrome 10:24",
+                "snippet": "Google Chrome — 🧃🧃 on X: \"He fit work citizenship for person 😭😭😭\" / X - Google Chrome – Daniel (alt): A Chrome browser window is open on a post about the Emir of Qatar and a separate terminal win"
+              },
+              {
+                "kind": "graph",
+                "title": "Note · project.md",
+                "snippet": "- The closed loop is Senses → Mind → Memory → sharper Senses. - The \"council\" is 2–4 small models with the roles proposer, critic, specialist, and verifier, debating with tool-calling over a RAG-groun"
+              },
+              {
+                "kind": "graph",
+                "title": "Note · preferences.md",
+                "snippet": "- Dani prefers answers that lead with the bottom line first, then the reasoning. - Dani's favorite editor is Helix, not Vim. Do not suggest Vim keybindings. - Dani is vegetarian and allergic to walnut"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI don't have feelings or relationships, so I don't \"like\" people in the way humans do. I'm designed to assist and interact based on the user's needs and instructions.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

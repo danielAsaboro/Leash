@@ -7,7 +7,7 @@
  *   npm run smoke:chat-attachments-text
  */
 import assert from "node:assert/strict";
-import { decodeDataUrlText, isReadableTextFile, inlineFileAttachments, MAX_FILE_CHARS } from "../apps/web/lib/leash/attachments.ts";
+import { decodeDataUrlText, isReadableTextFile, inlineFileAttachments, MAX_FILE_CHARS, stripHistoricalToolParts, stripImageAttachmentsFromTextHistory } from "../apps/web/lib/leash/attachments.ts";
 
 // --- detection ---
 assert.equal(isReadableTextFile("text/markdown", "notes.md"), true);
@@ -41,6 +41,31 @@ out = inlineFileAttachments([
 parts = (out[0] as { parts: Array<{ type: string }> }).parts;
 assert.equal(parts.length, 1);
 assert.equal(parts[0]!.type, "file", "image stays a file part");
+
+// --- historical image payloads are bounded before a later text-model turn ---
+out = stripImageAttachmentsFromTextHistory([
+  { id: "u-image", role: "user", parts: [{ type: "file", filename: "sensor.png", mediaType: "image/png", url: `data:image/png;base64,${"A".repeat(500_000)}` }] },
+  { id: "a-image", role: "assistant", parts: [{ type: "text", text: "The sensor reads 24 degrees." }] },
+  { id: "u-followup", role: "user", parts: [{ type: "text", text: "compare that with my threshold" }] },
+] as never);
+const priorImageParts = (out[0] as { parts: Array<{ type: string; text?: string; url?: string }> }).parts;
+assert.equal(priorImageParts.some((p) => p.type === "file" || Boolean(p.url)), false, "base64 image is absent from text-model history");
+assert.ok(priorImageParts[0]!.text!.includes("sensor.png"), "small provenance marker names the omitted image");
+assert.equal((out[1] as { parts: unknown[] }).parts.length, 1, "vision answer remains available as grounded history");
+
+// --- completed historical tools are absent from a later turn's model history ---
+const toolHistory = [
+  { id: "a-tools", role: "assistant", parts: [
+    { type: "tool-search_graph", state: "output-available", output: { payload: "x".repeat(500_000) } },
+    { type: "dynamic-tool", toolName: "context_run", state: "output-available", output: { payload: "y".repeat(500_000) } },
+    { type: "text", text: "The grounded answer is 24 degrees." },
+  ] },
+  { id: "u-next", role: "user", parts: [{ type: "text", text: "Compare it with my threshold." }] },
+] as never;
+out = stripHistoricalToolParts(toolHistory);
+const projectedParts = (out[0] as { parts: Array<{ type: string; text?: string }> }).parts;
+assert.deepEqual(projectedParts, [{ type: "text", text: "The grounded answer is 24 degrees." }], "only the prior answer enters the next model turn");
+assert.equal((toolHistory[0] as { parts: unknown[] }).parts.length, 3, "persisted/UI source history is not mutated");
 
 // --- unreadable binary → honest note, not a silent drop ---
 out = inlineFileAttachments([

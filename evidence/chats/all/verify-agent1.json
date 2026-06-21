@@ -1,0 +1,219 @@
+{
+  "id": "verify-agent1",
+  "createdAt": 1780847820567,
+  "updatedAt": 1780850348899,
+  "messages": [
+    {
+      "id": "va1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi! in one short sentence, who are you?"
+        }
+      ]
+    },
+    {
+      "id": "msg-xOUw0ASGjy3VFjMT",
+      "metadata": {
+        "createdAt": 1780847820526,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": []
+    },
+    {
+      "id": "va1b",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi! in one short sentence, who are you?"
+        }
+      ]
+    },
+    {
+      "id": "msg-M08GZwpwfbZkm5Ml",
+      "metadata": {
+        "createdAt": 1780847883565,
+        "model": "qwen3-4b",
+        "effort": "quick",
+        "finishedAt": 1780847908233,
+        "totalTokens": 23
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI am Leash, a private, on-device assistant with access to the user's world.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "va4",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "quick check: what is the capital of France?"
+        }
+      ]
+    },
+    {
+      "id": "msg-VvoZDBulQFUn2fZ2",
+      "metadata": {
+        "createdAt": 1780850220707,
+        "model": "qwen3-4b",
+        "effort": "quick",
+        "finishedAt": 1780850282662,
+        "totalTokens": 150
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-search_graph",
+          "toolCallId": "call_pihrxs_0",
+          "state": "output-available",
+          "input": {
+            "query": "capital of France",
+            "topK": 3
+          },
+          "output": {
+            "text": "(activity \u00b7 Google Chrome 11:34) Google Chrome \u2014 New chat - Claude - Google Chrome \u2013 daniel (main): A screenshot of the Claude AI Chrome browser window showing the \"Usage\" settings page, with a dark interface and a pink sunset background featuring the Pepe the Frog image. [google-chrome, screenshot, claude, chrome, browser]\n---\n(chat \u00b7 untitled \u00b7 2026-06-04) You: what is this image? Leash: The image shows the logo for \"cashio\".\n---\n(chat \u00b7 untitled \u00b7 2026-06-04) You: what about this image?? Leash: This image shows a screenshot of a social media conversation. It includes three tweets from users @Ol' Dirty Thabiso, @ZuluMnisitiMtolo, and @Tawana575. The conversation discusses the nature of a country, its people, and its differences from other countries, possibly referencing a topic in the context of the \"cashio\" brand from the previous image.",
+            "sources": [
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 activity \u00b7 Google Chrome 11:34",
+                "snippet": "Google Chrome \u2014 New chat - Claude - Google Chrome \u2013 daniel (main): A screenshot of the Claude AI Chrome browser window showing the \"Usage\" settings page, with a dark interface and a pink sunset backgr"
+              },
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 chat \u00b7 untitled \u00b7 2026-06-04",
+                "snippet": "You: what is this image? Leash: The image shows the logo for \"cashio\"."
+              },
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 chat \u00b7 untitled \u00b7 2026-06-04",
+                "snippet": "You: what about this image?? Leash: This image shows a screenshot of a social media conversation. It includes three tweets from users @Ol' Dirty Thabiso, @ZuluMnisitiMtolo, and @Tawana575. The convers"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\nOkay, the user asked for the capital of France. I need to provide a clear and accurate answer. Let me think.\n\nFirst, I should check if the tools can help. The search_graph was used, but the results didn't mention the capital of France. The snippets from the tools talk about images and chats, not geographical information. The user's private context doesn't have data about French capitals. \n\nSince the tools didn't provide the answer, I can't rely on them here. I need to use my general knowledge. The capital of France is Paris. I should confirm that there's no conflicting information in the tools' responses. The tool responses were about images and conversations, not factual geography. So, the answer is Paris",
+          "state": "streaming"
+        },
+        {
+          "type": "text",
+          "text": "",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "va5",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "quick check: what is the capital of France?"
+        }
+      ]
+    },
+    {
+      "id": "msg-RvNEepxo0KYboNw8",
+      "metadata": {
+        "createdAt": 1780850296233,
+        "model": "qwen3-4b",
+        "effort": "quick",
+        "finishedAt": 1780850348880,
+        "totalTokens": 11
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-search_graph",
+          "toolCallId": "call_pihrxs_2",
+          "state": "output-available",
+          "input": {
+            "query": "capital of France",
+            "topK": 3
+          },
+          "output": {
+            "text": "(chat \u00b7 untitled \u00b7 2026-06-07) You: quick check: what is the capital of France? Leash:\n---\n(activity \u00b7 Google Chrome 11:34) Google Chrome \u2014 New chat - Claude - Google Chrome \u2013 daniel (main): A screenshot of the Claude AI Chrome browser window showing the \"Usage\" settings page, with a dark interface and a pink sunset background featuring the Pepe the Frog image. [google-chrome, screenshot, claude, chrome, browser]\n---\n(chat \u00b7 untitled \u00b7 2026-06-04) You: what is this image? Leash: The image shows the logo for \"cashio\".",
+            "sources": [
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 chat \u00b7 untitled \u00b7 2026-06-07",
+                "snippet": "You: quick check: what is the capital of France? Leash:"
+              },
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 activity \u00b7 Google Chrome 11:34",
+                "snippet": "Google Chrome \u2014 New chat - Claude - Google Chrome \u2013 daniel (main): A screenshot of the Claude AI Chrome browser window showing the \"Usage\" settings page, with a dark interface and a pink sunset backgr"
+              },
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 chat \u00b7 untitled \u00b7 2026-06-04",
+                "snippet": "You: what is this image? Leash: The image shows the logo for \"cashio\"."
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe capital of France is Paris.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

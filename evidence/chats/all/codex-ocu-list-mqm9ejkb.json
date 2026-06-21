@@ -1,0 +1,122 @@
+{
+  "id": "codex-ocu-list-mqm9ejkb",
+  "createdAt": 1781954027812,
+  "updatedAt": 1781954027812,
+  "messages": [
+    {
+      "id": "codex-ocu-list-mqm9ejkb-u",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use computer-use and only call list_apps. Then summarize the first five app names."
+        }
+      ]
+    },
+    {
+      "id": "msg-xrDEVZ2jBguYCYyB",
+      "metadata": {
+        "createdAt": 1781954003647,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781954027793,
+        "totalTokens": 69
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "conductor output invalid (conductor route flags were invalid); routed to full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-L8FNMetsDJCM2U4L",
+          "data": {
+            "id": "run-L8FNMetsDJCM2U4L",
+            "chatId": "codex-ocu-list-mqm9ejkb",
+            "title": "Use computer-use and only call list_apps. Then summarize the first five app names.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "shareable",
+            "createdAt": 1781954003609,
+            "updatedAt": 1781954027805,
+            "startedAt": 1781954003609,
+            "finishedAt": 1781954027801,
+            "steps": [
+              {
+                "id": "143kgvn4iR4tnEwM",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781954003620,
+                "finishedAt": 1781954027796,
+                "summary": "I'm sorry, but there was an internal error with the \"computer-use\" skill. It seems there was an issue with perceiving the screen or interacting with the Mac. Would you like me to try a different approach or clarify what you meant by \"list_apps\" and \"summarize the first five app names\"?"
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "I'm sorry, but there was an internal error with the \"computer-use\" skill. It seems there was an issue with perceiving the screen or interacting with the Mac. Would you like me to try a different approach or clarify what you meant by \"list_apps\" and \"summarize the first five app names\"?"
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "computer-use",
+                "name": "computer-use"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-run_skill",
+          "toolCallId": "call_tj0mzt_28",
+          "state": "output-available",
+          "input": {
+            "skill": "computer-use",
+            "task": "list_apps and summarize the first five app names"
+          },
+          "output": {
+            "text": "The \"computer-use\" skill failed: An internal error occurred.",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI'm sorry, but there was an internal error with the \"computer-use\" skill. It seems there was an issue with perceiving the screen or interacting with the Mac. Would you like me to try a different approach or clarify what you meant by \"list_apps\" and \"summarize the first five app names\"?",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

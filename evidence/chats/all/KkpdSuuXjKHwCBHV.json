@@ -1,0 +1,79 @@
+{
+  "id": "KkpdSuuXjKHwCBHV",
+  "createdAt": 1780700041972,
+  "updatedAt": 1780700137884,
+  "messages": [
+    {
+      "id": "ZoyX3fb3S8bzcGME",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hello"
+        }
+      ]
+    },
+    {
+      "id": "msg-If4xMXCr17DGVGT5",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1780700022466,
+        "model": "qwen3-4b",
+        "effort": "quick",
+        "finishedAt": 1780700041959,
+        "totalTokens": 13
+      },
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nHello! How can I assist you today?",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "0X7L59l9w5Lxh3dh",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Um um it's been fun having you here today."
+        }
+      ]
+    },
+    {
+      "id": "msg-8haxIm3HcROaunC9",
+      "metadata": {
+        "createdAt": 1780700115052,
+        "model": "qwen3-4b",
+        "effort": "quick",
+        "finishedAt": 1780700137871,
+        "totalTokens": 20
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI'll be here when you're ready to continue. Have a great day!",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

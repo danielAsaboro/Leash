@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqmaqcoo-task-manager",
+  "createdAt": 1781956240624,
+  "updatedAt": 1781956240624,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqmaqcoo-task-manager-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "add a todo to renew the domain before Friday"
+        }
+      ]
+    },
+    {
+      "id": "msg-0otxY2lfMm4YdcOA",
+      "metadata": {
+        "createdAt": 1781956240619,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "conductor output invalid (conductor action was invalid); routed to full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-cIT4CmU8hIPchtd4",
+          "data": {
+            "id": "run-cIT4CmU8hIPchtd4",
+            "chatId": "codex-skill-route-mqmaqcoo-task-manager",
+            "title": "add a todo to renew the domain before Friday",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "shareable",
+            "createdAt": 1781956240576,
+            "updatedAt": 1781956240606,
+            "startedAt": 1781956240576,
+            "steps": [
+              {
+                "id": "w7uyxEPgpBpIrBWo",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781956240606
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "task-manager",
+                "name": "task-manager"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

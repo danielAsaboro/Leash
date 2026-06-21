@@ -1,61 +1,170 @@
 ---
-title: "Android (WIP)"
-description: "Leash on Android — fully on-device LLM chat via the QVAC SDK Expo integration."
-sidebarTitle: "Android (WIP)"
+title: "Android"
+description: "Leash on Android — on-device chat, private-mesh task sync, and delegated inference via QVAC."
+sidebarTitle: "Android"
 ---
 
 <Warning>
-  Android support is in early development. It shares the React Native + Expo codebase with iOS but runs **chat only** today — the mesh worklet is built for iOS, so private-mesh membership (which the [iPhone](/install/ios) now has) is not yet wired on Android.
+  The downloadable Android APK is an early preview. It has the same core mobile capabilities as iOS:
+  **on-device chat**, **private-mesh membership and task sync**, and **Borrow a brain** delegated
+  inference. Memory, skills, and tool use still live in the macOS desktop app.
 </Warning>
 
-The Android app runs **Llama 3.2 1B (Q4_0)** entirely on the device via the `@qvac/sdk` Expo integration — no server, and no network after the first model download.
+Leash uses the shared React Native + Expo client on Android. Its local models run through
+`@qvac/sdk`, while the encrypted mesh member runs inside a Bare worklet. After models are cached
+and the device has joined a mesh, those paths do not require a cloud service.
 
 ## Requirements
 
-- An Android phone or tablet
-- **Physical device required** — `llama.cpp` does not run on the Android Emulator (native llama bindings). Use a real device.
-- ~800 MB free storage for the model weight
+- A physical **64-bit ARM Android device** running Android 10 / API 29 or newer
+- **Physical device required** — the QVAC native inference path is not supported in the Android Emulator
+- About 800 MB or more free for the initial chat model; allow additional space for optional local models
+- USB debugging enabled for source installs
 
-## Run from source
+## Install the preview APK
+
+<CardGroup cols={2}>
+  <Card
+    title="Download Android APK"
+    icon="android"
+    href="https://github.com/danielAsaboro/Leash/releases/download/v1/leash-android-v1-arm64-preview.apk"
+    cta="Download from GitHub"
+  >
+    Android 10+ · arm64 · embedded JavaScript bundle · no Metro required
+  </Card>
+  <Card title="Build and sign it yourself" icon="code" href="#build-and-sign-it-yourself" cta="Open build steps">
+    Build from the Apache-2.0 source and use a signing key you control.
+  </Card>
+</CardGroup>
+
+Download only from the Leash GitHub release, then verify the file before installing:
+
+```text
+SHA-256  44f5a150bdff62edc4b7b08783042e5462df34c70bad62eae73d0dea70c99813
+File     leash-android-v1-arm64-preview.apk
+```
+
+On the phone, allow **Install unknown apps** for the browser or file manager you used, open the APK,
+and approve the install. Android may warn because this preview is distributed outside Google Play.
+
+<Warning>
+  The preview APK uses the project's development signing key; it is not Play-signed. If you want
+  your own signing trust chain, use the source-build path below and sign the release with a keystore
+  you control.
+</Warning>
+
+## What works
+
+- On-device text chat with token streaming, offline after the first model download
+- **Private-mesh membership** — pair with a Mac by scanning an invite QR; the Android device runs a
+  real Corestore + multi-writer Autobase + Hyperbee CRDT inside a Bare worklet and syncs the shared
+  task list peer-to-peer
+- **Borrow a brain** — offload chat to a stronger provider device over the encrypted mesh
+
+## Not yet available
+
+- Memory and grounding (notes, screen activity, RAG)
+- Skills and tool use
+- Voice, research, feed, economy
+
+## Build and sign it yourself
 
 <Steps>
-  <Step title="Install deps">
+  <Step title="Install dependencies">
+    From `apps/mobile`:
     ```bash
     npm install   # FOREGROUND only
     ```
   </Step>
-  <Step title="Plug in a physical device">
-    Enable USB debugging; the emulator cannot load the model.
-  </Step>
-  <Step title="Start Expo">
+  <Step title="Install the Android toolchain">
+    Use Java 17, Android SDK 36, and NDK `29.0.14206865`. Confirm the phone is visible:
     ```bash
-    cd apps/mobile
-    npx expo start        # then open on the device
-    # or build natively: npx expo run:android --device
+    adb devices -l
     ```
+  </Step>
+  <Step title="Generate the native project">
+    ```bash
+    npx expo prebuild --platform android --clean
+    ```
+    The QVAC and Android-JSC config plugins regenerate the native wiring; do not hand-edit the
+    generated `android/` project as the source of truth.
+  </Step>
+  <Step title="Build and install">
+    For development with Metro:
+    ```bash
+    npx expo run:android --device
+    ```
+
+    For an embedded release that starts without Metro and can be tested offline:
+    ```bash
+    npm run android:release
+    ```
+
+    The repository's preview build uses its development key. Before distributing your own build,
+    configure an Android release keystore in the generated native project and build the release APK
+    with that key.
   </Step>
 </Steps>
 
+## Native release build
+
+The app is pinned to **JSC**, not Hermes. QVAC's React Native bundle is not currently compatible
+with the Hermes compiler shipped by React Native 0.81. The `with-android-jsc` Expo config plugin:
+
+- selects the official `@react-native-community/javascriptcore` runtime under the New Architecture;
+- keeps `hermesEnabled=false` and `useThirdPartyJSC=true` reproducibly across prebuilds; and
+- supplies Android JSC's missing BigInt and UTF-8 web-platform primitives used by QVAC and the mesh control layer.
+
+To build the APK directly:
+
+```bash
+cd android
+export JAVA_HOME=/path/to/jdk-17
+export ANDROID_HOME=/path/to/android-sdk
+./gradlew app:assembleRelease
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+The release APK contains the JavaScript bundle. It does not need Metro and is the correct artifact
+for airplane-mode startup and rejoin testing.
+
 ## What happens on first launch
 
-The app downloads the model (progress %), then loads it into **GPU** memory with `ctx_size: 2048`, and chat streams tokens locally and offline thereafter.
+Choose whether this device starts a private workspace or joins one already in use. Leash then
+downloads the selected QVAC model, displays real progress, and loads it locally with `ctx_size: 4096`.
+Subsequent launches reuse the cached weight.
 
 <Note>
-  GPU acceleration depends on device vendor support. On some chipsets inference may fall back to CPU — slower, but still functional.
+  GPU acceleration uses the QVAC native backend and depends on vendor support. The app remains
+  local if a device falls back to CPU, but inference will be slower.
 </Note>
 
-## Capabilities
+## Joining the mesh
 
-On-device chat and streaming today. Unlike [iOS](/install/ios) — which now joins the private mesh and syncs tasks — Android does not yet have mesh membership (the worklet bundle is iOS-only), nor memory, tools, voice, research, or economy.
+The Android device is a real private-mesh member, not a thin client.
+
+<Steps>
+  <Step title="Mint an invite on your Mac">
+    In the Leash web app, open **Settings → Devices → your mesh → Invite a device**. Invites are
+    single-use and expire after 60 seconds.
+  </Step>
+  <Step title="Join from Android">
+    Choose **Join a device you already use** during setup, then scan or paste the fresh invite.
+  </Step>
+  <Step title="Sync">
+    The phone blind-pairs, becomes a writable member, and replicates the shared task list. Tasks
+    created on either side appear on the other over the encrypted peer-to-peer mesh.
+  </Step>
+</Steps>
 
 ## Related
 
 <CardGroup cols={2}>
   <Card title="iOS (WIP)" href="/install/ios" icon="apple">
-    The same Expo app on iPhone/iPad.
+    The same mobile client on iPhone and iPad.
   </Card>
   <Card title="Mobile channel" href="/channels/mobile" icon="mobile-screen">
-    Using chat on the phone.
+    Using chat on a phone or tablet.
   </Card>
   <Card title="Mobile platform" href="/platforms/mobile" icon="mobile">
     Where mobile sits in the platform map.

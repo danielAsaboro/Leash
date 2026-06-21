@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqm96ogx-research",
+  "createdAt": 1781953642380,
+  "updatedAt": 1781953642380,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm96ogx-research-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "what's the latest on the EU AI Act timeline?"
+        }
+      ]
+    },
+    {
+      "id": "msg-KEH4aQsPU5ymCWF5",
+      "metadata": {
+        "createdAt": 1781953642370,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: current-data request needs verification; conductor output invalid (conductor action was invalid); local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-3pz7ZnEBVUGxsrL8",
+          "data": {
+            "id": "run-3pz7ZnEBVUGxsrL8",
+            "chatId": "codex-skill-route-mqm96ogx-research",
+            "title": "what's the latest on the EU AI Act timeline?",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "shareable",
+            "createdAt": 1781953642354,
+            "updatedAt": 1781953642362,
+            "startedAt": 1781953642354,
+            "steps": [
+              {
+                "id": "Y7cgzXAuZ1LUYjdU",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781953642362
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "deep-research",
+                "name": "deep-research"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

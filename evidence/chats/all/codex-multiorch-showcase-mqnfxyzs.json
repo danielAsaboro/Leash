@@ -1,0 +1,164 @@
+{
+  "id": "codex-multiorch-showcase-mqnfxyzs",
+  "createdAt": 1782025549379,
+  "updatedAt": 1782025557558,
+  "messages": [
+    {
+      "id": "msg-mqnfxyzs-1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Turn marker: 1. Answer directly: marker 1 starts the run. Demo marker multi-orch-mqnfxyzs. Do not use tools."
+        }
+      ]
+    },
+    {
+      "id": "msg-DHmGex6m55xSYXX0",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1782025467173,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1782025549262,
+        "totalTokens": 21
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-NSUbTN8eB4LTIrpv",
+          "data": {
+            "id": "run-NSUbTN8eB4LTIrpv",
+            "chatId": "codex-multiorch-showcase-mqnfxyzs",
+            "title": "Turn marker: 1. Answer directly: marker 1 starts the run. Demo marker multi-orch-mqnfxyzs. Do not use tools.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1782025466986,
+            "updatedAt": 1782025549347,
+            "startedAt": 1782025466986,
+            "finishedAt": 1782025549317,
+            "steps": [
+              {
+                "id": "EY8mpaKf05nd3mcg",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1782025467096,
+                "finishedAt": 1782025549286,
+                "summary": "I understand. Let me know if there's anything else I can assist you with."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "I understand. Let me know if there's anything else I can assist you with."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI understand. Let me know if there's anything else I can assist you with.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqnfxyzs-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnfxyzs. Answer in one tight sentence."
+        }
+      ]
+    },
+    {
+      "id": "msg-9tMp4EX16Jhzr1Et",
+      "metadata": {
+        "createdAt": 1782025555511,
+        "model": "context_run",
+        "effort": "standard",
+        "finishedAt": 1782025557554
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "context_run",
+            "reason": "deterministic broker fast path: search_graph",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-rNMraz4nrGBWxC1O",
+          "data": {
+            "id": "run-rNMraz4nrGBWxC1O",
+            "chatId": "codex-multiorch-showcase-mqnfxyzs",
+            "title": "Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnfxyzs. Answer in one tight sentence.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1782025555433,
+            "updatedAt": 1782025557528,
+            "startedAt": 1782025555433,
+            "finishedAt": 1782025557528,
+            "steps": [
+              {
+                "id": "8w9u3a5v6mVBa8bX",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "context_run",
+                "startedAt": 1782025555499,
+                "finishedAt": 1782025557502,
+                "summary": "(chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnf4lf9. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0w4jr. Answer in one tight --- (chat · untitled · 2026-06-21) 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqmz046y. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker --- (chat · untitled · --- (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnf4lf9. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0w4jr. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker mu"
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "(chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnf4lf9. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0w4jr. Answer in one tight --- (chat · untitled · 2026-06-21) 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqmz046y. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker --- (chat · untitled · --- (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnf4lf9. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0w4jr. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0qlxq. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo"
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "context-grounding",
+                "name": "context-grounding"
+              }
+            ]
+          }
+        },
+        {
+          "type": "text",
+          "text": "(chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnf4lf9. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0w4jr. Answer in one tight\n---\n(chat · untitled · 2026-06-21) 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqmz046y. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker --- (chat · untitled ·\n---\n(chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqnf4lf9. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0w4jr. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-21) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo marker multi-orch-mqn0qlxq. Answer in one tight sentence. Leash: (chat · untitled · 2026-06-20) You: Use context-grounding to search for Leash tool broker or context bloat notes. Demo",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

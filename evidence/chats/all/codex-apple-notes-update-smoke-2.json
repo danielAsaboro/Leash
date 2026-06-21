@@ -1,0 +1,175 @@
+{
+  "id": "codex-apple-notes-update-smoke-2",
+  "createdAt": 1781929866340,
+  "updatedAt": 1781929937338,
+  "messages": [
+    {
+      "id": "msg-user-note-update-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use update-note only. note id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513. Set content exactly to: updated via Leash chat Apple Notes MCP write smoke. Keep title: Leash Apple Notes MCP smoke 20260620T042255Z. Do not use skills."
+        }
+      ]
+    },
+    {
+      "id": "msg-Pt8eTxFchBtkmH8v",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781929882344,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781929937326,
+        "totalTokens": 481
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes search needs full agent tools; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-IAHxkeIFXbWs04qO",
+          "data": {
+            "id": "run-IAHxkeIFXbWs04qO",
+            "chatId": "codex-apple-notes-update-smoke-2",
+            "title": "Use update-note only. note id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513. Set content exactly to: updated via Leash chat Apple Notes MCP write smoke. Keep title: Leash Apple Notes MCP smoke 20260620T042255Z. [truncated]",
+            "status": "failed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781929839751,
+            "updatedAt": 1781929866338,
+            "startedAt": 1781929839751,
+            "finishedAt": 1781929866337,
+            "steps": [
+              {
+                "id": "ljAEuqS8vG77MhbZ",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "failed",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781929839757,
+                "finishedAt": 1781929866333,
+                "summary": "I ran update-note but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary."
+              }
+            ],
+            "artifacts": [],
+            "errors": [
+              "model produced no final answer text"
+            ],
+            "finalSynthesis": "I ran update-note but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "update-note",
+          "toolCallId": "call_bpddib_0",
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          },
+          "state": "output-available",
+          "input": {
+            "account": "iCloud",
+            "format": "plaintext",
+            "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513",
+            "newContent": "updated via Leash chat Apple Notes MCP write smoke",
+            "title": "Leash Apple Notes MCP smoke 20260620T042255Z"
+          },
+          "approval": {
+            "id": "aitxt-ufVLi2nuOKQKd7nLj4ddRIPJ",
+            "approved": true,
+            "reason": "Codex smoke test approval requested by user."
+          },
+          "output": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Note updated: \"Leash Apple Notes MCP smoke 20260620T042255Z\""
+              }
+            ],
+            "isError": false
+          }
+        },
+        {
+          "type": "text",
+          "text": "I ran update-note but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary.",
+          "state": "done"
+        },
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-6Kt8usk5M9duyyQ4",
+          "data": {
+            "id": "run-6Kt8usk5M9duyyQ4",
+            "chatId": "codex-apple-notes-update-smoke-2",
+            "title": "Use update-note only. note id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513. Set content exactly to: updated via Leash chat Apple Notes MCP write smoke. Keep title: Leash Apple Notes MCP smoke 20260620T042255Z. [truncated]",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781929882329,
+            "updatedAt": 1781929937333,
+            "startedAt": 1781929882329,
+            "finishedAt": 1781929937331,
+            "steps": [
+              {
+                "id": "d2GPlVsCwqf4BN4b",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781929882336,
+                "finishedAt": 1781929937329,
+                "summary": "The note \"Leash Apple Notes MCP smoke 20260620T042255Z\" has been successfully updated with the content: \"updated via Leash chat Apple Notes MCP write smoke\". The change was made directly to the note using the specified note ID. No further action is required unless you need to verify the update or make additional changes."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The note \"Leash Apple Notes MCP smoke 20260620T042255Z\" has been successfully updated with the content: \"updated via Leash chat Apple Notes MCP write smoke\". The change was made directly to the note using the specified note ID. No further action is required unless you need to verify the update or make additional changes."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\nOkay, the user wants me to update a specific note in their Apple Notes. The note ID is given as x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513. The new content should be \"updated via Leash chat Apple Notes MCP write smoke\" and the title is \"Leash Apple Notes MCP smoke 20260620T042255Z\". \n\nFirst, I need to check the available functions. The user mentioned using the update-note function. Looking at the parameters required for update-note: account, format, id, newContent, newTitle, title. The account is defaulted to iCloud, so I can omit it unless specified. The id is provided, so I should use that. The newContent is given, and the title is already set. \n\nWait, the user specified the title exactly, so I need to make sure the title is set to \"Leash Apple Notes MCP smoke 20260620T042255Z\". The function requires newContent, which is provided. The format is plaintext as per the user's instruction. \n\nI should structure the function call with the correct parameters. The id is the note ID provided. The newContent is the exact string the user wants. The title is the one they specified. So the JSON should include id, newContent, title. The account is iCloud by default, so it's okay to leave it out. \n\nDouble-checking the required parameters: newContent is mandatory. The other parameters are optional. So the function call should have id, newContent, title. The format is set to plaintext. \n\nYes, that should update the note correctly. The response from the tool indicates success, so the user's note is updated as instructed.\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe note \"Leash Apple Notes MCP smoke 20260620T042255Z\" has been successfully updated with the content: \"updated via Leash chat Apple Notes MCP write smoke\". The change was made directly to the note using the specified note ID. \n\nNo further action is required unless you need to verify the update or make additional changes.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

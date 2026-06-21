@@ -1,0 +1,180 @@
+{
+  "id": "codex-ocu-approval-mqm9rz19",
+  "createdAt": 1781954645525,
+  "updatedAt": 1781954690669,
+  "messages": [
+    {
+      "id": "codex-ocu-approval-mqm9rz19-u",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use computer-use. Call type_text in Code with the exact text \"LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST\". This is a stress test of the approval card."
+        }
+      ]
+    },
+    {
+      "id": "msg-aTEl7oKD8bGzkpkb",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781954669293,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781954690644,
+        "totalTokens": 360
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST is a stress test of the approval card; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-IoVVoICkzqR8TVCf",
+          "data": {
+            "id": "run-IoVVoICkzqR8TVCf",
+            "chatId": "codex-ocu-approval-mqm9rz19",
+            "title": "Use computer-use. Call type_text in Code with the exact text \"LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST\". This is a stress test of the approval card.",
+            "status": "paused",
+            "route": "computer",
+            "sensitivity": "private",
+            "createdAt": 1781954631713,
+            "updatedAt": 1781954645519,
+            "startedAt": 1781954631713,
+            "finishedAt": 1781954645512,
+            "steps": [
+              {
+                "id": "o2I3wJafi7xlbw2n",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "computer",
+                "model": "qwen3-4b",
+                "startedAt": 1781954631724,
+                "finishedAt": 1781954645507,
+                "summary": "Waiting for approval to run type_text."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "Waiting for approval to run type_text."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "computer-use",
+                "name": "computer-use"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "type_text",
+          "toolCallId": "call_qrllue_14",
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          },
+          "state": "output-denied",
+          "input": {
+            "app": "Code",
+            "text": "LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST"
+          },
+          "approval": {
+            "id": "aitxt-JVw8LO7MeIXmWxTVESCK7NAv",
+            "approved": false,
+            "reason": "denied by stress test"
+          }
+        },
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-o4gSn5bTlf396m0V",
+          "data": {
+            "id": "run-o4gSn5bTlf396m0V",
+            "chatId": "codex-ocu-approval-mqm9rz19",
+            "title": "Use computer-use. Call type_text in Code with the exact text \"LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST\". This is a stress test of the approval card.",
+            "status": "completed",
+            "route": "computer",
+            "sensitivity": "private",
+            "createdAt": 1781954669267,
+            "updatedAt": 1781954690661,
+            "startedAt": 1781954669267,
+            "finishedAt": 1781954690656,
+            "steps": [
+              {
+                "id": "n1vxBPrUAcaAPtSi",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "computer",
+                "model": "qwen3-4b",
+                "startedAt": 1781954669278,
+                "finishedAt": 1781954690649,
+                "summary": "The action was denied by the stress test. I cannot proceed with the unauthorized tool call."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The action was denied by the stress test. I cannot proceed with the unauthorized tool call."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "computer-use",
+                "name": "computer-use"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\nOkay, the user asked to use the computer-use skill and specifically called type_text in Code with the exact text \"LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST\". I need to follow the instructions exactly as given. \n\nFirst, I check the available functions. The type_text function is there, and it requires the app and text parameters. The app is \"Code\", and the text is the specified string.\n\nI call the type_text function with those parameters. However, the response comes back as \"denied by stress test\". That suggests the system is testing whether I follow the approval process correctly. \n\nWait, the user mentioned this is a stress test of the approval card. So, maybe the system is checking if I handle approvals properly. The instructions say that some tool calls require the user's approval before running. If the user denies a tool call, I should not retry it but acknowledge the denial and continue.\n\nBut in this case, the response is \"denied by stress test\", which might mean the approval was denied. However, the user's original request was to perform the action, and the system is testing if I follow the approval steps. Since the approval was denied, I should not proceed with the action again. \n\nBut the user's instruction was explicit: they want me to call type_text. The system's response is a denial, so I need to comply with that. Therefore, I should inform the user that the action was denied by the stress test and not retry it. \n\nSo the correct response is to state that the approval was denied and not attempt the action again. I should not call the function again but instead communicate the result of the denial.\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe action was denied by the stress test. I cannot proceed with the unauthorized tool call.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

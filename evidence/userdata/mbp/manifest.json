@@ -1,0 +1,31 @@
+{
+  "capturedAt": "2026-06-14",
+  "device": "mbp",
+  "sourceRoot": "/Volumes/MAC/mycelium/data",
+  "copyPolicy": "Scoped source snapshot for submission evidence; copied files are byte-preserved.",
+  "included": {
+    "chats": "leash-chats/*.json",
+    "research": "leash-research/*.json",
+    "runtime": [
+      "leash activity and tombstones",
+      "cron runs and state",
+      "memories, tasks, dreams, schedules, and photo tags",
+      "Leash serve and service status/log files"
+    ],
+    "economy": [
+      "active sessions",
+      "settled receipts",
+      "used authorizations"
+    ]
+  },
+  "excluded": [
+    "adapters and GGUF files",
+    "model catalogs and download state",
+    "mesh databases and corestore data",
+    "device seeds and mesh identity state",
+    "environment files, keys, and encrypted secrets",
+    "prompt, tool, and MCP configuration",
+    "voice recordings and photo media",
+    "macOS metadata and Markdown notes"
+  ]
+}

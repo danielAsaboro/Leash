@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqm6haa4-memory",
+  "createdAt": 1781949098421,
+  "updatedAt": 1781949098421,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm6haa4-memory-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "remember that I prefer concise answers"
+        }
+      ]
+    },
+    {
+      "id": "msg-zb42uzuu5VTTqDkQ",
+      "metadata": {
+        "createdAt": 1781949098417,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: action/tool request needs the full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-4s9b1RuSRCarK2QU",
+          "data": {
+            "id": "run-4s9b1RuSRCarK2QU",
+            "chatId": "codex-skill-route-mqm6haa4-memory",
+            "title": "remember that I prefer concise answers",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781949098408,
+            "updatedAt": 1781949098412,
+            "startedAt": 1781949098408,
+            "steps": [
+              {
+                "id": "60RTwJNgN4HojwTa",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781949098412
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "memory-keeper",
+                "name": "memory-keeper"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

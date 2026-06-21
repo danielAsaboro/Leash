@@ -1,0 +1,58 @@
+{
+  "id": "cnTwnYx4vNLyyXFO",
+  "createdAt": 1780647224559,
+  "updatedAt": 1780647224559,
+  "messages": [
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Hello, what's up? What's your name?"
+        }
+      ],
+      "id": "Mu5UcFlkUMaLF8U4",
+      "role": "user"
+    },
+    {
+      "id": "msg-17MWGJfSJD7FO9eO",
+      "metadata": {
+        "createdAt": 1780646437029,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    },
+    {
+      "parts": [
+        {
+          "type": "text",
+          "text": "Hello, what's our activity for today?"
+        }
+      ],
+      "id": "3kBLjowjckOA0En9",
+      "role": "user"
+    },
+    {
+      "id": "msg-9BYvO5MkTdqczRET",
+      "metadata": {
+        "createdAt": 1780646921571,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

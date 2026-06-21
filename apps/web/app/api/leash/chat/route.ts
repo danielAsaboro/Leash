@@ -10,42 +10,49 @@
  * client disconnect still saves. Server-side message IDs keep stored threads stable —
  * which the future "dreaming"/consolidation pass relies on.
  */
-import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse, type ToolSet } from "ai";
+import { convertToModelMessages, validateUIMessages, createIdGenerator, createUIMessageStream, createUIMessageStreamResponse, generateText, isStepCount, tool, type ToolSet } from "ai";
 import { z } from "zod";
-import { VISION_MODEL, COMPUTER_MODEL, QVAC_OPENAI_URL, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
+import { VISION_MODEL, COMPUTER_MODEL, QVAC_OPENAI_URL, chatModel, resolvedChatAlias, routedChatModel } from "../../../../lib/leash/provider.ts";
 import { buildLeashAgent, type LeashCallOptions } from "../../../../lib/leash/agent.ts";
 import { tagsForAlias, type RouteOption } from "@mycelium/leash-core/routing";
 import { leashTools } from "../../../../lib/leash/tools.ts";
 import { preferenceTexts } from "../../../../lib/leash/memories-store.ts";
-import { skillsSystemSection, activeSkillsSection } from "../../../../lib/leash/skill-tools.ts";
+import { skillsSystemSection, activeSkillsSection, activeSkillBySlug } from "../../../../lib/leash/skill-tools.ts";
 import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES } from "../../../../lib/leash/tool-lanes.ts";
 import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skill-runner.ts";
-import { buildAgentTools } from "../../../../lib/leash/agent-runner.ts";
+import { buildAgentTools, runPlannedAgentOrchestration, type PlannedAgentEvent } from "../../../../lib/leash/agent-runner.ts";
+import { memoizeToolExecutions } from "../../../../lib/leash/agent-tool-idempotency.ts";
+import { planExplicitAgentTasks, planMandatedReadCalls } from "../../../../lib/leash/agent-explicit-plan.ts";
+import { structuredAuthoritativeToolEvidence } from "../../../../lib/leash/agent-authoritative-results.ts";
 import { listAgents } from "../../../../lib/leash/agents-store.ts";
 import { planAgentDisclosure } from "../../../../lib/leash/agent-disclosure.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { KEEPALIVE_TOOLS } from "../../../../lib/leash/keepalive-tool.ts";
 import { deriveLaneBudget } from "../../../../lib/leash/lane-budget.ts";
+import { planReasoningDraft, type ReasoningDraft } from "../../../../lib/leash/reasoning-draft.ts";
+import { policyForPlannedMode, type ReasoningPolicy } from "../../../../lib/leash/reasoning-policy.ts";
 import { runFileFinderFastPath, shouldRunFileFinderFastPath } from "../../../../lib/leash/file-finder-fast-path.ts";
 import { directBashCommandForSimpleTurn, runDirectBashCommand } from "../../../../lib/leash/bash-command-fast-path.ts";
 import { directBrokerCallForSimpleTurn, runDirectBrokerCall } from "../../../../lib/leash/broker-fast-path.ts";
 import { needsChatBrokerLane } from "../../../../lib/leash/compound-route.ts";
-import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, localInferenceUnavailableAnswer } from "../../../../lib/leash/direct-answer.ts";
+import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, directAnswerForVoiceConfirmation, localInferenceUnavailableAnswer } from "../../../../lib/leash/direct-answer.ts";
 import { directHealthSafetyCallForSimpleTurn, runDirectHealthSafetyCall } from "../../../../lib/leash/health-fast-path.ts";
 import { buildCapabilityBrokers } from "../../../../lib/leash/tool-brokers.ts";
 import { leashMcpTools } from "../../../../lib/leash/mcp.ts";
 import { getPrompt } from "../../../../lib/leash/prompts-store.ts";
 import { loadMainAgentBase } from "../../../../lib/leash/main-agent.ts";
 import { getConstitution } from "../../../../lib/leash/constitution.ts";
-import { filterEnabledTools, disabledTools, withApprovalGates } from "../../../../lib/leash/tool-config.ts";
+import { filterEnabledTools, disabledTools } from "../../../../lib/leash/tool-config.ts";
 import { loadRecord, saveChat } from "../../../../lib/leash/chat-store.ts";
-import { inlineFileAttachments } from "../../../../lib/leash/attachments.ts";
+import { inlineFileAttachments, stripHistoricalToolParts, stripImageAttachmentsFromTextHistory } from "../../../../lib/leash/attachments.ts";
 import { compact } from "../../../../lib/leash/compactor.ts";
 import { classifyEffort, effortConfig } from "../../../../lib/leash/effort.ts";
+import { qvacReasoningProviderOptions } from "../../../../lib/leash/reasoning-policy.ts";
 import { conductTurn, type ConductorResult } from "../../../../lib/leash/conductor.ts";
 import {
   barFromGuardedTurn,
   capabilityBarFromConductorRoute,
+  deterministicRouteNeed,
   pickLocalGeneral,
   publicMeshRouteBlocked,
   rankConductorRoute,
@@ -58,6 +65,8 @@ import { interjectRequested, clearInterject } from "../../../../lib/leash/interj
 import type { EffortTier, LeashUIMessage } from "../../../../lib/leash/types.ts";
 import { AuditLog } from "@mycelium/shared";
 import { enforceToolPolicy, type ToolRoute } from "@mycelium/leash-core/tool-policy";
+import { parsePluginSlug } from "@mycelium/leash-core/plugin-manifest";
+import { LEASH_AGENT_TIMEOUT, createLifecycleTimingTransform, withScopedToolContext } from "../../../../lib/leash/runtime-lifecycle.ts";
 import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
 import {
   appendGoalRunError,
@@ -76,7 +85,6 @@ import {
   CHAT_COMPUTER_MODE_NOTE,
   CHAT_FILES_MODE_NOTE,
   CHAT_PLAN_MODE_NOTE,
-  CHAT_THINKING_NOTE,
   NO_THINK_DIRECTIVE,
   buildAgentDisclosurePrompt,
   buildDisabledToolsNote,
@@ -84,6 +92,8 @@ import {
   buildPreferenceSection,
   buildSoulSection,
   buildSummarySection,
+  buildReasoningDraftSection,
+  buildThinkingNote,
 } from "../../../../lib/leash/prompt.ts";
 import { join } from "node:path";
 
@@ -106,6 +116,9 @@ const metadataSchema = z
     model: z.string().optional(),
     totalTokens: z.number().optional(),
     effort: z.enum(["quick", "standard", "deep"]).optional(),
+    reasoningMode: z.enum(["direct", "draft", "deep"]).optional(),
+    reasoningDraftTokens: z.number().optional(),
+    reasoningDraftMs: z.number().optional(),
   })
   .optional();
 
@@ -170,6 +183,51 @@ async function emptyTurnFallback(result: unknown): Promise<string> {
     : "I couldn't produce a response to that — try rephrasing it, or breaking it into smaller steps.";
 }
 
+/** One bounded recovery decode when a completed tool loop returns no prose. It receives only
+ * compact authoritative outputs and must submit one typed answer; otherwise the turn remains a
+ * visible failure instead of pretending the request completed. */
+async function synthesizeEmptyToolTurn(result: unknown, userRequest: string, modelAlias: string): Promise<string> {
+  try {
+    const steps = ((await (result as { steps?: Promise<unknown[]> }).steps) ?? []) as Array<{
+      toolResults?: Array<{ toolName?: string; output?: unknown }>;
+    }>;
+    const evidence = steps.flatMap((step) => (step.toolResults ?? [])
+      .filter((entry): entry is { toolName: string; output?: unknown } => typeof entry.toolName === "string")
+      .map((entry) => ({ toolName: entry.toolName, status: "output" as const, value: entry.output })));
+    if (evidence.length === 0) return "";
+    const submitSynthesis = tool({
+      description: "Submit the concise user-facing answer grounded only in the supplied tool evidence.",
+      inputSchema: z.object({ answer: z.string().min(1).max(4_000) }),
+      execute: async ({ answer }) => ({ answer }),
+    });
+    const generated = await generateText({
+      model: chatModel("empty-tool-turn-synthesis", modelAlias),
+      instructions: "Answer the user's request using only the authoritative tool evidence. Name the tools used, preserve exact identifiers, and state an honest bottom line. Call submit_synthesis exactly once. Do not expose reasoning.",
+      prompt: JSON.stringify({ userRequest, evidence: structuredAuthoritativeToolEvidence(evidence, 3_200) }),
+      tools: { submit_synthesis: submitSynthesis },
+      toolChoice: { type: "tool", toolName: "submit_synthesis" },
+      stopWhen: isStepCount(1),
+      maxOutputTokens: 260,
+      maxRetries: 0,
+      reasoning: "none",
+      providerOptions: qvacReasoningProviderOptions(false),
+      timeout: LEASH_AGENT_TIMEOUT,
+    });
+    const call = generated.toolCalls.find((entry) => entry.toolName === "submit_synthesis");
+    const answer = (call?.input as { answer?: unknown } | undefined)?.answer;
+    if (typeof answer === "string" && answer.trim()) return answer.trim();
+    const marker = generated.text.indexOf("submit_synthesis");
+    const jsonStart = generated.text.indexOf("{", Math.max(0, marker));
+    if (marker >= 0 && jsonStart >= 0) {
+      const parsed = JSON.parse(generated.text.slice(jsonStart)) as { answer?: unknown };
+      if (typeof parsed.answer === "string" && parsed.answer.trim()) return parsed.answer.trim();
+    }
+  } catch {
+    /* caller keeps the honest failed status and generic empty-turn message */
+  }
+  return "";
+}
+
 async function pendingApprovalFallback(result: unknown): Promise<string | null> {
   try {
     const steps = ((await (result as { steps?: Promise<unknown[]> }).steps) ?? []) as Array<{
@@ -211,6 +269,41 @@ function lastUserText(messages: LeashUIMessage[]): string {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return ((lastUser?.parts as any[]) ?? []).filter((p) => p?.type === "text").map((p) => p.text ?? "").join(" ");
+}
+
+/** Include readable attachments from the latest user turn in delegate context. */
+function lastUserGroundedText(messages: LeashUIMessage[], maxChars = 4_000): string {
+  const latest = [...messages].reverse().find((entry) => entry.role === "user");
+  if (!latest) return "";
+  const [inlined] = inlineFileAttachments([latest]);
+  const text = (inlined?.parts ?? [])
+    .filter((part): part is Extract<typeof part, { type: "text" }> => part.type === "text")
+    .map((part) => part.text)
+    .join("\n")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > maxChars ? `${text.slice(0, maxChars - 12)} [truncated]` : text;
+}
+
+/** Most recent persisted skill selection from an earlier assistant turn. */
+function previousActiveSkillSlug(messages: LeashUIMessage[]): string | null {
+  for (const message of [...messages].reverse()) {
+    if (message.role !== "assistant") continue;
+    for (const part of [...(message.parts ?? [])].reverse()) {
+      if (part?.type !== "data-skill") continue;
+      const slug = (part as { data?: { skills?: Array<{ slug?: unknown }> } }).data?.skills?.[0]?.slug;
+      if (typeof slug === "string" && slug) return slug;
+    }
+  }
+  return null;
+}
+
+/** Carry a prior capability only for a clearly dependent fragment; explicit topic switches release it. */
+function shouldCarryActiveSkill(text: string): boolean {
+  const value = text.trim();
+  if (!value || value.length > 220) return false;
+  if (/\b(?:unrelated|different person|separate thing|new topic|switch(?:ing)? topics?|moving on)\b/i.test(value)) return false;
+  return /^(?:also\b|and\b|but\b|actually\b|wait\b|still\b|now\b|ok(?:ay)?\b)|\b(?:he|she|they|it|that|this|those|these|same|too|instead|anymore)\b/i.test(value);
 }
 
 /** Vision routing: the latest user message carries an image (file part) → use the VLM. */
@@ -335,6 +428,20 @@ function userTurnCount(messages: LeashUIMessage[]): number {
   return messages.filter((m) => m.role === "user").length;
 }
 
+/** Bounded text-only tail for specialists; keeps prior grounded answers without binary/UI payloads. */
+function recentConversationForDelegate(messages: LeashUIMessage[], maxChars = 2_400): string {
+  const lines = messages.slice(-8).flatMap((message) => {
+    const text = (message.parts ?? [])
+      .filter((part): part is Extract<(typeof message.parts)[number], { type: "text" }> => part.type === "text")
+      .map((part) => part.text.replace(/\s+/g, " ").trim())
+      .filter(Boolean)
+      .join(" ");
+    return text ? [`${message.role === "assistant" ? "Leash" : "User"}: ${text.slice(0, 900)}`] : [];
+  });
+  const joined = lines.join("\n");
+  return joined.length <= maxChars ? joined : joined.slice(joined.length - maxChars);
+}
+
 function hasFilePart(messages: LeashUIMessage[]): boolean {
   const lastUser = [...messages].reverse().find((m) => m.role === "user");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -396,7 +503,7 @@ async function streamConductorAnswer(input: { chatId: string; messages: LeashUIM
       writer.write({ type: "text-end", id: "conductor-answer" });
       writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
     },
-    onFinish: ({ messages: finalMessages }) => {
+    onEnd: ({ messages: finalMessages }) => {
       void saveChat({ chatId: input.chatId, messages: finalMessages as LeashUIMessage[] });
     },
   });
@@ -466,7 +573,7 @@ async function streamEarlyDeterministicToolTurn(input: {
       writer.write({ type: "text-end", id: "deterministic-tool-out" });
       writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
     },
-    onFinish: ({ messages: finalMessages }) => {
+    onEnd: ({ messages: finalMessages }) => {
       void saveChat({ chatId: input.chatId, messages: finalMessages as LeashUIMessage[] });
     },
   });
@@ -510,11 +617,24 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const conductorText = lastUserText(messages);
+  let preResolvedSkills: Awaited<ReturnType<typeof activeSkillsSection>> | undefined;
   const requestedComputer = isComputerIntent(messages);
   const conductorBypass = conductorBypassReason({ messages, plan });
   const enabledAgents = (await listAgents()).filter((a) => a.enabled);
   const earlyAgentDisclosure = planAgentDisclosure(conductorText, enabledAgents);
   const explicitAgentIntent = earlyAgentDisclosure.mode === "explicit";
+  const directVoiceConfirmation = voice && !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer
+    ? directAnswerForVoiceConfirmation(conductorText)
+    : null;
+  if (directVoiceConfirmation) {
+    return streamConductorAnswer({
+      chatId: id,
+      messages,
+      alias: "voice-confirmation",
+      answer: directVoiceConfirmation,
+      reason: "deterministic persisted-transcript confirmation",
+    });
+  }
   const directAnswer = !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSimpleTurn(conductorText) : null;
   if (directAnswer) {
     return streamConductorAnswer({
@@ -586,18 +706,42 @@ export async function POST(req: Request): Promise<Response> {
 
     const directHealthCall = directHealthSafetyCallForSimpleTurn(conductorText);
     if (directHealthCall) {
-      return streamEarlyDeterministicToolTurn({
-        chatId: id,
-        messages,
-        route: "health",
-        alias: "health-safety",
-        reason: "deterministic health-safety fast path",
-        skill: { slug: "health-safety", name: "health-safety" },
-        registry: "base",
-        run: (tools) => runDirectHealthSafetyCall(directHealthCall, tools),
-      });
+      // Installed capabilities may be more specific than a built-in fast path.
+      // Resolve ownership first so any selected plugin workflow can run without
+      // teaching core about plugin ids or domains.
+      preResolvedSkills = await activeSkillsSection(conductorText);
+      const hasPluginOwner = preResolvedSkills?.skills.some((skill) => parsePluginSlug(skill.slug) !== null) ?? false;
+      if (!hasPluginOwner) {
+        return streamEarlyDeterministicToolTurn({
+          chatId: id,
+          messages,
+          route: "health",
+          alias: "health-safety",
+          reason: "deterministic health-safety fast path",
+          skill: { slug: "health-safety", name: "health-safety" },
+          registry: "base",
+          run: (tools) => runDirectHealthSafetyCall(directHealthCall, tools),
+        });
+      }
     }
   }
+
+  // Resolve capability ownership before asking the conductor whether it can answer directly.
+  // Otherwise a small classifier can echo a previous specialist answer and bypass the newly
+  // selected skill pipeline entirely (observed on "different person btw ... curtain over eye").
+  // A bounded dependent fragment may retain the prior persisted skill, but explicit topic-switch
+  // language is evaluated before that carry. The same resolved value is reused below so routing
+  // metadata and the executed pipeline cannot disagree.
+  const earlyDetectedSkills =
+    preResolvedSkills !== undefined
+      ? preResolvedSkills
+      : conductorText.trim()
+        ? await activeSkillsSection(conductorText)
+        : null;
+  const earlyPriorSkillSlug = previousActiveSkillSlug(messages);
+  const earlyActiveSkills =
+    earlyDetectedSkills ??
+    (earlyPriorSkillSlug && shouldCarryActiveSkill(conductorText) ? await activeSkillBySlug(earlyPriorSkillSlug) : null);
 
   let conductorRoute: ConductorRoute | null = null;
   let forcedModelAlias: string | undefined = chosenModel;
@@ -620,34 +764,48 @@ export async function POST(req: Request): Promise<Response> {
     }
 
     if (!conductorResult.ok) {
-      recordConductorTurnDecision(conductorResult, false);
-      return streamConductorAnswer({
-        chatId: id,
-        messages,
-        alias: conductorResult.conductorAlias,
-        answer: localInferenceUnavailableAnswer(`Conductor routing failed: ${conductorResult.failureReason}`),
-        reason: "conductor routing failed; streamed local-only failure",
-      });
-    }
-
-    const explicitModelOverride = isExplicitModelOverride(chosenModel, conductorResult);
-    forcedModelAlias = explicitModelOverride ? chosenModel : undefined;
-    if (conductorResult.decision.action === "answer") {
-      if (!explicitAgentIntent && !explicitModelOverride && !requestedComputer) {
-        recordConductorTurnDecision(conductorResult, true);
+      if (!earlyActiveSkills) {
+        recordConductorTurnDecision(conductorResult, false);
         return streamConductorAnswer({
           chatId: id,
           messages,
           alias: conductorResult.conductorAlias,
-          answer: conductorResult.decision.answer,
-          reason: "conductor direct answer",
+          answer: localInferenceUnavailableAnswer(`Conductor routing failed: ${conductorResult.failureReason}`),
+          reason: "conductor routing failed; streamed local-only failure",
         });
       }
-      recordConductorTurnDecision(conductorResult, false, requestedComputer ? "computer intent bypassed direct answer" : "selected model override");
+      // Capability ownership was already resolved from deterministic intent prototypes.
+      // A transient/empty classifier completion must not discard that authoritative pipeline.
+      // The pipeline still selects a live local QVAC route below; unowned turns continue to fail closed.
+      recordConductorTurnDecision(conductorResult, false, `selected capability ${earlyActiveSkills.skills[0]?.slug ?? "pipeline"} bypassed failed conductor`);
     } else {
-      const route = conductorResult.decision.route;
-      conductorRoute = route && explicitModelOverride && chosenModel ? { ...route, alias: chosenModel } : route;
-      recordConductorTurnDecision(conductorResult, false);
+      const explicitModelOverride = isExplicitModelOverride(chosenModel, conductorResult);
+      forcedModelAlias = explicitModelOverride ? chosenModel : undefined;
+      if (conductorResult.decision.action === "answer") {
+        if (!explicitAgentIntent && !explicitModelOverride && !requestedComputer && !earlyActiveSkills) {
+          recordConductorTurnDecision(conductorResult, true);
+          return streamConductorAnswer({
+            chatId: id,
+            messages,
+            alias: conductorResult.conductorAlias,
+            answer: conductorResult.decision.answer,
+            reason: "conductor direct answer",
+          });
+        }
+        recordConductorTurnDecision(
+          conductorResult,
+          false,
+          earlyActiveSkills
+            ? "selected capability bypassed conductor direct answer"
+            : requestedComputer
+              ? "computer intent bypassed direct answer"
+              : "selected model override",
+        );
+      } else {
+        const route = conductorResult.decision.route;
+        conductorRoute = route && explicitModelOverride && chosenModel ? { ...route, alias: chosenModel } : route;
+        recordConductorTurnDecision(conductorResult, false);
+      }
     }
   }
 
@@ -655,6 +813,9 @@ export async function POST(req: Request): Promise<Response> {
   // Capability tools (search_graph, ha_*, remember/recall, tasks, photos, image, feed) now
   // arrive via `leashMcpTools()` from the toggleable leash-tools-mcp groups, not in-process.
   const baseTools = { ...leashTools, ...(await leashMcpTools()) };
+  // One request-scoped cache sits underneath every delegate. Identical read-only
+  // evidence calls issued by sibling agents coalesce to one in-flight execution.
+  const sharedAgentRegistry = memoizeToolExecutions(baseTools);
   const baseBrokers = buildCapabilityBrokers(baseTools);
   // Plan mode (`submit_plan`): built unconditionally so stored plan-mode threads validate on any
   // turn; only handed to the AGENT when this turn is in plan mode (below). `getTask`/`getWriter` are
@@ -667,6 +828,7 @@ export async function POST(req: Request): Promise<Response> {
   let activeModelForRun = "";
   let agentRuntimeCurrentUserTurn = "";
   let agentRuntimeSummarySection = "";
+  let agentRuntimeRecentConversation = "";
   // The plan pipeline halts BETWEEN steps when the client stopped (`req.signal`) OR a follow-up is
   // waiting to interject — this gate decides whether the NEXT step launches. An in-flight decode is
   // now also cancelled on `req.signal` via the agent's abortSignal (safe on the current 0.13.x SDK line); interject still
@@ -687,10 +849,11 @@ export async function POST(req: Request): Promise<Response> {
     ...baseTools,
     ...baseBrokers,
     ...buildSkillRunner(baseTools),
-    ...buildAgentTools(enabledAgents, baseTools, {
+    ...buildAgentTools(enabledAgents, sharedAgentRegistry, {
       getGoalRunId: () => goalRunId,
       getCurrentUserTurn: () => agentRuntimeCurrentUserTurn,
       getSummarySection: () => agentRuntimeSummarySection,
+      getRecentConversation: () => agentRuntimeRecentConversation,
     }),
     ...planTool,
     ...KEEPALIVE_TOOLS,
@@ -772,7 +935,27 @@ export async function POST(req: Request): Promise<Response> {
       });
       return streamConductorAnswer({ chatId: id, messages, alias: publicBlock.alias, answer, reason: `public mesh blocked for private turn: ${publicBlock.reason}` });
     }
-    if (preclassified) {
+    if (explicitAgentIntent) {
+      const local = pickLocalGeneral(allConductorOptions, resolvedChatAlias());
+      conductorDecision = {
+        modality: "text",
+        sensitivity: "private",
+        bar: { modality: "text", minParamClass: "small" },
+        route: { tier: "device", alias: local.alias },
+        reason: `explicit local specialist delegation; ${local.reason ?? "local QVAC"}`,
+        viaFastPath: true,
+      };
+    } else if (earlyActiveSkills?.pipeline) {
+      const local = pickLocalGeneral(allConductorOptions, resolvedChatAlias());
+      conductorDecision = {
+        modality: "text",
+        sensitivity: preclassified?.sensitivity ?? "private",
+        bar: { modality: "text", minParamClass: "small" },
+        route: { tier: "device", alias: local.alias },
+        reason: `installed capability pipeline ${earlyActiveSkills.pipeline.slug}; ${local.reason ?? "local QVAC"}`,
+        viaFastPath: true,
+      };
+    } else if (preclassified) {
       conductorDecision = rankConductorRoute({
         bar: preclassified.bar,
         sensitivity: preclassified.sensitivity,
@@ -864,36 +1047,75 @@ export async function POST(req: Request): Promise<Response> {
   // Prompts come from the store (dashboard override ?? code default; mtime-cached reads),
   // plus the skills section ("" when no skills — honest empty state).
   const lastText = lastUserText(validated);
-  agentRuntimeCurrentUserTurn = lastText;
+  agentRuntimeCurrentUserTurn = lastUserGroundedText(validated);
+  agentRuntimeRecentConversation = recentConversationForDelegate(validated);
   planTask = lastText; // the overall task each approved plan step is executed against
-  const [systemPrompt, healthPrompt, visionPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([
+  const [systemPrompt, healthPrompt, visionPrompt, skillsSection, detectedSkills, prefs, constitution] = await Promise.all([
     getPrompt("chat", base.body),
     healthTurn ? getPrompt("health") : Promise.resolve(""),
     imageTurn ? getPrompt("vision") : Promise.resolve(""),
     skillsSystemSection(),
-    activeSkillsSection(lastText),
+    Promise.resolve(earlyDetectedSkills),
     preferenceTexts(),
     getConstitution(),
   ]);
+  const activeSkills = explicitAgentIntent ? null : (detectedSkills ?? earlyActiveSkills);
   const baseSystem = systemPrompt;
   // The constitution (soul + goals) makes EVERY turn goal-aware, not just heartbeats. Bounded by the
   // store's per-file cap. Trimmed so an unedited/empty file contributes nothing to the prompt.
   const soulSection = buildSoulSection(constitution.soul);
   const goalsSection = buildGoalsSection(constitution.goals);
-  // Always advertise the skill catalog — even with a skill already active — so the model can
-  // ORCHESTRATE: discover and load OTHER skills mid-flow with read_skill (multi-skill workflows).
-  // When a skill is auto-active its body is already injected (activeSkills.section); the catalog
-  // here lets the model reach the rest.
-  const availableSkillsSection = skillsSection;
   // Progressive tool disclosure: an active skill's declared `tools:` become the EXACT
   // toolset for this turn (agent.ts honors `skillTools`, overriding the route default).
   const declaredSkillTools = activeSkills?.tools ?? [];
   const agentDisclosure = planAgentDisclosure(lastText, enabledAgents, { activeSkillTools: declaredSkillTools });
   const selectedAgentTools = agentDisclosure.selected.map((agent) => agent.toolName);
   const agentTurn = selectedAgentTools.length > 0;
-  const useNoThink = effortNoThink || agentTurn;
   const agentOverridesSkillLane = agentDisclosure.mode === "explicit";
   const effectiveDeclaredSkillTools = agentOverridesSkillLane ? [] : declaredSkillTools;
+  const deterministicNeed = deterministicRouteNeed(lastText);
+  const generalToolsNeeded =
+    planMode ||
+    agentTurn ||
+    !!activeSkills ||
+    !!conductorRoute?.needsTools ||
+    deterministicNeed.required;
+  // Only advertise skill discovery when the active lane can use it. File, computer,
+  // health, vision, and plain-answer lanes cannot call read_skill, so injecting the
+  // full catalog there only increases prefill and TTFT without adding capability.
+  const availableSkillsSection =
+    !imageTurn && !filesTurn && !computerTurn && !healthTurn && generalToolsNeeded && !activeSkills
+      ? skillsSection
+      : "";
+  // A deep-classified plain chat first creates a schema-bounded local Chain-of-Draft.
+  // The plan decides whether the main call can run reasoning-off or genuinely needs
+  // extended reasoning. Active skills, specialists, voice, plans, and delegated
+  // agents already own their reasoning/tool shape and skip this extra call.
+  let reasoningDraft: ReasoningDraft | null = null;
+  if (
+    tier === "deep" &&
+    !voice &&
+    !imageTurn &&
+    !filesTurn &&
+    !computerTurn &&
+    !healthTurn &&
+    !planMode &&
+    !agentTurn &&
+    !activeSkills
+  ) {
+    try {
+      reasoningDraft = await planReasoningDraft(lastText, req.signal);
+      console.log(
+        `leash[reasoning]: mode=${reasoningDraft.mode} draftTokens=${reasoningDraft.generatedTokens} draftMs=${reasoningDraft.durationMs}`,
+      );
+    } catch (error) {
+      console.warn(`leash[reasoning]: draft planner failed; preserving deep reasoning: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+  const reasoningPolicy: ReasoningPolicy | null = reasoningDraft && cfg
+    ? policyForPlannedMode(reasoningDraft.mode, cfg.maxOutputTokens)
+    : null;
+  const useNoThink = effortNoThink || agentTurn || reasoningPolicy?.mode === "draft";
   // `preference` memories steer behavior on EVERY turn (other memory types are
   // retrieval-only via recall/search_graph). Bounded: newest 20.
   const prefSection = buildPreferenceSection(prefs);
@@ -931,10 +1153,10 @@ export async function POST(req: Request): Promise<Response> {
   // Thinking-budget cap (SmallCode port): on reasoning-ON turns (deep text), chat can burn its
   // whole token budget on <think> and emit no answer. Steer it to reason briefly so the answer fits
   // (paired with the raised deep-tier token budget in effort.ts). Only when not /no_think and not vision.
-  const thinkingNote =
-    !useNoThink && !imageTurn
-      ? CHAT_THINKING_NOTE
-      : "";
+  const reasoningDraftSection = reasoningDraft ? buildReasoningDraftSection(reasoningDraft) : "";
+  const thinkingNote = !useNoThink && !imageTurn
+    ? buildThinkingNote(reasoningPolicy?.thinkingBudgetTokens ?? 700)
+    : "";
   // Plan mode: the model's ONE job is to draft a plan via submit_plan; the user approves it and the
   // harness runs each step. After the steps run, present their combined result as your final answer.
   const planNote = planMode ? CHAT_PLAN_MODE_NOTE : "";
@@ -967,7 +1189,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, agentDisclosureNote, computerNote, filesNote, visionNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
+  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", reasoningPolicy?.mode === "draft" ? "" : availableSkillsSection, reasoningDraftSection, agentDisclosureNote, computerNote, filesNote, visionNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -1036,7 +1258,7 @@ export async function POST(req: Request): Promise<Response> {
         writer.write({ type: "text-end", id: tid });
         writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
       },
-      onFinish: ({ messages: finalMessages }) => {
+      onEnd: ({ messages: finalMessages }) => {
         unsubscribePipe?.();
         release(); // idempotent
         void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
@@ -1091,7 +1313,7 @@ export async function POST(req: Request): Promise<Response> {
         writer.write({ type: "text-end", id: tid });
         writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
       },
-      onFinish: ({ messages: finalMessages }) => {
+      onEnd: ({ messages: finalMessages }) => {
         unsubscribeFileFinder?.();
         release();
         void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
@@ -1109,11 +1331,14 @@ export async function POST(req: Request): Promise<Response> {
   // bloats context and degrades performance. Strip reasoning parts from the MODEL input only; the
   // stored/displayed thread keeps them (originalMessages = `validated`).
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const noReasoning = modelMessages.map((m: any) => (m.role === "assistant" && Array.isArray(m.parts) ? { ...m, parts: m.parts.filter((p: any) => p?.type !== "reasoning") } : m));
+  const freshUserTurn = latestMessage(modelMessages)?.role === "user" && !hasToolApprovalResponse(modelMessages);
+  const boundedToolHistory = freshUserTurn ? stripHistoricalToolParts(modelMessages) : modelMessages;
+  const noReasoning = boundedToolHistory.map((m: any) => (m.role === "assistant" && Array.isArray(m.parts) ? { ...m, parts: m.parts.filter((p: any) => p?.type !== "reasoning") } : m));
   // Fold NON-IMAGE file attachments (markdown, code, JSON, CSV, logs…) into the model input as
   // text so the text-only chat model can actually read them; images are left as file parts for
   // the vision route. Stored/displayed thread (`validated`) is untouched — it keeps the file chip.
-  const withFiles = inlineFileAttachments(noReasoning);
+  const boundedMedia = imageTurn ? noReasoning : stripImageAttachmentsFromTextHistory(noReasoning);
+  const withFiles = inlineFileAttachments(boundedMedia);
   const modelInput = await convertToModelMessages(withFiles);
 
   // The Leash agent (ToolLoopAgent, agent.ts): typed call options carry this turn's
@@ -1129,8 +1354,11 @@ export async function POST(req: Request): Promise<Response> {
   // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
   const laneBudget = deriveLaneBudget({ imageTurn, planMode, filesTurn, computerTurn, declaredSkillTools: effectiveDeclaredSkillTools, cfg });
   const callSteps = agentTurn && laneBudget.steps !== null ? Math.min(Math.max(laneBudget.steps, 3), 4) : laneBudget.steps;
-  const callMaxOutputTokens = agentTurn && laneBudget.maxOutputTokens !== null ? Math.min(Math.max(laneBudget.maxOutputTokens, 700), 900) : laneBudget.maxOutputTokens;
-  const callOptions: LeashCallOptions = {
+  const policyOutputTokens = reasoningPolicy && laneBudget.maxOutputTokens !== null
+    ? Math.min(laneBudget.maxOutputTokens, reasoningPolicy.maxOutputTokens)
+    : laneBudget.maxOutputTokens;
+  const callMaxOutputTokens = agentTurn && policyOutputTokens !== null ? Math.min(Math.max(policyOutputTokens, 240), 320) : policyOutputTokens;
+  const callOptions: Omit<LeashCallOptions, "runtime"> = {
     route: callRoute,
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (vision breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
@@ -1140,14 +1368,19 @@ export async function POST(req: Request): Promise<Response> {
     ...(effectiveDeclaredSkillTools.length ? { skillTools: effectiveDeclaredSkillTools } : {}),
     ...(selectedAgentTools.length ? { agentTools: selectedAgentTools, suppressRunSkill: agentDisclosure.suppressRunSkill } : {}),
     ...(agentDisclosure.mode === "explicit" && selectedAgentTools.length === 1 ? { forcedAgentTool: selectedAgentTools[0] } : {}),
-    ...(laneBudget.leanTools && callRoute === "chat" && !agentTurn ? { leanTools: true } : {}),
+    // A completed draft has already established that this plain turn can be answered
+    // from the supplied context. Keep only the QVAC keepalive schema (dynamic-tools
+    // requires one non-empty schema) instead of exposing brokers/run_skill and inviting
+    // an unrelated tool loop after the reasoning work is already done.
+    ...((laneBudget.leanTools || reasoningPolicy?.mode === "draft" || !generalToolsNeeded) && callRoute === "chat" && !agentTurn ? { leanTools: true } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
     // Text-route model alias chosen by the conductor or explicit picker.
     // Vision/computer routes use their dedicated model factories in agent.ts.
     ...(!imageTurn && !computerTurn ? { model: activeModel } : {}),
-    system,
+    instructions: system,
   };
+  const selectedReasoningMode = reasoningPolicy?.mode ?? (callOptions.thinking ? "deep" : "direct");
   const runBeforeStep = (await getGoalRun(goalRunId)) ?? goalRun;
   const capsule = buildContextCapsule({
     run: runBeforeStep,
@@ -1168,7 +1401,125 @@ export async function POST(req: Request): Promise<Response> {
     stepId: mainStep.id,
     publicMesh: conductorDecision.route.tier === "public",
   } satisfies Parameters<typeof enforceToolPolicy>[1];
+  const agentCallOptions: LeashCallOptions = {
+    ...callOptions,
+    runtime: {
+      requestId: createIdGenerator({ prefix: "req", size: 16 })(),
+      chatId: id,
+      runId: goalRunId,
+      stepId: mainStep.id,
+      route: policyContext.route,
+      sensitivity: policyContext.publicMesh ? "public" : "private",
+      startedAt: Date.now(),
+    },
+  };
   const policyTools = enforceToolPolicy(enabledTools, policyContext);
+  const explicitAgentPlans = agentDisclosure.mode === "explicit"
+    ? planExplicitAgentTasks(lastText, agentDisclosure.selected, Object.keys(sharedAgentRegistry))
+    : null;
+  const plannedReadCalls = explicitAgentPlans
+    ? planMandatedReadCalls(
+        lastText,
+        explicitAgentPlans.flatMap((entry) => entry.mandatedTools),
+        sharedAgentRegistry,
+      )
+    : null;
+  const selectedAgentDefinitions = explicitAgentPlans?.map((plan) => enabledAgents.find((agent) => agent.slug === plan.slug));
+  const plannedLocalAgentTurn =
+    callRoute === "chat" &&
+    !planMode &&
+    !pipeline &&
+    explicitAgentPlans !== null &&
+    plannedReadCalls !== null &&
+    plannedReadCalls.length > 0 &&
+    selectedAgentDefinitions?.every((agent, index) =>
+      !!agent && explicitAgentPlans[index]!.mandatedTools.length > 0 && explicitAgentPlans[index]!.mandatedTools.every((name) => agent.tools.includes(name)),
+    );
+
+  if (plannedLocalAgentTurn && explicitAgentPlans && plannedReadCalls) {
+    const plannedStream = createUIMessageStream<LeashUIMessage>({
+      originalMessages: validated,
+      generateId: createIdGenerator({ prefix: "msg", size: 16 }),
+      execute: async ({ writer }) => {
+        const eventCallIds = new Map<string, string>();
+        writer.write({ type: "message-metadata", messageMetadata: { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}), reasoningMode: "direct" } });
+        writer.write({ type: "data-conductor", data: { tier: conductorDecision.route.tier, alias: activeModel, reason: "deterministic explicit delegation with shared authoritative reads", viaFastPath: true } });
+        const runNow = await getGoalRun(goalRunId);
+        if (runNow) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(runNow) });
+
+        const emit = async (event: PlannedAgentEvent): Promise<void> => {
+          if (event.type === "tool_start") {
+            const callId = createIdGenerator({ prefix: "call", size: 12 })();
+            eventCallIds.set(`tool:${event.toolName}`, callId);
+            writer.write({ type: "tool-input-available", toolCallId: callId, toolName: event.toolName, input: event.input });
+          } else if (event.type === "tool_end") {
+            const callId = eventCallIds.get(`tool:${event.toolName}`)!;
+            writer.write({ type: "tool-output-available", toolCallId: callId, output: event.output });
+          } else if (event.type === "agent_start") {
+            const callId = createIdGenerator({ prefix: "call", size: 12 })();
+            eventCallIds.set(`agent:${event.agent.toolName}`, callId);
+            writer.write({ type: "tool-input-available", toolCallId: callId, toolName: event.agent.toolName, input: { task: event.agent.task } });
+          } else {
+            const callId = eventCallIds.get(`agent:${event.agent.toolName}`)!;
+            writer.write({
+              type: "tool-output-available",
+              toolCallId: callId,
+              output: { id: `planned-${event.agent.slug}`, role: "assistant", parts: [{ type: "text", text: event.output }] },
+            });
+          }
+        };
+
+        let text = "";
+        try {
+          const result = await runPlannedAgentOrchestration({
+            request: lastText,
+            currentUserTurn: agentRuntimeCurrentUserTurn,
+            summarySection,
+            recentConversation: agentRuntimeRecentConversation,
+            goalRunId,
+            mainStepId: mainStep.id,
+            modelAlias: activeModel,
+            agents: enabledAgents,
+            plans: explicitAgentPlans,
+            readCalls: plannedReadCalls,
+            onEvent: emit,
+          });
+          text = result.text;
+          if (!text) throw new Error("planned agent synthesis produced no final answer text");
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text });
+          await finishGoalRun(goalRunId, "completed", text);
+          await recordGoalRunModelTrace(goalRunId, {
+            stepId: mainStep.id,
+            model: activeModel,
+            alias: activeModel,
+            routeTier: conductorDecision.route.tier,
+            startedAt: mainStep.startedAt ?? Date.now(),
+            finishedAt: Date.now(),
+            contextTokensEstimate: capsule.tokenEstimate,
+            reason: "deterministic explicit delegation with shared authoritative reads",
+          });
+        } catch (error) {
+          text = `The explicit agent run failed: ${error instanceof Error ? error.message : String(error)}`;
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "failed", error: text });
+          await appendGoalRunError(goalRunId, text);
+          await finishGoalRun(goalRunId, "failed", text);
+        } finally {
+          const finalRun = await getGoalRun(goalRunId);
+          if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
+          release();
+        }
+        writer.write({ type: "text-start", id: "planned-agent-synthesis" });
+        writer.write({ type: "text-delta", id: "planned-agent-synthesis", delta: text });
+        writer.write({ type: "text-end", id: "planned-agent-synthesis" });
+        writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
+      },
+      onEnd: ({ messages: finalMessages }) => {
+        release();
+        void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
+      },
+    });
+    return createUIMessageStreamResponse({ stream: plannedStream });
+  }
   const directBrokerCall = callRoute === "chat" && !planMode && !pipeline ? directBrokerCallForSimpleTurn(lastText) : null;
   const directBrokerTool = directBrokerCall ? (policyTools as Record<string, { execute?: unknown }>)[directBrokerCall.broker] : undefined;
   if (directBrokerCall && typeof directBrokerTool?.execute === "function") {
@@ -1205,7 +1556,7 @@ export async function POST(req: Request): Promise<Response> {
         writer.write({ type: "text-end", id: "direct-broker-out" });
         writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
       },
-      onFinish: ({ messages: finalMessages }) => {
+      onEnd: ({ messages: finalMessages }) => {
         release();
         void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
       },
@@ -1248,7 +1599,7 @@ export async function POST(req: Request): Promise<Response> {
         writer.write({ type: "text-end", id: "direct-bash-out" });
         writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
       },
-      onFinish: ({ messages: finalMessages }) => {
+      onEnd: ({ messages: finalMessages }) => {
         release();
         void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });
       },
@@ -1256,9 +1607,15 @@ export async function POST(req: Request): Promise<Response> {
     return createUIMessageStreamResponse({ stream: directBashStream });
   }
   const brokeredPolicyTools = planMode ? policyTools : { ...policyTools, ...buildCapabilityBrokers(policyTools) };
-  const approvedTools = planMode ? brokeredPolicyTools : withApprovalGates(brokeredPolicyTools);
-  const agent = buildLeashAgent(approvedTools, () => interjectRequested(id), conductorModel);
-  const result = await agent.stream({ messages: modelInput, options: callOptions, abortSignal: req.signal });
+  const contextualTools = withScopedToolContext(brokeredPolicyTools);
+  const agent = buildLeashAgent(contextualTools, () => interjectRequested(id), conductorModel);
+  const result = await agent.stream({
+    messages: modelInput,
+    options: agentCallOptions,
+    abortSignal: req.signal,
+    timeout: LEASH_AGENT_TIMEOUT,
+    experimental_transform: createLifecycleTimingTransform(agentCallOptions.runtime),
+  });
 
   // Drive the stream server-side so persistence still runs if the client stops reading mid-token.
   // `then(release, release)` ALWAYS fires once the run settles — success, error, or abort (on Stop,
@@ -1299,7 +1656,13 @@ export async function POST(req: Request): Promise<Response> {
         result.toUIMessageStream({
           sendReasoning: true,
           messageMetadata: ({ part }) => {
-            if (part.type === "start") return { createdAt: Date.now(), model: activeModel, ...(tier ? { effort: tier } : {}) };
+            if (part.type === "start") return {
+              createdAt: Date.now(),
+              model: activeModel,
+              ...(tier ? { effort: tier } : {}),
+              reasoningMode: selectedReasoningMode,
+              ...(reasoningDraft ? { reasoningDraftTokens: reasoningDraft.generatedTokens, reasoningDraftMs: reasoningDraft.durationMs } : {}),
+            };
             if (part.type === "finish") return { finishedAt: Date.now(), totalTokens: part.totalUsage?.totalTokens };
             return undefined;
           },
@@ -1323,9 +1686,14 @@ export async function POST(req: Request): Promise<Response> {
           writer.write({ type: "text-end", id });
         };
         const approvalFallback = !finalText ? await pendingApprovalFallback(result) : null;
-        const emptyFallback = !finalText && !planMode && !approvalFallback ? await emptyTurnFallback(result) : "";
+        const recoveredSynthesis = !finalText && !planMode && !approvalFallback
+          ? await synthesizeEmptyToolTurn(result, lastText, activeModel)
+          : "";
+        const emptyFallback = !finalText && !planMode && !approvalFallback
+          ? recoveredSynthesis || await emptyTurnFallback(result)
+          : "";
         const finalSummary = approvalFallback ?? (planMode && !finalText ? "Plan proposed; waiting for user approval." : finalText || emptyFallback);
-        const finalStatus = approvalFallback || (planMode && !finalText) ? "paused" : finalText ? "completed" : "failed";
+        const finalStatus = approvalFallback || (planMode && !finalText) ? "paused" : finalText || recoveredSynthesis ? "completed" : "failed";
         await updateGoalRunStep(goalRunId, mainStep.id, {
           status: finalStatus === "failed" ? "failed" : "done",
           summary: finalSummary,
@@ -1358,6 +1726,7 @@ export async function POST(req: Request): Promise<Response> {
             appendText("toolcall-text-note", "\n\n_(I wrote that as text instead of actually running the tool — ask me to try again and I'll invoke it for real.)_");
           }
         }
+        writer.write({ type: "message-metadata", messageMetadata: { finishedAt: Date.now() } });
       } catch (e) {
         const message = req.signal.aborted ? "cancelled" : e instanceof Error ? e.message : "stream-tail guard failed";
         await updateGoalRunStep(goalRunId, mainStep.id, { status: req.signal.aborted ? "cancelled" : "failed", error: message });
@@ -1367,7 +1736,7 @@ export async function POST(req: Request): Promise<Response> {
         if (finalRun) writer.write({ type: "data-goalRun", id: goalRunId, data: goalRunView(finalRun) });
       }
     },
-    onFinish: ({ messages: finalMessages }) => {
+    onEnd: ({ messages: finalMessages }) => {
       unsubscribe?.();
       release(); // idempotent belt-and-braces alongside consumeStream().finally
       void saveChat({ chatId: id, messages: finalMessages as LeashUIMessage[] });

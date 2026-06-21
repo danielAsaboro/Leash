@@ -1,0 +1,43 @@
+{
+  "id": "codex-skill-route-mqm6fp2g-short-greeting",
+  "createdAt": 1781949017478,
+  "updatedAt": 1781949017478,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm6fp2g-short-greeting-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-TkPaLaToKxZ9sSsG",
+      "metadata": {
+        "createdAt": 1781949017475,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781949017475
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

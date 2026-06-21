@@ -17,6 +17,7 @@ export const metadata: Metadata = {
 
 const GITHUB_URL = "https://github.com/danielAsaboro/Leash";
 const DOCS_URL = "https://docs.useleash.xyz"; // placeholder — point at the Mintlify docs / tunnel
+const DOWNLOADS_URL = "https://useleash.xyz/downloads";
 
 const PILLARS = [
   { kicker: "Private", body: "End-to-end encrypted, and yours. Your data never leaves your devices — no server to subpoena, no model trained on you." },
@@ -55,7 +56,7 @@ export default function Landing() {
         <nav className="landing-topnav">
           <a href={DOCS_URL} target="_blank" rel="noopener noreferrer">Docs</a>
           <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a href="#waitlist">Waitlist</a>
+          <a href={DOWNLOADS_URL}>Download</a>
           <Link href="/chat" className="landing-topnav-cta">Open Leash →</Link>
         </nav>
       </header>
@@ -89,8 +90,8 @@ export default function Landing() {
           No cloud. No leak. Powered by your personal mesh.
         </p>
         <div className="landing-cta-row rise" style={{ animationDelay: "0.84s" }}>
-          <a href="#waitlist" className="landing-btn landing-btn-primary">
-            Join the waitlist<span className="landing-btn-arrow" aria-hidden>→</span>
+          <a href={DOWNLOADS_URL} className="landing-btn landing-btn-primary">
+            Download Leash<span className="landing-btn-arrow" aria-hidden>→</span>
           </a>
           <Link href="/chat" className="landing-btn">
             Open Leash<span className="landing-btn-arrow" aria-hidden>→</span>

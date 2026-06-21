@@ -1,18 +1,18 @@
 /**
  * Live long-chat stress gauntlet for Leash.
  *
- * Drives one authenticated chat for 30-50 user turns through the real
+ * Drives one device-scoped chat for 30-50 user turns through the real
  * /api/leash/chat route. The sequence asks the assistant, from chat, to use
  * skills, read-only context, MCP/tool catalog behavior, failure recovery, and
  * long-context continuity.
  *
  * Requirements:
  * - web app listening on LEASH_WEB_BASE (default http://127.0.0.1:6801)
- * - LEASH_COOKIE set, or /tmp/leash-cookie.txt containing the browser cookie
+ * - the current device scope is active
  * - QVAC serve + Hypha reachable if the route selects model-backed work
  */
 import assert from "node:assert";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Agent, setGlobalDispatcher } from "undici";
 
@@ -51,11 +51,6 @@ interface TurnRecord {
   durationMs: number;
   skills: string[];
   tools: string[];
-}
-
-async function cookieHeader(): Promise<string> {
-  if (process.env["LEASH_COOKIE"]) return process.env["LEASH_COOKIE"];
-  return (await readFile("/tmp/leash-cookie.txt", "utf8")).trim();
 }
 
 function parseSse(body: string): StreamEvent[] {
@@ -112,11 +107,10 @@ async function postChat(input: {
   chatId: string;
   messageId: string;
   text: string;
-  cookie: string;
 }): Promise<{ events: StreamEvent[]; body: string; finalRun: GoalRunData }> {
   const res = await fetch(`${WEB_BASE}/api/leash/chat`, {
     method: "POST",
-    headers: { "content-type": "application/json", cookie: input.cookie },
+    headers: { "content-type": "application/json" },
     body: JSON.stringify({
       id: input.chatId,
       trigger: "submit-message",
@@ -162,11 +156,8 @@ async function postChat(input: {
 }
 
 async function main(): Promise<void> {
-  const cookie = await cookieHeader();
-  assert.ok(cookie.includes("leash_session="), "set LEASH_COOKIE or create /tmp/leash-cookie.txt with a valid Leash session");
-
-  const active = await fetch(`${WEB_BASE}/api/leash/auth/active`);
-  assert.equal(active.ok, true, "web app auth probe is reachable");
+  const active = await fetch(`${WEB_BASE}/api/leash/device/active`);
+  assert.equal(active.ok, true, "web app device probe is reachable");
 
   const suffix = Date.now().toString(36);
   const chatId = `codex-long-chat-${suffix}`;
@@ -200,7 +191,6 @@ async function main(): Promise<void> {
       const result = await postChat({
         chatId,
         messageId: `msg-${suffix}-${i}`,
-        cookie,
         text: prompt.text,
       });
 
@@ -248,7 +238,7 @@ async function main(): Promise<void> {
     assert.ok(toolNames.size >= 1, "at least one tool call observed");
     assert.ok(skills.size >= 1, "at least one skill event observed");
 
-    const chatPage = await fetch(`${WEB_BASE}/chat/${chatId}`, { headers: { cookie }, redirect: "follow" });
+    const chatPage = await fetch(`${WEB_BASE}/chat/${chatId}`, { redirect: "follow" });
     assert.equal(chatPage.ok, true, "stored chat page renders");
     const chatHtml = await chatPage.text();
     assert.ok(chatHtml.includes(chatId), "stored chat page includes the chat id");

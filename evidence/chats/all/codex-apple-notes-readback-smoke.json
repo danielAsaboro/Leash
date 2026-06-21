@@ -1,0 +1,119 @@
+{
+  "id": "codex-apple-notes-readback-smoke",
+  "createdAt": 1781930188659,
+  "updatedAt": 1781930188659,
+  "messages": [
+    {
+      "id": "msg-user-readback",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use get-note-content only. Read Apple Notes note id x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513. Do not use skills. Return the title and exact content."
+        }
+      ]
+    },
+    {
+      "id": "msg-ITOlVqOW8InOwDLp",
+      "metadata": {
+        "createdAt": 1781930134550,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781930188648,
+        "totalTokens": 87
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: notes/files/memory request needs the full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-lkmiqY0586u7YRmN",
+          "data": {
+            "id": "run-lkmiqY0586u7YRmN",
+            "chatId": "codex-apple-notes-readback-smoke",
+            "title": "Use get-note-content only. Read Apple Notes note id x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513. Do not use skills. Return the title and exact content.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781930134531,
+            "updatedAt": 1781930188655,
+            "startedAt": 1781930134531,
+            "finishedAt": 1781930188653,
+            "steps": [
+              {
+                "id": "g6DTle143SYoNNNK",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781930134538,
+                "finishedAt": 1781930188650,
+                "summary": "The title of the note is \"Leash Apple Notes MCP smoke 20260620T042255Z\" and the exact content is: ``` <div>Leash Apple Notes MCP smoke 20260620T042255Z</div> <div>updated via Leash chat Apple Notes MCP write smoke</div> ```"
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The title of the note is \"Leash Apple Notes MCP smoke 20260620T042255Z\" and the exact content is: ``` <div>Leash Apple Notes MCP smoke 20260620T042255Z</div> <div>updated via Leash chat Apple Notes MCP write smoke</div> ```"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "get-note-content",
+          "toolCallId": "call_6s2k7u_2",
+          "state": "output-available",
+          "input": {
+            "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513"
+          },
+          "output": {
+            "title": "Leash Apple Notes MCP smoke 20260620T042255Z",
+            "content": [
+              {
+                "type": "text",
+                "text": "<div>Leash Apple Notes MCP smoke 20260620T042255Z</div>\n<div>updated via Leash chat Apple Notes MCP write smoke</div>"
+              }
+            ],
+            "text": "<div>Leash Apple Notes MCP smoke 20260620T042255Z</div>\n<div>updated via Leash chat Apple Notes MCP write smoke</div>"
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe title of the note is \"Leash Apple Notes MCP smoke 20260620T042255Z\" and the exact content is:\n\n```\n<div>Leash Apple Notes MCP smoke 20260620T042255Z</div>\n<div>updated via Leash chat Apple Notes MCP write smoke</div>\n```",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

@@ -26,4 +26,9 @@ set Install Command to `cd apps/landing && npm install` and Build Command to
 ## Adding a real installer
 
 Edit the `PLATFORMS` array in `app/downloads/page.tsx`: set a platform's `href` to its GitHub
-Release asset or store URL and give it a `cta` label. A `null` `href` renders "Coming soon".
+Release asset or store URL and give it a `cta` label. A `null` `href` renders "Coming soon";
+`sourceHref` keeps the build-it-yourself path available while a store installer is pending.
+
+Android preview APKs are GitHub Release assets because the current arm64 build is larger than
+GitHub's normal 100 MB repository-file limit. Publish the APK and its SHA-256 checksum together,
+then keep the versioned URL and checksum in `docs/install/android.mdx` in sync.

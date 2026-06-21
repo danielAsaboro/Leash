@@ -16,9 +16,9 @@
 import { readFileSync, readdirSync, writeFileSync, renameSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { streamText, stepCountIs, tool } from "ai";
+import { streamText, isStepCount, tool } from "ai";
 import { z } from "zod";
-import { createQvac } from "@qvac/ai-sdk-provider";
+import { createQvac } from "@mycelium/leash-core/qvac-provider";
 import { Agent, fetch as undiciFetch } from "undici";
 import { safeParseJson } from "../lib/leash/json-repair.ts";
 
@@ -152,7 +152,7 @@ async function main(): Promise<void> {
   const inertTools = {
     noop: tool({ description: "Unused. Do NOT call this — answer directly in text.", inputSchema: z.object({}), execute: async () => ({ ignore: true }) }),
   };
-  const result = streamText({ model: qvac(MODEL), prompt, maxOutputTokens: 1200, tools: inertTools, stopWhen: stepCountIs(2) });
+  const result = streamText({ model: qvac(MODEL), prompt, maxOutputTokens: 1200, tools: inertTools, stopWhen: isStepCount(2) });
   let text = "";
   for await (const delta of result.textStream) text += delta;
   console.log(`   (model returned ${text.length} chars)`);

@@ -31,7 +31,7 @@
 import "server-only";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { ToolLoopAgent, stepCountIs, type LanguageModel, type ToolSet } from "ai";
+import { ToolLoopAgent, isStepCount, type LanguageModel, type ToolSet } from "ai";
 import { z } from "zod";
 import { chatModel, visionModel, computerModel } from "./provider.ts";
 import { repairLeashToolCall } from "./json-repair.ts";
@@ -39,6 +39,14 @@ import { DATA_DIR } from "./json-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import { buildContinuationNudge } from "./prompt.ts";
 import { resolveActiveToolNames } from "./tool-exposure.ts";
+import { qvacReasoningProviderOptions } from "./reasoning-policy.ts";
+import { leashToolApproval } from "./tool-config.ts";
+import {
+  leashRuntimeContextSchema,
+  toolContextsFor,
+  recordAgentLifecycle,
+  type LeashRuntimeContext,
+} from "./runtime-lifecycle.ts";
 
 /** Per-turn inputs the route derives server-side (validated by the agent at call time). */
 export const leashCallOptionsSchema = z.object({
@@ -69,8 +77,9 @@ export const leashCallOptionsSchema = z.object({
    * — "performance degradation and endless repetitions". Absent on vision (single-shot, own model).
    */
   thinking: z.boolean().optional(),
-  /** The fully-assembled system prompt for this turn. */
-  system: z.string(),
+  /** Fully assembled instructions for this turn. */
+  instructions: z.string(),
+  runtime: leashRuntimeContextSchema,
   /** User-chosen/conductor-selected model alias for text routes. Vision/computer keep dedicated factories. */
   model: z
     .string()
@@ -120,7 +129,7 @@ function continuationOn(): boolean {
  * of constructing a plain `chatModel(...)`. Ignored for vision/computer routes — those
  * keep their dedicated model factories.
  */
-export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, overrideModel?: LanguageModel): ToolLoopAgent<LeashCallOptions, ToolSet> {
+export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, overrideModel?: LanguageModel): ToolLoopAgent<LeashCallOptions, ToolSet, LeashRuntimeContext> {
   const names = Object.keys(tools);
   // Per-request closure: the call's assembled system prompt, captured in prepareCall so prepareStep can
   // re-emit it (prepareStep's `system` override REPLACES the system for that step — we must re-include
@@ -128,7 +137,8 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
   let currentSystem = "";
   let currentRoute: LeashCallOptions["route"] = "chat";
   let currentForcedAgentTool: string | undefined;
-  return new ToolLoopAgent<LeashCallOptions, ToolSet>({
+  let currentRuntime: LeashRuntimeContext | undefined;
+  return new ToolLoopAgent<LeashCallOptions, ToolSet, LeashRuntimeContext>({
     model: chatModel(), // default; prepareCall overrides per route
     tools,
     callOptionsSchema: leashCallOptionsSchema,
@@ -140,22 +150,35 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
     prepareCall: ({ options, ...settings }) => {
       const activeTools = resolveActiveToolNames(names, options);
       debugActiveTools(options.route, activeTools);
-      currentSystem = options.system;
+      currentSystem = options.instructions;
       currentRoute = options.route;
       currentForcedAgentTool = options.forcedAgentTool;
+      currentRuntime = options.runtime;
       return {
         ...settings,
         // For text routes, prefer the Conductor's pre-built routedChatModel (peer directive)
         // when provided; otherwise fall back to the user-chosen or default chatModel.
         model: options.route === "vision" ? visionModel() : options.route === "computer" ? computerModel() : (overrideModel ?? chatModel(options.route, options.model)),
-        instructions: options.system,
+        instructions: options.instructions,
         activeTools,
+        toolOrder: [...activeTools].sort(),
+        runtimeContext: options.runtime,
+        toolsContext: toolContextsFor(tools, options.runtime),
+        toolApproval: leashToolApproval,
         // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision
         // (vision, single-shot) keeps its own behavior; every text/tool route gets proper sampling.
         ...(options.route !== "vision" ? samplingFor(options.thinking) : {}),
+        // Portable runtime intent. The QVAC-specific switch below remains the authoritative
+        // on-device control; keeping both lets lifecycle tooling and any future provider read
+        // the same direct/deep intent without parsing Leash prompts.
+        ...(options.route !== "vision" ? { reasoning: options.thinking ? "high" as const : "none" as const } : {}),
+        // `/no_think` is prompt guidance; this is the real QVAC inference switch.
+        // Sending it on every text call prevents quick/standard/tool continuation
+        // steps from silently generating an expensive reasoning channel.
+        ...(options.route !== "vision" ? { providerOptions: qvacReasoningProviderOptions(!!options.thinking) } : {}),
         // Stop on the step cap OR when the user has a follow-up waiting (interject): the loop ends
         // after the current step, the turn finishes cleanly, and the client sends the queued message.
-        ...(options.steps !== null ? { stopWhen: [stepCountIs(options.steps), ...(shouldYield ? [() => shouldYield()] : [])] } : {}),
+        ...(options.steps !== null ? { stopWhen: [isStepCount(options.steps), ...(shouldYield ? [() => shouldYield()] : [])] } : {}),
         ...(options.maxOutputTokens !== null ? { maxOutputTokens: options.maxOutputTokens } : {}),
       };
     },
@@ -165,12 +188,39 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
     prepareStep: ({ stepNumber, steps }) => {
       if (currentForcedAgentTool) {
         if (stepNumber === 0) return { toolChoice: { type: "tool", toolName: currentForcedAgentTool } };
-        const system = continuationOn() ? `${currentSystem} ${buildContinuationNudge(steps)}` : currentSystem;
-        return { toolChoice: "none", system };
+        const instructions = continuationOn() ? `${currentSystem} ${buildContinuationNudge(steps)}` : currentSystem;
+        return { toolChoice: "none", instructions };
       }
       if (stepNumber < 1 || currentRoute === "vision" || !continuationOn()) return {};
       loopLog(`nudge-injected step=${stepNumber}`); // visible only with LEASH_DEBUG_LOOP — proves the override fired
-      return { system: `${currentSystem} ${buildContinuationNudge(steps)}` };
+      return { instructions: `${currentSystem} ${buildContinuationNudge(steps)}` };
     },
+    onStart: (event) => recordAgentLifecycle(event.runtimeContext, { event: "agent_start", callId: event.callId, modelId: event.modelId }),
+    onStepStart: (event) => recordAgentLifecycle(event.runtimeContext, { event: "step_start", callId: event.callId, modelId: event.modelId, stepNumber: event.stepNumber }),
+    onToolExecutionStart: (event) => {
+      const context = event.toolContext as { runId?: string } | undefined;
+      if (context?.runId && currentRuntime) recordAgentLifecycle(currentRuntime, { event: "tool_start", callId: event.callId, toolName: event.toolCall.toolName });
+    },
+    onToolExecutionEnd: (event) => {
+      const context = event.toolContext as { runId?: string } | undefined;
+      if (context?.runId && currentRuntime) recordAgentLifecycle(currentRuntime, { event: "tool_end", callId: event.callId, toolName: event.toolCall.toolName, durationMs: event.toolExecutionMs });
+    },
+    onStepEnd: (event) => recordAgentLifecycle(event.runtimeContext, {
+      event: "step_end",
+      callId: event.callId,
+      stepNumber: event.stepNumber,
+      inputTokens: event.usage.inputTokens ?? undefined,
+      outputTokens: event.usage.outputTokens ?? undefined,
+      finishReason: event.finishReason,
+    }),
+    onEnd: (event) => recordAgentLifecycle(event.finalStep.runtimeContext, {
+      event: "agent_end",
+      callId: event.callId,
+      stepNumber: event.stepNumber,
+      inputTokens: event.totalUsage.inputTokens ?? undefined,
+      outputTokens: event.totalUsage.outputTokens ?? undefined,
+      finishReason: event.finishReason,
+      durationMs: Date.now() - event.finalStep.runtimeContext.startedAt,
+    }),
   });
 }

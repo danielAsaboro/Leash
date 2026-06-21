@@ -1,0 +1,43 @@
+{
+  "id": "codex-ocu-main-mqm9kjkt",
+  "createdAt": 1781954287303,
+  "updatedAt": 1781954287303,
+  "messages": [
+    {
+      "id": "codex-ocu-main-mqm9kjkt-u",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use computer-use. Call list_apps, then summarize the first five app names. Do not call any action tool."
+        }
+      ]
+    },
+    {
+      "id": "msg-dAdNR0jnBDPTc8ai",
+      "metadata": {
+        "createdAt": 1781954287300,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781954287300
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Use computer-use. Call list_apps, then summarize the first five app names.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

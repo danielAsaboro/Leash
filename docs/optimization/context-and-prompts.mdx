@@ -21,6 +21,7 @@ Each chat turn composes the system input from the current route and state:
 | Preferences and memory | Durable user context, only where relevant. |
 | Compaction summary | Older conversation state when the thread is long. |
 | Active skill body | Loaded only when explicit or confidently selected. |
+| Reasoning draft | A bounded dependency plan for eligible deep plain-chat turns. |
 | Route notes | Files, computer, health, vision, plan, approval, and citation constraints. |
 | Disabled tools note | The model sees unavailable capabilities honestly. |
 
@@ -59,9 +60,12 @@ The active toolset is calculated in `prepareCall`:
 | `computer` | GUI and computer-use tools only. |
 | `health` | Health-safe tools only. |
 | Active skill | The skill's declared tools plus skill-system tools. |
-| General chat | Everything except computer and MCP-admin tools. |
+| General chat | Capability brokers, skill-system tools, and selected agent tools. |
+| Draft-planned chat | Keepalive only; the skill catalogue is also omitted from the final prompt. |
 
 This solves two problems at once: the model sees fewer affordances, and the qvac serve avoids the context overflow caused by too many schemas.
+
+The draft-planned lane is narrower because the planner has already decided that supplied context is sufficient. Active skills never enter this lane, so their declared tools remain intact. See [Reasoning efficiency](/optimization/reasoning-efficiency) for the decision flow and measurements.
 
 ## Toolless-hang guard
 
@@ -77,6 +81,8 @@ Qwen3 turns do not use the serve's near-greedy default. The runtime sets samplin
 | No-think | `0.7` | `0.8` |
 
 The goal is reliability, not maximal randomness: avoid repetition loops while keeping tool-call behavior stable.
+
+The sampling flag and the inference switch are separate. Every text call also sends the QVAC `reasoning_budget` provider option explicitly, so `/no_think` is guidance rather than the only control.
 
 ## Negative result: continuation nudge
 

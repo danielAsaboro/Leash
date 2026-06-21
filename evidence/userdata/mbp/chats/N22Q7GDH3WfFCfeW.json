@@ -1,0 +1,79 @@
+{
+  "id": "N22Q7GDH3WfFCfeW",
+  "createdAt": 1780700190696,
+  "updatedAt": 1780700268535,
+  "messages": [
+    {
+      "id": "TZQHovPcOzn8r4CC",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Um I what's your name?"
+        }
+      ]
+    },
+    {
+      "id": "msg-smmFCVTuDLQ67GWj",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1780700161765,
+        "model": "qwen3-4b",
+        "effort": "quick",
+        "finishedAt": 1780700190638,
+        "totalTokens": 31
+      },
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI am Leash, your private, on-device assistant. I am here to assist you with any tasks or questions you may have.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "XTxr1OztkyPJKj8C",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Interesting, why did that take it so long?"
+        }
+      ]
+    },
+    {
+      "id": "msg-Zbu5EWEOR0KvaUjo",
+      "metadata": {
+        "createdAt": 1780700210418,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780700268481,
+        "totalTokens": 300
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\nOkay, the user asked, \"Interesting, why did that take it so long?\" They're referring to something previous, probably a task or action that took longer than expected. I need to figure out what they're talking about.\n\nFirst, I should check if there's a specific task or activity they're referring to. The user might be talking about a task they were working on earlier that took longer than anticipated. To find out, I can use the 'activity_recent' function to look at their recent screen activities. This function can show what they've been doing in the last 30 minutes, which might include the task they're referring to.\n\nAlternatively, they might be talking about a task from their to-do list. If they mentioned a task before, checking the 'list_tasks' function could help. But since the user's question is about why something took longer, it's more likely related to their current or recent activities.\n\nUsing 'activity_recent' with the default 30 minutes parameter should give a timeline of their recent activities. This would help identify if there was a task that was taking longer, maybe a process that wasn't completing as expected. If the task was ongoing, the function might show it as 'in_progress'. \n\nAnother angle is checking the 'active_context' to see what they're doing right now. But since the user is asking about something that took time in the past, 'activity_recent' is more appropriate. \n\nSo, the best approach",
+          "state": "streaming"
+        },
+        {
+          "type": "text",
+          "text": "",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

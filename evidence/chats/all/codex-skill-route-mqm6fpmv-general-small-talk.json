@@ -1,0 +1,68 @@
+{
+  "id": "codex-skill-route-mqm6fpmv-general-small-talk",
+  "createdAt": 1781949018674,
+  "updatedAt": 1781949018674,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm6fpmv-general-small-talk-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "tell me a short joke"
+        }
+      ]
+    },
+    {
+      "id": "msg-FSp2Xoi9ZR853LiE",
+      "metadata": {
+        "createdAt": 1781949018418,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "conductor output invalid (conductor action was invalid); routed to full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-ME5GIFJ31SUJy7Xh",
+          "data": {
+            "id": "run-ME5GIFJ31SUJy7Xh",
+            "chatId": "codex-skill-route-mqm6fpmv-general-small-talk",
+            "title": "tell me a short joke",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "shareable",
+            "createdAt": 1781949018407,
+            "updatedAt": 1781949018412,
+            "startedAt": 1781949018407,
+            "steps": [
+              {
+                "id": "IAJem4IMw8co8pDi",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781949018412
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

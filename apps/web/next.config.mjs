@@ -1,5 +1,6 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { withWorkflow } from "workflow/next";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -54,4 +55,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withWorkflow(nextConfig);

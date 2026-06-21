@@ -75,7 +75,7 @@ export async function classifyAction(input: { proposal: string; goals?: string }
   const onGoal = await onGoalScore(proposal, input.goals ?? "");
   if (!proposal) return { tier: "notify", reason: "empty proposal", onGoal };
   try {
-    const { text } = await generateText({ model: classifierModel(), system: ACTION_TIER_CLASSIFIER_RUBRIC, prompt: proposal.slice(0, 2000), temperature: 0, maxOutputTokens: 80, maxRetries: 0 });
+    const { text } = await generateText({ model: classifierModel(), instructions: ACTION_TIER_CLASSIFIER_RUBRIC, prompt: proposal.slice(0, 2000), temperature: 0, maxOutputTokens: 80, maxRetries: 0, timeout: { totalMs: 30_000 }, reasoning: "none" });
     const parsed = parseTier(text);
     const modelTier = parsed?.tier ?? "notify";
     return { tier: stricterTier(modelTier, floor), reason: parsed?.reason || "graded by classifier", onGoal };

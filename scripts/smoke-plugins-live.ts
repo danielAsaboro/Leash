@@ -1,7 +1,7 @@
 /**
  * LIVE proof (needs `qvac serve` on :11435) of the two legs the offline smoke couldn't reach:
  *   (1) ACTIVATION ROUTING — embed a domain query + each plugin skill's routing utterances against the
- *       REAL gte-large, max-cosine per skill (exactly how skill-tools.activeSkillsSection's semantic
+ *       REAL configured embedding model, max-cosine per skill (exactly how skill-tools.activeSkillsSection's semantic
  *       path scores), and confirm a law query scores the law skill highest, a medical query the medicine
  *       skill, and an off-domain query neither above the activation floor (0.81).
  *   (2) SPECIALIST INFERENCE — a REAL chat completion with the law plugin's skill body as the system
@@ -13,7 +13,7 @@ import { readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { setGlobalDispatcher, Agent } from "undici";
-import { splitFrontmatter, parseLineList } from "@mycelium/leash-core/frontmatter";
+import { splitFrontmatter } from "@mycelium/leash-core/frontmatter";
 
 // PATIENT fetch — no body/headers timeout (mirrors apps/web/lib/leash/provider.ts). On-device decodes
 // can legitimately wait; undici's DEFAULT body-inactivity timeout would abort the stream mid-decode,
@@ -28,7 +28,12 @@ interface SkillMeta { slug: string; name: string; description: string; whenToUse
 async function loadSkill(plugin: string, name: string, slug: string): Promise<SkillMeta> {
   const raw = await readFile(join(EXAMPLES, plugin, "skills", name, "SKILL.md"), "utf8");
   const { fields, body } = splitFrontmatter(raw)!;
-  return { slug, name: fields["name"] ?? name, description: fields["description"] ?? "", whenToUse: fields["when_to_use"] ?? "", examples: parseLineList(fields["examples"], 12), body };
+  let examples: string[] = [];
+  try {
+    const metadata = JSON.parse(fields["metadata"] ?? "{}") as { examples?: unknown };
+    if (Array.isArray(metadata.examples)) examples = metadata.examples.filter((value): value is string => typeof value === "string" && value.trim().length > 0).slice(0, 12);
+  } catch { /* malformed metadata is proven by the offline schema smoke */ }
+  return { slug, name: fields["name"] ?? name, description: fields["description"] ?? "", whenToUse: fields["when_to_use"] ?? "", examples, body };
 }
 
 /** Routing utterances — identical construction to skill-tools.skillUtterances. */
@@ -42,7 +47,7 @@ async function embed(values: string[]): Promise<number[][]> {
   const r = await fetch(`${SERVE}/embeddings`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer qvac" },
-    body: JSON.stringify({ model: "gte-large", input: values }),
+    body: JSON.stringify({ model: "embed", input: values }),
   });
   if (!r.ok) throw new Error(`embeddings ${r.status}: ${await r.text()}`);
   const j = (await r.json()) as { data: { embedding: number[] }[] };
@@ -86,17 +91,13 @@ check("law query: contract-review scores highest AND clears the activation floor
 check("medical query: symptom-triage scores highest AND clears the floor", med_med > med_law && med_med >= FLOOR);
 check("off-domain query: neither specialist clears the floor (no false activation)", off_law < FLOOR && off_med < FLOOR);
 
-// One streaming chat completion → cleaned answer. STREAMING only (non-stream 500s on this build,
-// same path the web app uses). DELIBERATELY no AbortSignal (a mid-decode abort wedges the serve).
-// REQUIRED: a non-empty `tools` array — chat is served tools:true/toolsMode:dynamic
-// ("tools_compact"), which REJECTS a toolless request ("requires non-empty tools for this prompt
-// shape"). The web app always sends ≥1 tool; so must we.
-const tools = [{ type: "function", function: { name: "noop", description: "unused placeholder (the serve's tools_compact config requires a non-empty tools array)", parameters: { type: "object", properties: {} } } }];
+// One streaming chat completion → cleaned answer. Deliberately no abort signal:
+// the live proof consumes every model response and leaves the local worker clean.
 async function streamChat(system: string, user: string, maxTokens: number): Promise<string> {
   const r = await fetch(`${SERVE}/chat/completions`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer qvac" },
-    body: JSON.stringify({ model: "chat", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: 0.6, top_p: 0.95, max_tokens: maxTokens, stream: true, tools }),
+    body: JSON.stringify({ model: "chat", messages: [{ role: "system", content: system }, { role: "user", content: user }], temperature: 0.6, top_p: 0.95, max_tokens: maxTokens, stream: true }),
   });
   if (!r.ok || !r.body) throw new Error(`chat ${r.status}: ${await r.text()}`);
   let raw = "";

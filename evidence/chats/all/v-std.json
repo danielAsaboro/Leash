@@ -1,0 +1,68 @@
+{
+  "id": "v-std",
+  "createdAt": 1780641967574,
+  "updatedAt": 1780641967574,
+  "messages": [
+    {
+      "id": "us",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "what did I work on today"
+        }
+      ]
+    },
+    {
+      "id": "msg-Yo42vIssrOc3JBIn",
+      "metadata": {
+        "createdAt": 1780641947293,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780641967565,
+        "totalTokens": 36
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-activity_recent",
+          "toolCallId": "call_tajrcv_6",
+          "state": "output-available",
+          "input": {
+            "minutes": 30
+          },
+          "output": {
+            "text": "No screen activity recorded yet. Start the watcher with `npm run watch` (and grant Screen Recording).",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI couldn't find any screen activity recorded yet. Please start the screen watcher with `npm run watch` and grant Screen Recording permissions to begin tracking your activity.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

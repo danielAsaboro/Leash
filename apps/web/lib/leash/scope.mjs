@@ -90,6 +90,8 @@ export function userEnv(leashBase, scope) {
     LEASH_SOUL_FILE: join(scope.dataDir, "soul.md"),
     LEASH_GOALS_FILE: join(scope.dataDir, "goals.md"),
     LEASH_HEARTBEAT_FILE: join(scope.dataDir, "heartbeat.md"),
+    WORKFLOW_TARGET_WORLD: "local",
+    WORKFLOW_LOCAL_DATA_DIR: join(scope.dataDir, "workflows"),
     npm_config_cache: sharedNpmCache(leashBase),
   };
   if (scope.userId !== BOOTSTRAP_USER) env.LEASH_ACTIVE_USER = scope.userId;

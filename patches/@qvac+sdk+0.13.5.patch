@@ -1,0 +1,35 @@
+diff --git a/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/ops/completion-stream.js b/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/ops/completion-stream.js
+index 43b6968..21dd654 100644
+--- a/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/ops/completion-stream.js
++++ b/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/ops/completion-stream.js
+@@ -241,7 +241,10 @@ export async function* completion(params, opts) {
+     // completions on the same model. `tools` still constrain output through
+     // their parameter schema and the dialect-specific parser chain (mutually
+     // exclusive with a non-text `responseFormat` at the schema layer).
+-    let mergedGenerationParams = generationParams;
++    let mergedGenerationParams = {
++        ...(generationParams ?? {}),
++        tools_compact: dynamicTools,
++    };
+     if (responseFormat && !(tools && tools.length > 0)) {
+         const jsonSchema = getResponseFormatJsonSchema(responseFormat);
+         if (jsonSchema !== undefined) {
+diff --git a/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/transform.js b/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/transform.js
+index 33c8e9f..f7ac5e2 100644
+--- a/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/transform.js
++++ b/node_modules/@qvac/sdk/dist/server/bare/plugins/llamacpp-completion/transform.js
+@@ -1,4 +1,3 @@
+-import { TOOLS_MODE } from "../../../../schemas/index.js";
+ /**
+  * Converts an LlmConfig into the flat string-keyed map the C++ addon expects.
+  *
+@@ -25,9 +24,6 @@ export function transformLlmConfig(llmConfig) {
+         delete transformed["opencl_cache_dir"];
+     }
+     if ("tools_mode" in transformed) {
+-        if (transformed["tools_mode"] === TOOLS_MODE.dynamic) {
+-            transformed["tools_compact"] = "true";
+-        }
+         delete transformed["tools_mode"];
+     }
+     return transformed;

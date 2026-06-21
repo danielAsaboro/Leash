@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqm97ao7-mcp-install",
+  "createdAt": 1781953671519,
+  "updatedAt": 1781953671519,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm97ao7-mcp-install-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "install the GitHub MCP server from modelcontextprotocol/servers"
+        }
+      ]
+    },
+    {
+      "id": "msg-8DoA4yi8FQc3DUXA",
+      "metadata": {
+        "createdAt": 1781953671515,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: action/tool request needs the full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-C9AZJVrFXdtAZqea",
+          "data": {
+            "id": "run-C9AZJVrFXdtAZqea",
+            "chatId": "codex-skill-route-mqm97ao7-mcp-install",
+            "title": "install the GitHub MCP server from modelcontextprotocol/servers",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "shareable",
+            "createdAt": 1781953671499,
+            "updatedAt": 1781953671507,
+            "startedAt": 1781953671499,
+            "steps": [
+              {
+                "id": "V2R9TIffPXzqwd9i",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781953671507
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "mcp-installer",
+                "name": "mcp-installer"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

@@ -87,6 +87,8 @@ export interface EvalRun {
 export interface AdapterManifest {
   version: string;
   baseModel: string;
+  /** Machine-neutral catalog id or `~/`-relative GGUF used to train this adapter. */
+  baseModelSource: string;
   /** Adapter filename relative to the version dir ("adapter.gguf"). */
   adapterFile: string;
   sha256: string;
@@ -95,7 +97,7 @@ export interface AdapterManifest {
   createdAt: string;
   base: EvalRun;
   adapter: EvalRun;
-  /** adapter.overall − base.overall. Only >= 0 is promotable by apply.ts. */
+  /** adapter.overall − base.overall. Promotion also applies the per-axis quality gate. */
   evalDelta: number;
 }
 
@@ -109,4 +111,12 @@ export interface FeedbackRecord {
   answer: string;
   /** Present on a 👎 when the user typed what the answer SHOULD have been. */
   correction?: string;
+  /** Efficiency telemetry for accepted/rejected reasoning policies; never includes hidden reasoning text. */
+  reasoning?: {
+    mode?: "direct" | "draft" | "deep";
+    totalTokens?: number;
+    draftTokens?: number;
+    draftMs?: number;
+    responseMs?: number;
+  };
 }

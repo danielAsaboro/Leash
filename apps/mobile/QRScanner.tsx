@@ -114,7 +114,7 @@ export function QRScanner({
     setDone({ name: parsed.name });
     // Tell the pairing web page we connected, so it shows the success screen (best-effort).
     if (parsed.cb) {
-      const device = Device.deviceName || Device.modelName || "An iPhone";
+      const device = Device.deviceName || Device.modelName || "This phone";
       void fetch(parsed.cb, {
         method: "POST",
         headers: { "content-type": "application/json" },

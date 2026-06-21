@@ -1,0 +1,59 @@
+{
+  "id": "codex-mesh-router-medpsy",
+  "createdAt": 1781893630928,
+  "updatedAt": 1781893630928,
+  "messages": [
+    {
+      "id": "msg-codex-mesh-router-medpsy",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-7PuzxGVXZg2RVWMA",
+      "metadata": {
+        "createdAt": 1781893623652,
+        "model": "medpsy",
+        "effort": "quick",
+        "finishedAt": 1781893630927,
+        "totalTokens": 150
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "medpsy",
+            "reason": "fast-path: trivial turn → local",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "memory-keeper",
+                "name": "Memory Keeper"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "text",
+          "text": "I am Leash, a private, on-device assistant with access to the user's world — their notes, files, paper, photos, home devices, tasks, and your shared memory. Everything runs on-device or on the user's own mesh; nothing leaves for the cloud. I work through SKILLS — instruction documents the user gave me. A skill is a FOLDER: its SKILL.md holds the description (when it applies) and the body of steps, and it can bundle extra files — references/ (reference docs you load with read_skill_file when the steps point you to one), scripts/ (runnable helpers you run with run_skill_script), and assets/ (templates/data).",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

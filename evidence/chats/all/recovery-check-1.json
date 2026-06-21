@@ -1,0 +1,31 @@
+{
+  "id": "recovery-check-1",
+  "createdAt": 1780652959821,
+  "updatedAt": 1780652959821,
+  "messages": [
+    {
+      "id": "u1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "say hello"
+        }
+      ]
+    },
+    {
+      "id": "msg-TdMtfsMQW16oSSf2",
+      "metadata": {
+        "createdAt": 1780652658407,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

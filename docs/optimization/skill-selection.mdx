@@ -13,9 +13,11 @@ The chat route asks `activeSkillsSection(userText)` to choose a skill. The selec
 | Path | What it does |
 | --- | --- |
 | Explicit mention | If the user names a skill by slug, `@slug`, or exact name, Leash loads that skill directly. |
-| Automatic routing | Leash scores enabled skills with lexical overlap and on-device embeddings, then ranks surviving candidates with Reciprocal Rank Fusion. |
+| Automatic routing | Leash scores each intent prototype with lexical coverage and a calibrated on-device embedding, then selects the strongest surviving skill. |
 
-Each skill is represented by multiple routing utterances: its discovery text, `when_to_use` lines, and metadata examples. The embedding score is the max cosine against those utterances, not just one broad description. This is what lets a specific skill beat a broad sibling on a concrete intent.
+Each skill is represented by multiple routing utterances: its discovery text, `when_to_use` lines, and metadata examples. Lexical and semantic evidence are computed for the same prototype before the best prototype for each skill is selected.
+
+The lexical score weights prototype coverage at `0.7` and query coverage at `0.3`. This prevents names, corrections, and conversational filler from diluting a compact intent. Cosine similarity above the calibrated floor is mapped onto `0..1`, then fused as `0.35 × lexical + 0.55 × semantic + 0.10 × agreement`. Rank-only fusion was removed because adjacent ranks erased the real score gap between a specific eye intent and a broad triage sibling.
 
 ## Calibrated floors
 
@@ -30,7 +32,11 @@ The selector logs the top candidates under loop diagnostics so floors can be tun
 
 ## One active skill
 
-RRF orders candidates that clear a floor, but only the top skill loads. That keeps the main prompt lean and prevents instruction collisions.
+The fused prototype score orders candidates that clear a floor, but only the top skill loads. That keeps the main prompt lean and prevents instruction collisions.
+
+The real-QVAC benchmark passes 15/15 noisy prompts across 26 installed and built-in skills. It includes an isolated dependent fragment that correctly abstains, an explicit eye-topic switch, a close broad-versus-specialist care match, and an off-domain pancake request that releases back to general chat.
+
+When a domain specialist and a broad built-in both clear the confidence floors, the specialist wins only inside a narrow score margin. A materially stronger built-in still wins. This tie-break keeps installed capabilities reachable without letting weak domain matches hijack general turns.
 
 If the active skill declares `tools:`, that list becomes the turn's active toolset, intersected with the live registry. The route default is only the fallback. Skill-selected tools are capped at 18 so a skill cannot reintroduce schema overflow.
 

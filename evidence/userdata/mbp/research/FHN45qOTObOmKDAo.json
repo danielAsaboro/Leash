@@ -1,0 +1,37 @@
+{
+  "id": "FHN45qOTObOmKDAo",
+  "question": "latest Apple Silicon GPU performance for local LLMs",
+  "state": "error",
+  "round": 1,
+  "maxRounds": 4,
+  "queries": [
+    "latest Apple Silicon GPU performance for local LLMs"
+  ],
+  "sources": [
+    {
+      "title": "Local LLMs Apple Silicon Mac 2026 | M1 M2 M3 Guide - SitePoint",
+      "url": "https://www.sitepoint.com/local-llms-apple-silicon-mac-2026/"
+    },
+    {
+      "title": "Best Local LLMs for Mac in 2026 — M1 through M5 Tested",
+      "url": "https://insiderllm.com/guides/best-local-llms-mac-2026/"
+    },
+    {
+      "title": "Apple Silicon vs NVIDIA for Local LLMs 2026: Speed & Cost",
+      "url": "https://www.promptquorum.com/local-llms/gpu-vs-cpu-vs-apple-silicon"
+    },
+    {
+      "title": "Mac M1 vs M2 vs M3 vs M4 for Running LLMs - Real Tests",
+      "url": "https://mljourney.com/mac-m1-vs-m2-vs-m3-vs-m4-for-running-llms-real-tests/"
+    },
+    {
+      "title": "Apple Silicon vs NVIDIA GPU for Local LLMs (2026)",
+      "url": "https://www.kunalganglani.com/blog/apple-silicon-vs-nvidia-for-ai"
+    }
+  ],
+  "startedAt": 1780675353285,
+  "updatedAt": 1780675979727,
+  "searchProvider": "duckduckgo",
+  "error": "terminated",
+  "finishedAt": 1780675979727
+}

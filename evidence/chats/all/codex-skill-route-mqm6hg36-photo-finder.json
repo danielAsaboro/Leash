@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqm6hg36-photo-finder",
+  "createdAt": 1781949106345,
+  "updatedAt": 1781949106345,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm6hg36-photo-finder-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "find my photos with receipts in them"
+        }
+      ]
+    },
+    {
+      "id": "msg-ckVSiOfobYVbQEdl",
+      "metadata": {
+        "createdAt": 1781949106342,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "conductor output invalid (conductor action was invalid); routed to full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-DtwQe40WqIChQ1MQ",
+          "data": {
+            "id": "run-DtwQe40WqIChQ1MQ",
+            "chatId": "codex-skill-route-mqm6hg36-photo-finder",
+            "title": "find my photos with receipts in them",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781949106333,
+            "updatedAt": 1781949106338,
+            "startedAt": 1781949106333,
+            "steps": [
+              {
+                "id": "iJIKrmMfSp71UQuF",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781949106338
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "photo-finder",
+                "name": "photo-finder"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

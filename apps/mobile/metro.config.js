@@ -11,6 +11,9 @@ config.watchFolders = [...new Set([...(config.watchFolders ?? []), brainPackageR
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules ?? {}),
   "@mycelium/brain": brainPackageRoot,
+  // Babel lowers Android-JSC BigInt operations in watched workspace sources too;
+  // make its JSBI runtime resolvable from those files outside this app directory.
+  jsbi: path.dirname(require.resolve("jsbi/package.json")),
 };
 
 const originalResolveRequest = config.resolver.resolveRequest;

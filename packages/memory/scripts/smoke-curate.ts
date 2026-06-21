@@ -55,7 +55,11 @@ check("no duplicate normalized prompts after dedupe", dupes === 0, `${dupes} dup
 // 4. min-viable gate skips honestly when signal is thin
 const gated = curateTrainingSet({ write: false, minPairs: res.counts.final + 1 });
 check("min-viable gate skips (ok=false) below threshold", gated.ok === false, `final=${gated.counts.final} < min=${gated.minPairs}`);
-check("curation passes the default gate on real data", res.ok === true, `final=${res.counts.final} >= ${res.minPairs}`);
+check(
+  "default gate agrees with the current accepted-signal count",
+  res.ok === (res.counts.final >= res.minPairs),
+  `ready=${res.ok} final=${res.counts.final} min=${res.minPairs}`,
+);
 
 console.log(`\n${failures === 0 ? "🟢 PASS" : `🔴 FAIL (${failures})`} · Log: ${audit.path}`);
 process.exitCode = failures === 0 ? 0 : 1;

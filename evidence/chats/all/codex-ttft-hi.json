@@ -1,0 +1,43 @@
+{
+  "id": "codex-ttft-hi",
+  "createdAt": 1781892592634,
+  "updatedAt": 1781892592634,
+  "messages": [
+    {
+      "id": "msg-user-ttft-hi",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-BUymbiyJMMtfux7J",
+      "metadata": {
+        "createdAt": 1781892592633,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781892592633
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "classifier direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

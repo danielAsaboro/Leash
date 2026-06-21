@@ -3,13 +3,12 @@
  *
  * Requires:
  * - web app on LEASH_WEB_BASE (default http://127.0.0.1:6801)
- * - LEASH_COOKIE or /tmp/leash-cookie.txt with a valid `leash_session=...`
+ * - the current device scope is active
  *
  * The script reads only the early SSE route metadata. `/api/leash/chat` emits `data-skill`
  * before model output, so each case can abort after routing is observed.
  */
 import assert from "node:assert";
-import { readFile } from "node:fs/promises";
 
 const WEB_BASE = (process.env["LEASH_WEB_BASE"] ?? "http://127.0.0.1:6801").replace(/\/+$/, "");
 
@@ -41,11 +40,6 @@ const CASES: Case[] = [
   { name: "task manager", text: "add a todo to renew the domain before Friday", expected: "task-manager" },
 ];
 
-async function cookieHeader(): Promise<string> {
-  if (process.env["LEASH_COOKIE"]) return process.env["LEASH_COOKIE"];
-  return (await readFile("/tmp/leash-cookie.txt", "utf8")).trim();
-}
-
 function parseSseBlock(block: string): unknown | null {
   const data = block
     .split(/\r?\n/)
@@ -56,7 +50,7 @@ function parseSseBlock(block: string): unknown | null {
   return JSON.parse(data) as unknown;
 }
 
-async function routeCase(input: Case, cookie: string): Promise<{ skill: SkillEvent | null; events: string[] }> {
+async function routeCase(input: Case): Promise<{ skill: SkillEvent | null; events: string[] }> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60_000);
   const chatId = `codex-skill-route-${Date.now().toString(36)}-${input.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase()}`;
@@ -68,7 +62,7 @@ async function routeCase(input: Case, cookie: string): Promise<{ skill: SkillEve
   try {
     const res = await fetch(`${WEB_BASE}/api/leash/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json", cookie },
+      headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
         id: chatId,
@@ -115,15 +109,13 @@ async function routeCase(input: Case, cookie: string): Promise<{ skill: SkillEve
 }
 
 async function main(): Promise<void> {
-  const cookie = await cookieHeader();
-  assert.ok(cookie.includes("leash_session="), "set LEASH_COOKIE or /tmp/leash-cookie.txt");
-  const active = await fetch(`${WEB_BASE}/api/leash/auth/active`);
+  const active = await fetch(`${WEB_BASE}/api/leash/device/active`);
   assert.equal(active.ok, true, "web app must be reachable");
 
   const rows: Array<{ name: string; expected: string | null; actual: string | null; mode: string | null; events: string[] }> = [];
   for (const c of CASES) {
     process.stderr.write(`case: ${c.name} ... `);
-    const routed = await routeCase(c, cookie);
+    const routed = await routeCase(c);
     const actual = routed.skill?.skills[0]?.slug ?? null;
     rows.push({ name: c.name, expected: c.expected, actual, mode: routed.skill?.mode ?? null, events: routed.events });
     process.stderr.write(`${actual ?? "(none)"}\n`);

@@ -14,10 +14,10 @@ function rowByKey(rows: DownloadPlanRow[], key: string): DownloadPlanRow {
 
 assert.ok(CHAT_MODELS.some((entry) => entry.chatKey === DEFAULT_CHAT_KEY), "default chat key should resolve to a mobile chat entry");
 
-const firstDevice = buildFirstDeviceDownloadPlan("chat-large", { deviceLabel: "this iPad" });
+const firstDevice = buildFirstDeviceDownloadPlan("chat-large", { deviceLabel: "this tablet" });
 assert.equal(firstDevice.defaultExpanded, false, "download disclosure should start collapsed");
 assert.equal(firstDevice.rows.length, 4, "first-device setup should disclose chat + support assets");
-assert.match(firstDevice.title, /this iPad/i);
+assert.match(firstDevice.title, /this tablet/i);
 assert.match(firstDevice.summary, /4 assets/i);
 
 assert.equal(rowByKey(firstDevice.rows, "chat").timing, "during-setup");
@@ -28,7 +28,7 @@ assert.match(rowByKey(firstDevice.rows, "chat").sizeLabel, /MB|GB/);
 assert.match(rowByKey(firstDevice.rows, "chat").purpose, /chat/i);
 assert.match(rowByKey(firstDevice.rows, "chat").label, /4B/i);
 
-const unknownDefault = buildFirstDeviceDownloadPlan("unknown-chat-alias", { deviceLabel: "this iPad" });
+const unknownDefault = buildFirstDeviceDownloadPlan("unknown-chat-alias", { deviceLabel: "this tablet" });
 assert.match(rowByKey(unknownDefault.rows, "chat").label, /Qwen3/i, "unknown chat aliases should fall back to a real mobile chat model");
 
 const reset = buildFactoryResetPlan();

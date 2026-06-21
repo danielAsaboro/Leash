@@ -1,0 +1,55 @@
+{
+  "id": "abort-test-1",
+  "createdAt": 1780652202118,
+  "updatedAt": 1780652445176,
+  "messages": [
+    {
+      "id": "ua",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "tell me a long detailed story about the ocean"
+        }
+      ]
+    },
+    {
+      "id": "msg-dbwNTtGDoQnNSqfB",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1780652201001,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    },
+    {
+      "id": "ub",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "say hello"
+        }
+      ]
+    },
+    {
+      "id": "msg-tQn4UVFcBaXAutbz",
+      "metadata": {
+        "createdAt": 1780652208730,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

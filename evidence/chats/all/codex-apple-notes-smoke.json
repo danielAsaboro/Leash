@@ -1,0 +1,122 @@
+{
+  "id": "codex-apple-notes-smoke",
+  "createdAt": 1781928221422,
+  "updatedAt": 1781928221422,
+  "messages": [
+    {
+      "id": "msg-user-apple-notes-smoke-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the Apple Notes MCP doctor tool only, then tell me in one short sentence whether Apple Notes is reachable. Do not create, update, delete, move, or export anything."
+        }
+      ]
+    },
+    {
+      "id": "msg-u8luwZ0gKKIPfeC6",
+      "metadata": {
+        "createdAt": 1781928207637,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781928221412,
+        "totalTokens": 32
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes MCP doctor tool is available, and Apple Notes is reachable; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-btpVvPE0ZjFhmGvz",
+          "data": {
+            "id": "run-btpVvPE0ZjFhmGvz",
+            "chatId": "codex-apple-notes-smoke",
+            "title": "Use the Apple Notes MCP doctor tool only, then tell me in one short sentence whether Apple Notes is reachable. Do not create, update, delete, move, or export anything.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781928207625,
+            "updatedAt": 1781928221418,
+            "startedAt": 1781928207625,
+            "finishedAt": 1781928221416,
+            "steps": [
+              {
+                "id": "fMryKXfpjq5zST2C",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781928207628,
+                "finishedAt": 1781928221415,
+                "summary": "I don't have access to check if Apple Notes is reachable. There was an internal error with the \"mcp-installer\" skill."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "I don't have access to check if Apple Notes is reachable. There was an internal error with the \"mcp-installer\" skill."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "mcp-installer",
+                "name": "MCP Installer"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-run_skill",
+          "toolCallId": "call_abfmfr_0",
+          "state": "output-available",
+          "input": {
+            "skill": "mcp-installer",
+            "task": "Check if the Apple Notes MCP server is reachable using the default configuration."
+          },
+          "output": {
+            "text": "The \"mcp-installer\" skill failed: An internal error occurred.",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI don't have access to check if Apple Notes is reachable. There was an internal error with the \"mcp-installer\" skill.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

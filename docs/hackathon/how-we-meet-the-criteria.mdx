@@ -6,50 +6,75 @@ description: "A feature-to-criterion mapping against the QVAC Hackathon judging 
 This page maps Leash's shipped surfaces to the hackathon's judging criteria. Each row points at the docs and in-repo evidence that explain the feature.
 
 <Note>
-Read this alongside the [Hackathon overview](/hackathon/overview) (what Leash is and which track it targets), the [QVAC-only proof](/hackathon/qvac-only-proof) (the hard gate every row depends on), and [Design decisions & tradeoffs](/hackathon/design-decisions) (the engineering judgment behind these rows — what we weighed, chose, and disproved).
+  Read this alongside the [Hackathon overview](/hackathon/overview) (what Leash
+  is and which track it targets), the [QVAC-only
+  proof](/hackathon/qvac-only-proof) (the hard gate every row depends on), and
+  [Design decisions & tradeoffs](/hackathon/design-decisions) (the engineering
+  judgment behind these rows — what we weighed, chose, and disproved).
 </Note>
 
 ## Hard gates
 
 These are pass/fail prerequisites, not scored dimensions:
 
-| Gate | How Leash meets it |
-|---|---|
-| QVAC SDK for all inference/embeddings/RAG/multimodal | Every AI path routes through `@qvac/sdk` → local serve. No cloud AI. [Proof →](/hackathon/qvac-only-proof) |
-| Track hardware constraints | General Purpose, ≤32 GB consumer device. [Overview →](/hackathon/overview) |
-| Reproducibility & out-of-the-box setup | Documented run path + warm-cache; airplane-mode acceptance. [Evidence →](/hackathon/evidence-and-reproducibility) |
-| Structured audit log | JSONL records of model loads, prompts, tokens, TTFT, tok/s. [Evidence →](/hackathon/evidence-and-reproducibility) |
-| Open-source license | **Apache-2.0** across the workspace. |
+| Gate                                                 | How Leash meets it                                                                                                |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| QVAC SDK for all inference/embeddings/RAG/multimodal | Every AI path routes through `@qvac/sdk` → local serve. No cloud AI. [Proof →](/hackathon/qvac-only-proof)        |
+| Track hardware constraints                           | General Purpose, ≤32 GB consumer device. [Overview →](/hackathon/overview)                                        |
+| Reproducibility & out-of-the-box setup               | Documented run path + warm-cache; airplane-mode acceptance. [Evidence →](/hackathon/evidence-and-reproducibility) |
+| Structured audit log                                 | JSONL records of model loads, prompts, tokens, TTFT, tok/s. [Evidence →](/hackathon/evidence-and-reproducibility) |
+| Open-source license                                  | **Apache-2.0** across the workspace.                                                                              |
 
 ## Scored criteria
 
-| Criterion | What addresses it | Reference |
-|---|---|---|
-| **Innovation** | A personal AI harness over a connected runtime: local perception (notes, voice, OCR/photos, screen activity, feed), free private-mesh delegation between your own devices, optional free-or-paid public-mesh routing, and an on-device nightly LoRA loop — not a single-feature demo. | [The agent economy](/explanation/the-agent-economy), [Memory loop](/explanation/the-memory-evolution-loop) |
-| **Capabilities (multi-agent, tool calling)** | General-purpose by extension: a skills-first harness with `run_skill` sub-agents, deterministic step pipelines, plan mode, proactive feed/heartbeat behavior, human-approved tool calling, MCP integrations, and specialist delegates. | [The skills harness](/explanation/the-skills-harness), [Multi-agent](/agents/multi-agent), [Orchestration](/agents/orchestration) |
-| **Performance (P2P load distribution, constrained devices, speed)** | Broker overflow + delegated inference, KV-cache reuse across delegated turns, per-model CPU/GPU and context-size tuning to fit RAM. Spike: 70.6 tok/s on a 1B, 24.1 tok/s on the 4B chat model; P2P round-trip 1.27 s. | [How the mesh routes work](/explanation/how-the-mesh-routes-work), [Evidence](/hackathon/evidence-and-reproducibility) |
-| **Model usage & coverage** | Six+ QVAC models in daily use — `qwen3-4b`, `embed`, `classifier`, `health` (MedPsy), `qwen3vl`, `ocr`, `parakeet` (STT), and `supertonic` (TTS). | [Models and the catalog](/explanation/models-and-the-catalog), [Models reference](/reference/models-and-aliases) |
-| **Complexity & UX** | Tabbed dashboard (chat, Brain, Models, Tasks, Economy, Feed, Services, Settings), AI Elements chat, voice call mode, a desktop app, and a broadsheet landing site. | [Leash and its surfaces](/explanation/leash-and-its-surfaces) |
-| **Evidence quality** | Consistent JSONL audit evidence, smoke tests, a commit-mapped changelog, and a full Diataxis docs site. | [Changelog](/reference/changelog), [Scripts & smoke tests](/reference/scripts-and-smoke-tests) |
-| **Social engagement (build-in-public)** | The product repo preserves the technical evidence; social posts/video links belong in the DoraHacks form and public channels, not the runtime. | Submission form |
+| Criterion                                                           | What addresses it                                                                                                                                                                                                                                                                     | Reference                                                                                                                         |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| **Innovation**                                                      | A personal AI harness over a connected runtime: local perception (notes, voice, OCR/photos, screen activity, feed), free private-mesh delegation between your own devices, optional free-or-paid public-mesh routing, and an on-device nightly LoRA loop — not a single-feature demo. | [The agent economy](/explanation/the-agent-economy), [Memory loop](/explanation/the-memory-evolution-loop)                        |
+| **Capabilities (multi-agent, tool calling)**                        | General-purpose by extension: a skills-first harness with `run_skill` sub-agents, deterministic step pipelines, plan mode, proactive feed/heartbeat behavior, human-approved tool calling, MCP integrations, and specialist delegates.                                                | [The skills harness](/explanation/the-skills-harness), [Multi-agent](/agents/multi-agent), [Orchestration](/agents/orchestration) |
+| **Performance (P2P load distribution, constrained devices, speed)** | Broker overflow + delegated inference, KV-cache reuse across delegated turns, per-model CPU/GPU and context-size tuning to fit RAM. Spike: 70.6 tok/s on a 1B, 24.1 tok/s on the 4B chat model; P2P round-trip 1.27 s.                                                                | [How the mesh routes work](/explanation/how-the-mesh-routes-work), [Evidence](/hackathon/evidence-and-reproducibility)            |
+| **Model usage & coverage**                                          | Six+ QVAC models in daily use — `qwen3-4b`, `embed`, `classifier`, `health` (MedPsy), `qwen3vl`, `ocr`, `parakeet` (STT), and `supertonic` (TTS).                                                                                                                                     | [Models and the catalog](/explanation/models-and-the-catalog), [Models reference](/reference/models-and-aliases)                  |
+| **Complexity & UX**                                                 | Tabbed dashboard (chat, Brain, Models, Tasks, Economy, Feed, Services, Settings), AI Elements chat, voice call mode, a desktop app, and a broadsheet landing site.                                                                                                                    | [Leash and its surfaces](/explanation/leash-and-its-surfaces)                                                                     |
+| **Evidence quality**                                                | Consistent JSONL audit evidence, smoke tests, a commit-mapped changelog, and a full Diataxis docs site.                                                                                                                                                                               | [Changelog](/reference/changelog), [Scripts & smoke tests](/reference/scripts-and-smoke-tests)                                    |
+| **Social engagement (build-in-public)**                             | The product repo preserves the technical evidence; the demo is linked as a public YouTube playlist for review.                                                                                                                                                                        | [Demo playlist](https://www.youtube.com/playlist?list=PLeERy8YL4mpQwT3OwpzOqjp23FlrLQ_1Y)                                         |
 
 <Warning>
-A few submission-form items are external to this repo by nature: the final ≤5-minute demo video URL, DoraHacks team fields, public social links, and hardware screenshots if the form asks for image uploads. The code and evidence required to audit the runtime are in-repo: `spike/logs/`, `evidence/`, and these Hackathon docs.
+  A few submission-form items are external to this repo by nature: DoraHacks
+  team fields, public social links, and hardware screenshots if the form asks
+  for image uploads. The demo link is [the YouTube
+  playlist](https://www.youtube.com/playlist?list=PLeERy8YL4mpQwT3OwpzOqjp23FlrLQ_1Y).
+  The code and evidence required to audit the runtime are in-repo:
+  `spike/logs/`, `evidence/`, and these Hackathon docs.
 </Warning>
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Design decisions & tradeoffs" icon="scale-balanced" href="/hackathon/design-decisions">
+  <Card
+    title="Design decisions & tradeoffs"
+    icon="scale-balanced"
+    href="/hackathon/design-decisions"
+  >
     The engineering judgment behind these rows.
   </Card>
-  <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
+  <Card
+    title="QVAC-only proof"
+    icon="shield-check"
+    href="/hackathon/qvac-only-proof"
+  >
     Every AI path through `@qvac/sdk`.
   </Card>
-  <Card title="Remote network calls" icon="network-wired" href="/hackathon/network-disclosure">
+  <Card
+    title="Remote network calls"
+    icon="network-wired"
+    href="/hackathon/network-disclosure"
+  >
     Full disclosure — every outbound call, all non-AI.
   </Card>
-  <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
+  <Card
+    title="Evidence & reproducibility"
+    icon="flask"
+    href="/hackathon/evidence-and-reproducibility"
+  >
     Spike gates, audit logs, offline acceptance.
   </Card>
 </CardGroup>

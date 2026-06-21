@@ -59,7 +59,8 @@ function telemetry(md: LeashMetadata | undefined): string | null {
   if (!md?.totalTokens) return null;
   const secs = md.createdAt && md.finishedAt ? (md.finishedAt - md.createdAt) / 1000 : 0;
   const tps = secs > 0 ? Math.round(md.totalTokens / secs) : 0;
-  return [md.effort, md.model ?? "on-device", `${md.totalTokens} tok`, tps ? `${tps} tok/s` : ""].filter(Boolean).join(" · ");
+  const draft = md.reasoningDraftTokens ? `+${md.reasoningDraftTokens} draft tok` : "";
+  return [md.effort, md.reasoningMode, md.model ?? "on-device", `${md.totalTokens} tok`, draft, tps ? `${tps} tok/s` : ""].filter(Boolean).join(" · ");
 }
 
 /**
@@ -1148,7 +1149,24 @@ function MessageView({ message, streaming, live, onRegenerate, approval, chatId,
           )}
           {/* Layer-4 feedback: 👍/👎 (+ correction) → data/leash-feedback.jsonl for the
               nightly LoRA. Separate fetch — never touches the streaming/useChat path. */}
-          {answerText.trim() && !streaming && <MessageFeedback messageId={message.id} chatId={chatId} prompt={prompt ?? ""} answer={answerText} />}
+          {answerText.trim() && !streaming && (
+            <MessageFeedback
+              messageId={message.id}
+              chatId={chatId}
+              prompt={prompt ?? ""}
+              answer={answerText}
+              reasoning={{
+                mode: message.metadata?.reasoningMode,
+                totalTokens: message.metadata?.totalTokens,
+                draftTokens: message.metadata?.reasoningDraftTokens,
+                draftMs: message.metadata?.reasoningDraftMs,
+                responseMs:
+                  message.metadata?.createdAt && message.metadata?.finishedAt
+                    ? message.metadata.finishedAt - message.metadata.createdAt
+                    : undefined,
+              }}
+            />
+          )}
         </div>
       </MessageContent>
     </Message>

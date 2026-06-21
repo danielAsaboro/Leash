@@ -38,10 +38,17 @@ POST /mesh/invite {meshId: "primary"}
 POST /mesh/join {invite: "<capability blob>"}
 ```
 
-The invite IS the capability — it proves the new device was authorized by the primary. An invite is single-use and short-lived: the QR that carries it auto-expires after **60 seconds** (the phone's camera scanner also closes itself after 60s), so mint a fresh one if it lapses. On the **iPhone**, scan it from the **Mesh** tab — the phone then blind-pairs and replicates the task CRDT as a real member.
+The invite IS the capability — it proves the new device was authorized by the primary. An invite
+is single-use and short-lived: the QR that carries it auto-expires after **60 seconds** (the phone's
+camera scanner also closes itself after 60s), so mint a fresh one if it lapses. On **iOS or
+Android**, scan it from the **Mesh** tab — the phone then blind-pairs and replicates the task CRDT
+as a real member.
 
 <Warning>
-Programmatic invite/join works for **fresh** devices — and for the iPhone, which resets its mesh store on each join, so it always pairs cleanly. Re-promoting an existing-but-misconfigured **desktop** member (one that previously paired and then broke) can hang — use the Leash PIN flow from the desktop app for that case.
+Programmatic invite/join works for **fresh** devices — and for the iOS and Android clients, which
+reset their mesh store on each join, so they always pair cleanly. Re-promoting an
+existing-but-misconfigured **desktop** member (one that previously paired and then broke) can hang —
+use the Leash PIN flow from the desktop app for that case.
 </Warning>
 
 ### The blind-pairing handshake

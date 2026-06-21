@@ -15,7 +15,7 @@
 import "server-only";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
-import { createQvac } from "@qvac/ai-sdk-provider";
+import { createQvac } from "@mycelium/leash-core/qvac-provider";
 import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel, type LanguageModelMiddleware } from "ai";
 import { Agent, fetch as undiciFetch } from "undici";
 import { loopDiagnosticMiddleware, loopDebugOn } from "./loop-diagnostics.ts";

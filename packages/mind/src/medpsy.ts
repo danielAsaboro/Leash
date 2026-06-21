@@ -1,5 +1,5 @@
 /**
- * MedPsy health-record consult (Layer 3 — Mind · Psy Models track).
+ * MedPsy health-record consult (Layer 3 — Mind).
  *
  * A real specialized-model workflow, not a keyword model-swap: the QVAC MedPsy
  * model served through the `health` capability alias answers a health question **grounded in the

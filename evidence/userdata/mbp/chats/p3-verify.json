@@ -1,0 +1,55 @@
+{
+  "id": "p3-verify",
+  "createdAt": 1780659751186,
+  "updatedAt": 1780659947675,
+  "messages": [
+    {
+      "id": "m1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Say hello."
+        }
+      ]
+    },
+    {
+      "id": "msg-mB1XJCD67IAPjKne",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1780659602005,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    },
+    {
+      "id": "m2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Say hello."
+        }
+      ]
+    },
+    {
+      "id": "msg-bzT4ezAw919Wwz4Q",
+      "metadata": {
+        "createdAt": 1780659769698,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

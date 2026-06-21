@@ -1,0 +1,122 @@
+{
+  "id": "codex-ocu-stress-mqm9dck0",
+  "createdAt": 1781953966024,
+  "updatedAt": 1781953966024,
+  "messages": [
+    {
+      "id": "codex-ocu-stress-mqm9dck0-u1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Look at my screen using computer-use. First call list_apps, then call get_app_state for the frontmost app. Do not take any action."
+        }
+      ]
+    },
+    {
+      "id": "msg-sHaouRgelAppNit2",
+      "metadata": {
+        "createdAt": 1781953947105,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781953966005,
+        "totalTokens": 53
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3vl",
+            "reason": "visual understanding needs vision route; local qwen3vl · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-GkknJ8R48uuXgr0Z",
+          "data": {
+            "id": "run-GkknJ8R48uuXgr0Z",
+            "chatId": "codex-ocu-stress-mqm9dck0",
+            "title": "Look at my screen using computer-use. First call list_apps, then call get_app_state for the frontmost app. Do not take any action.",
+            "status": "completed",
+            "route": "computer",
+            "sensitivity": "private",
+            "createdAt": 1781953947087,
+            "updatedAt": 1781953966018,
+            "startedAt": 1781953947087,
+            "finishedAt": 1781953966014,
+            "steps": [
+              {
+                "id": "WYTX7uzvmQbDMEEx",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "computer",
+                "model": "qwen3-4b",
+                "startedAt": 1781953947096,
+                "finishedAt": 1781953966009,
+                "summary": "I'm unable to proceed with the request as the connection was closed. Please ensure that your device is properly connected and try again. If you continue to experience issues, please check your network settings or contact your device's support team for further assistance."
+              }
+            ],
+            "artifacts": [],
+            "errors": [
+              "Connection closed"
+            ],
+            "finalSynthesis": "I'm unable to proceed with the request as the connection was closed. Please ensure that your device is properly connected and try again. If you continue to experience issues, please check your network settings or contact your device's support team for further assistance."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "computer-use",
+                "name": "computer-use"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "list_apps",
+          "toolCallId": "call_sah6if_24",
+          "state": "output-error",
+          "input": {},
+          "errorText": "Connection closed",
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI'm unable to proceed with the request as the connection was closed. Please ensure that your device is properly connected and try again. If you continue to experience issues, please check your network settings or contact your device's support team for further assistance.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

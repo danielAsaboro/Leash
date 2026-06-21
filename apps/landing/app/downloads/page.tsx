@@ -10,6 +10,8 @@ export const metadata: Metadata = {
 
 const GITHUB_URL = "https://github.com/danielAsaboro/Leash";
 const RELEASES_URL = "https://github.com/danielAsaboro/Leash/releases/latest";
+const ANDROID_APK_URL = "https://github.com/danielAsaboro/Leash/releases/download/v1/leash-android-v1-arm64-preview.apk";
+const DOCS_URL = "https://docs.useleash.xyz";
 const X_URL = "https://x.com/useLeash";
 
 /**
@@ -17,15 +19,29 @@ const X_URL = "https://x.com/useLeash";
  * installer later, set `href` to the GitHub Release asset / store URL. `web` opens the
  * user's own locally-running Leash (local-first: there is no cloud-hosted app).
  */
-type Platform = { name: string; note: string; href: string | null; cta: string };
+type Platform = {
+  name: string;
+  note: string;
+  href: string | null;
+  cta: string;
+  sourceHref?: string;
+  sourceCta?: string;
+};
 
 const PLATFORMS: Platform[] = [
   { name: "macOS", note: ".dmg · Apple Silicon & Intel", href: RELEASES_URL, cta: "Get from Releases" },
-  { name: "Windows", note: ".exe installer", href: null, cta: "" },
-  { name: "Linux", note: ".AppImage · .deb", href: null, cta: "" },
-  { name: "Android", note: "Play Store · .apk", href: null, cta: "" },
-  { name: "iOS", note: "App Store · TestFlight", href: null, cta: "" },
-  { name: "iPadOS", note: "App Store · TestFlight", href: null, cta: "" },
+  { name: "Windows", note: ".exe installer", href: null, cta: "", sourceHref: GITHUB_URL, sourceCta: "Build from source" },
+  { name: "Linux", note: ".AppImage · .deb", href: null, cta: "", sourceHref: GITHUB_URL, sourceCta: "Build from source" },
+  {
+    name: "Android",
+    note: "Android 10+ · arm64 · preview APK",
+    href: ANDROID_APK_URL,
+    cta: "Download APK",
+    sourceHref: `${DOCS_URL}/install/android`,
+    sourceCta: "Build & self-sign",
+  },
+  { name: "iOS", note: "App Store · TestFlight", href: null, cta: "", sourceHref: `${DOCS_URL}/install/ios`, sourceCta: "Build & self-sign" },
+  { name: "iPadOS", note: "App Store · TestFlight", href: null, cta: "", sourceHref: `${DOCS_URL}/install/ios`, sourceCta: "Build & self-sign" },
   { name: "Web", note: "Open your running instance", href: "http://localhost:6801", cta: "Open localhost:6801" },
 ];
 
@@ -57,8 +73,9 @@ export default function Downloads() {
         <p className="dl-intro">
           Leash runs entirely on your own hardware. Desktop installers come from{" "}
           <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">GitHub Releases</a>;
-          mobile ships through the app stores. The Web option opens Leash in your browser against
-          the instance running on your own machine — there is no cloud version, by design.
+          mobile builds come from the same public source. Android is available now as a verified
+          preview APK; you can also build and sign it yourself. The Web option opens Leash in your
+          browser against the instance running on your own machine — there is no cloud version, by design.
         </p>
 
         <div className="dl-grid">
@@ -66,7 +83,7 @@ export default function Downloads() {
             <div key={p.name} className="dl-card">
               <span className="dl-card-name">{p.name}</span>
               <span className="dl-card-note">{p.note}</span>
-              <div className="dl-card-action">
+              <div className="dl-card-actions">
                 {p.href ? (
                   <a className="dl-btn" href={p.href} target="_blank" rel="noopener noreferrer">
                     {p.cta} <span aria-hidden>→</span>
@@ -74,6 +91,11 @@ export default function Downloads() {
                 ) : (
                   <span className="dl-soon">Coming soon</span>
                 )}
+                {p.sourceHref ? (
+                  <a className="dl-source-link" href={p.sourceHref} target="_blank" rel="noopener noreferrer">
+                    {p.sourceCta ?? "Build from source"} <span aria-hidden>→</span>
+                  </a>
+                ) : null}
               </div>
             </div>
           ))}

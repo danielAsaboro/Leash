@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqm96d7c-context",
+  "createdAt": 1781953627376,
+  "updatedAt": 1781953627376,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqm96d7c-context-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "what did I decide about qvac in my notes?"
+        }
+      ]
+    },
+    {
+      "id": "msg-7H0CdkJGj5uemS65",
+      "metadata": {
+        "createdAt": 1781953627371,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: notes/files/memory request needs the full agent; conductor output invalid (conductor action was invalid); local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-jw2A7MD7kSky7n2X",
+          "data": {
+            "id": "run-jw2A7MD7kSky7n2X",
+            "chatId": "codex-skill-route-mqm96d7c-context",
+            "title": "what did I decide about qvac in my notes?",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781953627353,
+            "updatedAt": 1781953627361,
+            "startedAt": 1781953627353,
+            "steps": [
+              {
+                "id": "U0dbAW8Wq52aZSTo",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781953627361
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "context-grounding",
+                "name": "context-grounding"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

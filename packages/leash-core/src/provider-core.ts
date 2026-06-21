@@ -8,7 +8,7 @@
  * Same on-device guarantee: `@qvac/ai-sdk-provider` is a stateless HTTP client for
  * `qvac serve openai` (:11435) — inference stays 100% on-device (the "no cloud AI" rule).
  */
-import { createQvac } from "@qvac/ai-sdk-provider";
+import { createQvac } from "./qvac-provider.js";
 import { wrapLanguageModel, extractReasoningMiddleware, type LanguageModel } from "ai";
 import { Agent, fetch as undiciFetch } from "undici";
 

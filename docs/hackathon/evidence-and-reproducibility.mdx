@@ -13,20 +13,21 @@ The current app line is
 The rules enumerate a required submission set. This is the honest status of each — capabilities that
 are shipped and documented vs. submission-packaging steps still open:
 
-| Submission item | Status | Where |
-|---|---|---|
-| QVAC SDK for all inference/embeddings/RAG/multimodal | Shipped | [QVAC-only proof](/hackathon/qvac-only-proof) |
-| Apache-2.0 license | Shipped | root `LICENSE` + every `package.json` |
-| Public GitHub repo | Published source repo | `github.com/danielAsaboro/Leash` |
-| Reproducibility / out-of-the-box run path | Shipped | [Quickstart](/quickstart), [macOS install](/install/macos) |
-| Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL) | `spike/lib/audit-log.ts`, `spike/logs/*.jsonl`, `evidence/medpsy-demo.jsonl` |
-| Hardware specs + reproducible capture | Filed in docs; screenshot uploads are form-level submission items | [Hardware setup](#hardware-setup) below |
-| Structured remote-API-call disclosure file | Filed | `evidence/remote-api-calls.json`, [Remote network calls](/hackathon/network-disclosure) |
-| Demo video (≤5 min, unlisted) | External submission item | DoraHacks / YouTube link |
+| Submission item                                                   | Status                                                            | Where                                                                                                         |
+| ----------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| QVAC SDK for all inference/embeddings/RAG/multimodal              | Shipped                                                           | [QVAC-only proof](/hackathon/qvac-only-proof)                                                                 |
+| Apache-2.0 license                                                | Shipped                                                           | root `LICENSE` + every `package.json`                                                                         |
+| Public GitHub repo                                                | Published source repo                                             | `github.com/danielAsaboro/Leash`                                                                              |
+| Reproducibility / out-of-the-box run path                         | Shipped                                                           | [Quickstart](/quickstart), [macOS install](/install/macos)                                                    |
+| Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL + structured JSON)                                 | `spike/lib/audit-log.ts`, `spike/logs/*.jsonl`, `evidence/manifest.json`, `evidence/**/{mac-mini,mbp}/*.json` |
+| Hardware specs + reproducible capture                             | Filed in docs; screenshot uploads are form-level submission items | [Hardware setup](#hardware-setup) below                                                                       |
+| Structured remote-API-call disclosure file                        | Filed                                                             | `evidence/remote-api-calls.json`, [Remote network calls](/hackathon/network-disclosure)                       |
+| Demo link                                                         | External submission item                                          | [YouTube demo playlist](https://www.youtube.com/playlist?list=PLeERy8YL4mpQwT3OwpzOqjp23FlrLQ_1Y)             |
 
 <Warning>
-Pages in this section distinguish runtime evidence from external submission-form uploads. The code,
-logs, and structured disclosures needed to audit the runtime are in this repo.
+  Pages in this section distinguish runtime evidence from external
+  submission-form uploads. The code, logs, and structured disclosures needed to
+  audit the runtime are in this repo.
 </Warning>
 
 ## Hardware setup
@@ -44,11 +45,11 @@ is a **Mac mini (Apple M4, 24 GB)** — comfortably inside the track ceiling. Th
 **optional delegation peer**, not part of the RAM budget: the mesh passes whole completions between
 independent devices and never pools their memory, so each device satisfies its own ≤32 GB budget.
 
-| Device | Role in demo | Chip / GPU | RAM | Notes |
-|---|---|---|---|---|
-| **Mac mini (M4)** | **General Purpose primary** | Apple M4 / Metal | **24 GB** | Declared track device; runs the full stack inside the ≤32 GB envelope. |
-| MacBook Pro `Mac15,7` | Delegation peer | Apple M3 Pro, 12-core CPU / 18-core GPU / Metal | 36 GB | Optional peer; disclosed, not pooled with the primary. |
-| iPhone 12 Pro Max `iPhone13,4` | Mobile client | Apple A14 Bionic / Metal | 6 GB | Runs the mobile client and on-device voice path. |
+| Device                         | Role in demo                | Chip / GPU                                      | RAM       | Notes                                                                  |
+| ------------------------------ | --------------------------- | ----------------------------------------------- | --------- | ---------------------------------------------------------------------- |
+| **Mac mini (M4)**              | **General Purpose primary** | Apple M4 / Metal                                | **24 GB** | Declared track device; runs the full stack inside the ≤32 GB envelope. |
+| MacBook Pro `Mac15,7`          | Delegation peer             | Apple M3 Pro, 12-core CPU / 18-core GPU / Metal | 36 GB     | Optional peer; disclosed, not pooled with the primary.                 |
+| iPhone 12 Pro Max `iPhone13,4` | Mobile client               | Apple A14 Bionic / Metal                        | 6 GB      | Runs the mobile client and on-device voice path.                       |
 
 The M3 Pro delegation peer was live-captured on 2026-06-20:
 
@@ -77,13 +78,13 @@ sw_vers   # macOS product version + build
 
 ### Toolchain
 
-| Component | Version |
-|---|---|
-| Node.js | 24.x (24.13–24.16 across the mesh machines) |
-| npm | 11.x |
-| `@qvac/sdk` | `^0.13.5` |
+| Component   | Version                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| Node.js     | 24.x (24.13–24.16 across the mesh machines)                               |
+| npm         | 11.x                                                                      |
+| `@qvac/sdk` | `^0.13.5`                                                                 |
 | `@qvac/cli` | `^0.7.0` (must dedupe to the same 0.13.x SDK line; no nested `@qvac/sdk`) |
-| Runner | `tsx` for TypeScript entrypoints; the SDK runs on Node, Bare, and Expo |
+| Runner      | `tsx` for TypeScript entrypoints; the SDK runs on Node, Bare, and Expo    |
 
 ### Storage and the model cache
 
@@ -121,13 +122,51 @@ product work. All four passed.
 - Fine-tune completed in **152.7 s**; train acc **0.86**, val acc **0.85**; **20 MB** adapter.
 - Loaded via `modelConfig.lora`; base vs adapter answers differed — behavior changed.
 
+## Structured evidence bundle
+
+The repo includes a reviewer-facing evidence bundle under `evidence/`. It folds the raw runtime
+records into JSON files grouped by capability and device:
+
+```text
+evidence/
+  manifest.json
+  chats/{mac-mini,mbp}/
+  qvac/{mac-mini,mbp}/
+  hypha/{mac-mini,mbp}/
+  leash/{mac-mini,mbp}/
+  data/{mac-mini,mbp}/
+```
+
+Start with `evidence/manifest.json`. It records output files, date windows, event counts, and
+redaction counts. The device labels are:
+
+- `mac-mini` - the primary General Purpose track machine.
+- `mbp` - the MacBook Pro delegation peer.
+
+Key summaries:
+
+| File                                   | What it summarizes                                                                           |
+| -------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `evidence/chats/mac-mini/index.json`   | 192 chats, 1,122 messages, June 4-21 date window                                             |
+| `evidence/chats/mbp/index.json`        | 192 chats, 1,122 messages, matching MacBook Pro chat set                                     |
+| `evidence/qvac/mac-mini/summary.json`  | 246 QVAC primitive events: model load/unload, completions, embeddings, RAG, delegation, LoRA |
+| `evidence/qvac/mbp/summary.json`       | 234 QVAC primitive events from the MacBook Pro side                                          |
+| `evidence/hypha/mac-mini/summary.json` | 59,868 retained mesh events; raw count 177,136 including capability advertisements           |
+| `evidence/hypha/mbp/summary.json`      | 66,902 retained mesh events; raw count 135,124 including capability advertisements           |
+| `evidence/data/mac-mini/summary.json`  | 360 folded data/runtime files represented as JSON, text, or hashed inventory                 |
+| `evidence/data/mbp/summary.json`       | 289 folded MacBook Pro files represented as JSON, text, or hashed inventory                  |
+
+Credential-like fields are not exposed as live secrets. The data fold redacts fields such as
+device seeds, mnemonic environment values, and local keys; binary stores are represented by
+hash and size in `files.json`.
+
 ## Structured audit log
 
 Every spike and runtime flow emits **JSONL** audit records (`mycelium/spike/lib/audit-log.ts`),
 capturing at least what the hackathon requires — model loads/unloads and per-call performance:
 timestamp, source, event, `modelId`, `device`, `prompt`, `tokens`, `ttftMs`, `tokensPerSecond`,
 `durationMs`. Records land under `spike/logs/` and per-app `logs/`. Committed examples include the
-spike JSONL records and `evidence/medpsy-demo.jsonl`.
+spike JSONL records, `evidence/medpsy-demo.jsonl`, and the structured JSON bundle above.
 
 ## Airplane-mode acceptance
 
@@ -146,8 +185,8 @@ default `~/.qvac` cache without edits.
 
 ## Demo video and licensing
 
-- **Demo video:** the ≤5-minute unlisted video link belongs in the DoraHacks submission form; it is
-  not needed to reproduce the code path from the repo.
+- **Demo link:** [YouTube demo playlist](https://www.youtube.com/playlist?list=PLeERy8YL4mpQwT3OwpzOqjp23FlrLQ_1Y).
+  It is useful for review, but it is not needed to reproduce the code path from the repo.
 - **License:** **Apache-2.0** across the workspace (root `LICENSE` and every `package.json`).
 
 For the full milestone history, see [the changelog](/reference/changelog).

@@ -9,7 +9,7 @@
  * reasoning is split out (not leaked) and a tool round-trips. If this fails on JSC after the
  * polyfills, that's the signal to fall back to a native QVAC-SDK loop (the UI layer is identical).
  */
-import { streamText, stepCountIs, tool } from "ai";
+import { streamText, isStepCount, tool } from "ai";
 import { z } from "zod";
 import { deviceChatModel } from "../qvac-bridge";
 import { BRIDGE_SPIKE_NOW_TOOL_DESCRIPTION, BRIDGE_SPIKE_SYSTEM, BRIDGE_SPIKE_USER_PROMPT } from "../../prompt";
@@ -32,7 +32,7 @@ export async function runBridgeSpike(modelId: string): Promise<SpikeResult> {
     log.push(`[spike] model=${modelId} starting streamText`);
     const result = streamText({
       model: deviceChatModel(modelId),
-      system: BRIDGE_SPIKE_SYSTEM,
+      instructions: BRIDGE_SPIKE_SYSTEM,
       messages: [{ role: "user", content: BRIDGE_SPIKE_USER_PROMPT }],
       tools: {
         now: tool({
@@ -41,11 +41,11 @@ export async function runBridgeSpike(modelId: string): Promise<SpikeResult> {
           execute: async () => ({ iso: new Date().toISOString() }),
         }),
       },
-      stopWhen: stepCountIs(5),
+      stopWhen: isStepCount(5),
     });
 
-    // `fullStream` surfaces every typed part — the cleanest way to assert the gate without a UI.
-    for await (const part of result.fullStream) {
+    // `stream` surfaces every typed part — the cleanest way to assert the gate without a UI.
+    for await (const part of result.stream) {
       switch (part.type) {
         case "reasoning-delta":
           reasoning += part.text;

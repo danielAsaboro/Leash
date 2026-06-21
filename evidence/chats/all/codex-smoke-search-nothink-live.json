@@ -1,0 +1,43 @@
+{
+  "id": "codex-smoke-search-nothink-live",
+  "createdAt": 1781892008416,
+  "updatedAt": 1781892008416,
+  "messages": [
+    {
+      "id": "msg-user-search-nothink-live",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "search my notes for qvac and summarize what you find"
+        }
+      ]
+    },
+    {
+      "id": "msg-BcPMBo0sAPJsWXWc",
+      "metadata": {
+        "createdAt": 1781892008414,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781892008414
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "classifier direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "I'll search your notes for qvac and summarize what I find.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

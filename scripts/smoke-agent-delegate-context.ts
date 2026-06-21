@@ -6,6 +6,7 @@ const packet = buildAgentDelegateContextPacket({
   agent: { slug: "coder", name: "Grace", description: "Coding specialist" },
   task: "Judge the orchestration design.",
   summarySection: "Earlier in this conversation: marker alpha and tool evidence were established.",
+  recentConversation: "Leash: The greenhouse sensor reads 24 degrees and batch QV-2026-0601.",
   parentContextCapsule: "Current run capsule: answer with agent context intact.",
   currentUserTurn: "Ask Grace to inspect orchestration.",
   selectedTools: ["bash", "search_graph"],
@@ -16,6 +17,7 @@ const packet = buildAgentDelegateContextPacket({
 assert.match(packet.text, /Agent: Grace \(coder\)/i, "packet names the delegated agent");
 assert.match(packet.text, /Judge the orchestration design/i, "packet includes delegated task");
 assert.match(packet.text, /marker alpha/i, "packet receives compacted conversation summary");
+assert.match(packet.text, /24 degrees/i, "packet receives the recent grounded assistant result");
 assert.match(packet.text, /Current run capsule/i, "packet receives current run capsule");
 assert.match(packet.text, /Ask Grace/i, "packet receives current user turn");
 assert.match(packet.text, /bash, search_graph/i, "packet records selected subagent tools");

@@ -1,0 +1,43 @@
+{
+  "id": "WkuBWMCmnhCnUzQQ",
+  "createdAt": 1780695985024,
+  "updatedAt": 1780695985024,
+  "messages": [
+    {
+      "id": "65gFsHDY8mBorNH9",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "All right. Um I think it's fun testing this."
+        }
+      ]
+    },
+    {
+      "id": "msg-wWqvSymHfRZe802C",
+      "metadata": {
+        "createdAt": 1780695957809,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1780695985013,
+        "totalTokens": 48
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI see. Let me see what you're up to. First, I'll check your current activity to understand what you're doing. Then, I'll make sure to follow up with any additional information you might need.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

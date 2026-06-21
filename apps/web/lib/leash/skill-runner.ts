@@ -21,7 +21,8 @@
  * (Open Computer Use actions, ha_call_service, installs) stay on the main turn. Sub-agents don't nest (no run_skill).
  */
 import "server-only";
-import { tool, generateText, stepCountIs, type ToolSet } from "ai";
+import { tool, generateText, isStepCount, type ToolSet } from "ai";
+import { join } from "node:path";
 import { z } from "zod";
 import { chatModel } from "./provider.ts";
 import { getSkill, type Skill } from "./skills-store.ts";
@@ -29,10 +30,22 @@ import { toolNeedsApproval, disabledTools } from "./tool-config.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { LeashSource } from "./tools.ts";
 import { buildSkillStepSystemPrompt, buildSkillSubtaskSystemPrompt } from "./prompt.ts";
+import { qvacReasoningProviderOptions } from "./reasoning-policy.ts";
 import { runFileFinderFastPath } from "./file-finder-fast-path.ts";
 import { enforceToolPolicy, filterToolNamesForContext } from "@mycelium/leash-core/tool-policy";
+import { parsePluginSlug } from "@mycelium/leash-core/plugin-manifest";
+import { loadPlugin, pluginToolPolicies } from "@mycelium/leash-core/plugin-loader";
+import { PLUGINS_DIR } from "@mycelium/leash-core/plugins-store";
 import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
 import { getGoalRun, startGoalRunStep, updateGoalRunStep, recordGoalRunModelTrace, type GoalRunRoute } from "@mycelium/leash-core/goal-runs";
+import {
+  LEASH_AGENT_TIMEOUT,
+  createLeashRuntimeContext,
+  recordAgentLifecycle,
+  toolContextsFor,
+  withScopedToolContext,
+  type LeashRuntimeContext,
+} from "./runtime-lifecycle.ts";
 
 /** Step budget for a single-shot delegated sub-skill (its own small tool loop). */
 const SUB_STEPS = 6;
@@ -52,44 +65,94 @@ const KEEPALIVE_TOOLS: ToolSet = {
   }),
 };
 
+/** Forced structured submission for prose-only pipeline steps. Small local models can spend the
+ * entire visible budget in hidden reasoning or call the compatibility sentinel despite
+ * `toolChoice:"none"`; a typed submission makes every step return usable text exactly once. */
+const PIPELINE_OUTPUT_TOOLS: ToolSet = {
+  submit_step: tool({
+    description: "Submit the completed result for this pipeline step.",
+    inputSchema: z.object({ text: z.string().min(1).describe("The concise result of this step.") }),
+    execute: async ({ text }) => ({ text }),
+  }),
+};
+
 /** Resolve the sub-agent toolset for a skill: declared tools that exist, aren't disabled/approval-gated,
  *  and aren't run_skill (no nesting). Returns the live ToolSet plus the names skipped for approval. */
 async function subAgentTools(skill: Skill, registry: ToolSet): Promise<{ subTools: ToolSet; names: string[]; skipped: string[] }> {
   const off = await disabledTools();
   const names: string[] = [];
   const skipped: string[] = [];
-  const policyAllowed = new Set(filterToolNamesForContext(skill.tools, { route: "skill", subagent: true }));
+  const pluginSlug = parsePluginSlug(skill.slug);
+  const pluginPolicies = pluginSlug
+    ? pluginToolPolicies((await loadPlugin(join(PLUGINS_DIR, pluginSlug.id))).manifest)
+    : {};
+  const policyContext = { route: "skill" as const, subagent: true, pluginPolicies };
+  const policyAllowed = new Set(filterToolNamesForContext(skill.tools, policyContext));
   for (const n of skill.tools) {
-    if (!policyAllowed.has(n)) continue;
     if (n === "run_skill" || !registry[n] || off.has(n)) continue;
-    if (await toolNeedsApproval(n)) {
+    if (pluginPolicies[n]?.approval === "required" || (!pluginPolicies[n] && (await toolNeedsApproval(n)))) {
       skipped.push(n);
       continue;
     }
+    if (!policyAllowed.has(n)) continue;
     names.push(n);
   }
-  const subTools: ToolSet = enforceToolPolicy(Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]])), { route: "skill", subagent: true });
+  const subTools: ToolSet = enforceToolPolicy(Object.fromEntries(names.map((n) => [n, registry[n] as ToolSet[string]])), policyContext);
   return { subTools, names, skipped };
 }
 
+/** Remove reasoning that leaked because a decode hit its cap before closing `</think>`. */
+function cleanPipelineText(value: string): string {
+  let text = value.replace(/<think>[\s\S]*?<\/think>/gi, "");
+  const open = text.search(/<think>/i);
+  if (open >= 0) text = text.slice(0, open);
+  return text.replace(/<\/?think>/gi, "").trim();
+}
+
+function submittedStepFromText(value: string): string {
+  const text = cleanPipelineText(value);
+  const marker = text.indexOf("submit_step");
+  const jsonStart = text.indexOf("{", Math.max(0, marker));
+  if (marker < 0 || jsonStart < 0) return text;
+  try {
+    const parsed = JSON.parse(text.slice(jsonStart)) as { text?: unknown };
+    return typeof parsed.text === "string" ? parsed.text.trim() : "";
+  } catch {
+    return "";
+  }
+}
+
 /** Common generateText settings for a sub-skill call (qvac wedge rule: no abortSignal, maxRetries 0). */
-function subCallBase(label: string, system: string, userContent: string, subTools: ToolSet, names: string[], stepBudget: number) {
+function subCallBase(label: string, system: string, userContent: string, subTools: ToolSet, names: string[], stepBudget: number, suppliedRuntime?: LeashRuntimeContext) {
   const hasExecutableTools = names.length > 0;
-  const runTools = hasExecutableTools ? subTools : KEEPALIVE_TOOLS;
+  const runTools = withScopedToolContext(hasExecutableTools ? subTools : KEEPALIVE_TOOLS);
+  const runtime = suppliedRuntime ?? createLeashRuntimeContext({ route: "skill" });
   const runSystem = hasExecutableTools
     ? system
     : `${system}\n\nNo executable tools are available in this delegated call. Answer directly in plain text. Do not call tools.`;
   return {
     model: chatModel(label),
-    system: runSystem,
+    instructions: runSystem,
     messages: [{ role: "user" as const, content: userContent }],
     temperature: 0.6,
     topP: 0.95,
     maxRetries: 0,
     maxOutputTokens: hasExecutableTools ? 900 : 220,
     tools: runTools,
+    toolOrder: Object.keys(runTools).sort(),
+    runtimeContext: runtime,
+    toolsContext: toolContextsFor(runTools, runtime),
+    // subAgentTools already applies plugin policy, hard route policy, disabled state, and the
+    // user approval configuration. Everything reaching this isolated loop is approval-free;
+    // re-running the generic callback here would misclassify plugin tools as unknown admin tools.
+    toolApproval: async () => "approved" as const,
+    timeout: LEASH_AGENT_TIMEOUT,
     toolChoice: hasExecutableTools ? "auto" as const : "none" as const,
-    stopWhen: stepCountIs(hasExecutableTools ? stepBudget : 1),
+    stopWhen: isStepCount(hasExecutableTools ? stepBudget : 1),
+    onStart: (event: { callId: string; modelId: string }) => recordAgentLifecycle(runtime, { event: "agent_start", callId: event.callId, modelId: event.modelId }),
+    onStepStart: (event: { callId: string; modelId: string; stepNumber: number }) => recordAgentLifecycle(runtime, { event: "step_start", callId: event.callId, modelId: event.modelId, stepNumber: event.stepNumber }),
+    onStepEnd: (event: { callId: string; stepNumber: number; finishReason: string }) => recordAgentLifecycle(runtime, { event: "step_end", callId: event.callId, stepNumber: event.stepNumber, finishReason: event.finishReason }),
+    onEnd: (event: { callId: string; stepNumber: number; finishReason: string }) => recordAgentLifecycle(runtime, { event: "agent_end", callId: event.callId, stepNumber: event.stepNumber, finishReason: event.finishReason, durationMs: Date.now() - runtime.startedAt }),
   };
 }
 
@@ -100,6 +163,7 @@ function subCallBase(label: string, system: string, userContent: string, subTool
  */
 async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, names: string[], goalRunId?: string): Promise<string> {
   const results: string[] = [];
+  const executedByStep: string[][] = [];
   for (let i = 0; i < skill.steps.length; i++) {
     const step = skill.steps[i] as string;
     const prior = results.length
@@ -124,9 +188,74 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
       }
     }
     try {
-      const r = await generateText(subCallBase(`run_skill:${skill.slug}:step${i + 1}`, system, step, subTools, names, PIPELINE_STEP_BUDGET));
-      const out = r.text.trim() || "(this step produced no text output)";
+      // An author who names exactly one declared tool in a step is specifying an execution
+      // invariant, not offering prose advice. Force that tool on the first loop step so a small
+      // model cannot satisfy "Call foo" by hallucinating foo's result in text.
+      const namedTools = names.filter((name) => new RegExp(`(?:^|[^A-Za-z0-9_-])${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:$|[^A-Za-z0-9_-])`, "i").test(step));
+      // Prose steps use a forced typed submission instead of relying on fragile free text. Domain
+      // tool steps retain the declared registry and force the author-named tool invariant.
+      const stepNames = namedTools.length ? names : ["submit_step"];
+      const stepTools = namedTools.length ? subTools : PIPELINE_OUTPUT_TOOLS;
+      const base = subCallBase(
+        `run_skill:${skill.slug}:step${i + 1}`,
+        system,
+        step,
+        stepTools,
+        stepNames,
+        PIPELINE_STEP_BUDGET,
+        createLeashRuntimeContext({ route: "skill", runId: goalRunId, stepId: ledgerStepId }),
+      );
+      const r = await generateText({
+        ...base,
+        // Pipeline decomposition is already deterministic; hidden deliberation only adds latency
+        // and can consume the entire output budget before a forced call is serialized.
+        providerOptions: qvacReasoningProviderOptions(false),
+        maxOutputTokens: 320,
+        toolChoice: namedTools.length === 1
+          ? { type: "tool" as const, toolName: namedTools[0] as string }
+          : namedTools.length === 0
+            ? { type: "tool" as const, toolName: "submit_step" }
+            : "auto" as const,
+      });
+      const modelSteps = (r as { steps?: Array<{ toolCalls?: Array<{ toolName?: string }>; toolResults?: Array<{ toolName?: string; output?: unknown }> }> }).steps ?? [];
+      const executed = [...new Set(modelSteps.flatMap((modelStep) => (modelStep.toolCalls ?? []).map((call) => call.toolName).filter((name): name is string => !!name)))];
+      if (namedTools.length === 1 && !executed.includes(namedTools[0] as string)) {
+        throw new Error(`required pipeline tool ${namedTools[0]} did not execute in step ${i + 1}`);
+      }
+      const aggregateToolResults = [
+        ...((r as { toolResults?: Array<{ toolName?: string; output?: unknown }> }).toolResults ?? []),
+        ...modelSteps.flatMap((modelStep) => modelStep.toolResults ?? []),
+      ];
+      if (namedTools.length) {
+        const calls = (r as { toolCalls?: Array<{ toolName?: string; input?: unknown }> }).toolCalls ?? [];
+        loopLog(`pipeline ${skill.slug} tool evidence calls=${JSON.stringify(calls)} results=${JSON.stringify(aggregateToolResults)}`);
+      }
+      const requiredToolName = namedTools.length === 1 ? namedTools[0] : namedTools.length === 0 ? "submit_step" : undefined;
+      const requiredToolResult = requiredToolName
+        ? aggregateToolResults.find((result) => result.toolName === requiredToolName)
+        : undefined;
+      const requiredToolCall = requiredToolName
+        ? ((r as { toolCalls?: Array<{ toolName?: string; input?: unknown }> }).toolCalls ?? []).find((call) => call.toolName === requiredToolName)
+        : undefined;
+      const submittedInputText = requiredToolName === "submit_step"
+        ? (requiredToolCall?.input as { text?: unknown } | undefined)?.text
+        : undefined;
+      if (requiredToolName && requiredToolName !== "submit_step" && !requiredToolResult) {
+        throw new Error(`required pipeline tool ${requiredToolName} returned no result in step ${i + 1}`);
+      }
+      const submittedText = requiredToolName === "submit_step"
+        ? ((requiredToolResult?.output as { text?: unknown } | undefined)?.text ?? submittedInputText ?? submittedStepFromText(r.text))
+        : undefined;
+      if (requiredToolName === "submit_step" && (typeof submittedText !== "string" || !submittedText.trim())) {
+        throw new Error(`required pipeline tool submit_step produced no text in step ${i + 1}`);
+      }
+      const out = typeof submittedText === "string" && submittedText.trim()
+        ? submittedText.trim()
+        : requiredToolResult
+          ? `Deterministic ${requiredToolResult.toolName} result: ${JSON.stringify(requiredToolResult.output)}`
+          : cleanPipelineText(r.text) || "(this step produced no user-facing text output)";
       results.push(out);
+      executedByStep.push(executed.filter((name) => name !== "submit_step"));
       if (goalRunId && ledgerStepId) {
         await updateGoalRunStep(goalRunId, ledgerStepId, { status: "done", summary: out });
         await recordGoalRunModelTrace(goalRunId, {
@@ -144,7 +273,7 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
     }
   }
   // Hand the main assistant a compact, ordered digest of what the pipeline accomplished.
-  return skill.steps.map((s, j) => `Step ${j + 1} — ${s}\n${results[j]}`).join("\n\n");
+  return skill.steps.map((s, j) => `Step ${j + 1} — ${s}${executedByStep[j]?.length ? `\nTool executed: ${executedByStep[j]!.join(", ")}.` : ""}\n${results[j]}`).join("\n\n");
 }
 
 /**

@@ -1,0 +1,43 @@
+{
+  "id": "codex-resilience-noqvac-general",
+  "createdAt": 1781975874903,
+  "updatedAt": 1781975874903,
+  "messages": [
+    {
+      "id": "msg-resilience-noqvac-general",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Explain what QVAC is in one sentence."
+        }
+      ]
+    },
+    {
+      "id": "msg-ogx1X1etDqbKox0a",
+      "metadata": {
+        "createdAt": 1781975874901,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781975874901
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor routing failed; streamed local-only failure",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "I can't complete this turn because local QVAC inference is unavailable: Conductor routing failed: Cannot connect to API: connect ECONNREFUSED 127.0.0.1:11435. I did not send the request to any cloud service. Start or reload the local model serve, then try again.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

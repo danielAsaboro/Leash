@@ -2497,7 +2497,13 @@
   text-transform: uppercase;
   color: var(--color-ink-soft, var(--color-ink));
 }
-.dl-card-action { margin-top: auto; }
+.dl-card-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: auto;
+}
 .dl-btn {
   display: inline-flex;
   align-items: center;
@@ -2508,8 +2514,24 @@
   border: 1px solid var(--color-ink);
   padding: 0.4rem 0.75rem;
   color: var(--color-ink);
+  min-height: 40px;
 }
 .dl-btn:hover { background: var(--color-ink); color: var(--color-paper, var(--color-cream)); }
+.dl-btn:focus-visible,
+.dl-source-link:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 3px;
+}
+.dl-source-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  font-family: var(--font-plex), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--color-ink);
+  text-underline-offset: 0.2em;
+}
+.dl-source-link:hover { text-decoration-thickness: 2px; }
 .dl-soon {
   font-family: var(--font-plex), ui-monospace, monospace;
   font-size: 0.72rem;

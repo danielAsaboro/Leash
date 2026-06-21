@@ -4,7 +4,7 @@ import { readDeviceBootstrap } from "./lib/leash/device-bootstrap.ts";
 
 export const config = {
   runtime: "nodejs",
-  matcher: ["/((?!_next/static|_next/image|favicon|icon-|apple-touch|.*\\.(?:png|svg|ico|jpg|jpeg|webp|woff2?)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon|icon-|apple-touch|\.well-known/workflow/|.*\\.(?:png|svg|ico|jpg|jpeg|webp|woff2?)$).*)"],
 };
 
 // Public marketing surface — NEVER gated. The landing page ("/") is the public

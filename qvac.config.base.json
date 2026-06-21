@@ -1,5 +1,5 @@
 {
-  "cacheDirectory": "~/models",
+  "cacheDirectory": "~/.qvac/models",
   "swarmRelays": [],
   "loggerConsoleOutput": false,
   "serve": {
@@ -10,7 +10,7 @@
         "default": true,
         "config": {
           "tools": true,
-          "toolsMode": "dynamic",
+          "toolsMode": "static",
           "ctx_size": 32768
         }
       },
@@ -40,7 +40,7 @@
         "preload": true,
         "config": {
           "ctx_size": 8192,
-          "projectionModelSrc": "~/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
+          "projectionModelSrc": "~/.qvac/models/a268510e9b1f22c9_mmproj-Qwen3VL-2B-Instruct-Q8_0.gguf"
         }
       },
       "ocr": {

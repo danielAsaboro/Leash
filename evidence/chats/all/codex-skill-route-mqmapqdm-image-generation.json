@@ -1,0 +1,80 @@
+{
+  "id": "codex-skill-route-mqmapqdm-image-generation",
+  "createdAt": 1781956211061,
+  "updatedAt": 1781956211061,
+  "messages": [
+    {
+      "id": "codex-skill-route-mqmapqdm-image-generation-user",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "generate an image of a minimalist black coffee logo"
+        }
+      ]
+    },
+    {
+      "id": "msg-NVSITWaMQ13mav9W",
+      "metadata": {
+        "createdAt": 1781956211057,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "conductor output invalid (conductor action was invalid); routed to full agent; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-hV0WCeyVjMrumYuA",
+          "data": {
+            "id": "run-hV0WCeyVjMrumYuA",
+            "chatId": "codex-skill-route-mqmapqdm-image-generation",
+            "title": "generate an image of a minimalist black coffee logo",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "shareable",
+            "createdAt": 1781956211028,
+            "updatedAt": 1781956211046,
+            "startedAt": 1781956211028,
+            "steps": [
+              {
+                "id": "fyjJP4pNKk7G6NV7",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781956211046
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "image-generator",
+                "name": "image-generator"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

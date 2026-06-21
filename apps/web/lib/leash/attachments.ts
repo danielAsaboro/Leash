@@ -114,3 +114,46 @@ export function inlineFileAttachments(messages: LeashUIMessage[]): LeashUIMessag
     return changed ? { ...msg, parts } : msg;
   });
 }
+
+/**
+ * Remove historical image payloads before a text-model turn.
+ *
+ * The preceding vision answer already records the observed facts in the conversation. Re-sending
+ * a stored base64 image to the text-only model adds hundreds of kilobytes to request preparation
+ * and can stall local tool-enabled prefill. The persisted UI thread remains untouched; this only
+ * replaces image parts in the model-facing copy with a small provenance marker.
+ */
+export function stripImageAttachmentsFromTextHistory(messages: LeashUIMessage[]): LeashUIMessage[] {
+  return messages.map((msg) => {
+    if (msg.role !== "user" || !Array.isArray(msg.parts)) return msg;
+    let changed = false;
+    const parts = (msg.parts as Part[]).map((part) => {
+      const mt = part?.type === "file" ? String(part.mediaType ?? "").toLowerCase() : "";
+      if (!mt.startsWith("image/")) return part;
+      changed = true;
+      const name = String(part.filename ?? "image");
+      return { type: "text", text: `[Prior image attachment: ${name}. Use the recorded vision response for observed facts.]` };
+    });
+    return changed ? { ...msg, parts } : msg;
+  });
+}
+
+/**
+ * Remove completed tool-call payloads from the model-facing history of a fresh user turn.
+ *
+ * A prior assistant answer already contains the user-facing conclusion. Replaying its complete
+ * tool inputs/outputs on every later turn can add megabytes of JSON and make local-model prefill
+ * exceed the first-output deadline. The persisted UI thread remains untouched, and callers must
+ * not apply this projection to an approval continuation because that continuation needs the live
+ * tool part and its approval state.
+ */
+export function stripHistoricalToolParts(messages: LeashUIMessage[]): LeashUIMessage[] {
+  return messages.map((msg) => {
+    if (msg.role !== "assistant" || !Array.isArray(msg.parts)) return msg;
+    const parts = (msg.parts as Part[]).filter((part) => {
+      const type = typeof part?.type === "string" ? part.type : "";
+      return type !== "dynamic-tool" && !type.startsWith("tool-");
+    });
+    return parts.length === msg.parts.length ? msg : { ...msg, parts };
+  });
+}

@@ -1,13 +1,13 @@
 /**
  * The one adapter resolver: newest promotable adapter on disk.
  *
- * "Promotable" = its manifest's `evalDelta >= minDelta` (default 0): the adapter
- * scored at least as well as its base on the frozen eval. A regression never reaches
- * the live chat. Reads only plain `manifest.json` files (no corestore — fd-lock safe).
+ * "Promotable" = a meaningful overall held-out gain with no material per-axis
+ * regression. Reads only plain `manifest.json` files (no corestore — fd-lock safe).
  */
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import type { AdapterManifest } from "./types.ts";
 import { ADAPTERS_DIR, adapterGguf, adapterManifest } from "./paths.ts";
+import { evaluateAdapterQuality } from "./adapter-quality.ts";
 
 export interface ResolvedAdapter {
   version: string;
@@ -16,8 +16,10 @@ export interface ResolvedAdapter {
 }
 
 export interface ApplyOptions {
-  /** Minimum evalDelta to promote (default 0 — adapter must not regress). */
+  /** Minimum held-out improvement required for promotion (default 0.02). */
   minDelta?: number;
+  /** Largest tolerated regression on any evaluation axis (default 0.02). */
+  maxAxisRegression?: number;
 }
 
 /** All version dirs that have BOTH a manifest.json and the adapter.gguf, newest first. */
@@ -42,8 +44,7 @@ function manifests(): ResolvedAdapter[] {
 
 /** Newest adapter whose evalDelta clears the bar, or undefined. */
 export function latestAdapter(opts: ApplyOptions = {}): ResolvedAdapter | undefined {
-  const minDelta = opts.minDelta ?? 0;
-  return manifests().find((m) => m.manifest.evalDelta >= minDelta);
+  return manifests().find((candidate) => evaluateAdapterQuality(candidate.manifest, opts).passed);
 }
 
 /** Just the gguf path of the newest promotable adapter (for modelConfig.lora / serve). */

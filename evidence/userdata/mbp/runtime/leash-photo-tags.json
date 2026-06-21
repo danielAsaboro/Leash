@@ -1,0 +1,22 @@
+[
+  {
+    "file": "calibration-card.png",
+    "label": "other",
+    "confidence": 0.7499528527259827,
+    "isDocument": false,
+    "all": [
+      {
+        "label": "other",
+        "confidence": 0.7499528527259827
+      },
+      {
+        "label": "report",
+        "confidence": 0.21393489837646484
+      },
+      {
+        "label": "food",
+        "confidence": 0.036112260073423386
+      }
+    ]
+  }
+]

@@ -134,7 +134,7 @@ export async function runHeartbeat(opts: HeartbeatOptions = {}): Promise<Heartbe
   }
 
   const agent = buildLeashAgent(tools);
-  const options: LeashCallOptions = { route: "chat", steps: HEARTBEAT_STEPS, maxOutputTokens: 1024, thinking: false, system };
+  const options: LeashCallOptions = { route: "chat", steps: HEARTBEAT_STEPS, maxOutputTokens: 1024, thinking: false, instructions: system };
 
   let proposal: string;
   try {

@@ -1,0 +1,105 @@
+---
+title: "Reasoning efficiency"
+description: "How Leash replaces unbounded Qwen3 thinking with adaptive Chain-of-Draft, explicit QVAC controls, focused tools, and measured quality gates."
+sidebarTitle: "Reasoning efficiency"
+---
+
+Leash does not ask the chat model to think at maximum depth on every difficult-looking turn. A plain deep chat first gets a small, structured reasoning plan. The plan either compresses the work into short dependency fragments or escalates the final call to full reasoning when compression would hide a correctness-critical dependency.
+
+This is the runtime form of “caveman reasoning”: preserve the hard constraints, discard prose narration, verify once, and stop.
+
+## Decision flow
+
+<Steps>
+  <Step title="Classify the turn">
+    Quick and standard turns use their existing lane budgets. A deep plain-text chat is eligible for adaptive planning. Active skills, specialists, voice, vision, files, computer use, plan mode, and delegated agents keep their own reasoning and tool shape.
+  </Step>
+  <Step title="Prepare a bounded draft">
+    A local QVAC call must invoke `submit_reasoning_draft`. It returns `mode`, compact steps, and an optional targeted verification. The call runs with reasoning disabled and a 220-token output ceiling.
+  </Step>
+  <Step title="Normalise the draft">
+    Leash accepts a modest wire envelope because a 4B model can overfill strict JSON Schema limits. It then deterministically keeps at most six steps, five words per step, 48 characters per step, and a 12-word verification target.
+  </Step>
+  <Step title="Run the final call">
+    `draft` mode disables QVAC reasoning and caps the final call at 700 tokens. `deep` mode keeps reasoning enabled and caps the final call at 1,800 tokens. If planning fails, Leash falls back to deep reasoning instead of silently lowering answer quality.
+  </Step>
+</Steps>
+
+## What selects deep mode
+
+The planner uses draft mode by default. It escalates when the task has more than six dependent transformations, conflicting constraints, consequential uncertainty, a high-risk decision, or a dependency that cannot be represented safely in a bounded draft.
+
+| Mode | QVAC reasoning | Main-call ceiling | Intended use |
+| --- | --- | --- | --- |
+| `direct` | Off | Existing lane budget | Quick, standard, voice, agent, and other non-deep paths. |
+| `draft` | Off | 700 tokens | Deep-classified work that fits a compact dependency plan. |
+| `deep` | On | 1,800 tokens | Work where compression would hide a correctness-critical dependency. |
+
+The deep prompt adds a soft private-reasoning budget of about 700 tokens. It asks for fragments, equations, identifiers, and arrows; preserves numbers, negations, constraints, dependencies, and uncertainty; permits one targeted verification; then tells the model to stop.
+
+## The QVAC switch is explicit
+
+`/no_think` remains useful prompt guidance, but it is not the inference control. Every text call now sends a QVAC provider option explicitly:
+
+```ts
+providerOptions: {
+  qvac: { reasoning_budget: enabled }
+}
+```
+
+On the current QVAC API this is an on/off control. A numeric per-request thinking allowance is not exposed, so Leash combines the real boolean switch with hard output ceilings and a soft prompt budget.
+
+## Context and tool frontier
+
+Once a `draft` plan says the task can be answered from supplied context, the final call does not need the general skill catalogue or capability brokers. Leash removes that catalogue from the system prompt. An inert `leash_keepalive` schema remains only on authored steps that intentionally preserve a tool-shaped boundary.
+
+This prevents an already-planned answer from wandering into an unrelated `run_skill` loop. It also reduces tool-schema and system-prompt input. Active skills are excluded from this path so their declared tools are never hidden.
+
+<Note>
+  The keepalive schema is compatibility surface, not a capability. The maintained QVAC fork now permits tool-less dynamic-model requests by setting compact tool mode per request.
+</Note>
+
+## Measured result
+
+The live benchmark uses the local `chat` alias through QVAC and asks both paths to produce the same structured answer for a SQLite encryption change with offline startup, rollback safety, crash consistency, and decisive verification gates.
+
+| 2026-06-17 run | Generated tokens | Model time | Completed | Quality gates |
+| --- | ---: | ---: | --- | --- |
+| Unrestricted baseline | 1,200 | 57.96 s | No; exhausted the ceiling | 0/5 |
+| Bounded Chain-of-Draft | 181 total | 11.35 s | Yes | 5/5 |
+| Change | **84.9% fewer** | **80.4% lower** | — | — |
+
+The optimized total contains a 78-token draft and a 103-token final answer. The gates checked encryption, offline key access, rollback, crash consistency, and at least three decisive verification gates.
+
+A separate product-path run through `POST /api/leash/chat` generated 78 draft tokens plus 450 answer tokens in about 33.36 seconds. The prior deep call generated 1,179 tokens in 87.81 seconds. That observed route reduced generated tokens by about 55% and model time by about 62%, while still returning a complete answer.
+
+Run the controlled comparison against an already-running local QVAC serve:
+
+```bash
+npm run benchmark:reasoning
+```
+
+The benchmark prints aggregate JSON and quality checks. It does not print or persist hidden reasoning text.
+
+## Learning from accepted outcomes
+
+The feedback record stores the reasoning mode, final-call token count, draft tokens, draft time, and response time next to a 👍, 👎, or correction. It never stores the private reasoning draft or hidden `<think>` text.
+
+Raw chat completion is not treated as correctness. Unreviewed chat transcripts remain available for inspection but no longer enter LoRA curation automatically. Explicit positive feedback, corrected feedback, independently accepted Council answers, memories, and graph-derived pairs remain eligible; frozen eval prompts, rejected pairs, duplicates, and sub-minimum training sets are still excluded.
+
+## Speculative decoding status
+
+Speculative decoding is not enabled. The cached QVAC 0.13.x source contains internal llama.cpp speculative state, but the SDK configuration schema and public addon interface do not expose a supported draft-model option. Adding an undocumented config key would be rejected or ignored, so Leash does not claim this optimisation.
+
+## Verification
+
+```bash
+npm run smoke:reasoning-policy
+npm run smoke:training-trace-policy
+npm run smoke:lane-budget
+npm run smoke:tool-exposure
+npm run typecheck
+npm run web:build
+```
+
+The reasoning smoke covers explicit QVAC on/off options, output ceilings, and deterministic draft normalisation. The trace-policy smoke proves that hidden reasoning fields are discarded and unreviewed raw chats are absent from automatic training sources.

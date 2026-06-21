@@ -1,0 +1,43 @@
+{
+  "id": "codex-mesh-router-hi",
+  "createdAt": 1781893480804,
+  "updatedAt": 1781893480804,
+  "messages": [
+    {
+      "id": "msg-codex-mesh-router-hi",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-2FVm8N1459s93ePQ",
+      "metadata": {
+        "createdAt": 1781893480799,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781893480799
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "classifier direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

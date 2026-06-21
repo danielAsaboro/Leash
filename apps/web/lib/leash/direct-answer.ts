@@ -26,6 +26,27 @@ export function directAnswerForSimpleTurn(text: string): string | null {
   return canonicalMarkerSentence(q);
 }
 
+const VOICE_CONFIRM_PREFIX = "This came from Leash on-device speech transcription:";
+const VOICE_CONFIRM_SUFFIX_RE = /\s*Confirm the request and retain it for the next turn\.?\s*$/i;
+
+/**
+ * A voice-loop confirmation does not need another model decode. The transcribed
+ * user message is already part of the persisted chat history, so acknowledging
+ * that exact text is deterministic and preserves continuity for the next turn.
+ */
+export function directAnswerForVoiceConfirmation(text: string): string | null {
+  const q = (text ?? "").trim();
+  if (!q.startsWith(VOICE_CONFIRM_PREFIX) || !VOICE_CONFIRM_SUFFIX_RE.test(q)) return null;
+  const transcript = q
+    .slice(VOICE_CONFIRM_PREFIX.length)
+    .replace(VOICE_CONFIRM_SUFFIX_RE, "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/[.]+$/, "");
+  if (!transcript || transcript.length > 1_200) return null;
+  return `Confirmed. I'll retain this request for the next turn: ${transcript}.`;
+}
+
 export function directAnswerForSkillMetadataTurn(text: string): string | null {
   const q = (text ?? "").trim();
   if (!q || q.length > 420) return null;

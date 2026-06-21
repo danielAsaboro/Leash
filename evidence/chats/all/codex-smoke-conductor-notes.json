@@ -1,0 +1,90 @@
+{
+  "id": "codex-smoke-conductor-notes",
+  "createdAt": 1781895263481,
+  "updatedAt": 1781895263481,
+  "messages": [
+    {
+      "id": "msg-user-conductor-notes",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "search my notes for qvac"
+        }
+      ]
+    },
+    {
+      "id": "msg-zxt91BYZNF4sYZSP",
+      "metadata": {
+        "createdAt": 1781895252044,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781895263478,
+        "totalTokens": 56
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "deterministic guard: notes/files/memory request needs the full agent; conductor output invalid (conductor action was invalid); local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "file-finder",
+                "name": "File Finder"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-run_skill",
+          "toolCallId": "call_hz5jnf_8",
+          "state": "output-available",
+          "input": {
+            "skill": "file-finder",
+            "task": "search my notes for qvac"
+          },
+          "output": {
+            "text": "The \"file-finder\" skill failed: An internal error occurred.",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI'm sorry, but I encountered an internal error while trying to search your notes for \"qvac\". It seems there was a problem with the file-finder skill. Would you like me to try a different approach or provide more information about what went wrong?",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

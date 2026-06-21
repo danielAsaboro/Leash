@@ -6,6 +6,7 @@
  * duplicate load / registry contention on the provider). Single reusable worklet; one request in flight.
  */
 import { DEFAULT_MESH_IMAGE_PROMPT } from "./prompt";
+import { Platform } from "react-native";
 
 /** Structured OpenAI streaming delta surfaced to tool-aware consumers (Stage 3). Mirrors the
  *  producer's `ForwardFrame` chunk `delta` field in apps/hypha/src/forward-control.ts. */
@@ -80,7 +81,9 @@ function ensureWorklet() {
   if (worklet) return;
   // Lazy: neither the bundle string nor react-native-bare-kit touch the app's startup path.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const FORWARD_BUNDLE: string = require("./worklets/forward-worklet.bundle.js");
+  const FORWARD_BUNDLE: string = Platform.OS === "android"
+    ? require("./worklets/forward-worklet.android.bundle.js")
+    : require("./worklets/forward-worklet.bundle.js");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Worklet } = require("react-native-bare-kit");
   worklet = new Worklet();

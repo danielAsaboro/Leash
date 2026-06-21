@@ -105,7 +105,7 @@ import { resetDeviceState } from "./resetDeviceState";
 import { decideMobileSetup, mobileDeviceLabel } from "./deviceSetup";
 import type { DeviceSetupDecision } from "@mycelium/brain";
 
-const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
+const SELF_DEVICE = Device.deviceName || Device.modelName || "This phone";
 const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
 type BootSource = "new" | "restore";
 
@@ -479,7 +479,7 @@ export default function App(): React.JSX.Element {
         setBootSource("new");
         setBootStage("choose");
         setStatus("Set up this device");
-        setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+        setBootDetail("Choose whether this device starts its own local workspace or joins one you already use.");
         return;
       }
       setBootMode(onboarding.mode);
@@ -768,7 +768,7 @@ export default function App(): React.JSX.Element {
             // LOCAL: on-device completion with the native tool loop.
             acc = await runNativeTurn({
               modelId: modelIdRef.current!,
-              system: agentSystem,
+              instructions: agentSystem,
               history,
               tools: buildDeviceTools(),
               maxSteps: 6,
@@ -1166,12 +1166,12 @@ export default function App(): React.JSX.Element {
             setFirstDeviceDecision(null);
             setBootStage("choose");
             setStatus("Set up this device");
-            setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+            setBootDetail("Choose whether this device starts its own local workspace or joins one you already use.");
           } else if (bootStage === "sync") {
             setBootMode(null);
             setBootStage("choose");
             setStatus("Set up this device");
-            setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+            setBootDetail("Choose whether this device starts its own local workspace or joins one you already use.");
           }
         }}
       />
@@ -1417,7 +1417,7 @@ export default function App(): React.JSX.Element {
             setBootMode(null);
             setBootSource("new");
             setStatus("Set up this device");
-            setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+            setBootDetail("Choose whether this device starts its own local workspace or joins one you already use.");
 
             await resetDeviceState();
 
@@ -1536,10 +1536,10 @@ function MessageBlock({
         </Text>
       ) : message.parts?.length ? (
         // Agent turns: render the parts stream (reasoning → tool steps → answer).
-        <MessageParts parts={message.parts} />
+        (<MessageParts parts={message.parts} />)
       ) : (
         // Mesh-borrow / voice / direct turns: plain markdown answer.
-        <MarkdownText content={message.content} baseStyle={styles.bodyText} />
+        (<MarkdownText content={message.content} baseStyle={styles.bodyText} />)
       )}
       {message.telemetry && (
         <View style={styles.telemetryRow}>

@@ -1,18 +1,18 @@
 ---
-title: "Mobile — iOS Leash"
-description: "Leash on iOS and Android via React Native + Expo — on-device chat and voice, real mesh membership on iPhone. Tools, RAG, and the proactive loop run on the desktop."
+title: "Mobile — Leash"
+description: "Leash on iOS and Android via React Native + Expo — on-device chat and real private-mesh membership. Tools, RAG, and the proactive loop run on the desktop."
 sidebarTitle: "Mobile"
 ---
 
 <Warning>
-On **iPhone**, Leash runs `@qvac/sdk` **on-device** (in the JS thread — no server): on-device chat, on-device **voice** (STT + TTS), and real membership in your private mesh (it replicates the task CRDT peer-to-peer). What still runs on the **desktop**, not the phone: tool execution / skills, RAG recall over your notes, the proactive heartbeat loop, on-device LoRA, and the economy ledger — the app shows an honest "runs on desktop" note for those, never a fake panel. **Android runs chat only** — the mesh worklet is a Bare bundle with no Android build (see below).
+On **iOS and Android**, Leash runs `@qvac/sdk` **on-device** (no server) and joins your private mesh as a real member that replicates the task CRDT peer-to-peer. iPhone also has on-device **voice** (STT + TTS). What still runs on the **desktop**: tool execution / skills, RAG recall over your notes, the proactive heartbeat loop, on-device LoRA, and the economy ledger — the app shows an honest "runs on desktop" note for those, never a fake panel.
 </Warning>
 
 ## What works now
 
 - **On-device chat** — fully on-device after a one-time model download; streamed output with per-turn telemetry (where it ran · tokens · tok/s · TTFT). Chat model is **user-selectable** (see the table).
 - **On-device voice** — push-to-talk and a hands-free **Call** screen: Whisper STT → on-device reply → Supertonic TTS, with voice-activity detection, **progressive playback** (sentence 1 speaks while sentence 2 generates), spoken filler over the think-gap, and **barge-in**. All on-device.
-- **Private-mesh membership (iPhone)** — pair by scanning an invite QR; the phone runs a real Corestore + Autobase + Hyperbee + Hyperswarm + blind-pairing stack inside a **Bare worklet** and replicates the same encrypted **task** CRDT as your Macs — not a thin delegated client.
+- **Private-mesh membership** — pair by scanning an invite QR; the phone runs a real Corestore + Autobase + Hyperbee + Hyperswarm + blind-pairing stack inside a **Bare worklet** and replicates the same encrypted **task** CRDT as your Macs — not a thin delegated client.
 - **Borrow a brain** — delegated inference: offload a turn to a stronger provider over the encrypted mesh (`fallbackToLocal` degrades gracefully if the provider drops; a health ping checks it every ~20 s). Cross-mesh **vision** is supported (images route to a peer's VLM).
 - **Editable constitution + prompts** — Brain → Memory, Prompts, **Proactivity (Soul + Goals)** are real editors that steer your on-device chat's system prompt. Brain → **Models** downloads/switches the chat model (choice persists across restarts).
 
@@ -27,17 +27,16 @@ stay on desktop Leash and the app says so plainly (no mock UI):
 - **RAG recall** — notes you write are stored; semantic retrieval (embeddings) runs on desktop.
 - **LoRA / Growth and the Economy ledger** — desktop only.
 
-## Android parity
+## Android runtime
 
-Android shares the codebase and runs **on-device chat**, but **not** mesh membership: the mesh
-worklet is a [Bare](https://github.com/holepunchto/bare) bundle, and the Bare runtime targets
-iOS/macOS only — Android runs on Hermes, which can't execute a Bare bundle. This is architectural,
-not a "coming soon."
+Android shares the mobile codebase and now runs **on-device chat**, the **Bare mesh worklet**, task
+sync, and encrypted delegated inference. Like iOS, it uses JSC rather than Hermes; the official
+third-party JSC runtime and Leash's Expo config plugin keep that native wiring reproducible.
 
 ## Requirements
 
 - **Physical device required** — the iOS Simulator / Android emulator do **not** support the native inference bindings (Metal on iOS, Vulkan on Android). Run on a real iPhone or Android phone.
-- **A dev/native build — not Expo Go** — the app loads `@qvac/sdk`'s native module, which Expo Go cannot host. Build a dev client (`expo run:ios --device`); see [iOS install](/install/ios) for the full recipe (Xcode, `DEVELOPER_DIR`, free-team signing).
+- **A dev/native build — not Expo Go** — the app loads `@qvac/sdk`'s native module, which Expo Go cannot host. Build a native client; see [iOS install](/install/ios) or [Android install](/install/android).
 - **Storage** — a chat model is ~0.5–2.6 GB depending on which you pick; keep a couple of GB free.
 
 ## Running the mobile app
@@ -46,6 +45,7 @@ not a "coming soon."
 cd apps/mobile
 npm install
 npm run ios          # = expo run:ios --device  (builds a dev client onto a connected iPhone)
+npm run android      # = expo run:android --device
 ```
 
 On first launch the selected chat model downloads automatically and loads onto the GPU.
@@ -63,19 +63,18 @@ selectable in **Brain → Models** and the choice persists across restarts.
 | Context size | 4096 tokens (capped for phone RAM — borrow a peer via the mesh for more) |
 | Hardware | GPU (Metal on iOS, Vulkan on Android) |
 
-## Why the iOS app runs JSC, not Hermes
+## Why the mobile app runs JSC, not Hermes
 
-The iOS app is pinned to the **JSC** JavaScript engine (`app.json` `"jsEngine": "jsc"` and
-`ios/Podfile.properties.json` `"expo.jsEngine": "jsc"`), not Hermes — and that is deliberate, not
-an oversight.
+The iOS and Android clients are pinned to the **JSC** JavaScript engine, not Hermes. That is deliberate.
 
 The reason is the runtime. `@qvac/sdk`'s React Native code path bundles polyfills (`bare-process`,
 `URL`/`URLSearchParams`, web-streams) that ship modern JavaScript syntax Hermes 0.81.5 cannot
-compile — running the pods' own `hermesc` over the production bundle produces hard errors like
+compile — running `hermesc` over the production bundle produces hard errors like
 *"private properties are not supported"*. On Hermes the app red-screens at launch. JSC is a full
-engine with no bytecode-precompile limits, so it runs that syntax natively with no Babel workarounds.
+engine with no bytecode-precompile limit. Android uses the official third-party JSC runtime plus
+targeted compatibility transforms for BigInt features missing from that platform build.
 
 The practical rule: **don't "fix" the engine back to Hermes.** If a future SDK release claims Hermes
 support, re-verify before switching — compile the `expo export:embed` bundle with the pods'
 `hermesc` first, and only flip if it compiles clean. The build recipe lives in
-[iOS install](/install/ios).
+[iOS install](/install/ios) and [Android install](/install/android).

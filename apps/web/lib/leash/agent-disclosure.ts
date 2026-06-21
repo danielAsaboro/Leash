@@ -52,10 +52,15 @@ function normalize(text: string): string {
   return text.toLowerCase().replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
 }
 
+const DESCRIPTION_STOPWORDS = new Set([
+  "and", "are", "for", "from", "has", "into", "its", "that", "the", "their",
+  "this", "through", "user", "users", "when", "with", "your", "specialist", "delegate",
+]);
+
 function words(value: string): string[] {
   return normalize(value)
     .split(/[^a-z0-9]+/)
-    .filter((w) => w.length >= 3);
+    .filter((w) => w.length >= 3 && !DESCRIPTION_STOPWORDS.has(w));
 }
 
 function hasPhrase(text: string, phrase: string): boolean {
@@ -66,7 +71,11 @@ function hasPhrase(text: string, phrase: string): boolean {
 }
 
 function aliasesFor(agent: Agent): string[] {
-  const aliases = new Set<string>([agent.slug, agent.name, ...words(agent.slug), ...words(agent.name)]);
+  // Individual words from a multi-word specialist name are capability nouns, not explicit agent
+  // addresses. Treating "eye" as a name for "Eye Clinician" caused ordinary eye complaints to
+  // override the selected eye skill and suppress its deterministic tool pipeline. Full slug/name,
+  // plus intentional built-in aliases, are the explicit surface.
+  const aliases = new Set<string>([agent.slug, agent.name]);
   for (const a of BUILTIN_ALIASES[agent.slug] ?? []) aliases.add(a);
   return [...aliases].filter(Boolean);
 }
@@ -79,14 +88,16 @@ function capabilityAliasesFor(agent: Agent): string[] {
 
 function explicitMatches(text: string, agents: Agent[]): Agent[] {
   const delegationIntent = DELEGATION_RE.test(text);
-  const out: Agent[] = [];
+  const named = agents.filter((agent) => aliasesFor(agent).some((a) => hasPhrase(text, a)));
+  if (named.length) return named.slice(0, MAX_EXPLICIT_AGENTS);
+
+  const inferred: Agent[] = [];
+  if (!delegationIntent) return inferred;
   for (const agent of agents) {
-    const named = aliasesFor(agent).some((a) => hasPhrase(text, a));
-    const capabilityNamed = delegationIntent && capabilityAliasesFor(agent).some((a) => hasPhrase(text, a));
-    if (named || capabilityNamed) out.push(agent);
-    if (out.length >= MAX_EXPLICIT_AGENTS) break;
+    if (capabilityAliasesFor(agent).some((a) => hasPhrase(text, a))) inferred.push(agent);
+    if (inferred.length >= MAX_EXPLICIT_AGENTS) break;
   }
-  return out;
+  return inferred;
 }
 
 function semanticScore(text: string, agent: Agent): number {

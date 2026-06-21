@@ -1,0 +1,43 @@
+{
+  "id": "codex-quick-lean-tools",
+  "createdAt": 1781960866989,
+  "updatedAt": 1781960866989,
+  "messages": [
+    {
+      "id": "msg-quick-lean-tools",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Turn marker: 3. Answer one compact sentence: marker 3 followed marker 2."
+        }
+      ]
+    },
+    {
+      "id": "msg-vnoRHznM7Wg8R0fM",
+      "metadata": {
+        "createdAt": 1781960866984,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781960866984
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "I can answer simple questions directly and route work that needs tools, files, memory, vision, actions, or verification.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

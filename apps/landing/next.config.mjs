@@ -8,6 +8,15 @@ const nextConfig = {
   // The marketing site is type-checked separately; don't let latent type drift gate the deploy.
   typescript: { ignoreBuildErrors: true },
   eslint: { ignoreDuringBuilds: true },
+  async redirects() {
+    return [
+      {
+        source: "/hackathon/known-issues",
+        destination: "https://docs.useleash.xyz/hackathon/known-issues",
+        permanent: true,
+      },
+    ];
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
       // The hoisted root `node_modules/process` is **bare-process** (pulled in by `@qvac/sdk`

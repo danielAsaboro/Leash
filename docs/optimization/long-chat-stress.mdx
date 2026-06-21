@@ -22,50 +22,50 @@ The long-chat stress runner exercises the product path users actually use: repea
 | Health route | Read-only health context with non-diagnostic answer. |
 | Continuity turns | Long-tail chat after previous tool calls. |
 
-## Latest 50-turn run
+## Latest 30-turn mixed run
 
-Latest report: `logs/stress-long-chat-mqmm8twb.json`.
+Latest report: `logs/stress-long-chat-mrqdvodw.json`.
 
 | Metric | Result |
 | --- | --- |
-| Completed turns | 50/50 |
+| Completed turns | 30/30 |
 | Routes observed | `chat`, `direct`, `files`, `health` |
-| Skills observed | `context-grounding`, `daily-paper`, `file-finder`, `health-safety`, `memory-keeper`, `task-manager` |
+| Skills observed | `file-finder`, `memory-keeper` |
 | Tools observed | `bash`, `context_run`, `memory_run`, `recall`, `search_graph`, `tasks_run` |
-| Total wall time | 15.741 s |
-| p50 turn latency | 17 ms |
-| p95 turn latency | 1.541 s |
-| Max turn latency | 9.820 s |
+| Total wall time | 117.518 s |
+| p50 turn latency | 141 ms |
+| p95 turn latency | 20.265 s |
+| Max turn latency | 41.196 s |
 
-The max latency was the first cold MCP registry/tool initialization on the files-date turn. Warm deterministic and broker turns are much lower.
+The max latency was the real health-model turn. The final 18 continuity turns, after all earlier tools and model routes, stayed between 54 ms and 188 ms.
 
 ## Scenario averages
 
 | Scenario | Average |
 | --- | --- |
-| Quick direct | 1.773 s cold compile path |
-| No-tool-word guard | 30 ms |
-| Files date | 9.820 s cold MCP init |
-| File-finder metadata | 18 ms |
-| File-finder search | 646 ms |
-| File-finder no-result | 654 ms |
-| Context broker | 1.541 s |
-| Memory broker | 64 ms |
-| Tasks broker | 60 ms |
-| Daily paper broker | 64 ms |
-| Health route | 365 ms |
-| Continuity after tools | 29 ms |
-| Long-tail continuity | 18 ms |
+| Quick direct | 1.019 s |
+| No-tool-word guard | 45 ms |
+| Files date | 9.228 s |
+| File-finder metadata | 93 ms |
+| File-finder search | 20.213 s |
+| File-finder no-result | 20.265 s |
+| Context broker | 12.411 s |
+| Memory broker | 264 ms |
+| Tasks broker | 4.850 s |
+| Daily paper broker | 3.629 s |
+| Health route | 41.196 s |
+| Continuity after tools | 2.167 s |
+| Long-tail continuity | 119 ms average; 54-188 ms range |
 
 ## Before and after
 
 | Area | Before | After |
 | --- | --- | --- |
-| File-finder live probe | Around 17 minutes in the worst probe. | Around 646-654 ms in the latest 50-turn chat run. |
-| Files `date` | Around 168 s before the direct registered-tool path. | Around 623-711 ms warm; 9.820 s with cold MCP registry initialization. |
-| Broker turns | Around 10-11 s through full agent routing. | Around 64 ms to 1.541 s, depending on action and cache state. |
-| Health safety | Around 94 s through model routing. | Around 365-433 ms through read-only health fast path. |
-| Long-tail continuity | Around 16-62 ms after direct routing work. | Around 15-30 ms in the latest runs. |
+| File-finder live probe | Around 17 minutes in the worst probe. | 20.213-20.265 s in the latest mixed run. |
+| Files `date` | Around 168 s before the direct registered-tool path. | 9.228 s including current registry/tool startup. |
+| Broker turns | Around 10-11 s through full agent routing. | 264 ms to 12.411 s, depending on action and cache state. |
+| Health safety | Around 94 s through model routing. | 41.196 s on the current real health-model path. |
+| Long-tail continuity | Around 16-62 ms after direct routing work. | 54-188 ms after the current tool-heavy conversation. |
 
 Earlier reports used while tightening the system: `logs/stress-long-chat-mqmm592x.json` and `logs/stress-long-chat-mqmm4nhn.json`.
 

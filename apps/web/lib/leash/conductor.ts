@@ -1,5 +1,5 @@
 import "server-only";
-import { generateText } from "ai";
+import { streamText } from "ai";
 import { classifierModel as conductorModel, resolvedClassifierAlias as resolvedConductorAlias } from "./provider.ts";
 import { liveModels, readCatalog, readQvacConfig } from "./models.ts";
 import {
@@ -16,6 +16,8 @@ import {
   type ParsedConductorDecision,
 } from "./conductor-core.ts";
 import { CONDUCTOR_SYSTEM_PROMPT, CONDUCTOR_USER_PROMPT_PREFIX, buildConductorExamplesSystemSection } from "./prompt.ts";
+
+const CONDUCTOR_TIMEOUT = { totalMs: 30_000, stepMs: 20_000, chunkMs: 12_000 } as const;
 
 export type ConductorResult =
   | {
@@ -119,15 +121,21 @@ export async function conductTurn(input: {
     conductorAlias = conductorAliasFromInventory(inventory);
     const prompt = CONDUCTOR_USER_PROMPT_PREFIX + buildConductorPrompt({ userPrompt: input.userPrompt, metadata: input.metadata, inventory });
     const system = [CONDUCTOR_SYSTEM_PROMPT, buildConductorInventorySystemSection(inventory), buildConductorExamplesSystemSection(inventory, conductorAlias)].join("\n\n");
-    const { text } = await generateText({
+    // QVAC 0.13.x can leave non-stream llama.cpp completions pending indefinitely even after the
+    // worker has finished prefill. The user-facing agent already uses streaming; keep the conductor
+    // on the same transport and await its accumulated text so turn one cannot wedge before routing.
+    const result = streamText({
       model: conductorModel(conductorAlias),
-      system,
+      instructions: system,
       prompt,
       temperature: 0,
       topP: 1,
       maxOutputTokens: 320,
       maxRetries: 0,
+      timeout: CONDUCTOR_TIMEOUT,
+      reasoning: "none",
     });
+    const text = await result.text;
     return resultFromParsed({
       parsed: invalidConductorFallbackRoute({
         parsed: enforceDirectAnswerGuard({

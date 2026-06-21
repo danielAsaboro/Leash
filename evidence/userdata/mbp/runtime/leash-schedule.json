@@ -1,0 +1,17 @@
+[
+  {
+    "id": "8CzkrBPzb1IQx4RI",
+    "name": "Dream — consolidate chats into tasks",
+    "enabled": true,
+    "kind": "job",
+    "schedule": {
+      "type": "daily",
+      "at": "03:30"
+    },
+    "job": {
+      "script": "dream"
+    },
+    "createdAt": 1780670210582,
+    "updatedAt": 1780670210582
+  }
+]

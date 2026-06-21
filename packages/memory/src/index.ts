@@ -2,7 +2,7 @@
  * @mycelium/memory — Layer 4 (Memory): "The Understory", the self-improvement loop.
  *
  * curate (real signals → train.jsonl) → train (nightly LoRA via QVAC Fabric) → eval
- * (3 frozen axes, every run logged) → apply (newest evalDelta>=0 adapter) → share
+ * (3 frozen axes, every run logged) → quality-gated apply → share
  * (P2P, packages/mesh). Closes the spec's Senses → Mind → Memory → sharper Senses loop.
  *
  * Layering note: index re-exports the full surface (incl. the @qvac/sdk-backed
@@ -17,6 +17,13 @@ export { curateTrainingSet, trainFileExists, MIN_PAIRS } from "./curate.ts";
 export type { CurateResult, CurateOptions } from "./curate.ts";
 
 export { loadEvalSet, evalPromptSet } from "./eval-set.ts";
+
+export {
+  evaluateAdapterQuality,
+  MIN_ADAPTER_EVAL_DELTA,
+  MAX_ADAPTER_AXIS_REGRESSION,
+} from "./adapter-quality.ts";
+export type { AdapterQualityDecision, AdapterQualityOptions, AdapterAxisDelta } from "./adapter-quality.ts";
 
 export { runEval } from "./eval.ts";
 export type { RunEvalParams } from "./eval.ts";

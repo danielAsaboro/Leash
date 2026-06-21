@@ -17,11 +17,19 @@ export function MessageFeedback({
   chatId,
   prompt,
   answer,
+  reasoning,
 }: {
   messageId: string;
   chatId?: string;
   prompt: string;
   answer: string;
+  reasoning?: {
+    mode?: "direct" | "draft" | "deep";
+    totalTokens?: number;
+    draftTokens?: number;
+    draftMs?: number;
+    responseMs?: number;
+  };
 }) {
   const [rating, setRating] = useState<"up" | "down" | null>(null);
   const [askCorrection, setAskCorrection] = useState(false);
@@ -33,7 +41,7 @@ export function MessageFeedback({
       const res = await fetch("/api/leash/feedback", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messageId, chatId, rating: r, prompt, answer, correction: corr }),
+        body: JSON.stringify({ messageId, chatId, rating: r, prompt, answer, correction: corr, reasoning }),
       });
       if (!res.ok) {
         toast.error(`Couldn't save feedback (${res.status})`);

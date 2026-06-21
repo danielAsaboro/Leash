@@ -8,6 +8,8 @@
  */
 import "server-only";
 import { embed, embedMany } from "ai";
+import { scoreIntentPrototype, selectIntentCandidate } from "@mycelium/leash-core/intent-prototype";
+import { RecoverablePromiseCache } from "@mycelium/leash-core/recoverable-promise-cache";
 import { listSkills } from "./skills-store.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import { embeddingModel } from "./provider.ts";
@@ -20,50 +22,9 @@ import {
 } from "./prompt.ts";
 
 const escapeRe = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const STOP = new Set([
-  "a",
-  "an",
-  "and",
-  "are",
-  "as",
-  "at",
-  "be",
-  "but",
-  "by",
-  "do",
-  "for",
-  "from",
-  "get",
-  "give",
-  "help",
-  "how",
-  "i",
-  "if",
-  "in",
-  "into",
-  "is",
-  "it",
-  "let",
-  "make",
-  "me",
-  "my",
-  "of",
-  "on",
-  "or",
-  "please",
-  "show",
-  "that",
-  "the",
-  "this",
-  "to",
-  "use",
-  "want",
-  "with",
-  "you",
-]);
 // Skill-activation floors. We load the single best-matching skill whose score clears a floor —
 // keyword (lexical) OR semantic (embedding). A candidate must clear a floor so general turns load
-// NO skill; among the survivors, RRF orders and the #1 is taken (no margin gate — it dropped
+// NO skill; among the survivors, calibrated prototype evidence orders and the #1 is taken (no margin gate — it dropped
 // correct-but-clustered skills, measured). Floors CALIBRATED 2026-06-12 against real queries with
 // the multi-utterance matcher + gte-large: that encoder compresses cosines into a HIGH band, so
 // general prompts ("tell me a joke") land at emb~0.78-0.80 while true intents land at 0.82-0.99 —
@@ -106,15 +67,11 @@ export interface ActiveSkillsResult {
 interface SkillUtteranceEmbeddings {
   slug: string;
   /** One embedding per utterance (discovery text + `when_to_use` + metadata examples). */
+  utterances: string[];
   embeddings: number[][];
 }
 
-interface SkillEmbeddingCache {
-  key: string;
-  rows: SkillUtteranceEmbeddings[];
-}
-
-let skillEmbeddingsPromise: Promise<SkillEmbeddingCache> | null = null;
+const skillEmbeddingCache = new RecoverablePromiseCache<SkillUtteranceEmbeddings[]>();
 
 /** A skill's routing utterances: its discovery text PLUS each declared example (capped). The matcher
  *  routes by MAX similarity to any of these (semantic-router style), so several concrete phrasings can
@@ -137,6 +94,8 @@ function discoveryText(skill: { slug: string; name: string; description: string 
 
 const DIRECT_TOOL_REQUEST_RE = /\b(?:tool only|use (?:the )?[a-z0-9_-]+ (?:mcp )?tool|do not use (?:run_skill|skills?|search_graph))\b/i;
 const APPLE_NOTES_REQUEST_RE = /\b(?:apple notes|notes\.app|search-notes|get-note(?:s|-content|-details|-by-id|-markdown)?|create-note|update-note|delete-note|move-note|list-notes|doctor)\b/i;
+const TASK_COMMITMENT_RE =
+  /\b(?:add|create|make)\s+(?:a\s+)?(?:todo|to-do|task)\b|\bremind\s+me\s+to\b|\b(?:mark|set)\b[\s\S]{0,80}\b(?:todo|to-do|task)\b[\s\S]{0,40}\b(?:done|complete|in[- ]?progress)\b/i;
 
 function skillEligibleForAutoActivation(query: string, skill: { slug: string }): boolean {
   if (DIRECT_TOOL_REQUEST_RE.test(query)) return false;
@@ -149,32 +108,10 @@ function skillEligibleForAutoActivation(query: string, skill: { slug: string }):
   );
 }
 
-function tokenize(s: string): string[] {
-  return (s.toLowerCase().match(/[a-z0-9][a-z0-9-]{1,}/g) ?? []).filter((t) => !STOP.has(t));
-}
-
-function lexicalScore(query: string, skill: { slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }): number {
-  const q = new Set(tokenize(query));
-  if (q.size === 0) return 0;
-  // when_to_use + metadata examples are routing utterances — fold them into the lexical target so
-  // concrete phrasings (e.g. "mark it done") count toward keyword overlap, not just the description.
-  const target = new Set(tokenize(`${skill.slug} ${skill.name} ${skill.description} ${skill.whenToUse ?? ""} ${(skill.examples ?? []).join(" ")}`));
-  if (target.size === 0) return 0;
-  let hits = 0;
-  for (const t of q) if (target.has(t)) hits++;
-  const coverage = hits / q.size;
-  const precision = hits / target.size;
-  return coverage * 0.75 + precision * 0.25;
-}
-
 async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; description: string; examples?: string[]; whenToUse?: string }>): Promise<SkillUtteranceEmbeddings[]> {
   const spans = skills.map((s) => ({ slug: s.slug, utterances: skillUtterances(s) }));
   const key = JSON.stringify(spans);
-  if (skillEmbeddingsPromise) {
-    const cached = await skillEmbeddingsPromise;
-    if (cached.key === key) return cached.rows;
-  }
-  skillEmbeddingsPromise = (async () => {
+  return skillEmbeddingCache.get(key, async () => {
     // Embed ALL utterances of ALL skills in one batched call, then regroup by skill.
     const flat = spans.flatMap((s) => s.utterances);
     const { embeddings } = await embedMany({ model: embeddingModel(), values: flat });
@@ -182,11 +119,10 @@ async function getSkillEmbeddings(skills: Array<{ slug: string; name: string; de
     const rows = spans.map((s) => {
       const group = embeddings.slice(i, i + s.utterances.length) as number[][];
       i += s.utterances.length;
-      return { slug: s.slug, embeddings: group };
+      return { slug: s.slug, utterances: s.utterances, embeddings: group };
     });
-    return { key, rows };
-  })();
-  return (await skillEmbeddingsPromise).rows;
+    return rows;
+  });
 }
 
 function activeSkillsResult(reason: "explicit" | "automatic", skills: ActiveSkillView[]): ActiveSkillsResult {
@@ -228,39 +164,78 @@ export async function activeSkillsSection(userText: string): Promise<ActiveSkill
     return activeSkillsResult("explicit", explicit);
   }
 
-  // Auto-selection (semantic-router + Reciprocal Rank Fusion). Each skill is represented by its discovery
+  // Stateful commitments have an exact lexical contract. Resolve these before
+  // semantic ranking so a small conductor cannot turn "add a todo" into a
+  // conversational acknowledgement that never reaches the task tool.
+  if (TASK_COMMITMENT_RE.test(query)) {
+    const taskManager = enabled.find(
+      (skill) => skill.slug === "task-manager" && !skill.disableModelInvocation,
+    );
+    if (taskManager) return activeSkillsResult("automatic", [taskManager]);
+  }
+
+  // Auto-selection (intent prototypes). Each skill is represented by its discovery
   // text PLUS its declared `when_to_use:` utterances and metadata examples; the embedding score is the MAX cosine over those
   // utterances — so a skill that lists the exact intent it's for out-scores a broad sibling on that intent
   // (this is what lets the SPECIFIC skill win, the gap a single-description embedding couldn't close).
-  // Lexical and embedding rankings are then fused with RRF (rank-based, scale-free, rewards agreement
-  // across BOTH signals) instead of comparing two differently-scaled scores via max(). A confidence FLOOR
-  // still gates candidates (so general turns load no skill); RRF only ORDERS the ones that clear it. One
+  // Lexical coverage and calibrated embedding evidence are fused per prototype before taking the best
+  // prototype per skill. A confidence floor still gates candidates (so general turns load no skill). One
   // skill at a time keeps context lean — the model pulls in others mid-turn with read_skill.
   const routable = enabled.filter((s) => !s.disableModelInvocation && skillEligibleForAutoActivation(query, s));
   if (routable.length === 0) return null;
-  const lex = new Map(routable.map((s) => [s.slug, lexicalScore(query, s)]));
+  const utterances = new Map(routable.map((skill) => [skill.slug, skillUtterances(skill)]));
+  const lex = new Map<string, number>();
   const emb = new Map<string, number>();
+  const routeScore = new Map<string, number>();
   try {
     const rows = await getSkillEmbeddings(routable);
     const { embedding } = await embed({ model: embeddingModel(), value: query });
-    for (const r of rows) emb.set(r.slug, r.embeddings.reduce((m, e) => Math.max(m, cosine(embedding, e)), -1));
+    for (const row of rows) {
+      let best = { lexical: 0, semantic: 0, score: 0 };
+      let bestCosine = -1;
+      for (let index = 0; index < row.utterances.length; index++) {
+        const similarity = cosine(embedding, row.embeddings[index]!);
+        const match = scoreIntentPrototype({ query, prototype: row.utterances[index]!, cosineSimilarity: similarity, semanticFloor: SKILL_EMB_FLOOR });
+        if (match.score > best.score) best = match;
+        if (similarity > bestCosine) bestCosine = similarity;
+      }
+      lex.set(row.slug, best.lexical);
+      emb.set(row.slug, bestCosine);
+      routeScore.set(row.slug, best.score);
+    }
   } catch {
-    /* embeddings serve unavailable — fall back to lexical-only activation */
+    for (const skill of routable) {
+      const best = (utterances.get(skill.slug) ?? []).reduce(
+        (current, prototype) => {
+          const match = scoreIntentPrototype({ query, prototype, cosineSimilarity: -1, semanticFloor: SKILL_EMB_FLOOR });
+          return match.score > current.score ? match : current;
+        },
+        { lexical: 0, semantic: 0, score: 0 },
+      );
+      lex.set(skill.slug, best.lexical);
+      routeScore.set(skill.slug, best.score);
+    }
   }
-  // Rank each signal (1-based, descending) → RRF score = Σ 1/(k + rank), k=60 (community default).
-  const rankBy = (score: (slug: string) => number): Map<string, number> => {
-    const order = [...routable].sort((a, b) => score(b.slug) - score(a.slug));
-    return new Map(order.map((s, i) => [s.slug, i + 1]));
-  };
-  const lexRank = rankBy((slug) => lex.get(slug) ?? 0);
-  const embRank = rankBy((slug) => emb.get(slug) ?? -1);
-  const K = 60;
-  const rrf = (slug: string): number => 1 / (K + (lexRank.get(slug) ?? routable.length)) + 1 / (K + (embRank.get(slug) ?? routable.length));
-  const best = enabled
-    .filter((s) => (lex.get(s.slug) ?? 0) >= SKILL_LEX_FLOOR || (emb.get(s.slug) ?? -1) >= SKILL_EMB_FLOOR)
-    .sort((a, b) => rrf(b.slug) - rrf(a.slug))[0];
+  const best = selectIntentCandidate({
+    candidates: routable.map((skill) => ({
+      value: skill,
+      lexical: lex.get(skill.slug) ?? 0,
+      semantic: 0,
+      score: routeScore.get(skill.slug) ?? 0,
+      cosine: emb.get(skill.slug) ?? -1,
+      specialist: !skill.builtin,
+    })),
+    lexicalFloor: SKILL_LEX_FLOOR,
+    semanticFloor: SKILL_EMB_FLOOR,
+  })?.value;
   // Gated diagnostic: the top few candidates with their lex/emb so floors can be tuned against real queries.
-  const top = [...routable].sort((a, b) => Math.max(emb.get(b.slug) ?? -1, lex.get(b.slug) ?? 0) - Math.max(emb.get(a.slug) ?? -1, lex.get(a.slug) ?? 0)).slice(0, 3);
-  loopLog(`match "${query.slice(0, 40)}" → ${best?.slug ?? "(none)"} | top: ${top.map((s) => `${s.slug}(lex=${(lex.get(s.slug) ?? 0).toFixed(2)},emb=${(emb.get(s.slug) ?? -1).toFixed(2)})`).join(" ")}`);
+  const top = [...routable].sort((a, b) => (routeScore.get(b.slug) ?? 0) - (routeScore.get(a.slug) ?? 0)).slice(0, 3);
+  loopLog(`match "${query.slice(0, 40)}" → ${best?.slug ?? "(none)"} | top: ${top.map((s) => `${s.slug}(score=${(routeScore.get(s.slug) ?? 0).toFixed(2)},lex=${(lex.get(s.slug) ?? 0).toFixed(2)},emb=${(emb.get(s.slug) ?? -1).toFixed(2)})`).join(" ")}`);
   return best ? activeSkillsResult("automatic", [best]) : null;
+}
+
+/** Rehydrate one previously-selected enabled skill for a bounded multi-turn continuation. */
+export async function activeSkillBySlug(slug: string): Promise<ActiveSkillsResult | null> {
+  const skill = (await listSkills()).find((candidate) => candidate.enabled && !candidate.disableModelInvocation && candidate.slug === slug);
+  return skill ? activeSkillsResult("automatic", [skill]) : null;
 }

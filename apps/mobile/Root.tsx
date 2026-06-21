@@ -1,5 +1,6 @@
 import React from "react";
 import { ScrollView, StatusBar, Text, View } from "react-native";
+import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import App from "./App";
 
 /**
@@ -35,8 +36,12 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { err
 
 export default function Root(): React.JSX.Element {
   return (
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
+    <SafeAreaProvider>
+      <SafeAreaView style={{ flex: 1, backgroundColor: "#f1efe6" }} edges={["top", "right", "bottom", "left"]}>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }

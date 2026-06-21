@@ -1,0 +1,79 @@
+---
+title: "Fine-tuning evaluation"
+description: "How Leash curates, evaluates, verifies, and promotes local QVAC Fabric LoRA adapters."
+sidebarTitle: "Fine-tuning evaluation"
+---
+
+Leash treats fine-tuning as a quality-controlled local pipeline. Producing an adapter file is not sufficient. The adapter must preserve artifact integrity, remain isolated from its frozen holdout, improve the held-out overall score by a meaningful amount, and avoid a material regression on any evaluation axis.
+
+## Pipeline
+
+| Stage | Contract |
+| --- | --- |
+| Curate | Accept explicit positive feedback, corrections, accepted Council answers, typed memories, and graph-derived pairs. Raw completed chats are not correctness evidence. |
+| Hold out | Exclude every normalized prompt present in the frozen `eval-v1` fixtures before writing training rows. |
+| Train | Run QVAC Fabric LoRA locally against a trainable base quantization. |
+| Evaluate | Score the base and adapter independently on recall, preference adherence, and style similarity. Append both runs even when the adapter regresses. |
+| Verify | Recompute the artifact hash, size, score arithmetic, fixture counts, model identity, and train/eval separation. |
+| Promote | Require a meaningful overall gain and reject a material loss on any axis. |
+
+The current promotion rule is:
+
+```text
+overall_delta >= 0.02
+every axis_delta >= -0.02
+base_eval.model == adapter_eval.model == manifest.baseModel
+manifest.baseModelSource == exact catalog id or portable ~/ GGUF path
+```
+
+The per-axis ceiling permits small evaluation noise without allowing a stronger recall score to conceal a large preference or style regression.
+
+## Verified adapter
+
+The current adapter was trained locally on 137 curated pairs against the trainable Qwen3 8B base. Its artifact is 87,635,424 bytes with SHA-256:
+
+```text
+10955c2222ba0ca6b5d6d7134c3a71d52010c4e1cd6e7300b1849c63d187125b
+```
+
+The stored manifest and the fresh QVAC rerun both pass the promotion gate:
+
+| Measurement | Base | Adapter | Delta |
+| --- | ---: | ---: | ---: |
+| Stored overall | 0.386488 | 0.423530 | +0.037042 |
+| Fresh QVAC overall | 0.383410 | 0.429011 | +0.045601 |
+| Fresh recall | 0.000000 | 0.125000 | +0.125000 |
+| Fresh preference | 0.333333 | 0.333333 | +0.000000 |
+| Fresh style | 0.816896 | 0.828700 | +0.011804 |
+
+The fresh run used the same 18 frozen prompts: eight recall, six preference, and four style items. It improved recall and style without an evaluated-axis regression.
+
+## Base identity is part of correctness
+
+An evaluation run originally selected the default 600M base while loading an adapter trained for the 8B base. The native runtime rejected the incompatible adapter and the worker exited during context creation.
+
+Every adapter manifest now owns both identities: `baseModel` is the evaluation name, while `baseModelSource` is the exact catalog ID or machine-neutral `~/` GGUF path used for training. The evaluator resolves that recorded source and validates catalog-backed names before inference. It never attempts an adapter against an inferred fallback base.
+
+## Reproduce the evidence
+
+Run the real base-versus-adapter evaluation through QVAC:
+
+```bash
+npm run evolve:eval
+```
+
+Then verify the append-only evaluation pair and artifact:
+
+```bash
+npm run verify:lora-heldout
+```
+
+Each verification writes `logs/lora-heldout-verification-<run-id>.json`. The report records the fixture hash, artifact hash and size, exact base-model source, stored scores, fresh scores, promotion decision, holdout leakage count, and current retraining readiness.
+
+## Fresh retraining readiness
+
+The installed adapter is valid and promotable. A new training cycle is a separate decision. The current device has 5 accepted training signals and the minimum is 12, so the nightly loop skips training rather than manufacturing rows or lowering the gate.
+
+<Note>
+Promotion evidence and retraining readiness answer different questions. A verified existing adapter remains usable while the next training cycle waits for enough new high-quality signals.
+</Note>

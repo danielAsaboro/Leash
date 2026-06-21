@@ -5,22 +5,38 @@
  *
  *   npm run evolve:eval
  */
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AuditLog } from "@mycelium/shared";
 import { latestAdapter, runEval, DEFAULT_BASE } from "../src/index.ts";
+import type { AdapterManifest, TrainBase } from "../src/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const audit = new AuditLog("memory-evolve-eval", join(here, "..", "logs"));
 
+function evaluationBase(manifest: AdapterManifest): TrainBase {
+  if (manifest.baseModelSource === DEFAULT_BASE.sourceRef) {
+    if (manifest.baseModel !== DEFAULT_BASE.name) {
+      throw new Error(`Adapter base ${manifest.baseModel} does not match catalog source ${manifest.baseModelSource}`);
+    }
+    return DEFAULT_BASE;
+  }
+  const src = manifest.baseModelSource.startsWith("~/")
+    ? join(homedir(), manifest.baseModelSource.slice(2))
+    : manifest.baseModelSource;
+  return { name: manifest.baseModel, src, sourceRef: manifest.baseModelSource };
+}
+
 try {
   console.log("=== 📏 evolve:eval — re-score base + latest adapter ===\n");
-  const baseRun = await runEval({ label: "base", modelSrc: DEFAULT_BASE.src, modelName: DEFAULT_BASE.name, audit });
-  console.log(`base    overall: ${baseRun.overall.toFixed(3)}  [${baseRun.axes.map((a) => `${a.axis}=${a.score.toFixed(2)}`).join(" ")}]`);
-
-  const adapter = latestAdapter({ minDelta: -Infinity }); // re-score whatever exists, promotable or not
+  const adapter = latestAdapter({ minDelta: -Infinity, maxAxisRegression: Infinity }); // re-score whatever exists, promotable or not
   if (adapter) {
-    const adapterRun = await runEval({ label: adapter.version, modelSrc: DEFAULT_BASE.src, modelName: DEFAULT_BASE.name, adapterPath: adapter.ggufPath, audit });
+    const base = evaluationBase(adapter.manifest);
+    console.log(`base: ${base.name} (${String(base.src)})\n`);
+    const baseRun = await runEval({ label: "base", modelSrc: base.src, modelName: base.name, audit });
+    console.log(`base    overall: ${baseRun.overall.toFixed(3)}  [${baseRun.axes.map((a) => `${a.axis}=${a.score.toFixed(2)}`).join(" ")}]`);
+    const adapterRun = await runEval({ label: adapter.version, modelSrc: base.src, modelName: base.name, adapterPath: adapter.ggufPath, audit });
     console.log(`adapter overall: ${adapterRun.overall.toFixed(3)}  [${adapterRun.axes.map((a) => `${a.axis}=${a.score.toFixed(2)}`).join(" ")}]`);
     console.log(`evalDelta: ${(adapterRun.overall - baseRun.overall >= 0 ? "+" : "")}${(adapterRun.overall - baseRun.overall).toFixed(3)}`);
   } else {

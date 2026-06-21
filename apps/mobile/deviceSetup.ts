@@ -20,8 +20,8 @@ function availableDiskBytes(): number | null {
 }
 
 export function mobileDeviceLabel(width: number, height: number): string {
-  if (deviceFormFactor(width, height) === "tablet") return "this iPad";
-  return "this iPhone";
+  if (deviceFormFactor(width, height) === "tablet") return "this tablet";
+  return "this phone";
 }
 
 export function collectMobileSetupFacts(width: number, height: number): DeviceSetupFacts {

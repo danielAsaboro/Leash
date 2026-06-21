@@ -1,0 +1,171 @@
+{
+  "id": "codex-long-chat-mqmjhgce",
+  "createdAt": 1781970933793,
+  "updatedAt": 1781971055080,
+  "messages": [
+    {
+      "id": "msg-mqmjhgce-1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 1. Answer directly: marker 1 starts the run. Do not mention tools."
+        }
+      ]
+    },
+    {
+      "id": "msg-x3U51R7zTcaniao9",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781970933789,
+        "model": "direct",
+        "effort": "quick",
+        "finishedAt": 1781970933789
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "direct",
+            "reason": "deterministic direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Marker 1 starts the run.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqmjhgce-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 2. Do not use tools; answer one compact sentence saying marker 2 followed marker 1."
+        }
+      ]
+    },
+    {
+      "id": "msg-TPJfDPsLo3hIMI2i",
+      "role": "assistant",
+      "metadata": {
+        "createdAt": 1781970933823,
+        "model": "direct",
+        "effort": "quick",
+        "finishedAt": 1781970933823
+      },
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "direct",
+            "reason": "deterministic direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Marker 2 followed marker 1.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqmjhgce-3",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 3. Use the sandboxed bash tool to run date, then answer with the date output only."
+        }
+      ]
+    },
+    {
+      "id": "msg-74M4rNTNpSFifnaU",
+      "metadata": {
+        "createdAt": 1781970955601,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Bash tool is available for date calculation, so route to qwen3-4b; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-NMVJ980SmcINsKj9",
+          "data": {
+            "id": "run-NMVJ980SmcINsKj9",
+            "chatId": "codex-long-chat-mqmjhgce",
+            "title": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 3. Use the sandboxed bash tool to run date, then answer with the date output only.",
+            "status": "active",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781970955474,
+            "updatedAt": 1781970955546,
+            "startedAt": 1781970955474,
+            "steps": [
+              {
+                "id": "DmNQ8v3rObHaWtIz",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "active",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781970955546
+              }
+            ],
+            "artifacts": [],
+            "errors": []
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "memory-keeper",
+                "name": "memory-keeper"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-run_skill",
+          "toolCallId": "call_bxni2n_0",
+          "state": "input-available",
+          "input": {
+            "skill": "computer-use",
+            "task": "run date command and return the output"
+          }
+        }
+      ]
+    }
+  ]
+}

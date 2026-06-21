@@ -11,9 +11,30 @@
  * from `web-streams-polyfill` (JSC ships neither). Each install is guarded so we never clobber a
  * global the runtime already provides.
  */
+import "fast-text-encoding";
 import { Platform } from "react-native";
+import JSBI from "jsbi";
+import { installBigIntTypedArrays } from "./bigintTypedArrays";
+import { installTextEncoderEncodeInto } from "./textEncodingCompat";
 // @ts-expect-error — @ungap/structured-clone ships no type declarations; default export is the fn.
 import structuredCloneImpl from "@ungap/structured-clone";
+
+// Android JSC does not expose BigInt. Install the callable constructor before App's
+// dependency graph is evaluated; Babel lowers BigInt operators in the two modules
+// that use native literal/operator syntax, while constructor-only consumers (Zod,
+// structured-clone) can use this standards-shaped global.
+if (!("BigInt" in globalThis)) {
+  const BigIntCompat = ((value: string | number | boolean) => JSBI.BigInt(value)) as unknown as typeof BigInt;
+  BigIntCompat.asIntN = JSBI.asIntN as unknown as typeof BigInt.asIntN;
+  BigIntCompat.asUintN = JSBI.asUintN as unknown as typeof BigInt.asUintN;
+  Object.defineProperty(globalThis, "BigInt", {
+    configurable: true,
+    value: BigIntCompat,
+    writable: true,
+  });
+}
+installBigIntTypedArrays();
+installTextEncoderEncodeInto();
 
 if (Platform.OS !== "web") {
   const setup = async (): Promise<void> => {

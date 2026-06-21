@@ -1,0 +1,37 @@
+{
+  "id": "iaqMxiqwtIGxe78p",
+  "question": "What is Holepunch Bare runtime and how does it differ from Node.js?",
+  "state": "done",
+  "round": 1,
+  "maxRounds": 4,
+  "queries": [
+    "What is Holepunch Bare runtime and how does it differ from Node.js?"
+  ],
+  "sources": [
+    {
+      "title": "Introducing Bare: Actually run Javascript Everywhere - Pears",
+      "url": "https://pears.com/news/introducing-bare-actually-run-javascript-everywhere/"
+    },
+    {
+      "title": "GitHub - holepunchto/bare: Small and modular JavaScript runtime for ...",
+      "url": "https://github.com/holepunchto/bare"
+    },
+    {
+      "title": "Key Features | holepunchto/bare | DeepWiki",
+      "url": "https://deepwiki.com/holepunchto/bare/1.1-key-features"
+    },
+    {
+      "title": "Holepunch Launches Bare: A Minimal Javascript Runtime That Runs ...",
+      "url": "https://www.techdogs.com/tech-news/td-newsdesk/holepunch-launches-bare-a-minimal-javascript-runtime-that-runs-everywhere"
+    },
+    {
+      "title": "Holepunch Launches Bare: A Minimal JavaScript Runtime That Runs Everywhere",
+      "url": "https://cioinfluence.com/it-and-devops/holepunch-launches-bare-a-minimal-javascript-runtime-that-runs-everywhere/"
+    }
+  ],
+  "startedAt": 1780676222299,
+  "updatedAt": 1780676676340,
+  "searchProvider": "duckduckgo",
+  "note": "YES. The report provides a comprehensive overview of Holepunch Bare, its features, and a detailed comparison with Node.js, directly answering the question about Holepunch Bare runtime and its differen",
+  "finishedAt": 1780676676340
+}

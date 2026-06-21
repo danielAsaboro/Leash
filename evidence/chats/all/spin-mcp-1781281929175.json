@@ -1,0 +1,112 @@
+{
+  "id": "spin-mcp-1781281929175",
+  "createdAt": 1781281986838,
+  "updatedAt": 1781281986838,
+  "messages": [
+    {
+      "id": "msg-56a88359-ae28-41db-806d-e6b3a80e17df",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "install this mcp https://github.com/hexitex/MCP-Backup-Server"
+        }
+      ]
+    },
+    {
+      "id": "msg-bVOxQcAxLpWPmjiG",
+      "metadata": {
+        "createdAt": 1781281929922,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781281986832,
+        "totalTokens": 113
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "mcp-installer",
+                "name": "mcp-installer"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-install_mcp_repo",
+          "toolCallId": "call_zc7253_14",
+          "state": "output-available",
+          "input": {
+            "url": "https://github.com/hexitex/MCP-Backup-Server"
+          },
+          "output": {
+            "text": "Installed and connected \"MCP-Backup-Server\". Tools: backup_create, backup_list, backup_restore, backup_folder_create, backup_folder_list, backup_folder_restore, backup_list_all, mcp_cancel.",
+            "server": {
+              "id": "7716cebe-60b6-4c35-8834-32e233a26f31",
+              "enabled": true,
+              "transport": "stdio",
+              "name": "MCP-Backup-Server",
+              "command": "npm",
+              "args": [
+                "start"
+              ],
+              "cwd": "/Volumes/Development/leash-mcp-repos/MCP-Backup-Server"
+            },
+            "status": {
+              "id": "7716cebe-60b6-4c35-8834-32e233a26f31",
+              "enabled": true,
+              "transport": "stdio",
+              "name": "MCP-Backup-Server",
+              "command": "npm",
+              "args": [
+                "start"
+              ],
+              "cwd": "/Volumes/Development/leash-mcp-repos/MCP-Backup-Server",
+              "connected": true,
+              "toolNames": [
+                "backup_create",
+                "backup_list",
+                "backup_restore",
+                "backup_folder_create",
+                "backup_folder_list",
+                "backup_folder_restore",
+                "backup_list_all",
+                "mcp_cancel"
+              ]
+            }
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe MCP server \"MCP-Backup-Server\" has been installed and connected successfully. It now exposes the following tools: backup_create, backup_list, backup_restore, backup_folder_create, backup_folder_list, backup_folder_restore, backup_list_all, and mcp_cancel. The server is configured to use the stdio transport with the command \"npm\" and arguments [\"start\"], and it is located in the directory \"/Volumes/Development/leash-mcp-repos/MCP-Backup-Server\". The server is currently enabled and connected.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

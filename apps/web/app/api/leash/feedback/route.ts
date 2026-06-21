@@ -8,6 +8,7 @@
  * SEPARATE fetch, never touching the streaming/useChat path (the house no-abort taboo).
  */
 import { appendFeedback } from "../../../../lib/leash/feedback-store.ts";
+import { normalizeReasoningFeedback } from "../../../../lib/leash/feedback-policy.ts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,6 +21,13 @@ export async function POST(req: Request): Promise<Response> {
     prompt?: string;
     answer?: string;
     correction?: string;
+    reasoning?: {
+      mode?: string;
+      totalTokens?: number;
+      draftTokens?: number;
+      draftMs?: number;
+      responseMs?: number;
+    };
   };
   try {
     body = (await req.json()) as typeof body;
@@ -42,6 +50,7 @@ export async function POST(req: Request): Promise<Response> {
     prompt: typeof body.prompt === "string" ? body.prompt : "",
     answer: typeof body.answer === "string" ? body.answer : "",
     correction: typeof body.correction === "string" ? body.correction : undefined,
+    reasoning: normalizeReasoningFeedback(body.reasoning),
   });
   return Response.json({ ok: true });
 }

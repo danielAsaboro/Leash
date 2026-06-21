@@ -11,14 +11,21 @@ Optimisation claims in Leash are tied to observed runs, smoke tests, or explicit
 | Area | Evidence |
 | --- | --- |
 | Local inference | 600M at 113.7 tok/s locked figure; 1B around 70.6-74.7 tok/s; 4B at 24.1 tok/s in spike/device-fit runs. |
-| RAG | 3 docs -> 7 chunks, retrieval around 23-26 ms, top score 0.768. |
+| RAG | Functional smoke: 3 docs -> 7 chunks at about 23-26 ms. Scaled run: 1,000 documents, 100 queries, recall@5 0.98, citation accuracy 0.98, p50 25 ms, p95 35 ms. |
 | Delegated compute | P2P round trip 1.27 s at 45.4 tok/s; cross-machine delegated decode around 100 tok/s in later saturated-GPU shed demo. |
 | Broker shed | A fourth saturated request answered from the Pro in 2.9 s at 100.8 tok/s. |
-| LoRA | On-device fine-tune completed in 152.7 s with train 0.86 / validation 0.85 and a 20 MB adapter. |
+| LoRA | Current 8B adapter: 87,635,424 bytes, 137 curated pairs, verified SHA-256. Fresh QVAC held-out rerun: 0.383410 -> 0.429011 (+0.045601); recall +0.125, preference unchanged, style +0.011804. |
 | Diffusion | `SD_V2_1_1B_Q8_0` images measured around 98-106 s per 768x512 image. |
 | Mobile/P2P model pull | 2382 MB pulled in 159 s over the Hypercore blob core. |
-| Long chat stress | 50/50 normal `/api/leash/chat` turns completed in 15.741 s total; p50 17 ms, p95 1.541 s, max 9.820 s cold MCP init. |
+| Long chat stress | Latest mixed 30-turn `/api/leash/chat` run completed 30/30 in 117.518 s; p50 141 ms, p95 20.265 s, max 41.196 s on the real health-model turn. Its final 18 continuity turns stayed between 54-188 ms. |
 | Deterministic chat fast paths | Latest stress observed `bash`, `context_run`, `memory_run`, `recall`, `search_graph`, and `tasks_run` through the chat endpoint. |
+| Reasoning efficiency | Controlled QVAC A/B: 1,200 tokens / 57.96 s / incomplete baseline versus 181 tokens / 11.35 s / 5-of-5 quality gates with Chain-of-Draft. |
+| Capability packs | 94 executable checks across five capability packs, including real plugin installation, component discovery, MCP startup, deterministic tool calls, policy checks, and explicit hardware boundaries. |
+| Parallel subagents | Six conversations x five turns: 30/30 correct selection, arguments, execution, coordination, and synthesis; p50 11.897 s, p90 17.634 s, max 21.191 s. |
+| Unified multimodal orchestration | Vision, TTS, STT, private document, Grace, Bree, `search_graph`, and `active_context` produced a grounded final decision. The latest accepted run measured 17.613 s vision, 3.483 s TTS, 5.961 s STT, 0.727 s confirmation, and 58.713 s two-agent orchestration. |
+| Explicit delegation schedule | The accepted run skipped redundant parent planning, executed two mandated reads once as a concurrent batch, ran both specialists sequentially on one inference device, and used a bounded final synthesis. Exact temperature, batch ID, threshold, decision, and marker assertions passed. |
+| Raw capability chat | Five sustained conversations and 16/16 raw turns passed through the normal chat route. The completed artifact is `demo/evidence/capability-conversations.json`. |
+| Local provider assets | Provider typecheck/build and 77 runnable tests pass; live file-reference vision and speech-to-transcription paths use the local QVAC serve. |
 
 See [Benchmarks](/reference/benchmarks) for the consolidated table.
 
@@ -28,11 +35,20 @@ See [Benchmarks](/reference/benchmarks) for the consolidated table.
 | --- | --- |
 | `spike/abort-safety-inproc.ts` and HTTP abort probe | Mid-decode cancel no longer wedges the serve on the current 0.13.x SDK line. |
 | `npm run smoke:orchestration` | Subagent streaming, nested tool calls, preloaded skills, and main-agent delegation work on-device. |
+| `npm run smoke:explicit-agent-plan` | Explicit independent tasks parse deterministically; ambiguous shared tasks fall back; write tools cannot enter the read fast path. |
+| `npm run smoke:parallel-subagent-tools` | Multiple real tool calls execute in one model step and overlap in wall-clock time. The accepted regression started all three tools within 1 ms and completed a 705 ms batch versus 2.111 s of serial tool time. |
 | `npm run smoke:plugins-live` | Plugin skill activation and specialist answers work against a tools-enabled qvac serve. |
 | `smoke-model-fit` / model rows checks | Model inventory and fit verdicts reflect current config and cache state. |
 | Hypha/economy smokes | Delegation, metering, reputation, identity, and firewall behavior are exercised outside the UI. |
 | `scripts/stress-long-chat-turn.ts` | Repeated normal chat API turns covering direct chat, files, file-finder, brokers, health safety, and continuity. |
 | QVAC-down chat probes | `/api/leash/chat` streamed `200 OK` for deterministic `bash` and a transparent local-inference-unavailable answer for model work. |
+| `npm run smoke:reasoning-policy` | Explicit QVAC reasoning control, adaptive output ceilings, and bounded draft normalisation. |
+| `npm run smoke:training-trace-policy` | Feedback telemetry excludes hidden reasoning and raw unreviewed chats stay out of automatic training. |
+| `npm run benchmark:reasoning` | Repeats the unrestricted-versus-bounded comparison against the local QVAC `chat` alias. |
+| `npm run benchmark:rag-scale` | Ingests 1,000 deterministic documents and measures 100 local retrieval queries. |
+| `npm run verify:lora-heldout` | Verifies adapter hash/size, frozen fixtures, score arithmetic, holdout isolation, stored and fresh promotion gates, and retraining readiness. |
+| `npm run smoke:capability-packs` | Installs and enables five capability packs through Leash, starts their MCP servers, invokes their tools, and checks every capability contract. |
+| `npm run gauntlet:capabilities` | Sends 16 unrefined turns in five sustained conversations through `/api/leash/chat`; writes evidence only after every assertion passes. |
 
 The root-cause rule still applies: scripts are evidence, not a replacement for product-path verification.
 
@@ -41,12 +57,18 @@ The root-cause rule still applies: scripts are evidence, not a replacement for p
 | Finding | Design consequence |
 | --- | --- |
 | Qwen3 4B dropped dependent next calls even when a continuation nudge was injected. | Step-declared skills use deterministic harness pipelines. |
-| A tool-less tools-enabled chat model can hang or 500 on SDK 0.13.x. | Every text route carries at least one active tool; subagents get a keep-alive tool if needed. |
+| Dynamic tool compaction was enabled at model load, so a tool-less request could fail. | The QVAC fork now sets `tools_compact` per request only when a dynamic request actually carries tools. |
 | A tools-disabled chat serve makes the model talk about tools instead of calling them. | Dashboard-added chat aliases default to `tools:true, toolsMode:"dynamic"`. |
 | Full-agent routing made simple tool turns slow. | Narrow deterministic paths now run registered tools and broker actions before a model decode. |
 | The planned Layer-1 reconnection monkey-patch could not reach the SDK Bare worker. | The overbuilt resilience layer was killed; the real fix was distinct DHT seeds. |
-| The 600M memory-evolution recall run scored 0% at 2 epochs. | LoRA mechanism is documented as real; recall improvement remains unclaimed. |
+| An early 600M memory-evolution run scored 0% recall at 2 epochs. | Training moved to the trainable 8B base, frozen evaluation remained unchanged, and the current adapter now has two positive held-out comparisons. |
+| The evaluation command selected a 600M default for an 8B adapter and crashed the native worker. | Evaluation resolves and validates the adapter's original base before model load; mismatches fail without applying the adapter. |
 | Hermes failed on modern SDK polyfill syntax. | iOS uses JavaScriptCore. |
+| QVAC 0.13.x does not expose speculative decoding through its config schema or public addon interface. | No unsupported draft-model config is shipped or claimed. |
+| QVAC could still emit a domain tool call when `toolChoice: none` was sent with that tool schema. | Prose-only pipeline steps no longer receive the domain schema; only the authored deterministic step can see it. |
+| A fragment such as “he's sweaty now too” did not independently score the triage skill. | Carry the prior persisted skill only for bounded dependent fragments, and release it on explicit topic changes. The uninterrupted 16-turn run passes both continuity and off-domain release. |
+
+See [Real-user capability gauntlet](/optimization/capability-gauntlet) for the prompts, failures, fixes, and acceptance contract.
 
 ## Where the records live
 

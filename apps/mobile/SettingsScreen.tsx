@@ -185,7 +185,7 @@ export function SettingsScreen({
               <Text style={styles.dangerText}>⊘  RESET THIS DEVICE</Text>
             </Pressable>
             <Text style={styles.subNote}>
-              Erases the entire local workspace on this iPad, including mesh identity, cached model downloads, and
+              Erases the entire local workspace on this device, including mesh identity, cached model downloads, and
               Keychain secrets, then sends Leash back to first-run setup.
             </Text>
           </>

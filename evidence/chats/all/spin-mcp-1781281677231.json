@@ -1,0 +1,105 @@
+{
+  "id": "spin-mcp-1781281677231",
+  "createdAt": 1781281761481,
+  "updatedAt": 1781281761481,
+  "messages": [
+    {
+      "id": "msg-c6d5dde8-e24c-4d1e-9a5c-fcd584a7ddfd",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "install this mcp @ankimcp/anki-mcp-server"
+        }
+      ]
+    },
+    {
+      "id": "msg-x1AlNh65CMtvhvfh",
+      "metadata": {
+        "createdAt": 1781281680897,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781281761472,
+        "totalTokens": 110
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "mcp-installer",
+                "name": "mcp-installer"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-install_mcp_repo",
+          "toolCallId": "call_ht3qf7_8",
+          "state": "output-available",
+          "input": {
+            "url": "https://github.com/ankimcp/anki-mcp-server",
+            "name": "anki-mcp-server"
+          },
+          "output": {
+            "text": "Installed \"anki-mcp-server\" but it didn't connect: Connection closed.\nIt's saved (cwd /Volumes/Development/leash-mcp-repos/anki-mcp-server, `node /Volumes/Development/leash-mcp-repos/anki-mcp-server/build/index.js`) \u2014 it may need an env var, or the start command is off.\n\nSteps:\n- Resolved repo: https://github.com/ankimcp/anki-mcp-server\n- Cloned into /Volumes/Development/leash-mcp-repos/anki-mcp-server\n- Dependencies installed.\n- Build succeeded.\n- Start command: node /Volumes/Development/leash-mcp-repos/anki-mcp-server/build/index.js (cwd /Volumes/Development/leash-mcp-repos/anki-mcp-server)",
+            "server": {
+              "id": "118febda-e7e3-4445-bbca-f4499952c59f",
+              "enabled": true,
+              "transport": "stdio",
+              "name": "anki-mcp-server",
+              "command": "node",
+              "args": [
+                "/Volumes/Development/leash-mcp-repos/anki-mcp-server/build/index.js"
+              ],
+              "cwd": "/Volumes/Development/leash-mcp-repos/anki-mcp-server"
+            },
+            "status": {
+              "id": "118febda-e7e3-4445-bbca-f4499952c59f",
+              "enabled": true,
+              "transport": "stdio",
+              "name": "anki-mcp-server",
+              "command": "node",
+              "args": [
+                "/Volumes/Development/leash-mcp-repos/anki-mcp-server/build/index.js"
+              ],
+              "cwd": "/Volumes/Development/leash-mcp-repos/anki-mcp-server",
+              "connected": false,
+              "toolNames": [],
+              "error": "Connection closed"
+            }
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe MCP server \"anki-mcp-server\" has been installed, but it didn't connect. The server is saved at `/Volumes/Development/leash-mcp-repos/anki-mcp-server` and the start command is `node /Volumes/Development/leash-mcp-repos/anki-mcp-server/build/index.js`. The connection was closed, so it may need an environment variable or the start command might be incorrect. You may need to check the environment or the command to resolve the issue.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

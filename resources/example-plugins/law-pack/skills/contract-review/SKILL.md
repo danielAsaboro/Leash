@@ -1,5 +1,5 @@
 ---
-name: Contract Review
+name: contract-review
 description: Review a contract or agreement clause-by-clause for risks, missing terms, and unfavorable language.
 when_to_use: |
   review this contract
@@ -8,11 +8,7 @@ when_to_use: |
   what's wrong with this clause
   red-flag this lease / SLA / employment agreement
   explain the liability / indemnity / termination terms
-examples: |
-  Can you review this NDA before I sign it?
-  What are the red flags in this consulting agreement?
-  Is this limitation-of-liability clause one-sided?
-  Draft a stronger termination-for-convenience clause.
+metadata: {"examples":["Can you review this NDA before I sign it?","What are the red flags in this consulting agreement?","Is this limitation-of-liability clause one-sided?","Draft a stronger termination-for-convenience clause."]}
 ---
 
 # Contract Review

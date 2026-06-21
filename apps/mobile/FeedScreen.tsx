@@ -91,7 +91,7 @@ export function FeedScreen({
           <View style={styles.empty}>
             <Text style={styles.emptyHead}>The press is warming up.</Text>
             <Text style={styles.emptyText}>
-              Start a chat, add an Activity TODO, or let a local event arrive. The iPad edition is built from real data on this device.
+              Start a chat, add an Activity TODO, or let a local event arrive. The mobile edition is built from real data on this device.
             </Text>
             <Pressable onPress={onGoServices} style={styles.emptyLink}>
               <Text style={styles.emptyLinkText}>OPEN SERVICES ›</Text>

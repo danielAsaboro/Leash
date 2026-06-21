@@ -1,0 +1,152 @@
+{
+  "id": "codex-apple-notes-ui-smoke",
+  "createdAt": 1781930601530,
+  "updatedAt": 1781930601530,
+  "messages": [
+    {
+      "id": "msg-user-apple-notes-ui-smoke",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use search-notes only. Search Apple Notes for qvac with limit 5. Do not use skills."
+        }
+      ]
+    },
+    {
+      "id": "msg-BwvOxSg1tcpTQMwR",
+      "metadata": {
+        "createdAt": 1781930544814,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781930601519,
+        "totalTokens": 195
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes search needs full agent tools; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-3HeQMRxnTXQ0Uwdh",
+          "data": {
+            "id": "run-3HeQMRxnTXQ0Uwdh",
+            "chatId": "codex-apple-notes-ui-smoke",
+            "title": "Use search-notes only. Search Apple Notes for qvac with limit 5. Do not use skills.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781930544791,
+            "updatedAt": 1781930601526,
+            "startedAt": 1781930544791,
+            "finishedAt": 1781930601524,
+            "steps": [
+              {
+                "id": "2oGQ02BNQdAWSomC",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781930544798,
+                "finishedAt": 1781930601522,
+                "summary": "I found 3 notes related to \"qvac\" with a limit of 5: 1. Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481] 2. Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504] 3. Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]"
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "I found 3 notes related to \"qvac\" with a limit of 5: 1. Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481] 2. Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504] 3. Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "search-notes",
+          "toolCallId": "call_uc18hb_4",
+          "state": "output-available",
+          "input": {
+            "query": "qvac",
+            "limit": 5
+          },
+          "output": {
+            "notes": [
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481",
+                "title": "Qvac",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:42:51.484Z",
+                "modified": "2026-06-20T04:42:51.484Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              },
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504",
+                "title": "Qvac Improvement",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:42:51.484Z",
+                "modified": "2026-06-20T04:42:51.484Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              },
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477",
+                "title": "Qvac Notes",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:42:51.484Z",
+                "modified": "2026-06-20T04:42:51.484Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              }
+            ],
+            "count": 3,
+            "text": "Found 3 notes (searched titles (limit: 5)):\n  - Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481]\n  - Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504]\n  - Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]",
+            "content": [
+              {
+                "type": "text",
+                "text": "Found 3 notes (searched titles (limit: 5)):\n  - Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481]\n  - Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504]\n  - Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]"
+              }
+            ]
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI found 3 notes related to \"qvac\" with a limit of 5:\n\n1. Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481]\n2. Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504]\n3. Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

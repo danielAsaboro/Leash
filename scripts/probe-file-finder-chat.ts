@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 
 const WEB_BASE = (process.env["LEASH_WEB_BASE"] ?? "http://127.0.0.1:6801").replace(/\/+$/, "");
 
@@ -8,11 +7,6 @@ interface StreamEvent {
   data?: unknown;
   toolName?: string;
   finishReason?: string;
-}
-
-async function cookieHeader(): Promise<string> {
-  if (process.env["LEASH_COOKIE"]) return process.env["LEASH_COOKIE"];
-  return (await readFile("/tmp/leash-cookie.txt", "utf8")).trim();
 }
 
 function parseSse(body: string): StreamEvent[] {
@@ -29,14 +23,11 @@ function parseSse(body: string): StreamEvent[] {
   return events;
 }
 
-const cookie = await cookieHeader();
-assert.ok(cookie.includes("leash_session="), "set LEASH_COOKIE or /tmp/leash-cookie.txt");
-
 const suffix = Date.now().toString(36);
 const started = Date.now();
 const res = await fetch(`${WEB_BASE}/api/leash/chat`, {
   method: "POST",
-  headers: { "content-type": "application/json", cookie },
+  headers: { "content-type": "application/json" },
   body: JSON.stringify({
     id: `codex-file-finder-probe-${suffix}`,
     trigger: "submit-message",

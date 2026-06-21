@@ -49,6 +49,14 @@ export interface PluginManifest {
   license?: string;
   /** Inline MCP servers (Claude-Code allows declaring them right in plugin.json). Merged with a sibling `.mcp.json` at load. */
   mcpServers?: Record<string, unknown>;
+  /** Leash extension: narrow policy grants for plugin-owned MCP tools in skill/agent runners. */
+  toolPolicies?: Record<string, PluginToolPolicy>;
+}
+
+export interface PluginToolPolicy {
+  risk: "read" | "low_write";
+  approval: "none" | "required";
+  subagentAllowed: boolean;
 }
 
 /** One marketplace entry: a named plugin plus the source that resolves it. */
@@ -104,6 +112,23 @@ export function parsePluginManifest(text: string): PluginManifest {
   if (license) manifest.license = license;
   const mcp = o["mcpServers"];
   if (mcp && typeof mcp === "object" && !Array.isArray(mcp)) manifest.mcpServers = mcp as Record<string, unknown>;
+  const rawPolicies = o["toolPolicies"];
+  if (rawPolicies && typeof rawPolicies === "object" && !Array.isArray(rawPolicies)) {
+    const policies: Record<string, PluginToolPolicy> = {};
+    for (const [toolName, raw] of Object.entries(rawPolicies as Record<string, unknown>)) {
+      if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,80}$/.test(toolName) || !raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+      const policy = raw as Record<string, unknown>;
+      const risk = policy["risk"];
+      const approval = policy["approval"];
+      const subagentAllowed = policy["subagentAllowed"];
+      if ((risk === "read" || risk === "low_write") && (approval === "none" || approval === "required") && typeof subagentAllowed === "boolean") {
+        // Plugin writes never become approval-free merely because a manifest asks for it.
+        if (risk === "low_write" && approval !== "required") continue;
+        policies[toolName] = { risk, approval, subagentAllowed };
+      }
+    }
+    if (Object.keys(policies).length) manifest.toolPolicies = policies;
+  }
   return manifest;
 }
 

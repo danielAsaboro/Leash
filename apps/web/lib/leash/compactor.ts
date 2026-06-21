@@ -11,13 +11,22 @@
  * Adapted from Odysseus `src/context_compactor.py`.
  */
 import "server-only";
-import { streamText, tool, stepCountIs } from "ai";
+import { streamText, tool, isStepCount } from "ai";
 import { z } from "zod";
 import { chatModelBackground } from "./provider.ts";
 import { saveSummary } from "./chat-store.ts";
 import type { LeashUIMessage } from "./types.ts";
 import { COMPACTION_NOOP_TOOL_DESCRIPTION, buildCompactionPrompt } from "./prompt.ts";
 import { compactableMessageText } from "./compaction-text.ts";
+import { qvacReasoningProviderOptions } from "./reasoning-policy.ts";
+import {
+  LEASH_AGENT_TIMEOUT,
+  createLeashRuntimeContext,
+  createLifecycleTimingTransform,
+  recordAgentLifecycle,
+  toolContextsFor,
+  withScopedToolContext,
+} from "./runtime-lifecycle.ts";
 
 /** Messages always kept verbatim at the end (recent turns the model sees in full). */
 const KEEP_TAIL = 6;
@@ -74,7 +83,26 @@ export async function compact(chatId: string, messages: LeashUIMessage[], ctxSiz
 
   try {
     const prompt = buildCompactionPrompt({ summary, toFold });
-    const result = streamText({ model: chatModelBackground(), prompt, maxOutputTokens: 400, tools: inertTools, stopWhen: stepCountIs(2) });
+    const tools = withScopedToolContext(inertTools);
+    const runtime = createLeashRuntimeContext({ route: "background", chatId });
+    const result = streamText({
+      model: chatModelBackground(),
+      prompt,
+      maxOutputTokens: 400,
+      tools,
+      toolOrder: Object.keys(tools).sort(),
+      runtimeContext: runtime,
+      toolsContext: toolContextsFor(tools, runtime),
+      timeout: LEASH_AGENT_TIMEOUT,
+      reasoning: "none",
+      providerOptions: qvacReasoningProviderOptions(false),
+      stopWhen: isStepCount(2),
+      experimental_transform: createLifecycleTimingTransform(runtime),
+      onStart: (event) => recordAgentLifecycle(runtime, { event: "agent_start", callId: event.callId, modelId: event.modelId }),
+      onStepStart: (event) => recordAgentLifecycle(runtime, { event: "step_start", callId: event.callId, modelId: event.modelId, stepNumber: event.stepNumber }),
+      onStepEnd: (event) => recordAgentLifecycle(runtime, { event: "step_end", callId: event.callId, stepNumber: event.stepNumber, finishReason: event.finishReason }),
+      onEnd: (event) => recordAgentLifecycle(runtime, { event: "agent_end", callId: event.callId, stepNumber: event.stepNumber, finishReason: event.finishReason, durationMs: Date.now() - runtime.startedAt }),
+    });
     let text = "";
     for await (const d of result.textStream) text += d;
     const next = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();

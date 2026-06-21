@@ -79,6 +79,10 @@
       "types": "./dist/provider-core.d.ts",
       "default": "./dist/provider-core.js"
     },
+    "./qvac-provider": {
+      "types": "./dist/qvac-provider.d.ts",
+      "default": "./dist/qvac-provider.js"
+    },
     "./sources": {
       "types": "./dist/sources.d.ts",
       "default": "./dist/sources.js"
@@ -95,6 +99,14 @@
       "types": "./dist/tool-policy.d.ts",
       "default": "./dist/tool-policy.js"
     },
+    "./intent-prototype": {
+      "types": "./dist/intent-prototype.d.ts",
+      "default": "./dist/intent-prototype.js"
+    },
+    "./recoverable-promise-cache": {
+      "types": "./dist/recoverable-promise-cache.d.ts",
+      "default": "./dist/recoverable-promise-cache.js"
+    },
     "./goal-runs": {
       "types": "./dist/goal-runs.d.ts",
       "default": "./dist/goal-runs.js"
@@ -108,10 +120,12 @@
     "build": "tsc -b"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^3.0.12",
+    "@ai-sdk/provider": "^4.0.3",
+    "@ai-sdk/provider-utils": "^5.0.11",
     "@mycelium/db": "*",
     "@mycelium/senses": "*",
-    "@qvac/ai-sdk-provider": "^0.2.0",
-    "ai": "^6.0.204",
+    "ai": "^7.0.31",
     "undici": "^8.3.0"
   }
 }

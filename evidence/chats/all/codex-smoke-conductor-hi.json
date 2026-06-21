@@ -1,0 +1,43 @@
+{
+  "id": "codex-smoke-conductor-hi",
+  "createdAt": 1781895232600,
+  "updatedAt": 1781895232600,
+  "messages": [
+    {
+      "id": "msg-user-conductor-hi",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-AxGCRiqEDwaqCNBn",
+      "metadata": {
+        "createdAt": 1781895232597,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781895232597
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

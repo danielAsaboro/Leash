@@ -8,7 +8,9 @@ Local tools are useful only while they fit the local model's prompt budget. Leas
 
 ## The problem
 
-QVAC serves `qwen3-4b` with `tools:true` and `toolsMode:"dynamic"` so the model can call tools without paying the full schema cost every time. SDK 0.13.x has a regression where dynamic-tool requests can fail when the request carries an empty tools array. The direct fix is inside the SDK, but Leash still needs a product-side guard: never make a general chat turn see 50+ schemas just to avoid the empty-tools failure.
+QVAC serves `qwen3-4b` with `tools:true` and `toolsMode:"dynamic"` so the model can call tools without paying the full schema cost every time. Dynamic compaction previously activated at model load, which made a tool-less request invalid for that model shape. The maintained QVAC fork now activates `tools_compact` per request only when the request actually carries tools.
+
+The product-side rule still matters: a general chat turn must not see 50+ schemas merely because the model supports tools.
 
 ## The shape Leash uses
 
@@ -17,18 +19,24 @@ QVAC serves `qwen3-4b` with `tools:true` and `toolsMode:"dynamic"` so the model 
 | Two-stage routing | A tiny conductor classifies the turn before any large agent prompt is assembled. Quick/direct turns avoid QVAC entirely when they can. |
 | Hard no-tool path | Greetings, continuity markers, and skill metadata questions answer without loading the agent or exposing schemas. |
 | Capability gates | Files, memory, tasks, context, health, computer, research, and MCP admin expose separate tool groups. General chat does not see all of them. |
-| Keepalive sentinel | `leash_keepalive` exists only to satisfy dynamic-tools compatibility when a model request must carry at least one schema. |
+| Keepalive sentinel | `leash_keepalive` remains an inert harness boundary for steps that intentionally retain a schema, not a requirement for tool-less QVAC requests. |
 | Tool brokers | `context_run`, `memory_run`, `tasks_run`, and related brokers compress many MCP actions behind a small validated action enum. |
 | Lane budgets | Quick chat, files, brokered read-only calls, health, and deep agent turns have different step and token budgets. |
 
 The keepalive tool is policy-marked as inert. It is not a user capability and should not appear as a useful operation in prompts.
+
+## Do not replay completed tool payloads
+
+Full tool inputs and outputs remain in the persisted UI transcript and audit record. On a later fresh user turn, Leash projects prior assistant messages down to their user-facing text before converting them to model messages. Completed `tool-*` and `dynamic-tool` parts are excluded from that model-facing copy.
+
+This is separate from semantic compaction. A short three-turn conversation can remain below the text estimator while still carrying very large structured MCP results. Removing those historical payloads fixed a real third-turn first-output timeout without changing approval continuations or deleting evidence.
 
 ## Capability exposure
 
 | Lane | Exposed surface |
 | --- | --- |
 | Direct answer | No model and no tool schema. |
-| Lean chat | Keepalive only when a dynamic-tools model call needs a non-empty tools array. |
+| Lean chat | No schema for a truly tool-less request; inert keepalive only when the authored step intentionally retains a tool surface. |
 | Files | A narrow files capability, currently backed by registered `bash` for bounded read/search operations. |
 | Context and daily paper | `context_run` broker actions such as graph search and `understory_today`. |
 | Memory | `memory_run` and recall-oriented read actions. |

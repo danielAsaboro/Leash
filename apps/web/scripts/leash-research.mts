@@ -18,9 +18,9 @@
 import { writeFileSync, renameSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { streamText, stepCountIs, tool } from "ai";
+import { streamText, isStepCount, tool } from "ai";
 import { z } from "zod";
-import { createQvac } from "@qvac/ai-sdk-provider";
+import { createQvac } from "@mycelium/leash-core/qvac-provider";
 import { Agent, fetch as undiciFetch } from "undici";
 import { webSearch, fetchReadable, type SearchResult } from "../lib/leash/search.ts";
 import {
@@ -188,7 +188,7 @@ const inertTools = {
 async function llm(prompt: string, maxOutputTokens = 1200): Promise<string> {
   inLlmCall = true;
   try {
-    const result = streamText({ model: qvac(MODEL), prompt: "/no_think\n" + prompt, maxOutputTokens, tools: inertTools, stopWhen: stepCountIs(2) });
+    const result = streamText({ model: qvac(MODEL), prompt: "/no_think\n" + prompt, maxOutputTokens, tools: inertTools, stopWhen: isStepCount(2) });
     let text = "";
     for await (const delta of result.textStream) text += delta;
     return text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();

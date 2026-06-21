@@ -1,0 +1,31 @@
+{
+  "id": "verif-quick-v",
+  "createdAt": 1780641920649,
+  "updatedAt": 1780641920649,
+  "messages": [
+    {
+      "id": "uq1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi there"
+        }
+      ]
+    },
+    {
+      "id": "msg-IdVkELQPW3qfGPdz",
+      "metadata": {
+        "createdAt": 1780641862303,
+        "model": "qwen3-4b",
+        "effort": "quick"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

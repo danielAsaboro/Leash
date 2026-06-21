@@ -15,13 +15,14 @@ import { TRAIN_FILE } from "./paths.ts";
 import { normalizePrompt } from "./text.ts";
 import { evalPromptSet } from "./eval-set.ts";
 import { readMemoryPairs } from "./sources/memories-source.ts";
-import { readChatPairs } from "./sources/chats-source.ts";
 import { readGraphPairs } from "./sources/graph-source.ts";
 import { readCouncilPairs } from "./sources/council-source.ts";
 import { readFeedbackPairs } from "./sources/feedback-source.ts";
 
 /** Default min pairs to train on — below this we skip honestly (no junk adapter). */
 export const MIN_PAIRS = 12;
+/** Completion alone is not a quality signal; raw chat transcripts stay out. */
+export const AUTOMATIC_TRAINING_SOURCES = ["feedback", "council", "memory", "graph"] as const;
 
 export interface CurateOptions {
   minPairs?: number;
@@ -58,17 +59,19 @@ export function curateTrainingSet(opts: CurateOptions = {}): CurateResult {
 
   // 1. gather every signal
   const memory = readMemoryPairs();
-  const chat = readChatPairs();
+  // Raw chat transcripts are useful for inspection, but completion alone is not a
+  // correctness signal. Only explicit positive/corrected feedback and independently
+  // accepted council answers may teach conversational behavior.
   const graph = readGraphPairs();
   const council = readCouncilPairs();
   const feedback = readFeedbackPairs();
-  const gathered: TrainingPair[] = [...feedback.pairs, ...council, ...memory, ...chat, ...graph];
+  const gathered: TrainingPair[] = [...feedback.pairs, ...council, ...memory, ...graph];
 
   const bySource: Record<TrainingSource, number> = {
     feedback: feedback.pairs.length,
     council: council.length,
     memory: memory.length,
-    chat: chat.length,
+    chat: 0,
     graph: graph.length,
   };
 

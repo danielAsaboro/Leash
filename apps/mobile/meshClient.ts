@@ -8,6 +8,7 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import * as Device from "expo-device";
+import { Platform } from "react-native";
 import { pickProviderFromPeers, type MeshOffloadTarget, type MeshPeer } from "./providerSelection";
 import { parseMeshInvitePayload } from "./qrPayload";
 export type { MeshModel, MeshOffloadTarget, MeshPeer } from "./providerSelection";
@@ -134,7 +135,9 @@ function ensureStarted() {
   started = true;
   // Lazy: neither the ~2 MB bundle string nor react-native-bare-kit touch app startup.
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const MESH_BUNDLE: string = require("./worklets/mesh-worklet.bundle.js");
+  const MESH_BUNDLE: string = Platform.OS === "android"
+    ? require("./worklets/mesh-worklet.android.bundle.js")
+    : require("./worklets/mesh-worklet.bundle.js");
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { Worklet } = require("react-native-bare-kit");
   worklet = new Worklet();
@@ -173,7 +176,7 @@ function call(cmd: string, extra: Record<string, unknown> = {}, timeoutMs = 45_0
 export function initMesh(): Promise<void> {
   if (initPromise) return initPromise;
   const storeDir = (FileSystem.documentDirectory ?? "").replace(/^file:\/\//, "") + "mesh-store";
-  const displayName = Device.deviceName || Device.modelName || "iPhone";
+  const displayName = Device.deviceName || Device.modelName || "Mobile device";
   initPromise = call("init", { storeDir, displayName }).then(() => undefined);
   return initPromise;
 }

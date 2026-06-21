@@ -12,10 +12,10 @@
  * stack: the approval gate, deny-with-reason (= "adjust"), and the step pipeline.
  */
 import "server-only";
-import { tool, generateText, stepCountIs, type ToolSet } from "ai";
+import { tool, generateText, isStepCount, type ToolSet } from "ai";
 import { z } from "zod";
 import { chatModel } from "./provider.ts";
-import { disabledTools, toolNeedsApproval } from "./tool-config.ts";
+import { disabledTools, toolNeedsApproval, leashToolApproval } from "./tool-config.ts";
 import { loopLog } from "./loop-diagnostics.ts";
 import type { PlanData, PlanStep, PlanStepStatus } from "./types.ts";
 import type { LeashSource } from "./tools.ts";
@@ -23,6 +23,14 @@ import { buildPlanStepSystemPrompt } from "./prompt.ts";
 import { filterToolNamesForContext, enforceToolPolicy } from "@mycelium/leash-core/tool-policy";
 import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
 import { getGoalRun, startGoalRunStep, updateGoalRunStep, finishGoalRun, recordGoalRunModelTrace } from "@mycelium/leash-core/goal-runs";
+import { qvacReasoningProviderOptions } from "./reasoning-policy.ts";
+import {
+  LEASH_AGENT_TIMEOUT,
+  createLeashRuntimeContext,
+  recordAgentLifecycle,
+  toolContextsFor,
+  withScopedToolContext,
+} from "./runtime-lifecycle.ts";
 
 /** Per-step budget inside the plan pipeline — each step is ONE bounded sub-task (tool → report). */
 const PLAN_STEP_BUDGET = 3;
@@ -127,17 +135,30 @@ export async function runPlanAsPipeline(
       const runSystem = hasExecutableTools
         ? system
         : `${system}\n\nNo executable tools are available in this plan step. Answer directly in plain text. Do not call tools.`;
+      const runTools = withScopedToolContext(hasExecutableTools ? subTools : KEEPALIVE_TOOLS);
+      const runtime = createLeashRuntimeContext({ route: "plan", runId: opts.goalRunId, stepId: ledgerStepId });
       const r = await generateText({
         model: chatModel(`plan:step${i + 1}`),
-        system: runSystem,
+        instructions: runSystem,
         messages: [{ role: "user" as const, content: step }],
         temperature: 0.6,
         topP: 0.95,
         maxRetries: 0,
         maxOutputTokens: hasExecutableTools ? 900 : 220,
-        tools: hasExecutableTools ? subTools : KEEPALIVE_TOOLS,
+        tools: runTools,
+        toolOrder: Object.keys(runTools).sort(),
+        runtimeContext: runtime,
+        toolsContext: toolContextsFor(runTools, runtime),
+        toolApproval: leashToolApproval,
+        timeout: LEASH_AGENT_TIMEOUT,
+        reasoning: "none",
+        providerOptions: qvacReasoningProviderOptions(false),
         toolChoice: hasExecutableTools ? "auto" : "none",
-        stopWhen: stepCountIs(hasExecutableTools ? PLAN_STEP_BUDGET : 1),
+        stopWhen: isStepCount(hasExecutableTools ? PLAN_STEP_BUDGET : 1),
+        onStart: (event) => recordAgentLifecycle(runtime, { event: "agent_start", callId: event.callId, modelId: event.modelId }),
+        onStepStart: (event) => recordAgentLifecycle(runtime, { event: "step_start", callId: event.callId, modelId: event.modelId, stepNumber: event.stepNumber }),
+        onStepEnd: (event) => recordAgentLifecycle(runtime, { event: "step_end", callId: event.callId, stepNumber: event.stepNumber, finishReason: event.finishReason }),
+        onEnd: (event) => recordAgentLifecycle(runtime, { event: "agent_end", callId: event.callId, stepNumber: event.stepNumber, finishReason: event.finishReason, durationMs: Date.now() - runtime.startedAt }),
       });
       const out = r.text.trim() || "(this step produced no text output)";
       results.push(out);

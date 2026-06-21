@@ -1,0 +1,132 @@
+{
+  "id": "codex-apple-notes-created-search",
+  "createdAt": 1781929534964,
+  "updatedAt": 1781929534964,
+  "messages": [
+    {
+      "id": "msg-user-created-search",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the Apple Notes MCP search-notes tool only. Search Apple Notes for the exact title 'Leash Apple Notes MCP smoke 20260620T042255Z'. Return the count, title, and id. Do not use any skill, search_graph, or write tool."
+        }
+      ]
+    },
+    {
+      "id": "msg-pYlZnt5ljqtqYOUX",
+      "metadata": {
+        "createdAt": 1781929480584,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781929534051,
+        "totalTokens": 91
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes search needs full agent tools; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-ZXbxZnMKrtLTlOzK",
+          "data": {
+            "id": "run-ZXbxZnMKrtLTlOzK",
+            "chatId": "codex-apple-notes-created-search",
+            "title": "Use the Apple Notes MCP search-notes tool only. Search Apple Notes for the exact title 'Leash Apple Notes MCP smoke 20260620T042255Z'. Return the count, title, and id. Do not use any skill, search_graph, or write tool.",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781929480567,
+            "updatedAt": 1781929534195,
+            "startedAt": 1781929480567,
+            "finishedAt": 1781929534147,
+            "steps": [
+              {
+                "id": "pqkfPEWuK7MMO5lm",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781929480572,
+                "finishedAt": 1781929534082,
+                "summary": "The search found 1 note with the exact title 'Leash Apple Notes MCP smoke 20260620T042255Z'. The note's ID is x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The search found 1 note with the exact title 'Leash Apple Notes MCP smoke 20260620T042255Z'. The note's ID is x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513."
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "search-notes",
+          "toolCallId": "call_97a93f_18",
+          "state": "output-available",
+          "input": {
+            "query": "Leash Apple Notes MCP smoke 20260620T042255Z",
+            "limit": 1
+          },
+          "output": {
+            "notes": [
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513",
+                "title": "Leash Apple Notes MCP smoke 20260620T042255Z",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:25:07.051Z",
+                "modified": "2026-06-20T04:25:07.051Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              }
+            ],
+            "count": 1,
+            "text": "Found 1 notes (searched titles (limit: 1)):\n  - Leash Apple Notes MCP smoke 20260620T042255Z (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513]",
+            "content": [
+              {
+                "type": "text",
+                "text": "Found 1 notes (searched titles (limit: 1)):\n  - Leash Apple Notes MCP smoke 20260620T042255Z (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513]"
+              }
+            ]
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe search found 1 note with the exact title 'Leash Apple Notes MCP smoke 20260620T042255Z'. The note's ID is x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3513.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

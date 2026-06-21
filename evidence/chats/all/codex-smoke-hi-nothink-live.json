@@ -1,0 +1,43 @@
+{
+  "id": "codex-smoke-hi-nothink-live",
+  "createdAt": 1781891994993,
+  "updatedAt": 1781891994993,
+  "messages": [
+    {
+      "id": "msg-user-hi-nothink-live",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-nvWSdQAU5YJzcZzc",
+      "metadata": {
+        "createdAt": 1781891994989,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781891994989
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "classifier direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

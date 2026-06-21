@@ -1,0 +1,59 @@
+{
+  "id": "codex-smoke-override-medpsy-8k",
+  "createdAt": 1781892472127,
+  "updatedAt": 1781892472127,
+  "messages": [
+    {
+      "id": "msg-user-override-medpsy-8k",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-7LZxQGcpqFyJAYUZ",
+      "metadata": {
+        "createdAt": 1781892468582,
+        "model": "medpsy",
+        "effort": "quick",
+        "finishedAt": 1781892472125,
+        "totalTokens": 8
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "medpsy",
+            "reason": "fast-path: trivial turn → local",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "memory-keeper",
+                "name": "Memory Keeper"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "text",
+          "text": "Okay, I'm ready.\n",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

@@ -103,7 +103,7 @@ the install finish before you `pkill` anything.
 
 ## What happens on first launch
 
-The app downloads the model (progress %), then loads it into **GPU** memory with `ctx_size: 2048`. After that, chat is local and offline; subsequent launches reuse the cached weight.
+The app downloads the model (progress %), then loads it locally with `ctx_size: 4096`. After that, chat is local and offline; subsequent launches reuse the cached weight.
 
 ## Joining the mesh
 
@@ -128,7 +128,7 @@ A fuller "remote Leash" mode (memory + tools over the mesh, not just tasks) is s
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Android (WIP)" href="/install/android" icon="android">
+  <Card title="Android preview" href="/install/android" icon="android">
     The same Expo app on Android.
   </Card>
   <Card title="Mobile channel" href="/channels/mobile" icon="mobile-screen">

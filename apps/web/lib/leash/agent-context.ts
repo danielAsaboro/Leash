@@ -9,6 +9,7 @@ export interface AgentDelegateContextInput {
   task?: string;
   parentContextCapsule?: string;
   summarySection?: string;
+  recentConversation?: string;
   currentUserTurn?: string;
   selectedTools?: string[];
   memoryContext?: string;
@@ -61,10 +62,14 @@ export function buildAgentDelegateContextPacket(input: AgentDelegateContextInput
 
   truncated = !boundedBlock(lines, "Delegated task:", input.task, maxChars, 900) || truncated;
 
+  // Put the current evidence before continuity metadata so an attached note or
+  // data file cannot be displaced by a verbose parent-run capsule.
+  truncated = !boundedBlock(lines, "Latest user turn:", input.currentUserTurn, maxChars, 1800) || truncated;
+
   truncated = !boundedBlock(lines, "Parent run capsule:", input.parentContextCapsule, maxChars, 3600) || truncated;
 
   truncated = !boundedBlock(lines, "Compacted conversation summary:", input.summarySection, maxChars, 1800) || truncated;
-  truncated = !boundedBlock(lines, "Latest user turn:", input.currentUserTurn, maxChars, 1200) || truncated;
+  truncated = !boundedBlock(lines, "Recent grounded conversation:", input.recentConversation, maxChars, 2200) || truncated;
   truncated = !boundedBlock(lines, "Agent memory digest:", input.memoryContext, maxChars, 1200) || truncated;
 
   const selectedTools = [...new Set(input.selectedTools ?? [])].sort();

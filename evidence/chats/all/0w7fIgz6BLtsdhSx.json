@@ -1,0 +1,85 @@
+{
+  "id": "0w7fIgz6BLtsdhSx",
+  "createdAt": 1781312252106,
+  "updatedAt": 1781312252106,
+  "messages": [
+    {
+      "id": "QjSZOBIe83QRDXRG",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "What did I note about the mesh setup?"
+        }
+      ]
+    },
+    {
+      "id": "msg-fbUkCHWCZmbINmul",
+      "metadata": {
+        "createdAt": 1781312175511,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781312252097,
+        "totalTokens": 188
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-search_graph",
+          "toolCallId": "call_v8gu86_158",
+          "state": "output-available",
+          "input": {
+            "query": "mesh setup",
+            "topK": 3
+          },
+          "output": {
+            "text": "(mesh-setup.md) Dani runs a four-device personal mesh codenamed \"Hollowood\".\n---\n(chat \u00b7 untitled \u00b7 2026-06-06) You: Pair this device with TestPeer using the mesh_pair_device tool. /no_think Leash: The device is already in a mesh. Please pair from the other device instead.\n---\n(mesh-devices.md) - Hollowood is the codename for Dani's four-device personal mesh, where every device shares encrypted compute over the QVAC SDK. - Sporangium is the Mac mini that hosts the mesh hub; it runs the delegated-inference provider and is the only node permitted to fine-tune the nightly LoRA adapters. - Hypha is the MacBook Pro that serves as Dani's secondary compute node and a paid inference provider on the mesh. - Rhizo is the Raspberry Pi 5 edge node that stays always on and runs only the `QWEN3_600M_INST_Q4` model, because anything heavier overheats its passive case. - Conidia is the iPhone that acts as Dani's primary sensor \u2014 camera and microphone \u2014 and a delegated-compute consumer. - The Raspberry Pi named Rhizo never loads a model larger than one billion parameters, and no device smaller than the Mac mini is allowed to fine-tune adapters.",
+            "sources": [
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 mesh-setup.md",
+                "snippet": "Dani runs a four-device personal mesh codenamed \"Hollowood\"."
+              },
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 chat \u00b7 untitled \u00b7 2026-06-06",
+                "snippet": "You: Pair this device with TestPeer using the mesh_pair_device tool. /no_think Leash: The device is already in a mesh. Please pair from the other device instead."
+              },
+              {
+                "kind": "graph",
+                "title": "Note \u00b7 mesh-devices.md",
+                "snippet": "- Hollowood is the codename for Dani's four-device personal mesh, where every device shares encrypted compute over the QVAC SDK. - Sporangium is the Mac mini that hosts the mesh hub; it runs the deleg"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe user noted that they have a personal mesh called \"Hollowood\" with four devices. The mesh is named after a fungal structure and involves encrypted compute over the QVAC SDK. The devices include:\n\n- **Sporangium**: The Mac mini that hosts the mesh hub and runs the delegated-inference provider, allowed to fine-tune the nightly LoRA adapters.\n- **Hypha**: The MacBook Pro that serves as a secondary compute node and a paid inference provider on the mesh.\n- **Rhizo**: The Raspberry Pi 5 edge node that runs only the `QWEN3_600M_INST_Q4` model due to overheating concerns.\n- **Conidia**: The iPhone that acts as the primary sensor with camera and microphone functions and as a delegated-compute consumer.\n\nThe mesh setup is detailed in the `mesh-setup.md` and `mesh-devices.md` notes.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+
+> mycelium@0.0.0 newsroom
+> tsx apps/newsroom/src/main.ts
+
+🍄 The Understory — newsroom daemon
+
+[sdk:client] Model type "embeddings" is an alias and will be deprecated. Use "llamacpp-embedding" instead.
+[sdk:server] 🐻 Hello from Bare
+[sdk:server] Parsed RPC configuration from arguments
+[sdk:server] Running in desktop mode, connecting to IPC socket: /var/folders/z0/5lcpnk1n7gz59qhygnqzcfj00000gn/T/qvac-worker-39946-mq14bpqk-1632.sock
+[sdk:server] Connecting to IPC socket at /var/folders/z0/5lcpnk1n7gz59qhygnqzcfj00000gn/T/qvac-worker-39946-mq14bpqk-1632.sock
+[sdk:server] Bare worker started and listening for RPC requests
+[sdk:client] ✅ Loaded config from: /Volumes/Development/qvac/mycelium/qvac.config.json
+[sdk:server] Connected to IPC server
+[sdk:server] ✅ Swarm relays configured: 0 relay(s)
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added [PAD] logit bias = -inf
+common_init_result: added [SEP] logit bias = -inf
+common_init_from_model_and_params: warming up the model with an empty run - please wait ... (--no-warmup to disable)
+📝 · model_load  model=GTE_LARGE_FP16
+parse: load the model metadata from disk file.
+initFromConfig: load the model from disk file and apply lora adapter, if any.
+common_init_result: fitting params to device memory, for bugs during this step try to reproduce them with -fit off, or provide --verbose logs if the bug only occurs with -fit on
+common_init_result: added </s> logit bias = -inf
+common_init_result: added <|endoftext|> logit bias = -inf
+common_init_result: added <|im_end|> logit bias = -inf
+common_init_result: added <|fim_pad|> logit bias = -inf
+common_init_result: added <|repo_name|> logit bias = -inf
+common_init_result: added <|file_sep|> logit bias = -inf

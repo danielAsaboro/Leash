@@ -10,6 +10,7 @@ import "server-only";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { ReasoningFeedback } from "./feedback-policy.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** apps/web/lib/leash → repo root → data/leash-feedback.jsonl (same resolution as graph.ts). */
@@ -22,6 +23,7 @@ export interface FeedbackInput {
   prompt: string;
   answer: string;
   correction?: string;
+  reasoning?: ReasoningFeedback;
 }
 
 /** Append one feedback record. Returns the stored record (with ts). */
@@ -34,6 +36,7 @@ export function appendFeedback(input: FeedbackInput): { ok: true } {
     prompt: input.prompt.slice(0, 4000),
     answer: input.answer.slice(0, 8000),
     ...(input.correction ? { correction: input.correction.slice(0, 4000) } : {}),
+    ...(input.reasoning ? { reasoning: input.reasoning } : {}),
   };
   mkdirSync(dirname(FEEDBACK_FILE), { recursive: true });
   appendFileSync(FEEDBACK_FILE, JSON.stringify(record) + "\n");

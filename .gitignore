@@ -117,3 +117,7 @@ node_modules
 apps/mobile/node_modules
 
 logs/
+
+# Optional local capability bundles are installed through Plugins → Folder.
+# They are distributable user content, never Leash core source.
+/resources/capability-plugins/

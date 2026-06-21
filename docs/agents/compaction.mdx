@@ -6,6 +6,8 @@ sidebarTitle: "Compaction"
 
 `qwen3-4b` serves a **32k-token window**, and a long thread silently falls off the back. Compaction (session pruning) keeps the conversation inside the window: when the history outgrows a budget, the **oldest** messages are folded into a running `summary` and the model is fed `[summary + recent tail]`. Adapted from Odysseus `src/context_compactor.py`.
 
+Compaction is paired with a model-history projection. Completed historical tool payloads and prior image bytes can be much larger than visible text, so fresh user turns omit those binary/structured parts after their assistant conclusion is available. The stored conversation is not altered, and approval continuations retain the live tool state they need.
+
 ## The key invariant
 
 <Warning>

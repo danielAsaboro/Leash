@@ -1,0 +1,66 @@
+---
+title: "Local provider assets"
+description: "How the QVAC provider preserves OpenAI-compatible transport while adding local files, speech, and transcription."
+sidebarTitle: "Local provider assets"
+---
+
+Leash uses an OpenAI-compatible QVAC transport for language, embedding, image, and completion requests. Native capability composition adds local files, speech, and transcription without replacing that wire contract.
+
+## Provider composition
+
+The provider is assembled in two layers:
+
+1. The OpenAI-compatible provider remains the fallback transport for callable language models, explicit chat and completion models, embeddings, and images.
+2. Native provider capabilities add ephemeral files, speech synthesis, and transcription over the same local QVAC serve.
+
+External and managed runtime modes use the same composed surface. Managed mode no longer relies on a type assertion that claims methods which are absent at runtime.
+
+## Local file references
+
+`uploadFile(...)` sends multipart bytes to the local `/v1/files` endpoint and returns a provider reference such as:
+
+```json
+{
+  "qvac": "file-local-id"
+}
+```
+
+When a language-model message contains that reference, the provider:
+
+1. Resolves only the `qvac` entry.
+2. Fetches the bytes from the same local serve.
+3. Converts them into the model's supported data representation immediately before inference.
+4. Preserves the uploaded media type so vision and document inputs are decoded correctly.
+
+The file store is ephemeral. References do not become public URLs and do not survive a serve restart.
+
+## Multipart and content types
+
+Multipart requests must let the runtime generate their boundary. The provider removes any configured global `Content-Type` header for file and transcription uploads. JSON speech requests explicitly set `application/json`. The serve stores the uploaded MIME type and returns it when the bytes are retrieved.
+
+## Native audio contracts
+
+`speechModel(id)` maps to local `/v1/audio/speech`; `transcriptionModel(id)` maps to local `/v1/audio/transcriptions`. Both return native provider results, warnings, response headers, and local metadata.
+
+Unsupported per-request controls are reported as structured warnings. They are not silently represented as applied settings.
+
+## Dynamic tools
+
+Dynamic tool compaction is now selected per request:
+
+```text
+tools_compact = tools.length > 0 && tools_mode == dynamic
+```
+
+A tools-enabled model can therefore accept a truly tool-less request. Requests that carry tools still use compact dynamic schemas.
+
+## Verification
+
+The provider package passes its typecheck, build, and 77 runnable tests. Live checks exercised:
+
+- uploaded image reference to local vision inference;
+- local speech generation followed by local transcription;
+- callable OpenAI-compatible chat;
+- the same files, speech, and transcription methods in managed mode.
+
+No cloud inference provider participates in these paths.

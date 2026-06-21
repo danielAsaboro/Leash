@@ -23,6 +23,7 @@ import { join, basename } from "node:path";
 import { parsePluginManifest, type PluginManifest } from "./plugin-manifest.ts";
 import { parseMcpJson, type NormalizedServer } from "./mcp-config.ts";
 import { parseAgent, type Agent } from "./agents-store.ts";
+import type { ToolPolicy } from "./tool-policy.ts";
 
 /** One MCP server a plugin declares — its key plus the validated (but UNEXPANDED) connection config. */
 export interface PluginMcpServer {
@@ -133,4 +134,27 @@ export async function loadPlugin(dir: string): Promise<LoadedPlugin> {
   const manifest = await readManifest(dir);
   const [skills, agents, mcpServers] = await Promise.all([discoverSkills(dir), discoverAgents(dir, id), discoverMcpServers(dir, manifest)]);
   return { manifest, root: dir, id, skills, agents, mcpServers };
+}
+
+/**
+ * Validated plugin-local policy overrides. These grants are deliberately narrower than the main
+ * policy table: only the owning plugin's skill/agent route, never background or public mesh. The
+ * plugin must still pass quarantine and be enabled before its components reach either runner.
+ */
+export function pluginToolPolicies(manifest: PluginManifest): Record<string, ToolPolicy> {
+  return Object.fromEntries(
+    Object.entries(manifest.toolPolicies ?? {}).map(([name, policy]) => [
+      name,
+      {
+        name,
+        scope: "private_context",
+        risk: policy.risk,
+        approval: policy.approval,
+        allowedRoutes: ["skill", "agent"],
+        subagentAllowed: policy.subagentAllowed,
+        backgroundAllowed: false,
+        publicMeshAllowed: false,
+      } satisfies ToolPolicy,
+    ]),
+  );
 }

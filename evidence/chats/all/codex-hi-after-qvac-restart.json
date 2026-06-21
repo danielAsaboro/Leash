@@ -1,0 +1,43 @@
+{
+  "id": "codex-hi-after-qvac-restart",
+  "createdAt": 1781929819555,
+  "updatedAt": 1781929819555,
+  "messages": [
+    {
+      "id": "msg-hi-after-qvac-restart",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-X2snW4Fgn0aPTATc",
+      "metadata": {
+        "createdAt": 1781929819552,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781929819552
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

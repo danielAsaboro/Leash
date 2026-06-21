@@ -1,0 +1,43 @@
+{
+  "id": "codex-agent-only-mqmado93",
+  "createdAt": 1781955648862,
+  "updatedAt": 1781955648862,
+  "messages": [
+    {
+      "id": "msg-mqmado93-1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the Grace subagent to prepare a concise 5-item checklist for testing orchestration boundaries in an assistant. The delegated work must only plan and summarize. After Grace returns, summarize the checklist in one sentence."
+        }
+      ]
+    },
+    {
+      "id": "msg-UH6f8vTVwebrk0t6",
+      "metadata": {
+        "createdAt": 1781955648860,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781955648860
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "conductor direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "The checklist includes 5 items for testing orchestration boundaries, with the focus on planning and summarizing.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

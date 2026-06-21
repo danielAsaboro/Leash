@@ -1,0 +1,40 @@
+{
+  "id": "tdJqhxgrEfPIiJEV",
+  "createdAt": 1781450482288,
+  "updatedAt": 1781450482288,
+  "messages": [
+    {
+      "id": "siXDCeXOe8hnIyO5",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "What's in today's paper?"
+        }
+      ]
+    },
+    {
+      "id": "msg-WG9GegxtcuY3Hl85",
+      "metadata": {
+        "createdAt": 1781450476264,
+        "model": "mmproj-gemma4-31b-multim",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "daily-paper",
+                "name": "Daily Paper"
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -257,6 +257,7 @@
             "pages": [
               "optimization/skill-selection",
               "optimization/context-and-prompts",
+              "optimization/reasoning-efficiency",
               "optimization/tool-context-bloat",
               "optimization/deterministic-fast-paths",
               "optimization/multi-agent-context-harness"
@@ -267,7 +268,9 @@
             "pages": [
               "optimization/chat-api-resilience",
               "optimization/long-chat-stress",
-              "optimization/inference-runtime"
+              "optimization/inference-runtime",
+              "optimization/local-provider-assets",
+              "optimization/runtime-contracts"
             ]
           },
           {
@@ -275,12 +278,14 @@
             "pages": [
               "optimization/mesh-delegation",
               "optimization/setup-defaults",
+              "optimization/fine-tuning-evaluation",
               "optimization/models-memory-mobile"
             ]
           },
           {
             "group": "Validation",
             "pages": [
+              "optimization/capability-gauntlet",
               "optimization/evidence"
             ]
           }

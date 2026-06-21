@@ -8,6 +8,16 @@ Leash runs entirely on your own machine. This guide gets the on-device model ser
 web app running, then walks you through a chat answer grounded in a note you control — all
 without a cloud AI API in the loop.
 
+## What this proves
+
+At the end you should have:
+
+- a local QVAC OpenAI-compatible serve answering on `:11435`
+- the Leash web app running on `:6801`
+- a first authenticated user
+- one local markdown note ingested into context
+- a chat answer grounded in that note, with no cloud AI API key
+
 ## What you need
 
 - **macOS on Apple Silicon** (M1 or later) is the reference setup. Linux runs headless; Windows is not yet supported.
@@ -16,9 +26,9 @@ without a cloud AI API in the loop.
 - The `mycelium` repo checked out locally.
 
 <Tip>
-The very first run downloads model weights and bootstraps the mesh — this needs network.
-After that one-time warm-cache, local chat and retrieval work fully offline (airplane mode
-is an acceptance bar for the project).
+  The very first run downloads model weights and bootstraps the mesh — this
+  needs network. After that one-time warm-cache, local chat and retrieval work
+  fully offline (airplane mode is an acceptance bar for the project).
 </Tip>
 
 ## Set it up
@@ -36,6 +46,7 @@ is an acceptance bar for the project).
     Run `npm install` in the **foreground**, never in the background. A concurrent install
     can race and empty `node_modules`.
     </Warning>
+
   </Step>
 
   <Step title="Start the on-device serve">
@@ -55,6 +66,12 @@ is an acceptance bar for the project).
     You should see the served aliases from `qvac.config.base.json` — on the committed config that
     means at least `qwen3-4b`, `embed`, `classifier`, `health`, `qwen3vl`, `ocr`, `parakeet`,
     and `supertonic`.
+
+    <Check>
+      Success means the curl command returns model IDs. If it does not, fix the serve before
+      starting the web app.
+    </Check>
+
   </Step>
 
   <Step title="Start the web app">
@@ -71,6 +88,11 @@ is an acceptance bar for the project).
     - Create the first account.
     - The supervisor respawns the server scoped to that user and sends you to `/home`.
     - Later visits to gated routes redirect to `/login` until you sign in.
+
+    <Check>
+      Success means you can open `/chat` after setup and see the message composer.
+    </Check>
+
   </Step>
 
   <Step title="Add a note to ground an answer">
@@ -82,6 +104,7 @@ is an acceptance bar for the project).
     mkdir -p ~/Leash/<your-user-id>/data/notes
     printf '# workshop\n\nThe test phrase is: cedar lanterns at low tide.\n' > ~/Leash/<your-user-id>/data/notes/workshop.md
     ```
+
   </Step>
 
   <Step title="Ask a grounded question">
@@ -92,13 +115,20 @@ is an acceptance bar for the project).
     Leash calls `search_graph` (RAG over your notes), retrieves the passage, and answers with
     a **source chip** pointing back at `workshop.md`. The serve terminal shows the local
     completion activity — proof the answer used on-device inference plus on-device retrieval.
+
+    <Check>
+      Success means the answer includes the phrase from your note and a source chip for
+      `workshop.md`.
+    </Check>
+
   </Step>
 </Steps>
 
 <Note>
-Want the proactive features (live screen activity for `active_context`, activity-aware voice
-fillers, the heartbeat)? Start the screen watcher in a third terminal: `npm run watch`, and
-grant **Screen Recording** in System Settings → Privacy & Security.
+  Want the proactive features (live screen activity for `active_context`,
+  activity-aware voice fillers, the heartbeat)? Start the screen watcher in a
+  third terminal: `npm run watch`, and grant **Screen Recording** in System
+  Settings → Privacy & Security.
 </Note>
 
 ## Get the full assistant kit
@@ -106,29 +136,37 @@ grant **Screen Recording** in System Settings → Privacy & Security.
 The core path needs `qwen3-4b` for text and `embed` for grounding. The committed desktop kit adds
 the rest of the daily assistant surface from **Brain → Models → Kit**:
 
-| Alias | Unlocks |
-|-------|---------|
-| `qwen3-4b` | Main text turns (required) |
-| `embed` | RAG search, memory, skill activation (required) |
-| `classifier` | Fast triage and heartbeat grading |
-| `health` | Health-specialist turns |
-| `qwen3vl` | Screenshots and image turns |
-| `ocr` | Text extraction from screenshots, forms, and documents |
-| `parakeet` | Voice call speech-to-text |
-| `supertonic` | Voice call text-to-speech |
+| Alias        | Unlocks                                                |
+| ------------ | ------------------------------------------------------ |
+| `qwen3-4b`   | Main text turns (required)                             |
+| `embed`      | RAG search, memory, skill activation (required)        |
+| `classifier` | Fast triage and heartbeat grading                      |
+| `health`     | Health-specialist turns                                |
+| `qwen3vl`    | Screenshots and image turns                            |
+| `ocr`        | Text extraction from screenshots, forms, and documents |
+| `parakeet`   | Voice call speech-to-text                              |
+| `supertonic` | Voice call text-to-speech                              |
 
 → See [Models overview](/models/overview) for the alias system and hardware-fit math.
 
 ## What's next
 
 <Columns cols={2}>
-  <Card title="Chat, grounded in your data" icon="messages-square" href="/channels/chat">
+  <Card
+    title="Chat, grounded in your data"
+    icon="messages-square"
+    href="/channels/chat"
+  >
     Source chips, plan mode, the model picker, and tool approvals.
   </Card>
   <Card title="Shape who the agent is" icon="brain" href="/agents/overview">
     The constitution — soul, goals, and the proactive heartbeat.
   </Card>
-  <Card title="Give it capabilities" icon="wrench" href="/capabilities/overview">
+  <Card
+    title="Give it capabilities"
+    icon="wrench"
+    href="/capabilities/overview"
+  >
     Tool groups, skills, and the built-in MCP server.
   </Card>
   <Card title="Pair a second device" icon="circle-nodes" href="/platforms/mesh">
@@ -139,6 +177,18 @@ the rest of the daily assistant surface from **Brain → Models → Kit**:
 ## Verify and troubleshoot
 
 <AccordionGroup>
+  <Accordion title="How do I confirm the repo evidence is present?">
+    The structured evidence bundle lives at `evidence/`. Start with:
+
+    ```bash
+    jq '.outputs.chats' evidence/manifest.json
+    jq '.outputs.qvac' evidence/manifest.json
+    jq '.outputs.hypha' evidence/manifest.json
+    ```
+
+    For the reviewer-facing map, see [Requirement map](/hackathon/submission-artifacts).
+
+  </Accordion>
   <Accordion title="The chat hangs with no tokens">
     The `qwen3-4b` serve hangs at zero tokens if a tool-enabled turn has **no** active tools
     (all MCP groups disabled) or **too many** (>22 schemas overflow the prompt). Enable at
@@ -158,6 +208,7 @@ the rest of the daily assistant surface from **Brain → Models → Kit**:
     | `QVAC_MODELS_DIR` | `~/.qvac/models` | Default model cache for the standalone `qvac serve` process |
 
     Full list: [Environment variables](/help/environment-variables).
+
   </Accordion>
 </AccordionGroup>
 

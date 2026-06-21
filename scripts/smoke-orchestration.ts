@@ -21,9 +21,9 @@ setGlobalDispatcher(new UndiciAgent({ bodyTimeout: 0, headersTimeout: 0, connect
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { tool, ToolLoopAgent, generateText, stepCountIs, readUIMessageStream, type ToolSet, type UIMessage } from "ai";
+import { tool, ToolLoopAgent, generateText, isStepCount, readUIMessageStream, type ToolSet, type UIMessage } from "ai";
 import { z } from "zod";
-import { createQvac } from "@qvac/ai-sdk-provider";
+import { createQvac } from "@mycelium/leash-core/qvac-provider";
 
 const DATA = await mkdtemp(join(tmpdir(), "leash-orch-"));
 process.env["LEASH_DATA_DIR"] = DATA;
@@ -84,7 +84,7 @@ function buildSubagentTool(agent: AgentT, reg: ToolSet): ToolSet {
           temperature: 0.6,
           topP: 0.95,
           maxRetries: 0,
-          ...(names.length ? { tools, stopWhen: stepCountIs(agent.maxTurns) } : {}),
+          ...(names.length ? { tools, stopWhen: isStepCount(agent.maxTurns) } : {}),
         });
         const result = await sub.stream({ prompt: task });
         for await (const message of readUIMessageStream({ stream: result.toUIMessageStream() })) yield message;
@@ -142,10 +142,10 @@ console.log("\n[Part B] main agent delegating to the subagent…");
 drugToolCalls = 0;
 const main = await generateText({
   model: qvac(CHAT),
-  system: "You are a clinical safety assistant. You have an interaction-checker sub-agent tool. When asked whether medications are safe together, DELEGATE by calling that agent tool, then summarize its result.",
+  instructions: "You are a clinical safety assistant. You have an interaction-checker sub-agent tool. When asked whether medications are safe together, DELEGATE by calling that agent tool, then summarize its result.",
   messages: [{ role: "user", content: "Is it safe to take ibuprofen with warfarin? Use your interaction-checker agent to assess, then give me the bottom line." }],
   tools: { ...registry, ...agentTools },
-  stopWhen: stepCountIs(4),
+  stopWhen: isStepCount(4),
   temperature: 0.6,
   topP: 0.95,
   maxRetries: 0,

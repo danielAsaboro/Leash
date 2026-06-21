@@ -1,0 +1,79 @@
+{
+  "id": "codex-long-chat-mqmjfte3",
+  "createdAt": 1781970861826,
+  "updatedAt": 1781970862529,
+  "messages": [
+    {
+      "id": "msg-mqmjfte3-1",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 1. Answer directly: marker 1 starts the run. Do not mention tools."
+        }
+      ]
+    },
+    {
+      "id": "msg-cblTcfXnc5Jdd0r3",
+      "metadata": {
+        "createdAt": 1781970861694,
+        "model": "direct",
+        "effort": "quick",
+        "finishedAt": 1781970861695
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "direct",
+            "reason": "deterministic direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Marker 1 starts the run.",
+          "state": "done"
+        }
+      ]
+    },
+    {
+      "id": "msg-mqmjfte3-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Live Leash stress turn from chat. Keep the answer under 45 words and include the visible route/model if available. Turn marker: 2. Do not use tools; answer one compact sentence saying marker 2 followed marker 1."
+        }
+      ]
+    },
+    {
+      "id": "msg-LeoLUqeItHpVTUFe",
+      "metadata": {
+        "createdAt": 1781970862516,
+        "model": "direct",
+        "effort": "quick",
+        "finishedAt": 1781970862516
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "direct",
+            "reason": "deterministic direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "Marker 2 followed marker 1.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

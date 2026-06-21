@@ -4,7 +4,7 @@
  * carries the small URL (not base64) as a structured extra the ImageCard renders.
  */
 import { z } from "zod";
-import { experimental_generateImage as generateImage } from "ai";
+import { generateImage } from "ai";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { imageModel, IMAGE_MODEL } from "../provider-core.ts";

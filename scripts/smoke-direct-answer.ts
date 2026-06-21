@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { directBashCommandForSimpleTurn } from "../apps/web/lib/leash/bash-command-fast-path.ts";
 import { directBrokerCallForSimpleTurn } from "../apps/web/lib/leash/broker-fast-path.ts";
-import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, localInferenceUnavailableAnswer } from "../apps/web/lib/leash/direct-answer.ts";
+import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, directAnswerForVoiceConfirmation, localInferenceUnavailableAnswer } from "../apps/web/lib/leash/direct-answer.ts";
 import { directHealthSafetyCallForSimpleTurn } from "../apps/web/lib/leash/health-fast-path.ts";
 
 assert.equal(directAnswerForSimpleTurn("hi"), "Hi.", "greeting answers directly");
@@ -10,6 +10,12 @@ assert.equal(directAnswerForSimpleTurn("Turn marker: 9. Answer one compact sente
 assert.equal(directAnswerForSimpleTurn("Turn marker: 12. Answer directly: marker 12 follows the broker and files checks. No search needed."), "Marker 12 follows the broker and files checks.", "post-tool marker answers directly");
 assert.equal(directAnswerForSimpleTurn("Use the sandboxed bash tool to run date"), null, "tool requests are not direct answered");
 assert.equal(directAnswerForSimpleTurn("search my files for qvac"), null, "retrieval requests are not direct answered");
+assert.equal(
+  directAnswerForVoiceConfirmation("This came from Leash on-device speech transcription: Compare the greenhouse image with my private threshold note. Confirm the request and retain it for the next turn."),
+  "Confirmed. I'll retain this request for the next turn: Compare the greenhouse image with my private threshold note.",
+  "a persisted voice transcript is acknowledged without another inference decode",
+);
+assert.equal(directAnswerForVoiceConfirmation("Confirm this unrelated text."), null, "ordinary text cannot enter the voice-confirmation path");
 
 assert.equal(
   directAnswerForSkillMetadataTurn("Use the file-finder skill context only. Do not search files. Say which tool that skill uses for local file search."),

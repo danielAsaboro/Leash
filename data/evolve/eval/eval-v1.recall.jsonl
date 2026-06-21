@@ -1,0 +1,8 @@
+{"prompt":"What is the codename of Dani's four-device mesh?","mustMatch":["Hollowood"]}
+{"prompt":"What is the Mac mini hub in Dani's mesh called?","mustMatch":["Sporangium"]}
+{"prompt":"What is the name of Dani's always-on Raspberry Pi edge node?","mustMatch":["Rhizo"]}
+{"prompt":"What is Dani's secondary-compute MacBook Pro called?","mustMatch":["Hypha"]}
+{"prompt":"What is the name of Dani's iPhone in the mesh?","mustMatch":["Conidia"]}
+{"prompt":"What name does the assistant go by?","mustMatch":["Leash"]}
+{"prompt":"Which model does the Raspberry Pi run, and why?","mustMatch":["QWEN3_600M","600M","600m"]}
+{"prompt":"Which single device is allowed to fine-tune adapters in Dani's mesh?","mustMatch":["Mac mini","Sporangium"]}

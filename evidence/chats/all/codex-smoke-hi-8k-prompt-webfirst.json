@@ -1,0 +1,43 @@
+{
+  "id": "codex-smoke-hi-8k-prompt-webfirst",
+  "createdAt": 1781892424775,
+  "updatedAt": 1781892424775,
+  "messages": [
+    {
+      "id": "msg-user-hi-8k-prompt-webfirst",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "hi"
+        }
+      ]
+    },
+    {
+      "id": "msg-KK1g1J9ugtlulbLX",
+      "metadata": {
+        "createdAt": 1781892424770,
+        "model": "classifier",
+        "effort": "quick",
+        "finishedAt": 1781892424770
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "classifier",
+            "reason": "classifier direct answer",
+            "viaFastPath": true
+          }
+        },
+        {
+          "type": "text",
+          "text": "hi",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

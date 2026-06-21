@@ -8,10 +8,10 @@
  * Requirements:
  * - Leash web listening on LEASH_WEB_BASE (default http://127.0.0.1:6801)
  * - qvac serve reachable by the web app
- * - LEASH_COOKIE or /tmp/leash-cookie.txt containing a valid leash_session
+ * - the current device scope is active
  */
 import assert from "node:assert/strict";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Agent, setGlobalDispatcher } from "undici";
 
@@ -49,11 +49,6 @@ interface TurnResult {
   finalRun: GoalRunData;
   toolNames: string[];
   agentToolNames: string[];
-}
-
-async function cookieHeader(): Promise<string> {
-  if (process.env["LEASH_COOKIE"]) return process.env["LEASH_COOKIE"];
-  return (await readFile("/tmp/leash-cookie.txt", "utf8")).trim();
 }
 
 function parseSse(body: string): StreamEvent[] {
@@ -111,14 +106,14 @@ function collectRunToolNames(run: GoalRunData): string[] {
   return [...out];
 }
 
-async function postChat(input: { chatId: string; messageId: string; text: string; cookie: string }): Promise<TurnResult> {
+async function postChat(input: { chatId: string; messageId: string; text: string }): Promise<TurnResult> {
   const started = Date.now();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(new Error(`turn timed out after ${TURN_TIMEOUT_MS}ms`)), TURN_TIMEOUT_MS);
   try {
     const res = await fetch(`${WEB_BASE}/api/leash/chat`, {
       method: "POST",
-      headers: { "content-type": "application/json", cookie: input.cookie },
+      headers: { "content-type": "application/json" },
       signal: controller.signal,
       body: JSON.stringify({
         id: input.chatId,
@@ -161,18 +156,15 @@ async function postChat(input: { chatId: string; messageId: string; text: string
   }
 }
 
-async function get(path: string, cookie: string): Promise<string> {
-  const res = await fetch(`${WEB_BASE}${path}`, { headers: { cookie }, redirect: "follow" });
+async function get(path: string): Promise<string> {
+  const res = await fetch(`${WEB_BASE}${path}`, { redirect: "follow" });
   assert.equal(res.ok, true, `${path} returned ${res.status}`);
   return res.text();
 }
 
 async function main(): Promise<void> {
-  const cookie = await cookieHeader();
-  assert.ok(cookie.includes("leash_session="), "set LEASH_COOKIE or create /tmp/leash-cookie.txt with a valid Leash session");
-
-  const active = await fetch(`${WEB_BASE}/api/leash/auth/active`);
-  assert.equal(active.ok, true, "web app auth probe is reachable");
+  const active = await fetch(`${WEB_BASE}/api/leash/device/active`);
+  assert.equal(active.ok, true, "web app device probe is reachable");
 
   const suffix = Date.now().toString(36);
   const marker = `clueless-${suffix}`;
@@ -254,7 +246,6 @@ async function main(): Promise<void> {
       const result = await postChat({
         chatId,
         messageId: `msg-${suffix}-${i + 1}`,
-        cookie,
         text: prompt.text,
       });
       result.scenario = prompt.scenario;
@@ -265,7 +256,7 @@ async function main(): Promise<void> {
       process.stderr.write(`${result.finalRun.route}/${result.finalRun.status} steps=${result.finalRun.steps.length} tools=${result.toolNames.join(",") || "-"} dur=${result.durationMs}ms\n`);
     }
 
-    const chatPage = await get(`/chat/${chatId}`, cookie);
+    const chatPage = await get(`/chat/${chatId}`);
     assert.ok(chatPage.includes(chatId), "stored chat page includes the chat id");
     for (const turn of turns.filter((t) => t.finalRun.steps.length > 0)) {
       assert.ok(chatPage.includes(turn.finalRun.id), `stored chat page includes run ${turn.finalRun.id}`);

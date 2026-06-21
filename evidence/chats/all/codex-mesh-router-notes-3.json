@@ -1,0 +1,90 @@
+{
+  "id": "codex-mesh-router-notes-3",
+  "createdAt": 1781893725072,
+  "updatedAt": 1781893725072,
+  "messages": [
+    {
+      "id": "msg-codex-mesh-router-notes-3",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "search my notes for qvac and summarize what you find"
+        }
+      ]
+    },
+    {
+      "id": "msg-FrBUT35fYm5kb2K2",
+      "metadata": {
+        "createdAt": 1781893713941,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781893725071,
+        "totalTokens": 50
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "notes search needs full agent tools; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "file-finder",
+                "name": "File Finder"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-run_skill",
+          "toolCallId": "call_59n2g9_6",
+          "state": "output-available",
+          "input": {
+            "skill": "file-finder",
+            "task": "search my notes for qvac and summarize what you find"
+          },
+          "output": {
+            "text": "The \"file-finder\" skill failed: An internal error occurred.",
+            "sources": []
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI'm sorry, but I encountered an internal error while trying to search your notes for \"qvac\". Let me know if you'd like me to try a different approach or if there's something else I can assist you with.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

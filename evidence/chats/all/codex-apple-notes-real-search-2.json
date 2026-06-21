@@ -1,0 +1,152 @@
+{
+  "id": "codex-apple-notes-real-search-2",
+  "createdAt": 1781929211547,
+  "updatedAt": 1781929211547,
+  "messages": [
+    {
+      "id": "msg-user-real-search-2",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use the Apple Notes MCP search-notes tool only. Search Apple Notes for qvac. Then answer with the number of matches and up to five note titles. Do not use search_graph and do not use any skill. Do not create, update, delete, move, or export anything."
+        }
+      ]
+    },
+    {
+      "id": "msg-67IHjjJqEtHkaDzC",
+      "metadata": {
+        "createdAt": 1781929150735,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781929211538,
+        "totalTokens": 189
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "Apple Notes search needs full agent tools; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-yka1Mdj7ahonoMyo",
+          "data": {
+            "id": "run-yka1Mdj7ahonoMyo",
+            "chatId": "codex-apple-notes-real-search-2",
+            "title": "Use the Apple Notes MCP search-notes tool only. Search Apple Notes for qvac. Then answer with the number of matches and up to five note titles. Do not use search_graph and do not use any skill. Do not create, update, delete, mov [truncated]",
+            "status": "completed",
+            "route": "chat",
+            "sensitivity": "private",
+            "createdAt": 1781929150718,
+            "updatedAt": 1781929211544,
+            "startedAt": 1781929150718,
+            "finishedAt": 1781929211542,
+            "steps": [
+              {
+                "id": "mayc2Ws1BFXzcJKt",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "chat",
+                "model": "qwen3-4b",
+                "startedAt": 1781929150725,
+                "finishedAt": 1781929211540,
+                "summary": "I found 3 notes matching the query \"qvac\": 1. Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481] 2. Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504] 3. Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]"
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "I found 3 notes matching the query \"qvac\": 1. Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481] 2. Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504] 3. Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "search-notes",
+          "toolCallId": "call_uc18hb_12",
+          "state": "output-available",
+          "input": {
+            "query": "qvac",
+            "limit": 5
+          },
+          "output": {
+            "notes": [
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481",
+                "title": "Qvac",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:19:41.221Z",
+                "modified": "2026-06-20T04:19:41.221Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              },
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504",
+                "title": "Qvac Improvement",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:19:41.221Z",
+                "modified": "2026-06-20T04:19:41.221Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              },
+              {
+                "id": "x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477",
+                "title": "Qvac Notes",
+                "content": "",
+                "tags": [],
+                "created": "2026-06-20T04:19:41.221Z",
+                "modified": "2026-06-20T04:19:41.221Z",
+                "folder": "Notes",
+                "account": "iCloud"
+              }
+            ],
+            "count": 3,
+            "text": "Found 3 notes (searched titles (limit: 5)):\n  - Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481]\n  - Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504]\n  - Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]",
+            "content": [
+              {
+                "type": "text",
+                "text": "Found 3 notes (searched titles (limit: 5)):\n  - Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481]\n  - Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504]\n  - Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]"
+              }
+            ]
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nI found 3 notes matching the query \"qvac\":\n\n1. Qvac (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3481]\n2. Qvac Improvement (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3504]\n3. Qvac Notes (Notes) [id: x-coredata://482C6D70-859B-4512-A213-FD4F3A9465E0/ICNote/p3477]",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "id": "automatch-1781301412641",
+  "createdAt": 1781301466277,
+  "updatedAt": 1781301466277,
+  "messages": [
+    {
+      "id": "u1781301412641",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Create a task to buy oat milk, then mark it as done."
+        }
+      ]
+    },
+    {
+      "id": "msg-4tfzgG7wQpSPAm9p",
+      "metadata": {
+        "createdAt": 1781301414415,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781301466273,
+        "totalTokens": 17
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "automatic",
+            "skills": [
+              {
+                "slug": "tasks",
+                "name": "tasks"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-create_task",
+          "toolCallId": "call_jedqhn_110",
+          "state": "output-available",
+          "input": {
+            "title": "buy oat milk"
+          },
+          "output": {
+            "text": "Created task: [open] buy oat milk (id Ym2VrkgrRu8mAok7, normal)",
+            "sources": [],
+            "task": {
+              "id": "Ym2VrkgrRu8mAok7",
+              "title": "buy oat milk",
+              "status": "open",
+              "priority": "normal"
+            }
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "tool-update_task",
+          "toolCallId": "call_p56rn0_112",
+          "state": "output-available",
+          "input": {
+            "id": "Ym2VrkgrRu8mAok7",
+            "status": "done"
+          },
+          "output": {
+            "text": "Updated: [done] buy oat milk (id Ym2VrkgrRu8mAok7, normal)",
+            "sources": [],
+            "task": {
+              "id": "Ym2VrkgrRu8mAok7",
+              "title": "buy oat milk",
+              "status": "done",
+              "priority": "normal"
+            }
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nConfirm: Task \"buy oat milk\" is marked as done.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

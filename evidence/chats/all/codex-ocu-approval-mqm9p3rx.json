@@ -1,0 +1,118 @@
+{
+  "id": "codex-ocu-approval-mqm9p3rx",
+  "createdAt": 1781954527259,
+  "updatedAt": 1781954527259,
+  "messages": [
+    {
+      "id": "codex-ocu-approval-mqm9p3rx-u",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use computer-use. Call type_text in Code with the exact text \"LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST\". This is a stress test of the approval card."
+        }
+      ]
+    },
+    {
+      "id": "msg-MKQ5PLPvUx5QWVmx",
+      "metadata": {
+        "createdAt": 1781954499493,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781954527230
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST is a stress test of the approval card; local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-TDtqUm8WlQlSdQhO",
+          "data": {
+            "id": "run-TDtqUm8WlQlSdQhO",
+            "chatId": "codex-ocu-approval-mqm9p3rx",
+            "title": "Use computer-use. Call type_text in Code with the exact text \"LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST\". This is a stress test of the approval card.",
+            "status": "failed",
+            "route": "computer",
+            "sensitivity": "private",
+            "createdAt": 1781954499478,
+            "updatedAt": 1781954527246,
+            "startedAt": 1781954499478,
+            "finishedAt": 1781954527241,
+            "steps": [
+              {
+                "id": "Nkr9RiaD4jIOLFvy",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "failed",
+                "route": "computer",
+                "model": "qwen3-4b",
+                "startedAt": 1781954499486,
+                "finishedAt": 1781954527233,
+                "summary": "I ran type_text but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary."
+              }
+            ],
+            "artifacts": [],
+            "errors": [
+              "model produced no final answer text"
+            ],
+            "finalSynthesis": "I ran type_text but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "computer-use",
+                "name": "computer-use"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "type_text",
+          "toolCallId": "call_qrllue_8",
+          "state": "approval-requested",
+          "input": {
+            "app": "Code",
+            "text": "LEASH_OPEN_COMPUTER_USE_APPROVAL_TEST"
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          },
+          "approval": {
+            "id": "aitxt-CVDofXd5Bi77uY2fS9EcAwlY"
+          }
+        },
+        {
+          "type": "text",
+          "text": "I ran type_text but didn't write up an answer. Ask me to continue, or rephrase if you'd like a summary.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}

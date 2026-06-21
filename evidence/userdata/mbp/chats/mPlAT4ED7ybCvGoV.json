@@ -1,0 +1,31 @@
+{
+  "id": "mPlAT4ED7ybCvGoV",
+  "createdAt": 1780699594138,
+  "updatedAt": 1780699673282,
+  "messages": [
+    {
+      "id": "S09sb3dIy3yU5Tf8",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "What's your name?"
+        }
+      ]
+    },
+    {
+      "id": "msg-HKdPQFhguUEOTAe5",
+      "metadata": {
+        "createdAt": 1780699643106,
+        "model": "qwen3-4b",
+        "effort": "standard"
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "step-start"
+        }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 /**
  * The nightly LoRA loop: curate → finetune (QVAC Fabric) → version + checksum →
  * score base AND adapter on the frozen eval → write a manifest with the real
- * evalDelta. Only `evalDelta >= 0` manifests are promotable by apply.ts.
+ * evalDelta. Promotion requires a meaningful overall gain without a material
+ * regression on any frozen evaluation axis.
  *
  * Same finetune call path proven in spike/04-lora.ts, base swapped to the model the
  * web chat uses (QWEN3_4B_INST_Q4_K_M, or QWEN3_600M_INST_Q4 per the Phase-0 gate).
@@ -19,10 +20,13 @@ import { ADAPTERS_DIR, adapterDir, adapterGguf, adapterManifest, CHECKPOINT_DIR,
 import { curateTrainingSet, type CurateResult } from "./curate.ts";
 import { runEval } from "./eval.ts";
 import { promoteAdapterToServe, type PromoteResult } from "./serve-alias.ts";
+import { evaluateAdapterQuality } from "./adapter-quality.ts";
 
 export interface TrainBase {
   src: ModelSrc;
   name: string;
+  /** Stable source recorded in the manifest: catalog id or machine-neutral `~/` path. */
+  sourceRef: string;
 }
 /**
  * LoRA base model. QVAC Fabric finetunes only F32/F16/Q4_0/Q8_0/TQ — NOT Q4_K_M, the
@@ -33,7 +37,11 @@ export interface TrainBase {
  * 600M and its "better at you" surface is the edge/council path (router.answerTrivial({lora}));
  * pass a custom `base` to runNightlyLora once you have a trainable 4B gguf.
  */
-export const DEFAULT_BASE: TrainBase = { src: QWEN3_600M_INST_Q4, name: "QWEN3_600M_INST_Q4" };
+export const DEFAULT_BASE: TrainBase = {
+  src: QWEN3_600M_INST_Q4,
+  name: "QWEN3_600M_INST_Q4",
+  sourceRef: "QWEN3_600M_INST_Q4",
+};
 
 export interface RunNightlyLoraParams {
   base?: TrainBase;
@@ -97,7 +105,7 @@ function newestOrphanAdapter(): { version: string; ggufPath: string } | null {
   return null;
 }
 
-/** Score base + adapter on the frozen eval, write the manifest, promote if it didn't regress.
+/** Score base + adapter on the frozen eval, write the manifest, and apply the quality gate.
  *  Shared by the fresh-train path and the resume path. */
 async function finalizeAdapter(opts: { version: string; ggufPath: string; base: TrainBase; trainPairs: number; promote: boolean; audit: AuditLog }): Promise<{ manifest: AdapterManifest; served?: PromoteResult }> {
   const { version, ggufPath, base, trainPairs, promote, audit } = opts;
@@ -111,6 +119,7 @@ async function finalizeAdapter(opts: { version: string; ggufPath: string; base: 
   const manifest: AdapterManifest = {
     version,
     baseModel: base.name,
+    baseModelSource: base.sourceRef,
     adapterFile: "adapter.gguf",
     sha256,
     sizeBytes,
@@ -121,10 +130,11 @@ async function finalizeAdapter(opts: { version: string; ggufPath: string; base: 
     evalDelta,
   };
   writeFileSync(adapterManifest(version), JSON.stringify(manifest, null, 2));
-  audit.record({ event: "note", extra: { role: "evolve", version, evalDelta, sizeBytes, sha256, promotable: evalDelta >= 0 } });
+  const quality = evaluateAdapterQuality(manifest);
+  audit.record({ event: "note", extra: { role: "evolve", version, evalDelta, sizeBytes, sha256, promotable: quality.passed, quality } });
 
   let served: PromoteResult | undefined;
-  if (evalDelta >= 0 && promote) served = promoteAdapterToServe({ ggufPath, baseModelName: base.name, audit });
+  if (quality.passed && promote) served = promoteAdapterToServe({ ggufPath, baseModelName: base.name, audit });
   return { manifest, ...(served ? { served } : {}) };
 }
 

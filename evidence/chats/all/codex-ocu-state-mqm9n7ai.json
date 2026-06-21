@@ -1,0 +1,136 @@
+{
+  "id": "codex-ocu-state-mqm9n7ai",
+  "createdAt": 1781954472562,
+  "updatedAt": 1781954472562,
+  "messages": [
+    {
+      "id": "codex-ocu-state-mqm9n7ai-u",
+      "role": "user",
+      "parts": [
+        {
+          "type": "text",
+          "text": "Use computer-use. Call get_app_state for Code and tell me whether the app state is available. Do not call any action tool."
+        }
+      ]
+    },
+    {
+      "id": "msg-tpZdwxQ7ZxPXx4Ts",
+      "metadata": {
+        "createdAt": 1781954407679,
+        "model": "qwen3-4b",
+        "effort": "standard",
+        "finishedAt": 1781954472546,
+        "totalTokens": 108
+      },
+      "role": "assistant",
+      "parts": [
+        {
+          "type": "data-conductor",
+          "data": {
+            "tier": "device",
+            "alias": "qwen3-4b",
+            "reason": "local qwen3-4b · 0µ/ktok · inflight 0 · score 0",
+            "viaFastPath": false
+          }
+        },
+        {
+          "type": "data-goalRun",
+          "id": "run-I4m3PgvocK5NDPQ1",
+          "data": {
+            "id": "run-I4m3PgvocK5NDPQ1",
+            "chatId": "codex-ocu-state-mqm9n7ai",
+            "title": "Use computer-use. Call get_app_state for Code and tell me whether the app state is available. Do not call any action tool.",
+            "status": "completed",
+            "route": "computer",
+            "sensitivity": "private",
+            "createdAt": 1781954407662,
+            "updatedAt": 1781954472557,
+            "startedAt": 1781954407662,
+            "finishedAt": 1781954472553,
+            "steps": [
+              {
+                "id": "pmRqwMS9sCI42n3y",
+                "index": 0,
+                "title": "Answer user turn",
+                "status": "done",
+                "route": "computer",
+                "model": "qwen3-4b",
+                "startedAt": 1781954407670,
+                "finishedAt": 1781954472549,
+                "summary": "The app state for \"Code\" is available. The focused UI element is a text field in Terminal 2, which is part of the \"Code\" application. The text field is described as \"Description: Terminal 2, node Run the command: Toggle Screen Reader Accessibility Mode for an optimized screen reader experience Use ⌥F1 for terminal accessibility help.\" This indicates that the terminal is in a state where it is ready for input or interaction. No specific actions were requested, so no further steps were taken."
+              }
+            ],
+            "artifacts": [],
+            "errors": [],
+            "finalSynthesis": "The app state for \"Code\" is available. The focused UI element is a text field in Terminal 2, which is part of the \"Code\" application. The text field is described as \"Description: Terminal 2, node Run the command: Toggle Screen Reader Accessibility Mode for an optimized screen reader experience Use ⌥F1 for terminal accessibility help.\" This indicates that the terminal is in a state where it is ready for input or interaction. No specific actions were requested, so no further steps were taken."
+          }
+        },
+        {
+          "type": "data-skill",
+          "data": {
+            "mode": "explicit",
+            "skills": [
+              {
+                "slug": "computer-use",
+                "name": "computer-use"
+              }
+            ]
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "dynamic-tool",
+          "toolName": "get_app_state",
+          "toolCallId": "call_ozxuxk_6",
+          "state": "output-available",
+          "input": {
+            "app": "Code",
+            "show_full_text": false
+          },
+          "output": {
+            "content": [
+              {
+                "type": "text",
+                "text": "App=com.microsoft.VSCode (pid 1864)\nWindow: \"node — qvac\", App: Code.\n0 standard window node — qvac, Secondary Actions: Raise\n\t1 container (settable, string) node — qvac\n\t\t2 container (settable, string)\n\t\t\t3 HTML content node — qvac, URL: vscode-file://vscode-app/Applications/Visual%20Studio%20Code.[redacted-secret]-browser/workbench/workbench.html\n\t\t\t\t4 container\n\t\t\t\t\t5 container\n\t\t\t\t\t\t6 container\n\t\t\t\t\t\t7 container\n\t\t\t\t\t\t\t8 container\n\t\t\t\t\t\t\t\t9 toolbar\n\t\t\t\t\t\t\t\t\t10 button Go Back (⌃-)\n\t\t\t\t\t\t\t\t\t\t11 text \n\t\t\t\t\t\t\t\t\t12 button (disabled) Go Forward (⌃⇧-)\n\t\t\t\t\t\t\t\t\t\t13 text \n\t\t\t\t\t\t\t\t\t14 toolbar Description: Agent Status\n\t\t\t\t\t\t\t\t\t\t15 button Open Quick Access\n\t\t\t\t\t\t\t\t\t\t16 button  44\n\t\t\t\t\t\t\t\t\t\t\t17 text \n\t\t\t\t\t\t\t\t\t\t\t18 text 44\n\t\t\t\t\t\t\t\t\t\t19 container\n\t\t\t\t\t\t\t\t\t\t\t20 button Toggle Chat\n\t\t\t\t\t\t\t\t\t\t\t\t21 button Toggle Chat\n\t\t\t\t\t\t\t\t\t\t\t\t\t22 text \n\t\t\t\t\t\t\t\t\t\t\t23 pop up button More Actions\n\t\t\t\t\t\t\t\t24 toolbar\n\t\t\t\t\t\t\t\t\t25 text Update\n\t\t\t\t\t\t\t\t26 toolbar Description: Title actions\n\t\t\t\t\t\t\t\t\t27 button Open in Agents Window (⇧⌘A)\n\t\t\t\t\t\t\t\t\t28 container (disabled)\n\t\t\t\t\t\t\t\t\t29 button Customize Layout...\n\t\t\t\t\t\t\t\t\t\t30 text \n\t\t\t\t\t\t\t\t\t31 toggle button Description: Toggle Primary Side Bar (⌘B)\n\t\t\t\t\t\t\t\t\t\t32 text \n\t\t\t\t\t\t\t\t\t33 toggle button Description: Toggle Panel (⌘J)\n\t\t\t\t\t\t\t\t\t\t34 text \n\t\t\t\t\t\t\t\t\t35 toggle button Description: Toggle Secondary Side Bar (⌥⌘B)\n\t\t\t\t\t\t\t\t\t\t36 text \n\t\t\t\t\t\t\t37 container\n\t\t\t\t\t\t\t\t38 container\n\t\t\t\t\t\t\t\t39 container\n\t\t\t\t\t\t\t\t\t40 container\n\t\t\t\t\t\t\t\t\t\t41 tab group Description: Active View Switcher\n\t\t\t\t\t\t\t\t\t\t\t42 tab (selected, expanded) Explorer (⇧⌘E) Value: on\n\t\t\t\t\t\t\t\t\t\t\t\t43 container Explorer (⇧⌘E)\n\t\t\t\t\t\t\t\t\t\t\t\t\t44 text \n\t\t\t\t\t\t\t\t\t\t\t45 tab (settable, boolean) Search (⇧⌘F) Value: off\n\t\t\t\t\t\t\t\t\t\t\t\t46 container Search (⇧⌘F)\n\t\t\t\t\t\t\t\t\t\t\t\t\t47 text \n\t\t\t\t\t\t\t\t\t\t\t48 tab (settable, boolean) Description: Source Control (⌃⇧G) - 35 pending changes, Value: off\n\t\t\t\t\t\t\t\t\t\t\t\t49 container Source Control (⌃⇧G) - 35 pending changes\n\t\t\t\t\t\t\t\t\t\t\t\t\t50 text \n\t\t\t\t\t\t\t\t\t\t\t\t51 container Source Control (⌃⇧G) - 35 pending changes\n\t\t\t\t\t\t\t\t\t\t\t\t\t52 text 35\n\t\t\t\t\t\t\t\t\t\t\t53 tab (settable, boolean) Run and Debug (⇧⌘D) Value: off\n\t\t\t\t\t\t\t\t\t\t\t\t54 container Run and Debug (⇧⌘D)\n\t\t\t\t\t\t\t\t\t\t\t\t\t55 text \n\t\t\t\t\t\t\t\t\t\t\t56 tab (settable, boolean) Extensions (⇧⌘X) Value: off\n\t\t\t\t\t\t\t\t\t\t\t\t57 container Extensions (⇧⌘X)\n\t\t\t\t\t\t\t\t\t\t\t\t\t58 text \n\t\t\t\t\t\t\t\t\t\t\t59 tab (settable, boolean) Claude Code Value: off\n\t\t\t\t\t\t\t\t\t\t\t\t60 container Claude Code\n\t\t\t\t\t\t\t\t\t\t61 toolbar Description: Manage\n\t\t\t\t\t\t\t\t\t\t\t62 pop up button Accounts\n\t\t\t\t\t\t\t\t\t\t\t\t63 container Accounts\n\t\t\t\t\t\t\t\t\t\t\t\t\t64 text \n\t\t\t\t\t\t\t\t\t\t\t65 pop up button Manage - New Code update available.\n\t\t\t\t\t\t\t\t\t\t\t\t66 container Manage - New Code update available.\n\t\t\t\t\t\t\t\t\t\t\t\t\t67 text \n\t\t\t\t\t\t\t\t\t\t\t\t68 container Manage - New Code update available.\n\t\t\t\t\t\t\t\t\t\t\t\t\t69 text 1\n\t\t\t\t\t\t\t\t\t70 container\n\t\t\t\t\t\t\t\t\t\t71 container\n\t\t\t\t\t\t\t\t\t\t\t72 heading EXPLORER\n\t\t\t\t\t\t\t\t\t\t\t\t73 text EXPLORER\n\t\t\t\t\t\t\t\t\t\t\t74 toolbar Description: Extensions: Marketplace actions\n\t\t\t\t\t\t\t\t\t\t\t\t75 pop up button Views and More Actions...\n\t\t\t\t\t\t\t\t\t\t\t76 toolbar\n\t\t\t\t\t\t\t\t\t\t77 container\n\t\t\t\t\t\t\t\t\t\t\t78 container\n\t\t\t\t\t\t\t\t\t\t\t79 container\n\t\t\t\t\t\t\t\t\t\t\t\t80 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t81 button (expanded) Explorer Section: qvac\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t82 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t83 heading Description: Explorer Section: qvac\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t84 text QVAC\n\t\t\t\t\t\t\t\t\t\t\t\t\t85 outline (showing 0-19 of 43 items) Description: Files Explorer\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t86 row  Description: .claude\n\n.claude\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t87 row  Description: docs\n\ndocs\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t88 row (expanded)  Description: mycelium\n\nmycelium\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t89 row  Description: .claude\n\n.claude\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t90 row  Description: apps\n\napps\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t91 row (expanded)  Description: data\n\ndata\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t92 row  Description: hypha\n\nhypha\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t93 row  Description: leash-agents\n\nleash-agents\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t94 row  Description: leash-skills\n\nleash-skills\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t95 row (expanded)  Description: rag\n\nrag\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t96 row  Description: mycelium-council-smoke.manifest.json\nmycelium-council-smoke.manifest.json\nU\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t97 row (selected)  Description: mycelium-senses-smoke.manifest.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t98 container  mycelium-senses-smoke.manifest.json U\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t99 row  Description: leash-goal-runs.json\nleash-goal-runs.json\nU\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t100 row  Description: leash-memories.json\nleash-memories.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t101 row  Description: leash-models-catalog.json\nleash-models-catalog.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t102 row  Description: leash-tasks.json\nleash-tasks.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t103 row  Description: docs\n\ndocs\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t104 row  Description: evidence\n\nevidence\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t105 row  Description: logs\n\nlogs\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t106 row  Description: node_modules\n\nnode_modules\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t107 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t108 row  Description: .claude\n\n.claude\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t109 row  Description: docs\n\ndocs\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t110 row (expanded)  Description: mycelium\n\nmycelium\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t111 row  Description: .claude\n\n.claude\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t112 row  Description: apps\n\napps\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t113 row (expanded)  Description: data\n\ndata\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t114 row  Description: hypha\n\nhypha\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t115 row  Description: leash-agents\n\nleash-agents\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t116 row  Description: leash-skills\n\nleash-skills\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t117 row (expanded)  Description: rag\n\nrag\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t118 row  Description: mycelium-council-smoke.manifest.json\nmycelium-council-smoke.manifest.json\nU\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t119 row (selected)  Description: mycelium-senses-smoke.manifest.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t120 container  mycelium-senses-smoke.manifest.json U\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t121 row  Description: leash-goal-runs.json\nleash-goal-runs.json\nU\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t122 row  Description: leash-memories.json\nleash-memories.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t123 row  Description: leash-models-catalog.json\nleash-models-catalog.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t124 row  Description: leash-tasks.json\nleash-tasks.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t125 row  Description: docs\n\ndocs\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t126 row  Description: evidence\n\nevidence\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t127 row  Description: logs\n\nlogs\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t128 row  Description: node_modules\n\nnode_modules\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t129 row  Description: packages\n\npackages\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t130 row  Description: patches\n\npatches\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t131 row  Description: resources\n\nresources\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t132 row  Description: scripts\n\nscripts\n\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t133 row  Description: spike\n\nspike\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t134 row  Description: .gitignore\n.gitignore\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t135 row  Description: LICENSE\nLICENSE\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t136 row  Description: package-lock.json\npackage-lock.json\nM\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t137 row  Description: package.json\npackage.json\nM\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t138 row  Description: qvac.config.base.json\nqvac.config.base.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t139 row  Description: qvac.config.mjs\nqvac.config.mjs\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t140 row  Description: qvac.config.smoke.mjs\nqvac.config.smoke.mjs\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t141 row  Description: README.md\nREADME.md\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t142 row  Description: tsconfig.base.json\ntsconfig.base.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t143 row  Description: tsconfig.json\ntsconfig.json\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t144 row  Description: resources\n\nresources\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t145 row  Description: submission\n\nsubmission\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t146 row  Description: AGENTS.md\nAGENTS.md\n⤷\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t147 row  Description: CLAUDE.md\nCLAUDE.md\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t148 row  Description: note.md\nnote.md\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t149 row  Description: scripts.md\nscripts.md\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t150 row  Description: todo.md\ntodo.md\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t151 row  Description: urls.md\nurls.md\n\t\t\t\t\t\t\t\t\t\t\t\t152 button Outline Section\n\t\t\t\t\t\t\t\t\t\t\t\t\t153 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t154 heading OUTLINE\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t155 text OUTLINE\n\t\t\t\t\t\t\t\t\t\t\t\t156 button Timeline Section\n\t\t\t\t\t\t\t\t\t\t\t\t\t157 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t158 heading TIMELINE\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t159 text TIMELINE\n\t\t\t\t\t\t\t\t\t160 container\n\t\t\t\t\t\t\t\t\t\t161 container\n\t\t\t\t\t\t\t\t\t\t162 container\n\t\t\t\t\t\t\t\t\t\t\t163 container\n\t\t\t\t\t\t\t\t\t\t\t\t164 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t165 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t166 tab group\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t167 tab (selected) Description: node, Editor Group 1, Value: on\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t168 container node  node\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t169 toolbar Description: Tab actions\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t170 button Close (⌘W)\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t171 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t172 tab (settable, boolean) Description: mycelium-senses-smoke.manifest.json, preview, Editor Group 1, Value: off\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t173 container mycelium-senses-smoke.manifest.json  mycelium-senses-smoke.manifest.json U\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t174 toolbar Description: Tab actions\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t175 button Close (⌘W)\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t176 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t177 toolbar Description: Editor actions\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t178 pop up button More Actions...\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t179 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t180 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t181 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t182 image\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t183 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t184 text field (settable, string) Description: Terminal 1, node Run the command: Toggle Screen Reader Accessibility Mode for an optimized screen reader experience Use ⌥F1 for terminal accessibility help\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t185 text 85 x 70\n\t\t\t\t\t\t\t\t\t\t\t\t186 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t187 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t188 tab group\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t189 tab (selected) Description: node, Editor Group 2, Value: on\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t190 container node  node\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t191 toolbar Description: Tab actions\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t192 button Close (⌘W)\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t193 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t194 toolbar Description: Editor actions\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t195 button Claude Code: Open\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t196 button New Terminal [⌥] Split Terminal (⌘\\)\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t197 button New Terminal [⌥] Split Terminal (⌘\\)\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t198 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t199 pop up button Launch Profile...\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t200 button Split Editor Right (⌘\\) [⌥] Split Editor Down\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t201 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t202 toggle button Description: Unlock Group\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t203 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t204 pop up button More Actions...\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t205 text \n\t\t\t\t\t\t\t\t\t\t\t\t\t206 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t207 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t208 image\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t209 container\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t210 text field (settable, string) Description: Terminal 2, node Run the command: Toggle Screen Reader Accessibility Mode for an optimized screen reader experience Use ⌥F1 for terminal accessibility help\n\t\t\t\t\t\t\t\t\t\t\t\t\t\t211 text 93 x 70\n\t\t\t\t\t\t\t212 container\n\t\t\t\t\t\t\t\t213 container remote\n\t\t\t\t\t\t\t\t\t214 button remote\n\t\t\t\t\t\t\t\t215 container mycelium (Git) - main*, Checkout Branch/Tag...\n\t\t\t\t\t\t\t\t\t216 button mycelium (Git) - main*, Checkout Branch/Tag...\n\t\t\t\t\t\t\t\t\t\t217 text \n\t\t\t\t\t\t\t\t\t\t218 text main*\n\t\t\t\t\t\t\t\t219 container mycelium (Git) - Synchronize Changes\n\t\t\t\t\t\t\t\t\t220 button mycelium (Git) - Synchronize Changes\n\t\t\t\t\t\t\t\t221 container No Problems\n\t\t\t\t\t\t\t\t\t222 button No Problems\n\t\t\t\t\t\t\t\t\t\t223 text \n\t\t\t\t\t\t\t\t\t\t224 text 0\n\t\t\t\t\t\t\t\t\t\t225 text \n\t\t\t\t\t\t\t\t\t\t226 text 0\n\t\t\t\t\t\t\t\t227 container Notifications\n\t\t\t\t\t\t\t\t\t228 button Notifications\n\t\t\t\t\t\t\t\t229 container Copilot status\n\t\t\t\t\t\t\t\t\t230 button Copilot status\n\t\t\t\t\t231 container expanded No results found for 'examples'\n\t\t\t232 container (settable, string)\n233 menu bar\n\t234 Code\n\t235 File\n\t236 Edit\n\t237 Selection\n\t238 View\n\t239 Go\n\t240 Run\n\t241 Terminal\n\t242 Window\n\t243 Help\n\nThe focused UI element is 210 text field (settable, string) Description: Terminal 2, node Run the command: Toggle Screen Reader Accessibility Mode for an optimized screen reader experience Use ⌥F1 for terminal accessibility help."
+              },
+              {
+                "type": "image",
+                "data": "[redacted-secret]=",
+                "mimeType": "image/png"
+              }
+            ],
+            "isError": false
+          },
+          "toolMetadata": {
+            "clientName": "ai-sdk-mcp-client"
+          }
+        },
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "reasoning",
+          "text": "\n\n",
+          "state": "done"
+        },
+        {
+          "type": "text",
+          "text": "\n\nThe app state for \"Code\" is available. The focused UI element is a text field in Terminal 2, which is part of the \"Code\" application. The text field is described as \"Description: Terminal 2, node Run the command: Toggle Screen Reader Accessibility Mode for an optimized screen reader experience Use ⌥F1 for terminal accessibility help.\" This indicates that the terminal is in a state where it is ready for input or interaction. No specific actions were requested, so no further steps were taken.",
+          "state": "done"
+        }
+      ]
+    }
+  ]
+}
