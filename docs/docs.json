@@ -112,6 +112,7 @@
             "group": "Context",
             "pages": [
               "agents/context",
+              "agents/prompts",
               "agents/grounding",
               "agents/soul",
               "agents/goals"
@@ -258,6 +259,7 @@
               "optimization/multi-agent-context-harness",
               "optimization/inference-runtime",
               "optimization/mesh-delegation",
+              "optimization/setup-defaults",
               "optimization/models-memory-mobile",
               "optimization/evidence"
             ]
@@ -384,6 +386,7 @@
         "icon": "trophy",
         "pages": [
           "hackathon/overview",
+          "hackathon/what-spike-means",
           "hackathon/how-we-meet-the-criteria",
           "hackathon/design-decisions",
           "hackathon/qvac-only-proof",

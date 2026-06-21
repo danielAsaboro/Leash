@@ -115,3 +115,5 @@ data/leash-feedback.jsonl
 # also ignore node_modules symlinks (trailing-slash pattern misses them)
 node_modules
 apps/mobile/node_modules
+
+logs/

@@ -5,12 +5,8 @@ import * as ImagePicker from "expo-image-picker";
 import { C, F, TRACKING_LABEL } from "./theme";
 import { ScreenHeader } from "./ScreenHeader";
 import { TabBar } from "./TabBar";
-import { clearChats, deleteChat, listChats } from "./chats";
-import { clearMemories } from "./memories";
-import { clearTasks } from "./tasks";
-import { clearNotes } from "./notes";
-import { clearAll as clearNotifications } from "./notifications";
-import { KNOWN_SECRETS, listSecretStatus, setSecret, deleteSecret, type SecretStatus } from "./secrets";
+import { deleteChat, listChats } from "./chats";
+import { listSecretStatus, setSecret, deleteSecret, type SecretStatus } from "./secrets";
 import { type OffloadStatus } from "./mesh";
 import appJson from "./app.json";
 import { SETTINGS_TABS, type SettingsTab } from "./tabSets";
@@ -49,7 +45,7 @@ export function SettingsScreen({
   onClearedConversations: () => void;
   deviceName: string;
   mesh: { on: boolean; providerName?: string; providerKey: string; status: OffloadStatus };
-  onResetDevice: () => void;
+  onResetDevice: () => Promise<void> | void;
 }) {
   const [tab, setTab] = useState<SettingsTab>("account");
   const [count, setCount] = useState<number | null>(null);
@@ -112,7 +108,7 @@ export function SettingsScreen({
   const resetDevice = () => {
     Alert.alert(
       "Reset this device",
-      "Erase ALL on-device Leash data — conversations, memories, tasks, local text entries, and alerts. Secrets in the Keychain are kept. This can't be undone.",
+      "Erase ALL on-device Leash data — conversations, mesh identity, local workspace files, cached model downloads, and Keychain secrets. This resets the app to a true first-device state. This can't be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -120,9 +116,13 @@ export function SettingsScreen({
           style: "destructive",
           onPress: () => {
             void (async () => {
-              await Promise.all([clearChats(), clearMemories(), clearTasks(), clearNotes(), clearNotifications()]);
-              refreshCount();
-              onResetDevice();
+              try {
+                await onResetDevice();
+                refreshCount();
+                refreshSecrets();
+              } catch (e) {
+                Alert.alert("Couldn't reset this device", (e as Error)?.message ?? String(e));
+              }
             })();
           },
         },
@@ -185,8 +185,8 @@ export function SettingsScreen({
               <Text style={styles.dangerText}>⊘  RESET THIS DEVICE</Text>
             </Pressable>
             <Text style={styles.subNote}>
-              Erases conversations, memories, tasks, local text entries, and alerts. Keychain secrets and the mesh
-              pairing are kept.
+              Erases the entire local workspace on this iPad, including mesh identity, cached model downloads, and
+              Keychain secrets, then sends Leash back to first-run setup.
             </Text>
           </>
         )}

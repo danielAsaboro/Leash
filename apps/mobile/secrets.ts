@@ -10,14 +10,7 @@
  * it lives on the Mesh screen, not here.)
  */
 import * as SecureStore from "expo-secure-store";
-
-export type KnownSecret = { name: string; label: string; hint: string };
-
-export const KNOWN_SECRETS: KnownSecret[] = [
-  { name: "LEASH_HA_URL", label: "Home Assistant URL", hint: "e.g. http://homeassistant.local:8123" },
-  { name: "LEASH_HA_TOKEN", label: "Home Assistant token", hint: "Long-lived access token" },
-  { name: "LEASH_SEARXNG_URL", label: "SearXNG URL", hint: "Self-hosted meta-search; blank = DuckDuckGo" },
-];
+import { KNOWN_SECRETS, type KnownSecret } from "./knownSecrets";
 
 export type SecretStatus = KnownSecret & { set: boolean };
 
@@ -47,4 +40,8 @@ export async function setSecret(name: string, value: string): Promise<void> {
 
 export async function deleteSecret(name: string): Promise<void> {
   await SecureStore.deleteItemAsync(keyFor(name)).catch(() => {});
+}
+
+export async function clearSecrets(names: string[] = KNOWN_SECRETS.map((secret) => secret.name)): Promise<void> {
+  await Promise.all(names.map((name) => SecureStore.deleteItemAsync(keyFor(name)).catch(() => {})));
 }

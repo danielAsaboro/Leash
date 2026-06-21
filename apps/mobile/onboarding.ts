@@ -10,17 +10,14 @@ export type OnboardingState = {
 
 const FILE = `${FileSystem.documentDirectory}onboarding.json`;
 const MESH_META = `${FileSystem.documentDirectory}mesh-store/mesh-meta.json`;
-const KNOWN_LOCAL_STATE = [
-  `${FileSystem.documentDirectory}selectedModel.json`,
-  `${FileSystem.documentDirectory}constitution.json`,
-  `${FileSystem.documentDirectory}memories.json`,
-  `${FileSystem.documentDirectory}chats`,
-];
+const CHAT_DIR = `${FileSystem.documentDirectory}chats`;
 
-async function exists(path: string): Promise<boolean> {
+async function hasChatHistory(): Promise<boolean> {
   try {
-    const info = await FileSystem.getInfoAsync(path);
-    return !!info.exists;
+    const info = await FileSystem.getInfoAsync(CHAT_DIR);
+    if (!info.exists || !info.isDirectory) return false;
+    const files = await FileSystem.readDirectoryAsync(CHAT_DIR);
+    return files.some((file) => file.endsWith(".json"));
   } catch {
     return false;
   }
@@ -41,14 +38,12 @@ async function inferExistingInstall(): Promise<OnboardingState | null> {
     /* ignore */
   }
 
-  for (const path of KNOWN_LOCAL_STATE) {
-    if (await exists(path)) {
-      return {
-        version: 1,
-        completedAt: Date.now(),
-        mode: "first-device",
-      };
-    }
+  if (await hasChatHistory()) {
+    return {
+      version: 1,
+      completedAt: Date.now(),
+      mode: "first-device",
+    };
   }
 
   return null;

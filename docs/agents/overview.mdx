@@ -4,7 +4,7 @@ description: "The Leash agent — one persistent ToolLoopAgent over @qvac/sdk, f
 sidebarTitle: "Overview"
 ---
 
-Leash is a **single, persistent agent**: every turn runs through the same `ToolLoopAgent`, wired to on-device inference through `@qvac/sdk`. What changes per turn is the *route* (which model drives, which tools are active), the *system prompt* (your soul and goals, plus active skills and tool schemas), and the *sampling* (thinking vs. non-thinking). This hub maps the architecture.
+Leash is a **single, persistent agent**: every turn runs through the same `ToolLoopAgent`, wired to on-device inference through `@qvac/sdk`. What changes per turn is the *route* (which model drives, which tools are active), the *prompt stack* ([constitution, skills, route notes, and overrides](/agents/prompts)), and the *sampling* (thinking vs. non-thinking). This hub maps the architecture.
 
 ## Architecture
 
@@ -67,6 +67,9 @@ When an **active skill** declares its own `tools:` set, that set becomes the exa
 <CardGroup cols={2}>
   <Card title="Context assembly" icon="layer-group" href="/agents/context">
     Exactly what goes into each turn's prompt.
+  </Card>
+  <Card title="Prompts" icon="brackets-curly" href="/agents/prompts">
+    The editable prompt layers and how one turn's `system` string is compiled.
   </Card>
   <Card title="Runtime engine" icon="gears" href="/agents/runtime">
     The step loop and per-turn mapping.

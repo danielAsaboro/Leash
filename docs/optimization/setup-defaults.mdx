@@ -1,0 +1,168 @@
+---
+title: "How setup defaults are selected"
+description: "How Leash chooses local setup defaults across iPhone, iPad, desktop, and web before showing the first-run downloads."
+sidebarTitle: "Setup defaults"
+---
+
+Leash now makes one decision before it reveals the first-run asset list: what is the strongest local setup this surface can carry without making first run fragile.
+
+This is an optimisation problem, not just a product preference. A bad default on small local hardware costs more than quality. It can turn into failed first-run downloads, unstable memory pressure, slow warmup, or a model that technically loads but makes the app feel unreliable.
+
+## What the planner is trying to optimise
+
+The setup planner balances four pressures at once:
+
+| Pressure | Why it matters |
+| --- | --- |
+| Local memory budget | Determines whether a larger chat model is realistic once the runtime is live. |
+| Free disk space | Determines whether the first-run asset pull is safe for the device. |
+| Surface type | Desktop, mobile, and browser surfaces do not play the same role in the system. |
+| Form factor and device class | An iPad is not treated the same way as an older phone, even when both are "mobile". |
+
+The rule is conservative on purpose. It is better to start one tier lower and finish setup cleanly than to default to the biggest local model and fail during onboarding.
+
+## The decision inputs
+
+Before the download review screen appears, Leash collects a small set of signals:
+
+| Signal | Source | Used for |
+| --- | --- | --- |
+| Surface | App runtime | Distinguishes mobile, desktop, and web. |
+| Form factor | Device type plus layout fallback | Distinguishes phone from tablet on mobile. |
+| Total memory | Device runtime | Estimates how much local headroom the model gets. |
+| Free disk space | File-system runtime | Checks whether the first-run pull is safe. |
+| Device year class | Device runtime | Adds a coarse hardware-generation signal. |
+| CPU architecture | Device runtime | Reserved for future tuning and diagnostics. |
+
+Those signals are also surfaced back to the user on the review screen so the recommendation is not a black box.
+
+## Current selection rules
+
+### Mobile
+
+Mobile always uses the mobile runtime family, but it now chooses the default chat model by device tier instead of hard-coding one phone profile for everything.
+
+| Mobile condition | Setup class | Default chat model |
+| --- | --- | --- |
+| Memory under 4 GB, or free space under 8 GB, or device year class 2020 or older | Compact | `qwen3-600m` |
+| Tablet with at least 6 GB RAM or device year class 2023+, and at least 10 GB free | Full | `qwen3-4b` |
+| Phone with at least 8 GB RAM and at least 12 GB free | Full | `qwen3-4b` |
+| Everything else | Balanced | `qwen3-1.7b` |
+
+This means an iPad is no longer treated as "just another phone" during setup. It still uses the mobile runtime family, but it can be recommended the stronger local chat default when the hardware budget supports it.
+
+### Desktop
+
+Desktop defaults are simpler:
+
+| Surface | Runtime target | Default chat model |
+| --- | --- | --- |
+| Desktop app / desktop runtime | Local desktop profile | `qwen3-4b` |
+
+The desktop is where the full local harness belongs: heavier chat, more tools, and broader always-on capability.
+
+### Web
+
+Web is intentionally different:
+
+| Surface | Runtime target | Default chat model |
+| --- | --- | --- |
+| Browser | Paired desktop hub profile | `qwen3-4b` |
+
+The browser is treated as a control surface, not the primary inference host. The planner therefore points web at the desktop profile and a paired-hub execution target rather than pretending the tab is the real local runtime.
+
+## Why the recommendation happens before downloads
+
+The old flow showed a fixed asset list first and only then started setup. That was fine when the app had one hard-coded mobile default, but it broke down as soon as device-specific selection mattered.
+
+The current flow is:
+
+1. Choose setup path.
+2. Decide the best local setup for this surface.
+3. Show the exact first-run downloads for that recommendation.
+4. Let the user accept.
+5. Download and prepare the runtime.
+
+That ordering matters because the asset list should reflect the recommendation that will actually be used, not a generic mobile assumption.
+
+## Decision flow at a glance
+
+| Stage | What Leash checks or does | Result |
+| --- | --- | --- |
+| Setup path | First device vs existing workspace | Determines whether Leash should evaluate a fresh local default or wait for a sync invite. |
+| Surface detection | Mobile, desktop, or web | Chooses the runtime family and execution target. |
+| Device fit | Form factor, memory, free disk, device year class | Chooses compact, balanced, or full local setup. |
+| Default model pick | Maps the chosen tier to a chat default | Picks `qwen3-600m`, `qwen3-1.7b`, or `qwen3-4b`. |
+| Download review | Shows the exact first-run assets for that recommendation | Lets the user inspect scope before anything downloads. |
+| Runtime prepare | Downloads, loads, and warms the chosen local runtime | Finishes onboarding with the selected default live on device. |
+
+Another way to think about it:
+
+```text
+choose setup path
+      ↓
+detect surface
+      ↓
+measure device fit
+      ↓
+pick local setup tier
+      ↓
+reveal exact assets
+      ↓
+accept → download → prepare runtime
+```
+
+## Why web and desktop do not share the same execution target
+
+At a glance, both web and desktop can front the same assistant. They still have different optimisation roles.
+
+| Surface | Optimisation role |
+| --- | --- |
+| Desktop | Carry the full local runtime and the heavier steady-state workload. |
+| Web | Drive the experience and controls while leaning on the paired desktop or hub runtime. |
+| Mobile | Keep a real local runtime, but under stricter model and memory budgets. |
+
+This separation keeps the system honest about where inference really lives.
+
+## Important current limitation
+
+Today the planner primarily changes the recommended chat default and the wording shown during onboarding.
+
+The support assets currently remain the same set:
+
+- OCR
+- speech-to-text
+- text-to-speech
+
+So "compact", "balanced", and "full" currently mean different chat defaults first, not completely different support-model bundles. That is deliberate for this pass: it improves setup choice without introducing a second layer of partial-capability complexity during onboarding.
+
+## Why the thresholds are heuristic
+
+These thresholds are not universal truths about all hardware. They are conservative operating rules for Leash's current mobile runtime shape, model catalog, and onboarding goals.
+
+They will likely move when any of these change:
+
+- the curated mobile model set
+- support-model sizes
+- QVAC runtime behaviour on device
+- first-run failure evidence from real devices
+- mesh borrowing policy during onboarding
+
+The point of the planner is not to predict perfect hardware capacity. The point is to choose a default that is strong enough to feel good and safe enough to finish setup.
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Models, memory, and mobile" icon="microchip" href="/optimization/models-memory-mobile">
+    The broader runtime and memory constraints behind the mobile model choices.
+  </Card>
+  <Card title="Inference runtime" icon="gauge-high" href="/optimization/inference-runtime">
+    How local runtime constraints shape queueing, loading, and cancellation behavior.
+  </Card>
+  <Card title="Install on iOS" icon="smartphone" href="/install/ios">
+    The install path for running Leash on a physical iPhone or iPad.
+  </Card>
+  <Card title="Mobile channel" icon="tablet-smartphone" href="/channels/mobile">
+    What the mobile client can do after setup finishes.
+  </Card>
+</CardGroup>

@@ -63,7 +63,7 @@ import {
   unloadModel,
   VERBOSITY,
 } from "@qvac/sdk";
-import { CHAT_MODELS, chatEntry, DEFAULT_CHAT_KEY, MODELS } from "./modelsInventory";
+import { chatEntry, DEFAULT_CHAT_KEY, MODELS } from "./modelsInventory";
 import { getSelectedChatKey, setSelectedChatKey } from "./selectedModel";
 
 import { C, F, TRACKING_LABEL } from "./theme";
@@ -97,11 +97,16 @@ import { MessageParts } from "./ai-elements/MessageParts";
 import { reconnect as meshReconnect } from "./meshClient";
 import { isTabletLayout } from "./layout";
 import { OnboardingFlow, type WarmStep } from "./OnboardingFlow";
-import { clearOnboardingState, getOnboardingState, saveOnboardingState, type DeviceSetupMode } from "./onboarding";
+import { getOnboardingState, saveOnboardingState, type DeviceSetupMode } from "./onboarding";
 import { joinMesh } from "./meshClient";
+import { buildFirstDeviceDownloadPlan } from "./onboardingPlan";
+import { resetDeviceState } from "./resetDeviceState";
+import { decideMobileSetup, mobileDeviceLabel } from "./deviceSetup";
+import type { DeviceSetupDecision } from "@mycelium/brain";
 
 const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
 const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
+type BootSource = "new" | "restore";
 
 /**
  * Leash mobile — your mind, on your own devices. A fully on-device LLM chat: @qvac/sdk
@@ -185,12 +190,17 @@ export default function App(): React.JSX.Element {
   const [modelId, setModelId] = useState<string | null>(null);
   const [status, setStatus] = useState("Waking the press…");
   const [progress, setProgress] = useState<number | null>(null);
-  const [bootStage, setBootStage] = useState<"checking" | "choose" | "sync" | "prepare" | "ready">("checking");
+  const [bootStage, setBootStage] = useState<"checking" | "choose" | "decide" | "review" | "sync" | "prepare" | "ready">("checking");
   const [bootMode, setBootMode] = useState<DeviceSetupMode | null>(null);
+  const [bootSource, setBootSource] = useState<BootSource>("new");
   const [bootError, setBootError] = useState<string | null>(null);
   const [bootDetail, setBootDetail] = useState("Checking this device…");
   const [bootSteps, setBootSteps] = useState<WarmStep[]>([]);
   const [joinBusy, setJoinBusy] = useState(false);
+  const [firstDeviceDecision, setFirstDeviceDecision] = useState<DeviceSetupDecision | null>(null);
+  const [firstDeviceReviewPlan, setFirstDeviceReviewPlan] = useState(() =>
+    buildFirstDeviceDownloadPlan(DEFAULT_CHAT_KEY, { deviceLabel: mobileDeviceLabel(width, height) }),
+  );
 
   // Dynamic chat model — driven by the user's saved choice (or the default on fresh install).
   const [chatKey, setChatKey] = useState<string>(DEFAULT_CHAT_KEY);
@@ -247,6 +257,7 @@ export default function App(): React.JSX.Element {
   offloadRef.current = offload;
   const meshOnRef = useRef(false);
   meshOnRef.current = !!delegatedId; // "borrowing" = a forward provider target is set
+  const firstDevicePlanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasContent = input.trim().length > 0 || attachments.length > 0;
   const canSend = !!modelId && !isGenerating && hasContent;
@@ -266,9 +277,11 @@ export default function App(): React.JSX.Element {
   }, []);
 
   const makeBootSteps = useCallback(
-    (mode: DeviceSetupMode | null, prefetchSupport: boolean): WarmStep[] => {
+    (mode: DeviceSetupMode | null, prefetchSupport: boolean, source: BootSource): WarmStep[] => {
       const steps: WarmStep[] = [];
-      if (mode === "sync-existing") {
+      if (source === "restore") {
+        steps.push({ key: "workspace", label: "Reconnect this device and reopen its local workspace", status: "pending" });
+      } else if (mode === "sync-existing") {
         steps.push({ key: "pair", label: "Pair this device with your existing mesh", status: "done" });
       } else if (mode === "first-device") {
         steps.push({ key: "workspace", label: "Create a private local workspace", status: "pending" });
@@ -296,22 +309,41 @@ export default function App(): React.JSX.Element {
     });
   }, []);
 
+  const stageFirstDeviceReview = useCallback(() => {
+    setBootError(null);
+    setProgress(null);
+    setBootSteps([]);
+    setBootSource("new");
+    setBootStage("decide");
+    setStatus("Deciding the best local setup");
+    setBootDetail("Checking this device’s form factor, memory, free space, and local runtime budget.");
+    if (firstDevicePlanTimerRef.current) clearTimeout(firstDevicePlanTimerRef.current);
+    firstDevicePlanTimerRef.current = setTimeout(() => {
+      const decision = decideMobileSetup(width, height);
+      const deviceLabel = mobileDeviceLabel(width, height);
+      setFirstDeviceDecision(decision);
+      setFirstDeviceReviewPlan(buildFirstDeviceDownloadPlan(decision.recommendedChatAlias, { deviceLabel }));
+      setStatus("Recommended local setup");
+      setBootDetail(decision.summary);
+      setBootStage("review");
+      firstDevicePlanTimerRef.current = null;
+    }, 40);
+  }, [height, width]);
+
   useEffect(() => {
     const t = setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 60);
     return () => clearTimeout(t);
   }, [messages]);
 
-  // Bring the mesh worklet up once on launch so a phone that's already a mesh member recovers its
-  // membership and replicates tasks in the background (lazy init covers first use too). Fire-and-forget.
   useEffect(() => {
+    if (bootStage !== "ready") return;
     void initMesh()
       .then(() => syncSkillsFromMesh()) // pull any desktop-published skills into the local selector
       .catch(() => {});
-  }, []);
+  }, [bootStage]);
 
-  // Auto-rejoin: when the app returns to the foreground, nudge the mesh worklet to reconnect (it
-  // re-joins the swarm + re-advertises) and refresh skills. Silent and best-effort — no-op when mesh-less.
   useEffect(() => {
+    if (bootStage !== "ready") return;
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void meshReconnect().catch(() => {});
@@ -319,17 +351,26 @@ export default function App(): React.JSX.Element {
       }
     });
     return () => sub.remove();
-  }, []);
+  }, [bootStage]);
 
   const bootWorkspace = useCallback(
-    async ({ mode, prefetchSupport }: { mode: DeviceSetupMode | null; prefetchSupport: boolean }) => {
+    async ({
+      mode,
+      prefetchSupport,
+      source,
+    }: {
+      mode: DeviceSetupMode | null;
+      prefetchSupport: boolean;
+      source: BootSource;
+    }) => {
       const savedKey = await getSelectedChatKey();
       const entry = chatEntry(savedKey);
       setChatKey(entry.chatKey);
       setBootMode(mode);
+      setBootSource(source);
       setBootStage("prepare");
       setBootError(null);
-      setBootSteps(makeBootSteps(mode, prefetchSupport));
+      setBootSteps(makeBootSteps(mode, prefetchSupport, source));
 
       const prevId = modelIdRef.current;
       if (prevId) {
@@ -345,11 +386,13 @@ export default function App(): React.JSX.Element {
       let didDownload = false;
 
       try {
-        if (mode !== "sync-existing") {
+        if (source === "restore" || mode !== "sync-existing") {
           setActiveStep("workspace");
-          setStatus(mode === "first-device" ? "Creating your local workspace" : "Restoring your workspace");
+          setStatus(source === "restore" ? "Restoring this device" : mode === "first-device" ? "Creating your local workspace" : "Restoring your workspace");
           setBootDetail(
-            mode === "first-device"
+            source === "restore"
+              ? "Reopening the local workspace and reconnecting the runtime this device already uses."
+              : mode === "first-device"
               ? "This device is setting up its private local workspace before any chat starts."
               : "Restoring the device workspace and preparing the local runtime.",
           );
@@ -359,7 +402,7 @@ export default function App(): React.JSX.Element {
         }
 
         setActiveStep("chat-download");
-        setStatus("Fetching the chat model");
+        setStatus(source === "restore" ? "Checking the chat model" : "Fetching the chat model");
         setBootDetail(`Downloading ${entry.label} so this device can answer locally, even offline after setup.`);
         setProgress(0);
         await downloadAsset({
@@ -387,7 +430,7 @@ export default function App(): React.JSX.Element {
 
         if (prefetchSupport) {
           setActiveStep("support");
-          setStatus("Pulling the rest of the toolkit");
+          setStatus("Caching the rest of the toolkit");
           const supportModels = MODELS.filter((m) => m.key !== "chat");
           for (const support of supportModels) {
             setBootDetail(`Caching ${support.label} so voice, OCR, and speech features are ready on this device.`);
@@ -401,7 +444,7 @@ export default function App(): React.JSX.Element {
         }
 
         if (mode) await saveOnboardingState(mode);
-        setStatus("On the press");
+        setStatus("Ready on this device");
         setBootDetail("Your private workspace is ready.");
         setBootStage("ready");
 
@@ -415,7 +458,8 @@ export default function App(): React.JSX.Element {
         }
       } catch (e) {
         const msg = (e as Error)?.message ?? String(e);
-        setStatus("Startup blocked");
+        setStatus("Setup paused");
+        setBootDetail("Leash could not finish preparing this device.");
         setBootError(msg);
         setProgress(null);
         setBootStage("prepare");
@@ -431,16 +475,18 @@ export default function App(): React.JSX.Element {
       if (cancelled) return;
       if (!onboarding) {
         setBootMode(null);
+        setBootSource("new");
         setBootStage("choose");
-        setStatus("Choose how to set up this device");
-        setBootDetail("Start a private local workspace here, or pair it with an existing one.");
+        setStatus("Set up this device");
+        setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
         return;
       }
-      setBootMode(null);
-      void bootWorkspace({ mode: null, prefetchSupport: false });
+      setBootMode(onboarding.mode);
+      void bootWorkspace({ mode: onboarding.mode, prefetchSupport: false, source: "restore" });
     })();
     return () => {
       cancelled = true;
+      if (firstDevicePlanTimerRef.current) clearTimeout(firstDevicePlanTimerRef.current);
       const id = modelIdRef.current;
       if (id) void unloadModel({ modelId: id, clearStorage: false }).catch(() => {});
     };
@@ -510,6 +556,14 @@ export default function App(): React.JSX.Element {
   // contention). When no provider/identity is ready, chat runs on-device. No key is ever typed/hardcoded.
   useEffect(() => {
     let cancelled = false;
+    if (bootStage !== "ready") {
+      consumerKeyRef.current = "";
+      setOffload(null);
+      setDelegatedId(null);
+      return () => {
+        cancelled = true;
+      };
+    }
     const tick = async () => {
       const target = await pickChatProvider().catch(() => null);
       if (cancelled) return;
@@ -531,7 +585,7 @@ export default function App(): React.JSX.Element {
     const interval = setInterval(() => void tick(), 6000);
     return () => { cancelled = true; clearInterval(interval); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bootStage]);
 
   // Borrow start/stop → Alerts feed (a real on-device event), only on an actual transition.
   const lastBorrowingRef = useRef<boolean | null>(null);
@@ -1042,6 +1096,9 @@ export default function App(): React.JSX.Element {
       <OnboardingFlow
         stage={bootStage === "checking" ? "prepare" : bootStage}
         selectedMode={bootMode}
+        source={bootSource}
+        reviewDecision={firstDeviceDecision}
+        reviewPlan={firstDeviceReviewPlan}
         progress={progress}
         status={status}
         detail={bootDetail}
@@ -1051,13 +1108,20 @@ export default function App(): React.JSX.Element {
         onSelectMode={(mode) => setBootMode(mode)}
         onContinue={() => {
           if (bootMode === "first-device") {
-            void setSelectedChatKey(DEFAULT_CHAT_KEY).finally(() => {
-              void bootWorkspace({ mode: "first-device", prefetchSupport: true });
-            });
+            stageFirstDeviceReview();
           } else if (bootMode === "sync-existing") {
             setBootStage("sync");
             setBootError(null);
+            setFirstDeviceDecision(null);
           }
+        }}
+        onAcceptReview={() => {
+          setBootMode("first-device");
+          const selectedChat = firstDeviceDecision?.recommendedChatAlias ?? DEFAULT_CHAT_KEY;
+          setChatKey(selectedChat);
+          void setSelectedChatKey(selectedChat).finally(() => {
+            void bootWorkspace({ mode: "first-device", prefetchSupport: true, source: "new" });
+          });
         }}
         onJoin={(invite) => {
           const syncKey = invite.trim();
@@ -1069,7 +1133,10 @@ export default function App(): React.JSX.Element {
           setJoinBusy(true);
           setBootError(null);
           void joinMesh(syncKey)
-            .then(() => bootWorkspace({ mode: "sync-existing", prefetchSupport: false }))
+            .then(async () => {
+              await saveOnboardingState("sync-existing");
+              await bootWorkspace({ mode: "sync-existing", prefetchSupport: false, source: "new" });
+            })
             .catch((e) => {
               setBootError((e as Error)?.message ?? "Join failed — is the desktop invite still open?");
               setBootStage("sync");
@@ -1077,18 +1144,30 @@ export default function App(): React.JSX.Element {
             .finally(() => setJoinBusy(false));
         }}
         onRetry={() => {
-          if (bootMode === "sync-existing") void bootWorkspace({ mode: "sync-existing", prefetchSupport: false });
-          else if (bootMode === "first-device") void bootWorkspace({ mode: "first-device", prefetchSupport: true });
-          else void bootWorkspace({ mode: null, prefetchSupport: false });
+          if (bootMode === "sync-existing") void bootWorkspace({ mode: "sync-existing", prefetchSupport: false, source: bootSource });
+          else if (bootMode === "first-device") void bootWorkspace({ mode: "first-device", prefetchSupport: true, source: bootSource });
+          else void bootWorkspace({ mode: null, prefetchSupport: false, source: "restore" });
         }}
         onBack={() => {
           setBootError(null);
           setProgress(null);
-          setBootMode(null);
+          setBootSource("new");
           setBootSteps([]);
-          setBootStage("choose");
-          setStatus("Choose how to set up this device");
-          setBootDetail("Start a private local workspace here, or pair it with an existing one.");
+          if (firstDevicePlanTimerRef.current) {
+            clearTimeout(firstDevicePlanTimerRef.current);
+            firstDevicePlanTimerRef.current = null;
+          }
+          if (bootStage === "decide" || bootStage === "review") {
+            setFirstDeviceDecision(null);
+            setBootStage("choose");
+            setStatus("Set up this device");
+            setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+          } else if (bootStage === "sync") {
+            setBootMode(null);
+            setBootStage("choose");
+            setStatus("Set up this device");
+            setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+          }
         }}
       />
     );
@@ -1308,10 +1387,39 @@ export default function App(): React.JSX.Element {
           onClearedConversations={() => newChat()}
           deviceName={SELF_DEVICE}
           mesh={{ on: meshOnRef.current, providerName: offload?.displayName, providerKey: offload?.providerPublicKey ?? "", status: meshOnRef.current ? "online" : "unset" }}
-          onResetDevice={() => {
-            void clearOnboardingState();
+          onResetDevice={async () => {
+            const currentModelId = modelIdRef.current;
+            if (currentModelId) {
+              await unloadModel({ modelId: currentModelId, clearStorage: false }).catch(() => {});
+            }
+
+            modelIdRef.current = null;
+            cancelRef.current = false;
+            activeRequestIdRef.current = null;
+            consumerKeyRef.current = "";
+            setModelId(null);
+            setOffload(null);
+            setDelegatedId(null);
+            setChatKey(DEFAULT_CHAT_KEY);
+            setJoinBusy(false);
+            setHistoryOpen(false);
+            setDrawerOpen(false);
+            setCallOpen(false);
+            setRoute("chat");
+            setProgress(null);
+            setBootError(null);
+            setBootSteps([]);
+            setBootMode(null);
+            setBootSource("new");
+            setStatus("Set up this device");
+            setBootDetail("Choose whether this iPad starts its own local workspace or joins one you already use.");
+
+            await resetDeviceState();
+
             newChat();
-            void refreshBrain();
+            await refreshBrain();
+            refreshUnread();
+            setBootStage("choose");
           }}
         />
       ) : route === "brain" ? (

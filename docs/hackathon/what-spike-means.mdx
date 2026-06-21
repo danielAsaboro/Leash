@@ -1,0 +1,68 @@
+---
+title: "What `spike` means here"
+description: "The repo-specific meaning of `spike`: a real de-risking proof with runnable code, no mocks, and committed audit evidence."
+---
+
+In this repo, a **spike** is not a mock, a placeholder, or a disposable demo. It means a
+**small, real, end-to-end proof** used to de-risk a hard technical claim before the team commits
+to building product layers on top of it.
+
+The codebase uses `mycelium/spike/` as a **proven gate**: runnable TypeScript scripts that exercise
+the risky primitive directly, with real models, real data paths, and real audit logs. If a claim
+has only been "spiked", it means the primitive itself is proven; it does **not** automatically mean
+the full product feature around it is finished.
+
+## Why the repo uses spikes
+
+Leash depends on a set of technical assumptions that could each independently fail on real
+hardware. The repo's rule is to prove those assumptions cheaply first, then build the real product
+only after the primitive is known to work.
+
+That is why the project's first hard gate was a four-primitive spike run on **May 31, 2026**:
+
+1. On-device inference and embeddings through `@qvac/sdk`
+2. On-device RAG
+3. Encrypted P2P delegated compute
+4. On-device LoRA via QVAC Fabric
+
+All four passed, which unblocked the June build. See [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) for the numbers and [Design decisions](/hackathon/design-decisions) for why the team chose to gate the build this way.
+
+## What makes a spike count
+
+For this repo, a spike only counts if it meets the same honesty bar as the shipped system:
+
+- **Real code, not scaffolding.** The scripts run against actual runtime paths.
+- **No mocks.** The repo rule is explicit: real inference, real RAG, real encrypted P2P, real LoRA.
+- **Committed evidence.** Spike runs emit JSONL audit records under `spike/logs/`.
+- **Runnable from the repo.** The spike lives in `mycelium/spike/` as executable scripts, not just notes in a doc.
+
+That is why `spike/` appears in the workspace map as **validated primitives** rather than an experiments folder. The point is not ideation. The point is proof.
+
+## What the original spike proved
+
+The original de-risking spike established that the architecture was viable on QVAC without any
+cloud AI fallback:
+
+- Local inference and embeddings were fast enough to proceed.
+- Local RAG changed answers in grounded ways.
+- Delegated compute worked across an encrypted peer-to-peer mesh.
+- Local LoRA training produced a real adapter and measurable behavior change.
+
+The evidence lives in committed artifacts such as `submission/SPIKE_RESULTS.md` and
+`spike/logs/*.jsonl`.
+
+## How the term is used after the initial gate
+
+After the May 31 gate, the repo keeps using **spike** in the same spirit: a cheap Phase-0 proof
+that confirms or disproves a risky plan before larger implementation work begins.
+
+Sometimes a spike is a green light. Sometimes it kills a bad plan early. The docs call out both
+cases. A spike that disproves the intended implementation is still a success if it prevents weeks
+of wasted work.
+
+## Related
+
+- [Hackathon overview](/hackathon/overview)
+- [Design decisions](/hackathon/design-decisions)
+- [Evidence & reproducibility](/hackathon/evidence-and-reproducibility)
+- [Leash lore](/help/leash-lore)
