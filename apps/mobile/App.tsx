@@ -63,7 +63,7 @@ import {
   unloadModel,
   VERBOSITY,
 } from "@qvac/sdk";
-import { CHAT_MODELS, chatEntry, DEFAULT_CHAT_KEY } from "./modelsInventory";
+import { CHAT_MODELS, chatEntry, DEFAULT_CHAT_KEY, MODELS } from "./modelsInventory";
 import { getSelectedChatKey, setSelectedChatKey } from "./selectedModel";
 
 import { C, F, TRACKING_LABEL } from "./theme";
@@ -96,8 +96,12 @@ import { activeSkillForTurn, syncSkillsFromMesh } from "./lib/agent/skills";
 import { MessageParts } from "./ai-elements/MessageParts";
 import { reconnect as meshReconnect } from "./meshClient";
 import { isTabletLayout } from "./layout";
+import { OnboardingFlow, type WarmStep } from "./OnboardingFlow";
+import { clearOnboardingState, getOnboardingState, saveOnboardingState, type DeviceSetupMode } from "./onboarding";
+import { joinMesh } from "./meshClient";
 
 const SELF_DEVICE = Device.deviceName || Device.modelName || "An iPhone";
+const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
 
 /**
  * Leash mobile — your mind, on your own devices. A fully on-device LLM chat: @qvac/sdk
@@ -181,7 +185,12 @@ export default function App(): React.JSX.Element {
   const [modelId, setModelId] = useState<string | null>(null);
   const [status, setStatus] = useState("Waking the press…");
   const [progress, setProgress] = useState<number | null>(null);
-  const [booting, setBooting] = useState(true);
+  const [bootStage, setBootStage] = useState<"checking" | "choose" | "sync" | "prepare" | "ready">("checking");
+  const [bootMode, setBootMode] = useState<DeviceSetupMode | null>(null);
+  const [bootError, setBootError] = useState<string | null>(null);
+  const [bootDetail, setBootDetail] = useState("Checking this device…");
+  const [bootSteps, setBootSteps] = useState<WarmStep[]>([]);
+  const [joinBusy, setJoinBusy] = useState(false);
 
   // Dynamic chat model — driven by the user's saved choice (or the default on fresh install).
   const [chatKey, setChatKey] = useState<string>(DEFAULT_CHAT_KEY);
@@ -242,6 +251,38 @@ export default function App(): React.JSX.Element {
   const hasContent = input.trim().length > 0 || attachments.length > 0;
   const canSend = !!modelId && !isGenerating && hasContent;
   const MAX_ATTACH = 5;
+
+  const setStepStatus = useCallback((key: string, status: WarmStep["status"]) => {
+    setBootSteps((prev) => prev.map((step) => (step.key === key ? { ...step, status } : step)));
+  }, []);
+
+  const setActiveStep = useCallback((key: string) => {
+    setBootSteps((prev) =>
+      prev.map((step) => ({
+        ...step,
+        status: step.key === key ? "active" : step.status === "done" ? "done" : "pending",
+      })),
+    );
+  }, []);
+
+  const makeBootSteps = useCallback(
+    (mode: DeviceSetupMode | null, prefetchSupport: boolean): WarmStep[] => {
+      const steps: WarmStep[] = [];
+      if (mode === "sync-existing") {
+        steps.push({ key: "pair", label: "Pair this device with your existing mesh", status: "done" });
+      } else if (mode === "first-device") {
+        steps.push({ key: "workspace", label: "Create a private local workspace", status: "pending" });
+      } else {
+        steps.push({ key: "workspace", label: "Restore your local workspace", status: "pending" });
+      }
+      steps.push({ key: "chat-download", label: "Fetch the selected chat model", status: "pending" });
+      steps.push({ key: "chat-load", label: "Load the chat engine into memory", status: "pending" });
+      if (prefetchSupport) steps.push({ key: "support", label: "Preload voice, OCR, and speech tools", status: "pending" });
+      return steps;
+    },
+    [],
+  );
+
   const openMenu = useCallback(() => {
     if (!tabletShell) setDrawerOpen(true);
   }, [tabletShell]);
@@ -280,45 +321,90 @@ export default function App(): React.JSX.Element {
     return () => sub.remove();
   }, []);
 
-  // Shared config object for all loadModel calls (mount + selectChatModel switch). Never drift.
-  const LLM_CONFIG = { modelType: "llm" as const, modelConfig: { device: "gpu", ctx_size: 4096, verbosity: VERBOSITY.ERROR } };
+  const bootWorkspace = useCallback(
+    async ({ mode, prefetchSupport }: { mode: DeviceSetupMode | null; prefetchSupport: boolean }) => {
+      const savedKey = await getSelectedChatKey();
+      const entry = chatEntry(savedKey);
+      setChatKey(entry.chatKey);
+      setBootMode(mode);
+      setBootStage("prepare");
+      setBootError(null);
+      setBootSteps(makeBootSteps(mode, prefetchSupport));
 
-  // Download + load the model once on mount (using the user's saved chat model choice).
-  useEffect(() => {
-    let cancelled = false;
-    let didDownload = false;
-    (async () => {
+      const prevId = modelIdRef.current;
+      if (prevId) {
+        try {
+          await unloadModel({ modelId: prevId, clearStorage: false });
+        } catch {
+          /* continue */
+        }
+        modelIdRef.current = null;
+        setModelId(null);
+      }
+
+      let didDownload = false;
+
       try {
-        const savedKey = await getSelectedChatKey();
-        const entry = chatEntry(savedKey);
-        setChatKey(entry.chatKey);
-        setStatus("Fetching the model");
+        if (mode !== "sync-existing") {
+          setActiveStep("workspace");
+          setStatus(mode === "first-device" ? "Creating your local workspace" : "Restoring your workspace");
+          setBootDetail(
+            mode === "first-device"
+              ? "This device is setting up its private local workspace before any chat starts."
+              : "Restoring the device workspace and preparing the local runtime.",
+          );
+          setProgress(null);
+          await initMesh().catch(() => {});
+          setStepStatus("workspace", "done");
+        }
+
+        setActiveStep("chat-download");
+        setStatus("Fetching the chat model");
+        setBootDetail(`Downloading ${entry.label} so this device can answer locally, even offline after setup.`);
+        setProgress(0);
         await downloadAsset({
           assetSrc: entry.assetSrc,
           onProgress: (p: ModelProgressUpdate) => {
             if (p.percentage < 100) didDownload = true;
-            if (!cancelled) setProgress(Math.round(p.percentage));
+            setProgress(Math.round(p.percentage));
           },
         });
-        if (cancelled) return;
+        setStepStatus("chat-download", "done");
 
+        setActiveStep("chat-load");
         setStatus("Loading into memory");
+        setBootDetail("Starting the local chat engine and binding it into the app runtime.");
         setProgress(null);
         const id = await loadModel({
           modelSrc: entry.assetSrc,
           ...LLM_CONFIG,
-          onProgress: (p: ModelProgressUpdate) => {
-            if (!cancelled) setProgress(Math.round(p.percentage));
-          },
+          onProgress: (p: ModelProgressUpdate) => setProgress(Math.round(p.percentage)),
         });
-        if (cancelled) return;
-
         modelIdRef.current = id;
         setModelId(id);
-        setStatus("On the press");
         setProgress(null);
-        setBooting(false);
-        // Real on-device event → Alerts feed (only when weights were actually fetched, not a cache hit).
+        setStepStatus("chat-load", "done");
+
+        if (prefetchSupport) {
+          setActiveStep("support");
+          setStatus("Pulling the rest of the toolkit");
+          const supportModels = MODELS.filter((m) => m.key !== "chat");
+          for (const support of supportModels) {
+            setBootDetail(`Caching ${support.label} so voice, OCR, and speech features are ready on this device.`);
+            await downloadAsset({
+              assetSrc: support.assetSrc,
+              onProgress: (p: ModelProgressUpdate) => setProgress(Math.round(p.percentage)),
+            });
+          }
+          setProgress(null);
+          setStepStatus("support", "done");
+        }
+
+        if (mode) await saveOnboardingState(mode);
+        setStatus("On the press");
+        setBootDetail("Your private workspace is ready.");
+        setBootStage("ready");
+
         if (didDownload) {
           void addNotification({
             title: "Model ready",
@@ -328,21 +414,37 @@ export default function App(): React.JSX.Element {
           });
         }
       } catch (e) {
-        if (!cancelled) {
-          const msg = (e as Error)?.message ?? String(e);
-          setStatus(`Couldn't start: ${msg}`);
-          setBooting(false);
-          void addNotification({ title: "Model failed to load", body: msg, tier: "ask" });
-        }
+        const msg = (e as Error)?.message ?? String(e);
+        setStatus("Startup blocked");
+        setBootError(msg);
+        setProgress(null);
+        setBootStage("prepare");
       }
+    },
+    [LLM_CONFIG, makeBootSteps, setActiveStep, setStepStatus],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const onboarding = await getOnboardingState();
+      if (cancelled) return;
+      if (!onboarding) {
+        setBootMode(null);
+        setBootStage("choose");
+        setStatus("Choose how to set up this device");
+        setBootDetail("Start a private local workspace here, or pair it with an existing one.");
+        return;
+      }
+      setBootMode(null);
+      void bootWorkspace({ mode: null, prefetchSupport: false });
     })();
     return () => {
       cancelled = true;
       const id = modelIdRef.current;
       if (id) void unloadModel({ modelId: id, clearStorage: false }).catch(() => {});
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [bootWorkspace]);
 
   // Pre-warm Whisper once the chat model is up, so the first mic tap transcribes
   // near-instantly instead of stalling on a cold model load/download.
@@ -935,6 +1037,63 @@ export default function App(): React.JSX.Element {
     );
   }
 
+  if (bootStage !== "ready") {
+    return (
+      <OnboardingFlow
+        stage={bootStage === "checking" ? "prepare" : bootStage}
+        selectedMode={bootMode}
+        progress={progress}
+        status={status}
+        detail={bootDetail}
+        error={bootError}
+        steps={bootSteps}
+        joinBusy={joinBusy}
+        onSelectMode={(mode) => setBootMode(mode)}
+        onContinue={() => {
+          if (bootMode === "first-device") {
+            void setSelectedChatKey(DEFAULT_CHAT_KEY).finally(() => {
+              void bootWorkspace({ mode: "first-device", prefetchSupport: true });
+            });
+          } else if (bootMode === "sync-existing") {
+            setBootStage("sync");
+            setBootError(null);
+          }
+        }}
+        onJoin={(invite) => {
+          const syncKey = invite.trim();
+          if (syncKey.length < 16) {
+            setBootError("That doesn't look like a full sync key.");
+            setBootStage("sync");
+            return;
+          }
+          setJoinBusy(true);
+          setBootError(null);
+          void joinMesh(syncKey)
+            .then(() => bootWorkspace({ mode: "sync-existing", prefetchSupport: false }))
+            .catch((e) => {
+              setBootError((e as Error)?.message ?? "Join failed — is the desktop invite still open?");
+              setBootStage("sync");
+            })
+            .finally(() => setJoinBusy(false));
+        }}
+        onRetry={() => {
+          if (bootMode === "sync-existing") void bootWorkspace({ mode: "sync-existing", prefetchSupport: false });
+          else if (bootMode === "first-device") void bootWorkspace({ mode: "first-device", prefetchSupport: true });
+          else void bootWorkspace({ mode: null, prefetchSupport: false });
+        }}
+        onBack={() => {
+          setBootError(null);
+          setProgress(null);
+          setBootMode(null);
+          setBootSteps([]);
+          setBootStage("choose");
+          setStatus("Choose how to set up this device");
+          setBootDetail("Start a private local workspace here, or pair it with an existing one.");
+        }}
+      />
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="dark-content" backgroundColor={C.cream} />
@@ -1150,6 +1309,7 @@ export default function App(): React.JSX.Element {
           deviceName={SELF_DEVICE}
           mesh={{ on: meshOnRef.current, providerName: offload?.displayName, providerKey: offload?.providerPublicKey ?? "", status: meshOnRef.current ? "online" : "unset" }}
           onResetDevice={() => {
+            void clearOnboardingState();
             newChat();
             void refreshBrain();
           }}
