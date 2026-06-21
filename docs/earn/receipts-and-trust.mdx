@@ -1,25 +1,24 @@
 ---
 title: "Receipts and trust"
-description: "How Leash records economy evidence for free and paid delegated inference."
+description: "How Leash records paid settlement evidence today and how to validate zero-rate routes."
 ---
 
-Receipts make delegated compute auditable. They give the consumer, provider, and operator a shared record of what was selected, what was authorized, what was streamed, and what was settled.
+Receipts make paid delegated compute auditable. They give the consumer, provider, and operator a
+shared record of what was selected, what was authorized, what was streamed, and what was settled.
 
 ## Receipt fields
 
-A complete run can record:
+A paid session receipt records:
 
-- Mesh class: `private` or `public`.
+- Mesh id and model alias.
+- Budget cap, actual token count, and actual settled amount.
+- Network, asset, tx hash, and settle status.
 - Provider identity and advertised name.
-- Model alias and modality.
-- Rate in micro-units per thousand tokens.
-- Token cap and metered usage.
-- Authorization id for paid routes.
-- Settlement transaction for paid routes.
-- Zero-cost close marker for free routes.
-- Timing data such as TTFT and total duration.
+- Payer and provider wallet/key identities.
+- Timing fields such as `openedAt`, `completedAt`, and `settledAt`.
+- Retry metadata when settlement is still being retried.
 
-Private mesh receipts use the same shape with a forced zero rate. That keeps history, analytics, and UI rendering consistent without charging personal devices.
+These are the rows that back the `/economy` ledger and `/economy/receipts` page.
 
 ## Trust inputs
 
@@ -28,8 +27,8 @@ Public routing uses more than price. A cheap provider can still lose if it is sl
 | Signal | Why it matters |
 |---|---|
 | Identity | Prevents anonymous capacity from blending into trusted private peers. |
-| Reputation | Lets successful sessions improve future ranking. |
-| Receipts | Proves what was charged or why a run was free. |
+| Reputation | Lets successful paid sessions and delivery history improve future ranking. |
+| Receipts | Proves what was charged and whether settlement closed cleanly or is retrying. |
 | Settlement result | Confirms paid runs closed on the expected rail. |
 | Self-dealing checks | Detects when the same operator controls both sides of a paid route. |
 
@@ -42,13 +41,13 @@ Paid runs should leave two layers of evidence:
 
 The provider earns only after the metered close succeeds.
 
-## Free evidence
+## Free-route evidence
 
-Free runs still matter. They prove routing selected a public provider but did not charge:
+Free public routes and private routes still matter, but the current economy receipt surface is not
+where they show up. Today, validate them through:
 
-- Public provider advertised a `0` rate.
-- Consumer skipped payment authorization.
-- Completion streamed normally.
-- Receipt closed at `0`.
+- Conductor route decisions and mesh event traces.
+- Hypha peer and capability snapshots.
+- Public-vs-private routing behavior in the chat flow.
 
-This is important for public providers that want to donate spare compute or build reputation before charging.
+Do not expect zero-rate runs to appear as the same replicated settlement receipt rows used for paid sessions.

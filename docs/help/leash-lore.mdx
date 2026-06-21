@@ -30,7 +30,7 @@ Before building the full system, the team ran a **spike**: de-risk the four hard
 
 <Steps>
   <Step title="On-device inference + embeddings">
-    `qwen3-4b` running locally through `@qvac/sdk`, with `gte-large` embeddings.
+    `qwen3-4b` running locally through `@qvac/sdk`, with `embed` embeddings.
   </Step>
   <Step title="On-device RAG">
     A HyperDB graph store, indexed via those embeddings — retrieval with no server.
@@ -43,7 +43,9 @@ Before building the full system, the team ran a **spike**: de-risk the four hard
   </Step>
 </Steps>
 
-Zero mocks: real inference, real RAG, real encrypted P2P, real LoRA. The spike set the bar everything since has been held to. (Full evidence lives in `submission/SPIKE_RESULTS.md`.)
+Zero mocks: real inference, real RAG, real encrypted P2P, real LoRA. The spike set the bar
+everything since has been held to. The committed proof lives on the
+[Hackathon evidence pages](/hackathon/evidence-and-reproducibility) and in `spike/logs/*.jsonl`.
 
 ## The five-layer architecture
 

@@ -11,7 +11,7 @@ Depends on your internet and the model size:
 | Model | Size | Time (100 Mb/s) |
 |-------|------|-----------------|
 | qwen3-4b (chat) | ~2.5 GB | ~3 min |
-| gte-large (embeddings) | ~0.6 GB | ~1 min |
+| embed (embeddings) | ~0.6 GB | ~1 min |
 | parakeet (STT) | ~0.7 GB | ~1 min |
 | supertonic (TTS) | ~0.5 GB | ~1 min |
 | qwen3vl (vision) | ~1.5 GB | ~2 min |
@@ -26,7 +26,7 @@ Check `qvac.config.base.json` — it must have at least one alias entry:
 {
   "serve": {
     "models": {
-      "chat": {
+      "qwen3-4b": {
         "model": "QWEN3_4B_INST_Q4_K_M",
         "preload": true,
         "default": true,
@@ -49,7 +49,7 @@ If the file is empty or missing the `serve.models` object, the serve has nothing
 
 Normal — the model loads lazily on first request (the "cold start"). On a Mac M1 with the model on an SSD, the first message takes 30–60 seconds. Subsequent messages are fast (the model stays loaded in KV memory).
 
-Enable `preload: true` for the `chat` alias to make it load at serve start instead.
+Enable `preload: true` for your main chat alias (the committed config uses `qwen3-4b`) to make it load at serve start instead.
 
 ## macOS asked for Accessibility permission but I accidentally denied it
 

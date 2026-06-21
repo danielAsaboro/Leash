@@ -10,15 +10,15 @@ Every incoming message is classified into one of **five routes** before the agen
 
 | Route | Driving model | Default toolset | Approval posture |
 |-------|--------------|-----------------|------------------|
-| `chat` | `qwen3-4b` (alias `chat`) | Everything except computer + MCP-admin tools | Standard — read-only `bash` always on; MCP-admin is skill-gated |
-| `health` | `medpsy` → falls back to chat alias | Same as `chat` | Standard |
+| `chat` | `qwen3-4b` (or the selected/default chat alias) | General chat tools, memory/context, tasks, photos, research, and enabled MCP groups | Standard |
+| `health` | `health` → falls back to the selected chat alias | Read-only private-context tools | Standard |
 | `computer` | Computer-use model (defaults to chat alias) | Computer tools only | Elevated — drives the GUI via screenshot + control tools |
-| `files` | `qwen3-4b` | Bash lane only (read-only shell) | Read-only — shell is the file/time executor |
+| `files` | `qwen3-4b` (or the selected/default chat alias) | File-heavy read/search flow plus the bounded shell lane when needed | Read-only |
 | `vision` | `qwen3vl` | **None** — single-shot, no loop | N/A — no tools to approve |
 
 ## chat — the default
 
-The default for text turns. Driven by **`qwen3-4b`** (alias `chat`, `QWEN3_4B_INST_Q4_K_M`, ctx 32768, served with `tools:true, toolsMode:"dynamic"`). It activates everything except the computer tools and the SKILL-GATED MCP-admin tools, keeping the active schema set near the ~22-schema cap.
+The default for text turns. Driven by **`qwen3-4b`** (`QWEN3_4B_INST_Q4_K_M`, ctx 32768, served with `tools:true, toolsMode:"dynamic"` unless you pick or configure another chat alias). It activates the general assistant tool surface while keeping the active schema set near the ~22-schema cap.
 
 <Note>
 The chat alias is resolved per turn from the served config: the model marked `default: true`, else the first configured model, else the built-in `qwen3-4b`. Adding a model in the dashboard makes chat use it on the next turn.
@@ -26,7 +26,7 @@ The chat alias is resolved per turn from the served config: the model marked `de
 
 ## health — the medical specialist
 
-Medical and mental-health intent routes to **`medpsy`**, QVAC's own Qwen3 fine-tune. If the `medpsy` alias isn't served, the route resolves down to the chat alias. Its toolset matches `chat`.
+Medical and mental-health intent routes to **`health`**, the dedicated MedPsy specialist alias. If `health` isn't served, the route resolves down to the selected chat alias. The default health toolset stays read-only: `search_graph`, `recall`, `active_context`, and `activity_recent`.
 
 ## computer — GUI control
 

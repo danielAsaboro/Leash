@@ -4,25 +4,25 @@ description: "Spike gates with real numbers, JSONL audit records, airplane-mode 
 ---
 
 This page summarizes the verification evidence that ships with the repo. The numbers below come
-from the de-risking spike (`spike/*.ts`) and its committed audit artifacts under `spike/logs/`.
+from the de-risking spike (`spike/*.ts`) and its committed audit records under `spike/logs/`.
 The current app line is
 `@qvac/sdk@^0.13.5` + `@qvac/cli@^0.7.0`.
 
-## Mandatory submission artifacts
+## Required submission items
 
-The rules enumerate a required artifact set. This is the honest status of each — capabilities that
+The rules enumerate a required submission set. This is the honest status of each — capabilities that
 are shipped and documented vs. submission-packaging steps still open:
 
-| Required artifact | Status | Where |
+| Submission item | Status | Where |
 |---|---|---|
 | QVAC SDK for all inference/embeddings/RAG/multimodal | Shipped | [QVAC-only proof](/hackathon/qvac-only-proof) |
 | Apache-2.0 license | Shipped | root `LICENSE` + every `package.json` |
-| Public GitHub repo | Published source artifact | `github.com/danielAsaboro/Leash` |
+| Public GitHub repo | Published source repo | `github.com/danielAsaboro/Leash` |
 | Reproducibility / out-of-the-box run path | Shipped | [Quickstart](/quickstart), [macOS install](/install/macos) |
 | Structured audit log (loads/unloads, prompt, tokens, TTFT, tok/s) | Shipped (JSONL) | `spike/lib/audit-log.ts`, `spike/logs/*.jsonl`, `evidence/medpsy-demo.jsonl` |
-| Hardware specs + reproducible capture | Filed in docs; screenshot uploads are form-level artifacts | [Hardware setup](#hardware-setup) below |
+| Hardware specs + reproducible capture | Filed in docs; screenshot uploads are form-level submission items | [Hardware setup](#hardware-setup) below |
 | Structured remote-API-call disclosure file | Filed | `evidence/remote-api-calls.json`, [Remote network calls](/hackathon/network-disclosure) |
-| Demo video (≤5 min, unlisted) | External submission artifact | DoraHacks / YouTube link |
+| Demo video (≤5 min, unlisted) | External submission item | DoraHacks / YouTube link |
 
 <Warning>
 Pages in this section distinguish runtime evidence from external submission-form uploads. The code,
@@ -48,7 +48,6 @@ independent devices and never pools their memory, so each device satisfies its o
 |---|---|---|---|---|
 | **Mac mini (M4)** | **General Purpose primary** | Apple M4 / Metal | **24 GB** | Declared track device; runs the full stack inside the ≤32 GB envelope. |
 | MacBook Pro `Mac15,7` | Delegation peer | Apple M3 Pro, 12-core CPU / 18-core GPU / Metal | 36 GB | Optional peer; disclosed, not pooled with the primary. |
-| mac3 MacBook Pro | Optional second paid provider | Apple silicon / Metal | device-local | Used as a cheaper peer in economy/routing tests; not required for the GP primary proof. |
 | iPhone 12 Pro Max `iPhone13,4` | Mobile client | Apple A14 Bionic / Metal | 6 GB | Runs the mobile client and on-device voice path. |
 
 The M3 Pro delegation peer was live-captured on 2026-06-20:
@@ -102,7 +101,7 @@ product work. All four passed.
 ### A — On-device inference + embeddings
 
 - Warm chat (Llama 3.2 1B): **TTFT 56 ms**, **70.6 tok/s** (cold first-load TTFT 466 ms).
-- Embeddings (`gte-large`): a **1024-dim** vector in ~84 ms.
+- Embeddings (`embed` / `GTE_LARGE_FP16`): a **1024-dim** vector in ~84 ms.
 - Device-fit sweep: Qwen3-600M **113.7 tok/s**, Llama 1B **74.7 tok/s**, Qwen3-4B **24.1 tok/s**.
 
 ### B — On-device RAG (grounded, cited)

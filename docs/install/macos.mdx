@@ -22,7 +22,7 @@ macOS is Leash's primary platform. Run it two ways: the **desktop app** (Electro
 
     <Steps>
       <Step title="Choose a base folder">
-        Pick any folder on any mounted volume (including an external SSD), or accept the default (your home directory). This is the **base**; Leash creates `<base>/Leash/<userId>/` underneath it.
+        Pick any folder on any mounted volume (including an external SSD), or accept the default (your home directory). This is the **base**; Leash creates a shared `<base>/Leash/` root there, then adds per-user scopes under it after account setup.
       </Step>
       <Step title="Confirm">
         The wizard shows the resolved Leash base (`<base>/Leash`) before writing it.
@@ -84,21 +84,48 @@ macOS is Leash's primary platform. Run it two ways: the **desktop app** (Electro
 
 ## Data directory layout
 
-The base you pick maps to a per-user directory at `<base>/Leash/<userId>/`, created by the supervisor:
+The base you pick maps to a shared install root at `<base>/Leash/`. The supervisor stores global
+state there, then scopes each account into its own directory:
 
 ```
-<base>/Leash/<userId>/
-├── soul.md                       # who you are (constitution)
-├── goals.md                      # your goals (constitution)
-├── heartbeat.md                  # heartbeat checklist (constitution)
-├── notes/                        # markdown notes (RAG-indexed)
-├── leash-chats/                  # one JSON per conversation
-├── leash-activity.jsonl          # screen-watcher trail
-├── leash-heartbeat-state.json    # heartbeat dedup state
-└── leash-audit.jsonl             # inference audit log
+<base>/Leash/
+├── active.json                   # which account the supervisor has scoped live
+├── users.json                    # account registry
+├── device.json                   # this device's bootstrap identity
+├── _runtime/                     # seeded standalone runtime for desktop builds
+├── _shared/
+│   └── npm-cache/                # shared npm cache for spawned tools/downloads
+├── _deps/
+│   └── downloads/                # system dependency downloads
+└── <userId>/
+    ├── qvac.config.mjs
+    ├── qvac.config.base.json
+    ├── .qvac/                    # per-user QVAC home when supervised
+    ├── .leash-mcp-repos/
+    ├── db/
+    │   └── newsroom.db
+    └── data/
+        ├── soul.md
+        ├── goals.md
+        ├── heartbeat.md
+        ├── notes/
+        ├── leash-chats/
+        ├── leash-activity.jsonl
+        ├── leash-feedback.jsonl
+        ├── leash-heartbeat-state.json
+        ├── leash-tasks.json
+        ├── leash-research/
+        ├── leash-downloads/
+        ├── photos/
+        ├── leash-photo-tags.json
+        ├── leash-services/
+        ├── mcp-cron.db
+        └── hypha/
 ```
 
-Model weights live separately in the SDK cache at `~/.qvac/models`, not under the base folder.
+Model weights do not have to live on the system drive. In a supervised desktop or headless run,
+the user scope sets `HOME` to `<base>/Leash/<userId>/`, so that account's QVAC cache lives under
+`<base>/Leash/<userId>/.qvac/` unless you deliberately relocate it.
 
 ## macOS permissions
 

@@ -24,7 +24,7 @@ Automatic activation is gated by confidence floors:
 | Signal | Default | Why |
 | --- | --- | --- |
 | Lexical | `LEASH_SKILL_LEX_FLOOR=0.45` | Catches keyword-only matches while general prompts stay low. |
-| Embedding | `LEASH_SKILL_EMB_FLOOR=0.81` | Separates true intents from false positives with `gte-large`. |
+| Embedding | `LEASH_SKILL_EMB_FLOOR=0.81` | Separates true intents from false positives with `embed`. |
 
 The selector logs the top candidates under loop diagnostics so floors can be tuned against real turns, not vibes.
 

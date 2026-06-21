@@ -1,0 +1,69 @@
+---
+title: "Requirement map"
+description: "A direct map from the hackathon's explicit submission requirements to the pages and files in this repo."
+sidebarTitle: "Requirement map"
+---
+
+This page answers the submission-level question directly: **if a judge or reviewer asks where a
+required submission item lives, where should they look?**
+
+## Requirement map
+
+| Submission requirement | Status | Where to verify |
+|---|---|---|
+| **Project summary / what it is** | In repo | [Submission summary](/hackathon/submission-summary) |
+| **Track fit / judging rubric mapping** | In repo | [How we meet the criteria](/hackathon/how-we-meet-the-criteria) |
+| **Prior-work disclosure** | In repo | [Prior-work disclosure](/hackathon/prior-work-disclosure) |
+| **QVAC-only AI usage** | In repo | [QVAC-only proof](/hackathon/qvac-only-proof) |
+| **Structured remote API disclosure** | In repo | [Remote network calls](/hackathon/network-disclosure), `evidence/remote-api-calls.json` |
+| **Reproducibility + hardware specs** | In repo | [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) |
+| **Structured audit log** | In repo | [Audit log reference](/reference/audit-log), `spike/logs/*.jsonl`, `evidence/medpsy-demo.jsonl` |
+| **Known issues / honest limitations** | In repo | [Known issues](/hackathon/known-issues) |
+| **Design decisions / engineering tradeoffs** | In repo | [Design decisions](/hackathon/design-decisions) |
+| **Demo video** | External submission item | Unlisted YouTube URL in DoraHacks |
+| **Public repo URL** | External form field, backed by this repo | `https://github.com/danielAsaboro/Leash` |
+
+## Core claim set
+
+These are the claims the pushed repo can support on its own:
+
+- Leash is a **general-purpose personal AI harness** over the **Mycelium** runtime.
+- All AI paths run **through `@qvac/sdk` only**; there is **no cloud AI** path.
+- The assistant **perceives local context** through notes, voice, OCR/photos, screenshots, recent
+  activity, and its feed.
+- It **reasons above one device's weight class** by borrowing compute across an encrypted mesh.
+- On your **private mesh**, your own devices delegate for free. On a **public mesh**, outside
+  providers can expose compute free or paid.
+- After warm-cache, the hot path is **offline-capable**.
+
+## Evidence files worth opening first
+
+- `spike/logs/*.jsonl` for the primitive proof runs
+- `evidence/medpsy-demo.jsonl` for a committed end-to-end health-record RAG example
+- `evidence/remote-api-calls.json` for machine-readable outbound-call disclosure
+- [Benchmarks](/reference/benchmarks) for performance snapshots in docs form
+
+## Recommended reading order for judges
+
+1. [Submission summary](/hackathon/submission-summary)
+2. [How we meet the criteria](/hackathon/how-we-meet-the-criteria)
+3. [QVAC-only proof](/hackathon/qvac-only-proof)
+4. [Evidence & reproducibility](/hackathon/evidence-and-reproducibility)
+5. [Known issues](/hackathon/known-issues)
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Submission summary" icon="list-check" href="/hackathon/submission-summary">
+    The one-page overview.
+  </Card>
+  <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
+    Hardware, spike gates, and audit evidence.
+  </Card>
+  <Card title="Prior-work disclosure" icon="book" href="/hackathon/prior-work-disclosure">
+    The explicit build-period boundary.
+  </Card>
+  <Card title="Remote network calls" icon="network-wired" href="/hackathon/network-disclosure">
+    Every outbound call, classified.
+  </Card>
+</CardGroup>

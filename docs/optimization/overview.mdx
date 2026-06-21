@@ -6,6 +6,8 @@ sidebarTitle: "Overview"
 
 Leash is optimised around one constraint: the agent must feel capable while every AI call runs through `@qvac/sdk` on local or mesh-owned hardware. The work is not one trick. It is a stack of routing, prompt, queueing, model, memory, mesh, and mobile choices that keep the 4B-class agent inside its budget.
 
+## Agent and context
+
 <CardGroup cols={2}>
   <Card title="Skill selection" icon="route" href="/optimization/skill-selection">
     Lexical + embedding selection, RRF ranking, one active skill, and deterministic step pipelines.
@@ -19,18 +21,28 @@ Leash is optimised around one constraint: the agent must feel capable while ever
   <Card title="Deterministic fast paths" icon="bolt" href="/optimization/deterministic-fast-paths">
     Direct answers, registered-tool shortcuts, broker calls, and health safety paths.
   </Card>
+  <Card title="Multi-agent context harness" icon="network" href="/optimization/multi-agent-context-harness">
+    Progressive agent disclosure, bounded subagent packets, parent synthesis, and live chat evidence.
+  </Card>
+</CardGroup>
+
+## Chat and runtime
+
+<CardGroup cols={2}>
   <Card title="Chat API resilience" icon="message-circle-warning" href="/optimization/chat-api-resilience">
     Product-path streaming behavior when tools work, QVAC is down, or routing fails.
   </Card>
   <Card title="Long chat stress" icon="chart-no-axes-combined" href="/optimization/long-chat-stress">
     The 30-50 turn chat stress suite and the latest before/after measurements.
   </Card>
-  <Card title="Multi-agent context harness" icon="network" href="/optimization/multi-agent-context-harness">
-    Progressive agent disclosure, bounded subagent packets, parent synthesis, and live chat evidence.
-  </Card>
   <Card title="Inference runtime" icon="gauge-high" href="/optimization/inference-runtime">
     Broker scheduling, cancel-on-disconnect, queue aging, schema caps, and diagnostics.
   </Card>
+</CardGroup>
+
+## Mesh and device fit
+
+<CardGroup cols={2}>
   <Card title="Mesh delegation" icon="circle-nodes" href="/optimization/mesh-delegation">
     Warm-peer routing, overflow, KV-cache reuse, two-seed identity, and lazy mesh startup.
   </Card>
@@ -40,6 +52,11 @@ Leash is optimised around one constraint: the agent must feel capable while ever
   <Card title="Models, memory, mobile" icon="microchip" href="/optimization/models-memory-mobile">
     Fit estimation, warm caches, RAG defaults, MedGemma routing, LoRA honesty, and iOS constraints.
   </Card>
+</CardGroup>
+
+## Validation
+
+<CardGroup cols={2}>
   <Card title="Evidence" icon="flask" href="/optimization/evidence">
     The measurements, smokes, and negative results that shaped the optimisations.
   </Card>
@@ -65,6 +82,6 @@ Leash handles those limits in the harness:
 
 ## What this section is
 
-This section is the engineering ledger for those choices. It folds together the polished docs, the Claude-Code architecture analysis, the sawdust build log, and the implementation comments.
+This section is the public record of the optimisation choices that shaped the shipped system. It stays close to the runtime boundaries: agent and context assembly, chat-path resilience, mesh routing, device fit, and the evidence behind each decision.
 
-It deliberately includes negative results: the continuation nudge did not improve dependent chains, the 600M LoRA recall result was 0% in one reported run, and some tempting resilience work was killed when a spike showed the premise was wrong. Those failures are part of the optimisation story because they kept the shipped system simpler.
+It deliberately includes negative results. The continuation nudge did not improve dependent chains, the 600M LoRA recall result was 0% in one reported run, and some tempting resilience work was dropped after direct probes showed the premise was wrong. Those failures matter because they kept the shipped system simpler and more honest.

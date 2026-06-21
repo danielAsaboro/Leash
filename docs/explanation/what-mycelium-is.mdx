@@ -1,32 +1,49 @@
 ---
-title: "What Leash is"
-description: "The product and the engine: one private intelligence spread across your own devices."
+title: "Leash and Mycelium"
+description: "The assistant harness and the connected runtime behind one private, extensible intelligence."
 ---
 
-**Leash** is a private, end-to-end-encrypted assistant that runs on your own hardware. Its
-job is not just to host a chatbot. It combines local inference, retrieval, typed memory,
-delegated compute, and a nightly learning loop into one assistant that stays on your
-devices.
+**Leash** is the assistant harness: the product surface where you chat, approve actions,
+use tools, load skills, connect MCP servers, and operate your personal AI. It runs on your
+own hardware and keeps the user-facing experience coherent even when the work spans several
+models, tools, and devices.
 
-**Mycelium** is the engine underneath. It is the local-first runtime, the encrypted device
-mesh, the agent economy, and the workspace that builds them. Leash is the surface you use;
-Mycelium is the five-layer system that makes Leash work and that other clients (the desktop
-app, the hub and edge-node apps) also sit on.
+**Mycelium** is the connected runtime underneath. It ties together the local model serve,
+typed memory, retrieval, skills, tool groups, delegated compute, and the encrypted mesh so
+Leash behaves like one assistant instead of a pile of disconnected features.
 
-## Product versus engine
+Taken together, that means Leash can perceive your world locally and reason above the weight
+class of any single device: it pulls in private context from the surfaces you already use,
+then places heavier work on the right peer when one machine is not enough.
+
+## Harness versus runtime
 
 It helps to keep the two words straight:
 
-- **Leash** is the flagship interface — the assistant, dashboard, and operator console in
-  `apps/web`, plus the desktop client in `apps/desktop`. When you "use the product," you use
-  Leash.
-- **Mycelium** is the platform boundary — the serve and model-alias layer, Hypha for pairing
-  and delegated compute, the agent economy, and the `packages/*` that implement senses, mind,
-  mesh, memory, and shared logic.
+- **Leash** is the flagship assistant harness — the main agent, dashboard, approvals flow,
+  chat loop, and operator console in `apps/web`, plus the desktop and mobile clients that
+  present the same assistant to the user.
+- **Mycelium** is the runtime boundary — the serve and model-alias layer, Hypha for pairing
+  and delegated compute, the skills/tool/MCP backing stores, and the `packages/*` that
+  implement senses, mind, mesh, memory, and shared logic.
 
 Treating Leash as the whole system would hide that boundary. The architecture, the mesh, and
-the memory loop are Mycelium concerns; the chat, the catalog, and the settings tabs are Leash
-surfaces over them.
+the memory loop are Mycelium concerns; the chat, approvals, tasking, and settings surfaces are
+Leash over them.
+
+## Why Leash is general-purpose
+
+Leash is not "general-purpose" because it claims to do everything. It is general-purpose
+because the harness is extensible:
+
+- tools expose concrete capabilities
+- skills add reusable workflows and routing hints
+- MCP servers add external systems and typed forms
+- specialist agents let the main assistant delegate focused sub-tasks
+
+That is why a private health-record workflow belongs here without redefining the product as a
+health app. Health is the proof that a private, extensible assistant can handle sensitive,
+high-context work; it is not a separate category bolted onto the side.
 
 ## What makes it distinct
 
@@ -41,20 +58,34 @@ between your machines. Retrieval is against local files and stores. When the sys
 another GPU — or a modality this device can't serve — it borrows one from a paired peer, not
 from a hosted API.
 
+## Private mesh and public mesh
+
+Mycelium's mesh is not one flat trust zone.
+
+- On your **private mesh**, your own devices delegate compute to one another for free.
+- On a **public mesh**, outside providers can expose compute as free or paid, with routing and
+  settlement policy handled by the runtime rather than by a different product.
+
+That matters because the assistant experience stays the same while the trust and economy tier
+changes underneath it. Leash is still one assistant. Mycelium is what lets it scale from one
+device, to your own device swarm, to a broader compute market.
+
 ## What the user is actually getting
 
 From your point of view, Leash offers:
 
 - grounded chat over private notes, activity, and past conversations
+- local perception over voice memos, photos/screenshots, OCR text, recent screen activity, and the proactive feed
 - delegated compute and modality borrowing over a paired device mesh
-- an opt-in agent economy that settles borrowed compute on-chain
+- extensibility through tools, skills, MCP servers, and specialist delegates
+- a private mesh that is free between your own devices, plus optional free-or-paid public mesh routing
 - typed memory plus retrieval-backed recall, and a nightly loop that adapts a personal model
 - local speech, vision, and image paths
 - a reproducible workspace where the core runtime is inspectable
 
 ## Evidence and reporting live elsewhere
 
-This docs site explains the product and the engineering surface. Hackathon evidence, spike
-results, and build logs stay in `submission/`. The repo keeps those as external artifacts
-rather than duplicating them here; the [Hackathon](/hackathon/overview) section summarizes
-and links to them.
+This docs site explains the product and the engineering surface. The submission summary,
+prior-work disclosure, spike summary, and reproducibility pages live under
+[Hackathon](/hackathon/overview), so the public repo carries the full product story and proof set
+in one place.

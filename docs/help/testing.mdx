@@ -4,86 +4,88 @@ description: "How to verify that Leash is working correctly — smoke tests, rou
 sidebarTitle: "Testing overview"
 ---
 
-## The smoke test
+## Fast health check
 
-The fastest way to verify that Leash is healthy:
+The fastest low-friction checks in the current repo:
 
 ```bash
 # 1. Is the serve responding?
 curl http://127.0.0.1:11435/v1/models | jq '.data[].id'
 
-# 2. Is the web server up? (the landing page returns 200)
+# 2. Is the web server up? (the public landing route returns 200)
 curl -s -o /dev/null -w '%{http_code}\n' http://localhost:6801/
 
-# 3. Does a basic chat turn work?
-curl -X POST http://localhost:6801/api/leash/chat \
-  -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"hello"}]}' \
-  --no-buffer
+# 3. Do the deterministic fast paths still pass?
+npm run smoke:direct-answer
 ```
 
-If all three pass, the critical path is healthy.
+For the real authenticated chat path, use:
 
-## Route verification
+```bash
+LEASH_COOKIE='leash_session=...' npm run stress:long-chat-turn
+```
 
-Each of Leash's five routes can be tested independently:
+The stress script also accepts `/tmp/leash-cookie.txt` instead of `LEASH_COOKIE`.
 
-| Route | Test |
-|-------|------|
-| `chat` | Send "What time is it?" — should use tools and answer |
-| `health` | Send "I have a headache" — routes to `medpsy` model |
-| `computer` | "Take a screenshot" — should call `screenshot` tool (approval-free) |
-| `files` | "List my notes" — should call `bash` tool |
-| `vision` | Send a message with an image — routes to `qwen3vl` |
+## Script-first verification
 
-## Tool group verification
+These are the current repo-backed checks to reach for first:
 
-For each MCP tool group you care about, run a quick tool-level test:
+| Area | Best current check | Notes |
+|---|---|---|
+| Direct answers / simple chat heuristics | `npm run smoke:direct-answer` | offline logic smoke |
+| File fast path | `npm run smoke:file-finder-fast-path` | bounded search path |
+| Brokered context / memory / tasks | `npm run smoke:tool-brokers` | read-only broker tools |
+| Health routing and policy | `npm run smoke:psy-health` | offline health-lane policy + specialist wiring |
+| Multi-agent orchestration | `npm run smoke:orchestration` | live serve required |
+| Plugin activation on real embeddings | `npm run smoke:plugins-live` | live serve required |
+| Full authenticated chat surface | `LEASH_COOKIE='...' npm run stress:long-chat-turn` | live web app + valid session cookie |
+
+## Manual product checks
+
+If you want to exercise the UI directly, these prompts are still useful:
 
 ```
-# memory group
 "Do I have any notes about X?"
-
-# tasks group  
 "What tasks do I have today?"
-
-# computer group
 "Take a screenshot of my screen"
-
-# research group
-"Search the web for..."  
-
-# scheduler group
-"Remind me at 3pm to check email"
+"Take a screenshot of my screen"
+"Search my files for ..."
+"Health-safety check: what should I ask a clinician about ..."
 ```
 
 ## Heartbeat verification
 
+`POST /api/leash/heartbeat` is **not** a browser-session route. It is protected by the shared internal token.
+
 ```bash
-# Trigger one heartbeat cycle manually
-curl -X POST http://localhost:6801/api/leash/heartbeat
+# Trigger one heartbeat cycle manually (read the token from the active data dir)
+curl -X POST http://localhost:6801/api/leash/heartbeat \
+  -H "x-leash-internal: $(cat <dataDir>/.leash-internal-token)"
 ```
 
-A healthy response is `{"ok":true,"suppressed":true,"reason":"HEARTBEAT_OK"}` (nothing to surface) or a proposal object. An `error` key means the serve was down or tools weren't ready.
+A healthy response is a JSON heartbeat result. If you are not debugging the server-to-server path specifically, using the Scheduler / Services UI is the safer check.
 
 ## Checking audit logs
 
-Every inference turn writes a JSONL record. After a few chat turns:
+Audit logs are per-process in the current runtime. Useful starting points:
 
 ```bash
-cat data/leash-audit.jsonl | tail -20 | jq '{event, model: .modelSrc, ttft_ms, tok_per_sec}'
+jq 'select(.event=="completion") | {modelId, ttftMs, tokensPerSecond}' apps/hypha/logs/hypha.jsonl
+jq 'select(.event=="completion") | {modelId, ttftMs, tokensPerSecond}' spike/logs/01-inference.jsonl
 ```
 
-You should see `model_load`, `prompt`, and `completion` events with non-zero `ttft_ms` and `tok_per_sec`.
+For the full schema and the current log locations, see [Audit log](/reference/audit-log).
 
 ## After an `npm install`
 
 After any `package.json` change or `npm install`, always restart:
 1. The web server (`npm run web:dev`)
-2. The `leash-tools-mcp` daemon (`npm run mcp`)
-3. The screen watcher if running (`npm run watch`)
+2. The broker / Hypha if you use them (`npm run broker`, `npm run hypha`)
+3. Any standalone MCP daemons you launched (`npm run mcp`, `npm run tools-mcp`)
+4. The screen watcher or newsroom if running (`npm run watch`, `npm run newsroom`)
 
-The serve (`qvac serve openai`) doesn't need a restart for code changes — only for config changes.
+The scheduler is the dashboard-managed `mcp-cron` service, not a root `npm run cron` script.
 
 ## After a config change
 

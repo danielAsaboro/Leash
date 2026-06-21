@@ -1,6 +1,6 @@
 ---
 title: "Brain"
-description: "The Brain dashboard — where you configure everything the agent knows and how it behaves: models, tools, skills, the constitution, memory, and schedules."
+description: "The Brain dashboard — where you configure everything the assistant knows and how it behaves: memory, skills, plugins, agents, MCP, prompts, models, and proactivity."
 sidebarTitle: "Brain"
 ---
 
@@ -12,8 +12,9 @@ sidebarTitle: "Brain"
 |-----|--------------|
 | **Memory** | Browse persistent memories, notes, and screen activity. Delete or bulk-clear memories; see the chat thread each was derived from. The default landing tab. |
 | **Skills** | The markdown instruction documents the agent reads before acting. View, inspect, and manage your [skills](/capabilities/skills). |
-| **Tools** | The tool registry — toggle any tool on/off (off removes its schemas from the active set) and set per-tool "ask-first" approval. Computer rows show the driving model; bash rows note the sandbox scope. |
-| **MCP** | Every tool group served by `leash-tools-mcp`, with per-group enable toggles and server status. Disable a group to free schema slots. |
+| **Plugins** | Installed capability bundles — stage, inspect, enable, disable, and remove plugin-delivered skills and agents. |
+| **Agents** | The main agent plus your specialist subagents. Create, edit, enable, and review delegatable helpers. |
+| **MCP** | Every tool group served by `leash-tools-mcp`, with per-group enable toggles and server status. The per-tool approval and enable controls live here now; there is no separate Tools tab. |
 | **Prompts** | `chat` / `voice` / `health` / `vision` prompt overrides. |
 | **Models** | The model inventory and lifecycle — what's installed, the serve status, and the downloadable catalog with device-fit. |
 | **Growth** | The Understory — LoRA adapter rounds: base-vs-adapter eval deltas, per-axis scores, and the adapter manifest. *(WIP — empty until the first adapter trains.)* |
@@ -24,8 +25,8 @@ sidebarTitle: "Brain"
 
 The **Memory** tab is a landing for everything the agent has learned about you:
 
-- **Memories** — persistent facts and preferences carried across conversations, stored in the graph and retrieved via RAG on relevant turns. The evolution loop runs nightly to extract and update them; you can also trigger it manually.
-- **Notes** — your markdown notes in `data/notes/`, indexed into the graph. Add or edit a `.md` file and the next RAG rebuild picks it up; there's no in-app editor.
+- **Memories** — persistent facts and preferences carried across conversations, stored in the graph and retrieved via RAG on relevant turns. The evolution loop runs nightly to extract and update them.
+- **Notes** — your markdown notes in `data/notes/`, surfaced in the Local context page. There's no in-app editor.
 - **Screen activity** — the `leash-watch` daemon writes structured records to `data/leash-activity.jsonl` (timestamp, frontmost app, window title, and an on-device VLM summary). This trail feeds the heartbeat — the last **25** records ground each proactive check.
 
 <Note>

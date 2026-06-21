@@ -13,23 +13,25 @@ description: "Commands, ports, health checks, and roles for the current Mycelium
 | Hypha | `npm run hypha` | `11437` | local control plane and delegated-compute shim |
 | Hypha pairing | Hypha runtime | `11438` | LAN pairing surface |
 | Leash MCP | `npm run mcp` | `11439` | mesh pairing tools over MCP |
+| Tools MCP | `npm run tools-mcp` | `11440` | built-in tool groups over MCP (`/mcp/<group>`) |
 
 ## Background daemons
 
 | Process | Start command | Port | Purpose |
 |---|---|---|---|
+| Scheduler | Brain → Services (`mcp-cron`) | `11448` | recurring jobs, heartbeat, and schedule run history |
 | Newsroom | `npm run newsroom` | none | runs The Understory pipeline |
 | Watcher | `npm run watch` | none | app activity observation |
-| Cron | `npm run cron` | none | scheduler for recurring local jobs |
-| Hub | `npm run hub` | none | original strong-brain app |
-| Edge Node | `npm run ask -- "<question>"` | none | original weak-consumer app |
+| Hub | `npm run hub` | none | original always-on mesh app |
+| Edge Node | `npm run ask -- "<question>"` | none | original lightweight consumer app |
 
 ## Other surfaces
 
 | Surface | Start command | Port | Purpose |
 |---|---|---|---|
 | Desktop app | `npm run dev -w @mycelium/desktop` | none (Electron window) | offline on-device chat client; runs inference via `@qvac/sdk` |
-| Landing page | served by the web app | `6801` (route `/`) | the useleash.xyz broadsheet marketing front page; the app lives at `/chat`, `/brain`, `/economy`, … |
+| Standalone landing app | `npm run dev -w @mycelium/landing` | `6810` | standalone public marketing/download site |
+| Local landing route | served by the web app | `6801` (route `/`) | public front page inside the local web app; the dashboard lives at `/chat`, `/brain`, `/economy`, … |
 
 ## Health and inspection endpoints
 
@@ -39,6 +41,7 @@ description: "Commands, ports, health checks, and roles for the current Mycelium
 | `http://127.0.0.1:11436/__broker/stats` | broker | inspect queue and overflow counters |
 | `http://127.0.0.1:11437/health` | Hypha | inspect peer count, warm aliases, inflight work |
 | `http://127.0.0.1:11437/peers` | Hypha | inspect peer inventory |
+| `http://127.0.0.1:11440/health` | Tools MCP | confirm the built-in tool daemon is ready |
 | `http://127.0.0.1:11439/health` | Leash MCP | confirm MCP daemon readiness |
 
 ## Port relationships
@@ -46,6 +49,8 @@ description: "Commands, ports, health checks, and roles for the current Mycelium
 | From | To | Relationship |
 |---|---|---|
 | web app | serve or broker | uses `QVAC_OPENAI_URL` |
+| web app | Tools MCP | manages built-in tool-group toggles and health |
+| web app | mcp-cron | manages schedules, run history, and recurring jobs |
 | broker | serve | forwards queued local requests upstream |
 | broker | Hypha | sheds eligible requests to warm peers |
 | Leash MCP | Hypha | drives local pairing routes and health |
@@ -68,4 +73,9 @@ npm run web:dev
 npm run broker
 npm run hypha
 npm run mcp
+npm run tools-mcp
 ```
+
+<Note>
+There is no root `npm run cron` script in the current repo. The scheduler is the dashboard-managed `mcp-cron` service.
+</Note>

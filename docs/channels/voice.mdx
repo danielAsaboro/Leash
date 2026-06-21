@@ -4,7 +4,7 @@ description: "Hands-free voice call with Leash — fully on-device STT, LLM, and
 sidebarTitle: "Voice"
 ---
 
-Voice call is a full-screen, audio-only overlay on top of the text chat. The whole pipeline runs on-device: **Parakeet** for speech-to-text, your **chat** model for the language turn, and **Supertonic** for text-to-speech. No cloud API is involved, and spoken turns land in the same chat thread as typed ones.
+Voice call is a full-screen, audio-only overlay on top of the text chat. The whole pipeline runs on-device: **Parakeet** for speech-to-text, your current text-turn model (by default `qwen3-4b`) for the language turn, and **Supertonic** for text-to-speech. No cloud API is involved, and spoken turns land in the same chat thread as typed ones.
 
 <Note>
   The call overlay does not own its own chat — it borrows the live handles from the text chat (`LeashChat`), so every spoken turn persists in the same transcript and store.
@@ -14,7 +14,7 @@ Voice call is a full-screen, audio-only overlay on top of the text chat. The who
 
 <Steps>
   <Step title="Open the chat">
-    Go to [http://localhost:6801/chat](http://localhost:6801/chat).
+    Go to [http://localhost:6801/chat](http://localhost:6801/chat). On a fresh install, the auth gate will first send you through `/setup-password` and `/login`.
   </Step>
   <Step title="Tap the microphone">
     The microphone icon (top-right) opens the call overlay. Grant microphone permission on the first prompt.

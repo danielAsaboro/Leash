@@ -5,10 +5,14 @@ sidebarTitle: "Economy (WIP)"
 ---
 
 <Warning>
-  The economy layer is functional but early. Settlement, metered streaming, and reputation are gated behind feature flags and need manual setup. The free delegated-inference path (no payment) is stable and on by default.
+  The economy layer is functional but early. Settlement, metered streaming, and reputation are gated
+  behind feature flags and need manual setup. The free delegated-inference path is stable; the
+  current dashboard ledger is centered on paid public sessions.
 </Warning>
 
-The **Leash economy** is an optional micro-payment layer on top of the mesh. Providers earn for compute they serve; consumers spend to borrow inference from peers. Everything below is grounded in `apps/hypha/src/config.ts` — the `HYPHA_ECONOMY_*` env knobs.
+The **Leash economy** is an optional micro-payment layer on top of the mesh. Providers earn for
+compute they serve; consumers spend to borrow inference from peers. Everything below is grounded in
+`apps/hypha/src/config.ts` — the `HYPHA_ECONOMY_*` env knobs.
 
 It is **off by default**: `HYPHA_ECONOMY_ENABLED` defaults to `0`. Set it to `1` (plus a wallet/rail) to opt in.
 
@@ -28,7 +32,8 @@ It is **off by default**: `HYPHA_ECONOMY_ENABLED` defaults to `0`. Set it to `1`
 
 ## Settlement rails
 
-Two rails are supported. EVM/Plasma is the first-choice rail; Solana is the fallback.
+Two rails exist in the settlement manager. The current paid public-session path and ledger are
+Plasma-first; Solana support is lower-level rail support, not the main submission path.
 
 <Tabs>
   <Tab title="EVM / Plasma">
@@ -123,10 +128,18 @@ The economy paths are covered by offline smoke and gate scripts (run with `npm r
 
 | Script | Covers |
 |---|---|
+| `smoke:mesh-economy-policy` | private/public mesh caps, zero-rate policy, and paid-session gate |
+| `smoke:economy` | ledger derivation and market/accountability view |
+| `smoke:receipt-view` | `/economy/receipts` filters, grouping, and pagination |
 | `smoke:metered` | The metered ladder arithmetic + state transitions (`scripts/smoke-metered.ts`, pure policy — no chain) |
 | `smoke:reputation` | Quality-weighted routing tie-break (`effective_cost = pricePerKiloToken / quality`) |
 | `smoke:identity` | The wallet↔provider-key binding + receipt verification |
 | `gate:firewall-revocation` | That a provider firewall stop→start cleanly revokes a consumer without dropping a live link |
+
+<Note>
+  Public paid pricing is provider-level today. The public docs should not imply alias-specific
+  pricing or equal ledger treatment for zero-rate and paid routes, because the current code does not.
+</Note>
 
 ## Reputation (experimental)
 

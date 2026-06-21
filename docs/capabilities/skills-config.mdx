@@ -8,7 +8,7 @@ sidebarTitle: "Skills config"
 
 On every non-vision agent turn, Leash runs a **skill activation pass** before selecting tools:
 
-1. **Embed the user message** using `gte-large`
+1. **Embed the user message** using `embed`
 2. **Score each enabled skill** by cosine similarity between the message embedding and the skill's description embedding
 3. **Select the top match** if its score exceeds the activation threshold
 4. **If a skill is active**, its `allowed-tools` override the route's default toolset
@@ -57,11 +57,11 @@ Activation quality depends on how well your skill descriptions are written. Tips
 
 Toggle the skill off in Brain → Skills or set `enabled: false` in SKILL.md. A disabled skill never activates, but its files are preserved.
 
-## The `gte-large` dependency
+## The `embed` dependency
 
-Skill activation requires the `gte-large` embedding model to be served. Without it:
+Skill activation requires the `embed` embedding model to be served. Without it:
 - Semantic activation is skipped (no skills activate automatically)
 - Explicit `@slug` invocation still works (bypasses embedding)
 - RAG search and memory indexing are also affected (same dependency)
 
-→ See [Model aliases](/models/aliases) to configure `gte-large`.
+→ See [Model aliases](/models/aliases) to configure `embed`.

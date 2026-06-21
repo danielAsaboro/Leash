@@ -47,7 +47,7 @@ The graph is a tiny in-memory RAG index that `search_graph` queries. It embeds *
 Each index is cache-invalidated by a cheap filesystem fingerprint (notes dir count + mtime; activity jsonl + tombstones mtime; per-chat mtime), so dashboard edits go live with no restart, and only the *changed* source re-embeds.
 
 <Note>
-Retrieval is **HTTP-only** — the AI SDK `embed`/`embedMany` calls hit `qvac serve` (port `11435`), so neither the web process nor the MCP server needs native `@qvac/sdk`. The **`gte-large`** embedding alias powers all RAG, indexing, and dedup.
+Retrieval is **HTTP-only** — the AI SDK `embed`/`embedMany` calls hit `qvac serve` (port `11435`), so neither the web process nor the MCP server needs native `@qvac/sdk`. The **`embed`** alias powers all RAG, indexing, and dedup.
 </Note>
 
 <Warning>
@@ -83,6 +83,6 @@ The typed-memory store is written by **two processes** (the web app and the `lea
     The tool surface for memory.
   </Card>
   <Card title="Embeddings" icon="vector-square" href="/models/modality/embeddings">
-    gte-large, the engine behind RAG.
+    embed, the engine behind RAG.
   </Card>
 </CardGroup>

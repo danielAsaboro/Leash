@@ -72,7 +72,7 @@ Re-promoting an **existing** member whose state is broken (for example a device 
 A device advertises serve **aliases** from `qvac.config.base.json`, but peers delegate by `modelSrc`. The catalog logic in `apps/hypha/src/catalog.ts` resolves each alias's registry model name against the per-machine `data/leash-models-catalog.json` (the `@qvac/ai-sdk-provider` model dump) to get the delegable `modelSrc`. Two requirements follow:
 
 1. **The catalog file must be present.** Without `data/leash-models-catalog.json`, an alias that maps to a registry model cannot be resolved to a `modelSrc`, so it is not advertised as delegable.
-2. **A custom-GGUF model must exist locally on every serving machine.** For a custom `.src` GGUF (for example `medpsy`), the gossiped `modelSrc` is **this machine's own absolute path**. `catalog.ts` checks `existsSync(src)` and **skips advertising** the alias if the file is missing locally. The file must live at the same `~/`-relative path on every Mac that serves it.
+2. **A custom-GGUF model must exist locally on every serving machine.** For a custom `.src` GGUF (for example the `health` specialist), the gossiped `modelSrc` is **this machine's own absolute path**. `catalog.ts` checks `existsSync(src)` and **skips advertising** the alias if the file is missing locally. The file must live at the same `~/`-relative path on every Mac that serves it.
 
 ## The two-seed rule
 

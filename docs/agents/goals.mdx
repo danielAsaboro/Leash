@@ -40,7 +40,7 @@ Goals are the heartbeat's yardstick. During each cycle the proactive agent:
     `goals.md` is part of the heartbeat system prompt, labelled "judge everything against these".
   </Step>
   <Step title="Scores relevance against the goals">
-    Each proposal is embedded (via `gte-large`) and compared to the goals with cosine similarity, producing an `onGoal` score.
+    Each proposal is embedded (via `embed`) and compared to the goals with cosine similarity, producing an `onGoal` score.
   </Step>
   <Step title="Classifies and may apply an override">
     A previously pinned "always do this" tier override for a recurring nudge wins — but never drops below the safety hard floor.

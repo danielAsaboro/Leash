@@ -52,7 +52,9 @@ is an acceptance bar for the project).
     curl -s http://127.0.0.1:11435/v1/models | jq '.data[].id'
     ```
 
-    You should see the served aliases — at minimum `chat` and `gte-large`.
+    You should see the served aliases from `qvac.config.base.json` — on the committed config that
+    means at least `qwen3-4b`, `embed`, `classifier`, `health`, `qwen3vl`, `ocr`, `parakeet`,
+    and `supertonic`.
   </Step>
 
   <Step title="Start the web app">
@@ -62,16 +64,23 @@ is an acceptance bar for the project).
     npm run web:dev
     ```
 
-    Then open **`http://localhost:6801`**. On first launch you'll complete a short setup
-    (choose your data folder), then land in the chat interface at `/chat`.
+    Then open **`http://localhost:6801`**. `/` is the public landing page; the assistant itself
+    lives behind auth. Visit **`http://localhost:6801/chat`** to start the app flow:
+
+    - On a fresh install, gated routes redirect to `/setup-password`.
+    - Create the first account.
+    - The supervisor respawns the server scoped to that user and sends you to `/home`.
+    - Later visits to gated routes redirect to `/login` until you sign in.
   </Step>
 
   <Step title="Add a note to ground an answer">
-    Drop a markdown note with a fact the model can't guess into your notes folder:
+    Drop a markdown note with a fact the model can't guess into your active notes folder. In the
+    default headless setup that folder is `~/Leash/<your-user-id>/data/notes/`, where
+    `<your-user-id>` is the slugged username you created in setup:
 
     ```bash
-    mkdir -p data/notes
-    printf '# workshop\n\nThe test phrase is: cedar lanterns at low tide.\n' > data/notes/workshop.md
+    mkdir -p ~/Leash/<your-user-id>/data/notes
+    printf '# workshop\n\nThe test phrase is: cedar lanterns at low tide.\n' > ~/Leash/<your-user-id>/data/notes/workshop.md
     ```
   </Step>
 
@@ -94,17 +103,19 @@ grant **Screen Recording** in System Settings → Privacy & Security.
 
 ## Get the full assistant kit
 
-The quickstart needs only `chat` + `gte-large`. To unlock voice, vision, and image
-generation, wire the full set of aliases in one step from **Brain → Models → Kit**:
+The core path needs `qwen3-4b` for text and `embed` for grounding. The committed desktop kit adds
+the rest of the daily assistant surface from **Brain → Models → Kit**:
 
 | Alias | Unlocks |
 |-------|---------|
-| `chat` | All text turns (required) |
-| `gte-large` | RAG search, memory, skill activation (required) |
+| `qwen3-4b` | Main text turns (required) |
+| `embed` | RAG search, memory, skill activation (required) |
+| `classifier` | Fast triage and heartbeat grading |
+| `health` | Health-specialist turns |
+| `qwen3vl` | Screenshots and image turns |
+| `ocr` | Text extraction from screenshots, forms, and documents |
 | `parakeet` | Voice call speech-to-text |
 | `supertonic` | Voice call text-to-speech |
-| `qwen3vl` | Screenshots and screen-watcher vision |
-| `sd` | On-device image generation |
 
 → See [Models overview](/models/overview) for the alias system and hardware-fit math.
 
@@ -141,9 +152,10 @@ generation, wire the full set of aliases in one step from **Brain → Models →
   <Accordion title="Useful environment variables">
     | Variable | Default | Purpose |
     |----------|---------|---------|
+    | `LEASH_BASE` | `~` | Base folder for the supervised web app; the app creates `<base>/Leash/…` under it |
+    | `LEASH_DATA_DIR` | `<base>/Leash/<active-user>/data` | Active user's scoped app data directory (exported by the supervisor) |
     | `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | Where the app calls the serve |
-    | `LEASH_DATA_DIR` | `<repo>/data` | Your per-user data directory |
-    | `QVAC_MODELS_DIR` | `~/.qvac/models` | Model weight cache |
+    | `QVAC_MODELS_DIR` | `~/.qvac/models` | Default model cache for the standalone `qvac serve` process |
 
     Full list: [Environment variables](/help/environment-variables).
   </Accordion>

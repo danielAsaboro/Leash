@@ -35,9 +35,9 @@ Every incoming message is classified into one of **five routes** before the agen
 
 | Route | Driving model | Default toolset | When |
 |-------|--------------|-----------------|------|
-| `chat` | `qwen3-4b` (alias `chat`) | Everything except computer + MCP-admin tools | Default for text turns |
-| `health` | `medpsy` (QVAC's Qwen3 fine-tune) | Same as `chat` | Medical / mental-health intent |
-| `files` | `qwen3-4b` | Bash lane only (read-only shell) | File-heavy work |
+| `chat` | `qwen3-4b` (or the user's selected chat alias) | General chat tools, memory/context, tasks, photos, research, and enabled MCP groups | Default for text turns |
+| `health` | `health` when served, otherwise the selected chat alias | Read-only private-context tools (`search_graph`, `recall`, `active_context`, `activity_recent`) | Medical / mental-health intent |
+| `files` | `qwen3-4b` (or the selected chat alias) | File-heavy read/search flow, plus the bounded shell lane when needed | File-heavy work |
 | `computer` | Computer-use model (defaults to chat) | Computer tools only | Screen / GUI turns |
 | `vision` | `qwen3vl` | None — single-shot, no tool loop | Image / screenshot questions |
 

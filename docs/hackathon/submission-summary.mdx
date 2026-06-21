@@ -1,0 +1,83 @@
+---
+title: "Executive summary"
+description: "A one-page summary of what Leash is, why it fits General Purpose, and what is already live in the repo."
+sidebarTitle: "Executive summary"
+---
+
+If you read one page first, start here.
+
+**Leash** is the assistant harness. **Mycelium** is the connected runtime underneath. Together
+they form a private, offline-capable personal AI that lives on your own devices, keeps every AI
+call on-device through `@qvac/sdk`, and can borrow compute over an encrypted mesh when one device
+is not enough.
+
+It perceives your world locally through your notes, voice, photos/screenshots, recent screen
+activity, and proactive feed. It reasons above the weight class of any one device by placing
+heavier work on the right peer across your mesh instead of collapsing to a cloud dependency.
+
+## At a glance
+
+| Question | Answer |
+|---|---|
+| **Primary track** | **General Purpose** |
+| **Primary device** | **24 GB Apple-Silicon Mac mini** |
+| **Why it fits** | Multi-agent orchestration, multimodal work, RAG, encrypted P2P delegation, on-device LoRA, privacy-first tooling |
+| **What makes it different** | Local perception + encrypted multi-device reasoning + extensibility through tools, skills, MCP, delegates, and an optional compute economy |
+| **AI runtime** | `@qvac/sdk` only; no cloud AI path exists |
+| **Offline claim** | After warm-cache, the hot path works in airplane mode |
+
+## Why this is a strong General Purpose submission
+
+- **General-purpose by extension.** One assistant surface grows through tools, skills, MCP
+  servers, and specialist delegates instead of splintering into one app per vertical.
+- **Perception stays private.** Notes, voice, OCR, screenshots/photos, and recent activity become
+  local context on hardware the user owns.
+- **Reasoning scales past one device.** Heavy turns can run on a stronger peer over an encrypted
+  mesh, while the user still experiences one assistant.
+- **Trust tiers are built into the runtime.** On a **private mesh**, your own devices delegate for
+  free. On a **public mesh**, outside providers can expose compute free or paid.
+- **It adapts locally.** A nightly QVAC Fabric LoRA loop turns user corrections into a personal
+  adapter on-device.
+- **Health is the proof case, not the category.** MedPsy health-record RAG demonstrates why a
+  private, extensible assistant matters for sensitive, high-context work.
+
+## What is already live in the repo
+
+- **Leash chat + tool loop** with approval-gated computer use, files, memory, tasks, and MCP-backed tools.
+- **Skills + plugins + delegates** so the main assistant can route or hand off focused work.
+- **Encrypted P2P mesh delegation** with CRDT context sync and optional metered settlement.
+- **A real mobile client** on iPhone 12 Pro Max with on-device chat and voice/live-call.
+- **Multimodal local paths** for chat, embeddings/RAG, vision, OCR, STT, TTS, and image generation.
+- **Proactive behavior** through the heartbeat/feed loop, not just reactive chat.
+- **Structured audit evidence** in committed JSONL logs and reproducible proof scripts.
+
+## Performance snapshot
+
+- **Inference:** 70.6 tok/s on Llama 3.2 1B; 113.7 / 74.7 / 24.1 tok/s across 600M / 1B / 4B chat models
+- **RAG retrieval:** ~23 ms
+- **Encrypted delegated compute:** 45.4 tok/s on the peer GPU, TTFT 257 ms, 1.27 s round-trip
+- **On-device LoRA:** 152.7 s fine-tune, 20 MB adapter, observable behavior change
+
+## Trust, safety, and honesty
+
+All AI stays on-device through QVAC. Consequential actions sit behind approval gates. Plugins are
+quarantined disabled-by-default until the user enables them. The runtime includes a live network
+monitor and a public [Known issues](/hackathon/known-issues) page. The current clean limitation is
+deferred **text-to-video** on the 24 GB M4; the main assistant path described above is working.
+
+## Read next
+
+<CardGroup cols={2}>
+  <Card title="How we meet the criteria" icon="list-check" href="/hackathon/how-we-meet-the-criteria">
+    The feature-to-rubric mapping.
+  </Card>
+  <Card title="Evidence & reproducibility" icon="flask" href="/hackathon/evidence-and-reproducibility">
+    Hardware, audit logs, spike gates, and offline acceptance.
+  </Card>
+  <Card title="Prior-work disclosure" icon="book" href="/hackathon/prior-work-disclosure">
+    The explicit line between judged work and pre-period work.
+  </Card>
+  <Card title="QVAC-only proof" icon="shield-check" href="/hackathon/qvac-only-proof">
+    Every AI path through `@qvac/sdk`.
+  </Card>
+</CardGroup>

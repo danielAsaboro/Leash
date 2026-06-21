@@ -13,10 +13,13 @@ These come from the root `package.json`.
 | `npm run web:dev` | `@mycelium/web` | run the web app in dev mode |
 | `npm run broker` | `apps/leash-broker/src/main.ts` | run the serve broker |
 | `npm run hypha` | `apps/hypha/src/main.ts` | run Hypha |
-| `npm run mcp` | `apps/leash-mcp/src/main.ts` | run the MCP daemon |
+| `npm run mcp` | `apps/leash-mcp/src/main.ts` | run the mesh-pairing MCP daemon |
+| `npm run tools-mcp` | `apps/leash-tools-mcp/src/main.ts` | run the built-in tool-groups MCP daemon |
 | `npm run newsroom` | `apps/newsroom/src/main.ts` | run The Understory pipeline |
 | `npm run watch` | `apps/leash-watch/src/main.ts` | run the screen watcher |
-| `npm run cron` | `apps/leash-cron/src/main.ts` | run the scheduler |
+| `npm run telegram` | `apps/leash-telegram/src/main.ts` | run the Telegram bridge |
+| `npm run hub` | `apps/hub/src/main.ts` | run the original always-on mesh app |
+| `npm run ask` | `apps/edge-node/src/ask.ts` | run the original edge-node consumer |
 
 ## Spike scripts
 
@@ -28,19 +31,26 @@ These come from the root `package.json`.
 | `npm run spike:p2p:provider` | start delegated-compute provider |
 | `npm run spike:p2p:consumer` | run delegated-compute consumer |
 | `npm run spike:p2p:multimodal` | exercise multimodal P2P path |
+| `npm run spike:forward:vision` | exercise forward-routed cross-mesh vision |
 | `npm run spike:ocr` | OCR spike |
 | `npm run spike:lora` / `spike:lora4b` | LoRA training spikes |
 | `npm run spike:autobase` | pairing and CRDT graph sync spike |
+| `npm run spike:mcp-cron` | scheduler-engine spike |
 
 ## Package smoke tests
 
 | Script | Package | Purpose |
 |---|---|---|
 | `npm run senses:smoke` | `packages/senses` | graph and retrieval smoke |
+| `npm run test:rag-workspace` | `packages/senses` | RAG workspace logic |
 | `npm run mind:smoke` | `packages/mind` | tool-call smoke |
 | `npm run mind:council` | `packages/mind` | council smoke |
+| `npm run medpsy:demo` | `packages/mind` | committed health-record RAG demo |
 | `npm run memory:smoke` | `packages/memory` | memory curation smoke |
+| `npm run evolve:eval` | `packages/memory` | LoRA eval pass |
 | `npm run mesh:smoke` | `packages/mesh` | mesh graph smoke |
+| `npm run test:mesh:tasks` | `packages/mesh` | task-sync convergence harness |
+| `npm run test:hypha:tasks` | `apps/hypha` | Hypha task-sync integration harness |
 
 ## Root smoke and probe scripts
 
@@ -61,7 +71,7 @@ Most are pure-logic (no serve/peers needed) and run instantly; a few marked **li
 | `npm run smoke:agents` | first-class subagents store surfaces with plugin agents (user ∪ plugin) |
 | `npm run smoke:plugins` | plugin store lifecycle: stage → install (quarantine) → review → enable → namespaced surfacing → uninstall (no orphans) |
 | `npm run smoke:plugins-domain` | install real law + medicine bundles; the assistant gains specialist components without touching the harness |
-| `npm run smoke:plugins-live` | **live** — activation routing on `gte-large` + a skill-driven specialist answer |
+| `npm run smoke:plugins-live` | **live** — activation routing on `embed` + a skill-driven specialist answer |
 | `npm run smoke:orchestration` | **live** — multi-agent orchestration + tool calling on `qwen3-4b` (streaming subagent pattern) |
 | `npm run smoke:reputation` | self-dealing / wash-trading provider scores below a legit one with distinct payers |
 | `npm run smoke:revoke` | non-destructive metered-watchdog cutoff: transient revoke excludes a consumer, auto-re-admits after TTL |
@@ -75,9 +85,27 @@ Most are pure-logic (no serve/peers needed) and run instantly; a few marked **li
 | `npm run smoke:receipt-view` | receipts-ledger view: modality derivation, filter facets, day grouping + pagination |
 | `npm run smoke:multipart` | shim multipart parser round-trip (the `/v1/audio/transcriptions` body) |
 | `npm run smoke:chat-attachments` | vision-over-mesh content parser: text/image split, `image_url` decode |
+| `npm run smoke:chat-attachments-text` | text/code/markdown attachment handling |
+| `npm run smoke:direct-answer` | deterministic direct-answer fast paths |
+| `npm run smoke:file-finder-fast-path` | bounded file-finder chat fast path |
+| `npm run smoke:tool-brokers` | brokered context/memory/tasks tool paths |
+| `npm run smoke:compound-route` | route selection across combined needs |
+| `npm run smoke:goal-run` | durable goal-run ledger behavior |
+| `npm run smoke:context-capsule` | context capsule packaging |
+| `npm run smoke:tool-policy` | route-aware tool policy gates |
+| `npm run smoke:tool-exposure` | per-route tool exposure limits |
+| `npm run smoke:agent-disclosure` | progressive agent disclosure |
+| `npm run smoke:agent-delegate-context` | bounded delegate context handoff |
+| `npm run smoke:lane-budget` | per-lane step/token budgets |
+| `npm run smoke:permission-boundary` | approval boundary behavior |
+| `npm run smoke:psy-health` | health-route gating and read-only tool policy |
+| `npm run smoke:showcase-conversation` | curated multi-capability conversation proof |
 | `npm run smoke:forward-loopback` | forward transport round-trip over a real Hyperswarm in one process |
 | `npm run smoke:forward-provider` | provider-side forward proxy: chat SSE / embeddings JSON / speech binary framing |
 | `npm run smoke:forward-metering` | forward-path billable accounting — each modality bills in its natural unit |
+| `npm run stress:long-chat-turn` | authenticated real `/api/leash/chat` long-run gauntlet |
+| `npm run stress:chat-orchestration-gauntlet` | authenticated orchestration stress gauntlet |
+| `npm run showcase:multiorchestration-chat` | authenticated multi-orchestration showcase |
 | `npm run probe:metered-continuation` | metered continuation probe |
 | `npm run gate:firewall-revocation` | firewall revocation gate |
 
@@ -86,3 +114,4 @@ Most are pure-logic (no serve/peers needed) and run instantly; a few marked **li
 - Spike scripts write audit logs under `spike/logs/`.
 - Many smoke tests assume local services or peer devices are already running.
 - The scripts in `scripts/` are operational assets, not placeholder examples.
+- The scheduler is the dashboard-managed `mcp-cron` service; there is no root `npm run cron` script in the current workspace.

@@ -38,7 +38,7 @@ Each cycle runs this sequence. Any gate can suppress the proposal, ending the cy
     If today's notification allowance (from the schedule's heartbeat config) is already spent, the proposal is suppressed. Silence-by-default still observes — the budget only caps how many *surface*.
   </Step>
   <Step title="Dedup">
-    A cheap **exact-signature** check first (the first 8 lowercased alphanumeric words), then a **fuzzy embedding** check: cosine of the proposal against the last 10 surfaced proposals (`gte-large`). At or above **`DEDUP_THRESHOLD = 0.92`** it's treated as a duplicate and suppressed.
+    A cheap **exact-signature** check first (the first 8 lowercased alphanumeric words), then a **fuzzy embedding** check: cosine of the proposal against the last 10 surfaced proposals (`embed`). At or above **`DEDUP_THRESHOLD = 0.92`** it's treated as a duplicate and suppressed.
   </Step>
   <Step title="Classify into a tier">
     A hard-rules safety floor (regex) plus a small classifier model grade the proposal into `auto`, `notify`, or `ask`. The proposal is also scored against your goals (an `onGoal` cosine).

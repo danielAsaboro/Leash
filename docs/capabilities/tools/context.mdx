@@ -21,7 +21,7 @@ RAG search over the user's private context graph: their notes, files, voice memo
 
 **When the agent calls it:** Any question where the answer may live in the user's notes, files, or past chats — the agent must call this rather than guessing. The system prompt instructs: "do not guess, search first."
 
-**Requires:** `gte-large` alias served (embeddings). Without it, returns empty.
+**Requires:** `embed` alias served (embeddings). Without it, returns empty.
 
 **Example:**
 ```

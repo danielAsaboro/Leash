@@ -12,11 +12,11 @@ grounded chat.
 
 | Alias | SDK model | Size | Powers |
 |-------|-----------|------|--------|
-| `gte-large` | `GTE_LARGE_FP16` | ~670 MB | RAG retrieval, on-goal scoring, notification dedup |
+| `embed` | `GTE_LARGE_FP16` | ~670 MB | RAG retrieval, on-goal scoring, notification dedup |
 
 ## What it powers
 
-`gte-large` is required for the features that make Leash *grounded*:
+`embed` is required for the features that make Leash *grounded*:
 
 | Feature | How embeddings are used |
 |---------|------------------------|
@@ -27,9 +27,9 @@ grounded chat.
 | On-goal scoring | Measures how relevant a heartbeat proposal is to your `goals.md` |
 
 <Warning>
-**Chat requires `gte-large`.** Without it, `search_graph`/`recall` return nothing, skills stop
+**Grounded chat requires `embed`.** Without it, `search_graph`/`recall` return nothing, skills stop
 auto-activating, and the heartbeat can't dedup — grounded chat silently degrades. It's part of
-the minimum viable kit alongside `chat`.
+the minimum viable kit alongside your main chat alias.
 </Warning>
 
 ## Serve config
@@ -37,7 +37,7 @@ the minimum viable kit alongside `chat`.
 Embedding models need no special config block:
 
 ```json
-"gte-large": {
+"embed": {
   "model": "GTE_LARGE_FP16",
   "preload": true
 }
@@ -47,11 +47,13 @@ Embedding models need no special config block:
 
 Wire it from the [Assistant Kit](/models/catalog) (recommended — it's one of the four kit roles),
 or download an embedding model from **Brain → Models → Catalog** (filter by **Embeddings**) and
-configure it under the `gte-large` alias.
+configure it under the `embed` alias.
 
 <Note>
-If you swap the embedding model, **re-index** your notes (Brain → Memory → Re-index). Vectors
-from a different model aren't comparable, so a swap without a re-index breaks retrieval.
+If you swap the embedding model, treat it as an index rebuild event. Vectors from a different model
+aren't comparable, so a swap without rebuilding retrieval breaks grounding. The current repo does
+not expose a one-click re-index button; validate the ingest path with `npm run senses:smoke`
+before trusting retrieval again.
 </Note>
 
 ## Related

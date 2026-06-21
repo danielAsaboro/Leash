@@ -247,20 +247,40 @@
         "icon": "gauge",
         "groups": [
           {
-            "group": "Optimisation",
+            "group": "Overview",
             "pages": [
-              "optimization/overview",
+              "optimization/overview"
+            ]
+          },
+          {
+            "group": "Agent & context",
+            "pages": [
               "optimization/skill-selection",
               "optimization/context-and-prompts",
               "optimization/tool-context-bloat",
               "optimization/deterministic-fast-paths",
+              "optimization/multi-agent-context-harness"
+            ]
+          },
+          {
+            "group": "Chat & runtime",
+            "pages": [
               "optimization/chat-api-resilience",
               "optimization/long-chat-stress",
-              "optimization/multi-agent-context-harness",
-              "optimization/inference-runtime",
+              "optimization/inference-runtime"
+            ]
+          },
+          {
+            "group": "Mesh & devices",
+            "pages": [
               "optimization/mesh-delegation",
               "optimization/setup-defaults",
-              "optimization/models-memory-mobile",
+              "optimization/models-memory-mobile"
+            ]
+          },
+          {
+            "group": "Validation",
+            "pages": [
               "optimization/evidence"
             ]
           }
@@ -384,16 +404,39 @@
       {
         "tab": "Hackathon",
         "icon": "trophy",
-        "pages": [
-          "hackathon/overview",
-          "hackathon/what-spike-means",
-          "hackathon/how-we-meet-the-criteria",
-          "hackathon/design-decisions",
-          "hackathon/qvac-only-proof",
-          "hackathon/network-disclosure",
-          "hackathon/evidence-and-reproducibility",
-          "hackathon/medpsy-workflow",
-          "hackathon/known-issues"
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "hackathon/overview"
+            ]
+          },
+          {
+            "group": "Submission packet",
+            "pages": [
+              "hackathon/submission-summary",
+              "hackathon/submission-artifacts",
+              "hackathon/how-we-meet-the-criteria",
+              "hackathon/prior-work-disclosure"
+            ]
+          },
+          {
+            "group": "Evidence & disclosure",
+            "pages": [
+              "hackathon/qvac-only-proof",
+              "hackathon/network-disclosure",
+              "hackathon/evidence-and-reproducibility",
+              "hackathon/known-issues"
+            ]
+          },
+          {
+            "group": "Supporting context",
+            "pages": [
+              "hackathon/what-spike-means",
+              "hackathon/design-decisions",
+              "hackathon/medpsy-workflow"
+            ]
+          }
         ]
       }
     ]

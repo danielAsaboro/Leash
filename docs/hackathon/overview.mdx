@@ -6,8 +6,17 @@ description: "Leash for QVAC Hackathon I — what it is, the track it targets, a
 Leash was built for **QVAC Hackathon I — "Unleash Edge AI"** (Tether), during the June 1–21, 2026 build window. This section makes the case to judges directly: what the project is, which track it fits, how it meets the criteria, and where the reproducible evidence lives.
 
 <CardGroup cols={2}>
+  <Card title="Executive summary" icon="list-check" href="/hackathon/submission-summary">
+    The one-page summary: what Leash is, why it fits, and what is live.
+  </Card>
+  <Card title="Requirement map" icon="folder-open" href="/hackathon/submission-artifacts">
+    The direct map from submission requirements to pages and evidence files.
+  </Card>
   <Card title="How we meet the criteria" icon="list-check" href="/hackathon/how-we-meet-the-criteria">
     A feature-to-criterion mapping against the judging rubric.
+  </Card>
+  <Card title="Prior-work disclosure" icon="book" href="/hackathon/prior-work-disclosure">
+    The explicit line between judged work and the pre-period spike.
   </Card>
   <Card title="Design decisions & tradeoffs" icon="scale-balanced" href="/hackathon/design-decisions">
     The engineering judgment — what we weighed, chose, and disproved.
@@ -31,9 +40,23 @@ Leash was built for **QVAC Hackathon I — "Unleash Edge AI"** (Tether), during 
 
 ## Leash in one screen
 
-Leash is a private, offline-capable assistant that runs entirely on your own hardware through `@qvac/sdk` — no cloud AI in the loop. It grounds answers in your notes, screen activity, and past conversations; drives your machine with your approval; borrows compute and modalities from your other devices over an encrypted mesh; settles that borrowed compute on-chain when you turn the economy on; and improves itself overnight with an on-device LoRA loop. Underneath sits **Mycelium** — the five-layer engine (mesh, senses, mind, memory, clients) that hosts all of it.
+Leash is a private, offline-capable **personal AI assistant harness** that runs entirely on
+your own hardware through `@qvac/sdk` — no cloud AI in the loop. It is general-purpose because
+it is extensible: tools, skills, MCP servers, specialist delegates, local modalities, and
+memory all sit behind one assistant surface. Underneath sits **Mycelium** — the connected
+runtime that ties together local models, retrieval, typed memory, and encrypted mesh compute.
 
-It is not a single demo trick. It is a composing system: chat, RAG, vision, speech, computer use, a device mesh, an agent economy, a skills harness, and a self-improvement loop, all on the same QVAC-only runtime. See [What Leash is](/explanation/what-mycelium-is) for the product/engine split and [Architecture](/explanation/architecture) for the layers.
+It also perceives your world locally: notes, voice, OCR/photos, recent screen activity, and
+the proactive feed all become usable context on your own hardware. And it reasons above the
+weight class of any one device by placing heavier work on stronger peers across your mesh
+instead of collapsing to a cloud dependency.
+
+It is not a single demo trick. It is one assistant riding one runtime across several trust and
+economy tiers: on your **private mesh**, your own devices delegate for free; on a **public
+mesh**, outside providers can expose compute free or paid. That is the innovation surface:
+general-purpose personal AI with encrypted delegation and an optional compute market, all on
+the same QVAC-only runtime. See [Leash and Mycelium](/explanation/what-mycelium-is) for the
+product/runtime split and [Architecture](/explanation/architecture) for the layers.
 
 <Note>
 **The QVAC-only rule.** Every inference, embedding, RAG retrieval, and multimodal call routes through `@qvac/sdk` to a local serve. There are no OpenAI/Anthropic/cloud-AI calls anywhere in the system — a single one would disqualify the submission. [See the proof →](/hackathon/qvac-only-proof)
@@ -50,7 +73,11 @@ The General Purpose track explicitly calls for multi-agent orchestration, multim
 
 ## A built-in Psy-Models angle
 
-The hackathon also runs a **Psy Models** track for meaningful use of QVAC's MedPsy/MedGemma. Leash serves `medpsy` — QVAC's **MedGemma 4B IT** — as a first-class alias and routes to it automatically on health intent, with a dashboard-editable prompt suffix. So the same General Purpose build also demonstrates the Psy-Models capability without a separate project; see [Models and the catalog](/explanation/models-and-the-catalog).
+The hackathon also runs a **Psy Models** track for meaningful use of QVAC's specialist health models. Leash serves `health` — the dedicated **MedPsy 4B** specialist — as a first-class alias and routes to it automatically on health intent. So the same General Purpose build also demonstrates the Psy-Models capability without a separate project; see [Models and the catalog](/explanation/models-and-the-catalog).
+
+That matters to the story because private health-record RAG is the clearest proof that this is
+not just infrastructure. Health is a high-stakes example of why a personal assistant must be
+both private and extensible.
 
 ## Offline acceptance
 
@@ -58,10 +85,13 @@ After a one-time warm-cache (first run downloads the GGUF weights and bootstraps
 
 ## Where the evidence lives
 
-This repo is the judge-facing artifact. The evidence is intentionally reachable without parent
+This repo carries the public proof set. The evidence is intentionally reachable without parent
 directories:
 
 - [How we meet the criteria](/hackathon/how-we-meet-the-criteria) — feature-to-criterion mapping.
+- [Executive summary](/hackathon/submission-summary) — the one-page overview.
+- [Requirement map](/hackathon/submission-artifacts) — the direct requirement-to-evidence map.
+- [Prior-work disclosure](/hackathon/prior-work-disclosure) — the explicit judged-work boundary.
 - [QVAC-only proof](/hackathon/qvac-only-proof) — every AI path through `@qvac/sdk`.
 - [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) — spike gates, audit logs, offline acceptance, and licensing.
 - `spike/logs/*.jsonl` — representative JSONL audit records for inference, RAG, P2P, LoRA, and mesh.

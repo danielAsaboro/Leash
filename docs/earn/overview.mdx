@@ -4,7 +4,7 @@ description: "How Leash lets devices earn for public mesh compute while private 
 sidebarTitle: "Overview"
 ---
 
-Earn is the optional economy layer for delegated inference. It lets a device serve compute to a public mesh, publish a price, stream a completion, and settle the actual work done.
+Earn is the optional paid public-mesh layer for delegated inference. It lets a device serve compute to a public mesh, publish a price, stream a completion, and settle the actual work done.
 
 The rule is simple:
 
@@ -21,21 +21,26 @@ The rule is simple:
 A provider earns when all of these are true:
 
 - The request is safe to leave the local device and private mesh.
-- The selected public provider advertises a non-zero rate.
+- The selected public provider advertises a non-zero public rate.
 - The consumer pre-authorizes the maximum spend before streaming starts.
 - The provider settles the metered completion after the run closes.
 
-Free public providers still participate in routing. They advertise a `0` rate, skip payment authorization, and return receipts that show the job was free.
+Free public providers still participate in routing. They advertise a `0` rate and skip the paid-session flow.
 
 ## What stays free
 
-Private mesh delegation stays free even though the same economy fields are present. This keeps the UI and routing code consistent:
+Private mesh delegation stays free. The runtime forces private visibility to a zero-rate policy:
 
-- Quotes show `0`.
-- Rates show `0`.
-- Receipts can still be recorded.
+- Public paid-session validation is rejected on private meshes.
+- Advertised settlement rails are suppressed on private meshes.
 - No x402 pre-authorization is opened.
 - No settlement transaction is needed.
+
+<Note>
+  The current `/economy` ledger and replicated `SessionSettlementReceipt` path are paid-session
+  first. Free public routes and private routes can still execute, but they do not yet appear as the
+  same first-class economy receipt rows.
+</Note>
 
 ## The routing ladder
 
@@ -54,10 +59,10 @@ Public mesh is the market boundary. It is where identity, rate selection, paymen
     The quote, pre-authorize, stream, meter, and settle flow.
   </Card>
   <Card title="Start earning" icon="server" href="/earn/providers">
-    Configure a provider, publish rates, and expose model aliases.
+    Configure a provider, publish a public price, and expose model aliases.
   </Card>
   <Card title="Receipts and trust" icon="receipt" href="/earn/receipts-and-trust">
-    What evidence is recorded for paid and free runs.
+    What evidence is recorded for paid runs, and how to validate free ones.
   </Card>
   <Card title="Rules and limits" icon="shield-check" href="/earn/rules-and-limits">
     Mesh caps, privacy gates, spend caps, and free-route behavior.

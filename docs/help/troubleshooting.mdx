@@ -48,10 +48,11 @@ sidebarTitle: "General troubleshooting"
 **Symptom:** `search_graph` returns no results; grounded answers cite nothing.
 
 **Fix:**
-1. Check that `gte-large` is served — without embeddings, the graph store can't index or retrieve.
-2. Run a manual re-index: Brain → Memory → Re-index (or `npm run index`)
-3. Check `data/notes/` — if there are no `.md` files, there's nothing to index.
-4. Check that the Memory group is enabled in Brain → MCP.
+1. Check that `embed` is served — without embeddings, the graph store can't index or retrieve.
+2. Check Brain → **Local context** — if the note file is not visible there, the assistant has nothing local to retrieve.
+3. There is no root `npm run index` script or in-app re-index button in the current repo. For a lower-level ingest/retrieval proof, run `npm run senses:smoke`.
+4. Check `data/notes/` — if there are no `.md` files, there's nothing to index.
+5. Check that the Memory group is enabled in Brain → MCP.
 
 ## Hypha daemon won't connect to peers
 

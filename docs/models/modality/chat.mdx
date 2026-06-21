@@ -12,9 +12,9 @@ catalog these carry `endpointCategory: "chat"` (a catalog `chat` entry whose nam
 
 | Alias | SDK model | Size | Powers |
 |-------|-----------|------|--------|
-| `chat` / `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | ~2.5 GB | Every text turn — the model that acts when the heartbeat escalates |
-| `classifier` | `QWEN3_1_7B_INST_Q4` | ~1.06 GB | Fast triage — runs each heartbeat cycle to decide silence vs. escalate, cheaply |
-| `medpsy` | explicit-src GGUF | varies | Health/psychology specialist route (falls back to `chat` if not configured) |
+| `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | ~2.5 GB | Every text turn — the model that acts when the heartbeat escalates |
+| `classifier` | `QWEN3_600M_INST_Q4` | ~0.6 GB | Fast triage — runs each heartbeat cycle to decide silence vs. escalate, cheaply |
+| `health` | explicit-src GGUF | varies | Health/psychology specialist route (falls back to the selected chat alias if not configured) |
 
 <Note>
 The two-tier design is deliberate: the small `classifier` triages every heartbeat for almost

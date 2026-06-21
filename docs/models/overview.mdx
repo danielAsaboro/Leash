@@ -4,14 +4,17 @@ description: "How Leash manages on-device models — the catalog, aliases, servi
 sidebarTitle: "Overview"
 ---
 
-All inference in Leash runs through `@qvac/sdk` — never a cloud API. Models are GGUF weight files cached under `~/.qvac/models/` and served by `qvac serve openai`, an OpenAI-compatible endpoint at `http://127.0.0.1:11435/v1`.
+All inference in Leash runs through `@qvac/sdk` — never a cloud API. In the standalone serve path,
+weights default to `~/.qvac/models/`; in the supervised desktop/web path the active user scope can
+relocate that cache under `<base>/Leash/<userId>/.qvac/models/`. The serve itself is `qvac serve openai`,
+an OpenAI-compatible endpoint at `http://127.0.0.1:11435/v1`.
 
 <CardGroup cols={3}>
   <Card title="Catalog" icon="layer-group" href="/models/catalog">
     Browse, filter, and download from the QVAC model catalog.
   </Card>
   <Card title="Aliases" icon="tag" href="/models/aliases">
-    Map short names (`chat`, `gte-large`) to models and tune serving.
+    Map short names (`qwen3-4b`, `embed`, `health`) to models and tune serving.
   </Card>
   <Card title="Configuration" icon="gear" href="/models/config">
     The `qvac.config.base.json` reference.
@@ -22,19 +25,20 @@ All inference in Leash runs through `@qvac/sdk` — never a cloud API. Models ar
 
 Leash never references model filenames directly — it uses **aliases** configured in `qvac.config.base.json`. An alias maps a short, stable name to a catalog SDK constant, so you can swap the underlying weights without touching any code.
 
-| Alias | Modality | SDK constant |
-|-------|----------|--------------|
-| `chat` / `qwen3-4b` | [Chat](/models/modality/chat) | `QWEN3_4B_INST_Q4_K_M` |
-| `classifier` | [Chat](/models/modality/chat) (heartbeat triage) | `QWEN3_1_7B_INST_Q4` |
-| `gte-large` | [Embeddings](/models/modality/embeddings) | `GTE_LARGE_FP16` |
+| Alias | Modality | SDK constant / source |
+|-------|----------|-----------------------|
+| `qwen3-4b` | [Chat](/models/modality/chat) | `QWEN3_4B_INST_Q4_K_M` |
+| `embed` | [Embeddings](/models/modality/embeddings) | `GTE_LARGE_FP16` |
+| `classifier` | [Chat](/models/modality/chat) (triage / heartbeat grading) | `QWEN3_600M_INST_Q4` |
+| `health` | [Chat](/models/modality/chat) (health specialist) | explicit QVAC MedPsy 4B GGUF source |
 | `qwen3vl` | [Vision](/models/modality/vision) | `QWEN3VL_2B_MULTIMODAL_Q4_K` (+ mmproj) |
+| `ocr` | [Vision](/models/modality/vision) / OCR | `OCR_LATIN_RECOGNIZER_1` |
 | `parakeet` | [Speech](/models/modality/speech) — STT | `PARAKEET_TDT_0_6B_V3_Q8_0` |
 | `supertonic` | [Speech](/models/modality/speech) — TTS, voice `F1` | `TTS_EN_SUPERTONIC_Q8_0` |
-| `sd` | [Image](/models/modality/image) | `SD_V2_1_1B_Q8_0` / `FLUX_2_KLEIN_4B_Q4_0` |
-| `medpsy` | [Chat](/models/modality/chat) (health specialist, falls back to `chat`) | `MEDGEMMA_4B_IT_Q4_1` |
 
 <Note>
-  **Chat requires `gte-large`.** Without the embedding model, RAG search (`search_graph`, `recall`) and heartbeat dedup can't compute embeddings — grounded chat silently degrades.
+  **Grounded chat requires `embed`.** Without the embedding alias, RAG search (`search_graph`) and
+  the parts of memory/heartbeat that depend on embeddings lose their semantic retrieval layer.
 </Note>
 
 The primary chat model is **Qwen3 4B (Q4_K_M, ~2.5 GB)**, which runs at roughly **15–20 tok/s** on an M1 GPU. See [Aliases](/models/aliases) for the full contract and how to configure each one.

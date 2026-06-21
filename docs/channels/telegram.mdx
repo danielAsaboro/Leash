@@ -10,6 +10,10 @@ Telegram is Leash's first **remote** channel: bind a bot once and chat with your
   The bridge is **pure transport**. Inference still runs on-device in Leash via `@qvac/sdk` — a Telegram message never triggers a cloud AI API. The bridge holds a bot token and shuttles text; it bridges *to Telegram*, never to a model provider.
 </Note>
 
+<Warning>
+  Current code mismatch: the bridge forwards to the authenticated `/api/leash/chat` route, but the current daemon does not yet present a browser session or shared internal token. Treat Telegram as a transport under active repair unless you deliberately run the web app with auth disabled for local testing.
+</Warning>
+
 It runs as a standalone [daemon](/reference/runtime-ports-and-processes) (`apps/leash-telegram`), in the same dependency-light style as the [Leash broker](/agents/queue-priority) — raw `node:http` + `undici`, no bot framework.
 
 ## How it works

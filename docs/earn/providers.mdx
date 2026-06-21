@@ -3,7 +3,8 @@ title: "Start earning"
 description: "Configure a Hypha provider so public mesh consumers can use your local QVAC models."
 ---
 
-A provider is a machine running Hypha plus a local QVAC serve. It advertises model aliases, rate information, and a payment identity to public mesh consumers.
+A provider is a machine running Hypha plus a local QVAC serve. It advertises model aliases, a
+payment identity, and one public settlement price for its paid rail.
 
 <Warning>
   All model work must go through `@qvac/sdk`. Do not add cloud AI fallback routes for paid or free providers.
@@ -14,43 +15,52 @@ A provider is a machine running Hypha plus a local QVAC serve. It advertises mod
 - QVAC serve is running with the model aliases you want to offer.
 - Hypha is running on the provider device.
 - The provider has a distinct wallet identity.
-- Public economy mode is enabled.
-- Each public model alias has a rate, including `0` if the provider is free.
+- `HYPHA_ECONOMY_ENABLED=1` is set.
+- The provider has a public settlement price via `HYPHA_ECONOMY_PRICE_PER_KTOK`.
 - The device is joined to the public mesh where it should advertise.
 
 ## Environment
 
-Use the existing economy environment variables for the provider process. Values vary by network, but the shape is:
+Use the existing Hypha economy variables. The current paid-session provider flow is Plasma-first,
+so these are the main knobs that must be present:
 
 ```bash
-HYPHA_ECONOMY_ROLE=provider
 HYPHA_ECONOMY_ENABLED=1
-HYPHA_ECONOMY_PROVIDER_NAME=desk-provider
-HYPHA_ECONOMY_WALLET_MNEMONIC="quote multi word mnemonics"
-HYPHA_ECONOMY_RPC_URL=http://127.0.0.1:8545
-HYPHA_ECONOMY_CHAIN_ID=9746
-HYPHA_ECONOMY_DEFAULT_RATE_MICRO_USDT0_PER_KTOK=1000
+HYPHA_ECONOMY_PRICE_PER_KTOK=1000
+HYPHA_ECONOMY_PLASMA_RPC_URL=http://127.0.0.1:8545
+HYPHA_ECONOMY_PLASMA_NETWORK_ID=eip155:9746
+HYPHA_ECONOMY_PLASMA_MNEMONIC="quote multi word mnemonics"
+HYPHA_ECONOMY_PLASMA_ASSET_MINT=0x...
+HYPHA_ECONOMY_PLASMA_ASSET_SYMBOL=USDT0
+HYPHA_ECONOMY_PLASMA_ASSET_DECIMALS=6
 ```
 
-Set the default rate to `0` for a free public provider:
+Set the public price to `0` for a free public provider:
 
 ```bash
-HYPHA_ECONOMY_DEFAULT_RATE_MICRO_USDT0_PER_KTOK=0
+HYPHA_ECONOMY_PRICE_PER_KTOK=0
 ```
 
-Private mesh routes ignore paid settlement even when these fields exist. They are forced to a zero-rate policy.
+Private mesh routes ignore paid settlement even when these fields exist. They are forced to a zero-rate policy and do not advertise paid rails.
 
 ## Publish rates
 
-Rates are attached to advertised public capacity. A provider can expose the same model in different ways:
+Rates are attached to advertised public capacity. In the current code, price is provider-level on
+the settlement rail, not per alias.
 
-| Alias | Mesh | Rate | Meaning |
-|---|---|---:|---|
-| `qwen3-4b` | Private | `0` | Personal device mesh, never charged |
-| `qwen3-4b` | Public | `0` | Public free capacity |
-| `qwen3-4b-fast` | Public | `1000` | Paid public capacity |
+| Visibility | Advertised price | Meaning |
+|---|---:|---|
+| Private mesh | `0` | Personal device mesh, never charged |
+| Public mesh | `0` | Free public capacity |
+| Public mesh | `> 0` | Paid public capacity |
 
 The router treats price as one input, alongside model fit, latency, availability, confidence, and reputation.
+
+<Note>
+  Zero-price public providers are routeable, but the current `/economy` ledger and market views are
+  still paid-session-first. Validate free-provider behavior through routing traces, not by expecting
+  rich ledger rows.
+</Note>
 
 ## Keep it online
 

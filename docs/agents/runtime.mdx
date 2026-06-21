@@ -12,7 +12,7 @@ Before each call, `prepareCall` translates the validated call options into the s
 
 | Call option | Maps to | Effect |
 |-------------|---------|--------|
-| `route` | `model` | `vision`→qwen3vl, `computer`→computer model, `health`→medpsy, else chat |
+| `route` | `model` | `vision`→qwen3vl, `computer`→computer model, `health`→health alias when present, else the selected/default chat alias |
 | `route` + `skillTools` | `activeTools` | The focused toolset (skill-declared set overrides the route default) |
 | `system` | `instructions` | The fully-assembled per-turn prompt |
 | `thinking` | `temperature` / `topP` | Qwen3 sampling — never the serve's greedy default |

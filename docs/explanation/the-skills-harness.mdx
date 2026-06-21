@@ -16,7 +16,7 @@ those steps deterministically. This page explains the design. For the steps, see
 A skill is a folder of instructions (the [agentskills.io](https://agentskills.io) layout) that
 the assistant loads on demand. The harness decides which skill fits a turn by **semantic
 matching**, not keyword lookup. Each skill declares a description and example utterances; those
-are embedded with the already-loaded `gte-large` model, and the turn is matched by similarity.
+are embedded with the already-loaded `embed` model, and the turn is matched by similarity.
 
 Matching is deliberately conservative. An embedding floor (calibrated around 0.81) separates
 true intents from near-misses, a lexical floor catches keyword-only hits, and the two rankings
@@ -26,7 +26,7 @@ of stuffing every skill's instructions into every turn.
 
 ```mermaid
 flowchart TB
-    Prompt["User turn"] --> Match["Match skills · RRF over gte-large<br/>(embedding + lexical floors)"]
+    Prompt["User turn"] --> Match["Match skills · RRF over embed<br/>(embedding + lexical floors)"]
     Match -->|"nothing clears a floor"| Chat["Generalist chat + tools"]
     Match -->|"a skill matches"| Skill["Load one skill"]
     Skill -->|"declares steps:"| Pipeline["Deterministic pipeline<br/>one sub-task per step"]

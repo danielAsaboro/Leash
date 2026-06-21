@@ -32,7 +32,7 @@ The retrieval workhorse. The agent calls it whenever answering needs private fac
 Each hit returns the passage text plus a typed source (`Note · <source>`), and snippets are trimmed to ~200 chars for the citation chip.
 
 <Note>
-`search_graph` embeds the query on-device, so it **requires the `gte-large` embedding alias** to be served. Without it, retrieval is unavailable.
+`search_graph` embeds the query on-device, so it **requires the `embed` embedding alias** to be served. Without it, retrieval is unavailable.
 </Note>
 
 ### active_context & activity_recent

@@ -21,15 +21,17 @@ prefers `.json` and would shadow the wrapper.
 | Alias | Model | ctx_size | Role |
 |---|---|---|---|
 | `qwen3-4b` | `QWEN3_4B_INST_Q4_K_M` | 32768 | chat + agent driver (tools on, dynamic); `default: true` |
-| `gte-large` | `GTE_LARGE_FP16` | — | embeddings (RAG, effort routing, skill matching) |
-| `medpsy` | `MEDGEMMA_4B_IT_Q4_1` | 8192 | health specialist (QVAC MedGemma; tools on, dynamic) |
+| `embed` | `GTE_LARGE_FP16` | — | embeddings (RAG, effort routing, skill matching) |
+| `classifier` | `QWEN3_600M_INST_Q4` | 8192 | small triage / conductor helper |
+| `health` | MedPsy 4B GGUF (`src` + `type: "llamacpp-completion"`) | 8192 | health specialist (tools on, dynamic) |
 | `qwen3vl` | `QWEN3VL_2B_MULTIMODAL_Q4_K` + mmproj | 8192 | vision |
+| `ocr` | `OCR_LATIN_RECOGNIZER_1` | — | OCR |
 | `parakeet` | `PARAKEET_TDT_0_6B_V3_Q8_0` | — | speech-to-text |
 | `supertonic` | `TTS_EN_SUPERTONIC_Q8_0` | — | text-to-speech (`voice: F1`, `ttsSpeed: 1.05`) |
 
 <Note>
-The serve's built-in `ctx_size` default is `1024`. The committed chat and health aliases
-override it because tool-carrying turns need larger budgets.
+The serve's built-in `ctx_size` default is `1024`. The committed chat, classifier, and health aliases
+override it because those routed turns need larger budgets.
 </Note>
 
 ## Web app and assistant variables
@@ -38,8 +40,8 @@ override it because tool-carrying turns need larger budgets.
 |---|---|---|
 | `QVAC_OPENAI_URL` | `http://127.0.0.1:11435/v1` | Inference endpoint; point this at `http://127.0.0.1:11436/v1` to use the broker |
 | `LEASH_CHAT_MODEL` | `qwen3-4b` | general chat alias |
-| `LEASH_EMBED_MODEL` | `gte-large` | embeddings alias |
-| `LEASH_MEDPSY_MODEL` | `medpsy` | health-route alias |
+| `LEASH_EMBED_MODEL` | `embed` | embeddings alias |
+| `LEASH_CLASSIFIER_MODEL` | `classifier` when configured, else chat alias | small triage / conductor alias override |
 | `LEASH_VISION_MODEL` | `qwen3vl` | image-turn / screenshot alias |
 | `LEASH_COMPUTER_MODEL` | chat model | computer-use driver alias |
 | `LEASH_UTILITY_MODEL` | chat model | background maintenance alias |
@@ -55,6 +57,20 @@ override it because tool-carrying turns need larger budgets.
 | `LEASH_ELICIT_TIMEOUT_MS` | `120000` | unanswered in-chat form → cancel |
 | `LEASH_ACTIVITY_LOG` | `data/leash-activity.jsonl` | screen-watcher trail location |
 | `LEASH_NOTES_DIR` | `data/notes` | notes directory used for graph retrieval |
+
+<Note>
+The health route does not use a `LEASH_MEDPSY_MODEL` override in the current web runtime. It targets the served specialist alias `health` when that alias is present in the live inventory.
+</Note>
+
+## Service supervisor variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LEASH_MCP_PORT` | `11439` | mesh-pairing MCP server port |
+| `LEASH_TOOLS_MCP_PORT` | `11440` | built-in tools MCP daemon port |
+| `LEASH_CRON_MCP_PORT` | `11448` | `mcp-cron` scheduler port |
+| `LEASH_CRON_DB` | `data/mcp-cron.db` | scheduler SQLite state path |
+| `LEASH_INTERNAL_TOKEN_FILE` | `<dataDir>/.leash-internal-token` | shared internal token file used by server-to-server routes such as heartbeat |
 
 ## Broker variables
 

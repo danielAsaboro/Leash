@@ -18,7 +18,7 @@ For what Leash *is* and how it maps to the rubric, read the [Hackathon overview]
 - **Forces.** The project depends on four things that could each independently sink it: on-device inference + embeddings, on-device RAG, encrypted P2P delegated compute, and on-device LoRA. If any one didn't work on real hardware through `@qvac/sdk`, the architecture would need rethinking — and finding that out three weeks into the build is fatal.
 - **Options.** Start building the vertical slice and discover limits as you hit them; or stop and prove each primitive in isolation first.
 - **Choice & tradeoff.** We spent the first days proving all four for real on-device before any product code existed. The cost was visible time with nothing "shippable" to show; the payoff was that Week-1 build started on a known-good foundation.
-- **Evidence.** Gate **PASSED 2026-05-31**, GO on all four: chat warm TTFT 56 ms / 70.6 tok/s on a 1B; `gte-large` embedding dim 1024; RAG retrieval 23 ms at top score 0.768 with grounding visibly changing the answer; encrypted P2P round-trip 1.27 s (TTFT 257 ms, 45.4 tok/s, tokens generated on the provider); LoRA fine-tune completed in 152.7 s producing a 20 MB adapter that measurably changed behavior. The submitted runtime is now on `@qvac/sdk@^0.13.5`; each script appends JSONL to `spike/logs/`. See [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) and the committed `spike/logs/*.jsonl`.
+- **Evidence.** Gate **PASSED 2026-05-31**, GO on all four: chat warm TTFT 56 ms / 70.6 tok/s on a 1B; `embed` (`GTE_LARGE_FP16`) embedding dim 1024; RAG retrieval 23 ms at top score 0.768 with grounding visibly changing the answer; encrypted P2P round-trip 1.27 s (TTFT 257 ms, 45.4 tok/s, tokens generated on the provider); LoRA fine-tune completed in 152.7 s producing a 20 MB adapter that measurably changed behavior. The submitted runtime is now on `@qvac/sdk@^0.13.5`; each script appends JSONL to `spike/logs/`. See [Evidence & reproducibility](/hackathon/evidence-and-reproducibility) and the committed `spike/logs/*.jsonl`.
 
 **Decision: kill the Layer-1 reconnection patch a 20-line spike disproved.**
 
@@ -91,12 +91,12 @@ This is the decision we're proudest of, because it is a plan we *disproved and a
 - **Choice & tradeoff.** Standardize on `ToolLoopAgent`. Each subagent is wrapped in a `tool()` whose `execute` is an async generator streaming `readUIMessageStream(...)`, so `/chat` renders subagent progress as preliminary tool results, with a `toModelOutput` that trims the orchestrator's view. The tradeoff is conforming to the SDK's shape (e.g. `ToolLoopAgentSettings` omits `abortSignal` structurally); the payoff is a standards-based, observable agent layer end to end.
 - **Evidence.** `npm run smoke:orchestration` passes on-device, streaming 679 UIMessage updates. Code in `apps/web/lib/leash/agent-runner.ts` and `agent.ts`. See [Multi-agent](/agents/multi-agent) and [Orchestration](/agents/orchestration).
 
-**Decision: serve MedGemma 4B (`medpsy`) first-class with health-intent routing.**
+**Decision: serve the MedPsy specialist (`health`) first-class with health-intent routing.**
 
 - **Forces.** The hackathon runs a Psy-Models track for meaningful use of QVAC's MedPsy/MedGemma. Standing up a separate project for it would split effort.
 - **Options.** Ignore the Psy track; or fold a medical specialist into the General Purpose build and route to it automatically.
-- **Choice & tradeoff.** Serve `medpsy` (QVAC's **MedGemma 4B IT**) as a first-class alias and route to it on health intent, with a dashboard-editable prompt suffix. One build covers two tracks; the cost is the extra routing branch and a model in the catalog.
-- **Evidence.** Health routing lives in `apps/web/app/api/leash/chat/route.ts` (`isHealthIntent`, `HEALTH_RE`, `MEDPSY_MODEL`), with the `medpsy` alias bound to `MEDGEMMA_4B_IT_Q4_1` in the hypha catalog. See [Models and the catalog](/explanation/models-and-the-catalog) and [Models reference](/reference/models-and-aliases).
+- **Choice & tradeoff.** Serve `health` (the dedicated QVAC MedPsy specialist) as a first-class alias and route to it on health intent. One build covers two tracks; the cost is the extra routing branch and a specialist model in the catalog.
+- **Evidence.** Health routing lives in `apps/web/app/api/leash/chat/route.ts` plus the health fast path and specialist-agent wiring; the `health` alias is configured in `qvac.config.base.json`, and the specialist agent lives in `packages/brain/builtin-agents/health.md`. See [Models and the catalog](/explanation/models-and-the-catalog) and [Models reference](/reference/models-and-aliases).
 
 **Decision: bring the mesh up lazily — shim + pairing first, full Autobase on first pair.**
 

@@ -59,7 +59,7 @@ Near-duplicate saves of the same type **update in place** rather than appending 
 
 Looks up memories before answering questions that depend on what Leash knows about you, or when asked *"what do you know about me?"*. The `query` is matched on its **content words** (filler is dropped via a stopword list), so a natural-language question finds the relevant row; a short keyword query falls back to a substring match. Results return newest-first, capped at 30.
 
-Typed memories are also embedded into the [context graph](/agents/context) (one chunk per row), so `search_graph` surfaces them in RAG retrieval alongside notes and past chats — `gte-large` powers that indexing and dedup.
+Typed memories are also embedded into the [context graph](/agents/context) (one chunk per row), so `search_graph` surfaces them in RAG retrieval alongside notes and past chats — `embed` powers that indexing and dedup.
 
 ## Related
 

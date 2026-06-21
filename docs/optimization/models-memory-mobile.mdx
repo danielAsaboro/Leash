@@ -34,11 +34,11 @@ This makes context size a first-class performance knob. A 4B model at 32k uses a
 
 The exocortex defaults to consulting the graph for personal questions. That decision came from a real failure: a voice memo contained the answer, but a keyword router treated the question as trivial and the local model hallucinated. The fix was root-cause: only arithmetic and simple greetings take the trivial path; anything that may depend on private context goes through retrieval.
 
-Embeddings are therefore not optional for grounded chat. `gte-large` powers RAG, skill selection, memory indexing, and heartbeat dedup.
+Embeddings are therefore not optional for grounded chat. `embed` powers RAG, skill selection, memory indexing, and heartbeat dedup.
 
 ## Specialist routing
 
-Health questions route to `medpsy` when that alias is available. The MedPsy workflow uses retrieve-then-read instead of relying on MedGemma to decide to call a tool. In a high-stakes domain, grounding should be a harness rule, not a model preference.
+Health questions route to `health` when that alias is available. The MedPsy workflow uses retrieve-then-read instead of relying on the specialist model to decide to call a tool. In a high-stakes domain, grounding should be a harness rule, not a model preference.
 
 The same principle shows up elsewhere: the Council improves citation reliability at the cost of latency, and specialist delegates isolate domain prompts and tools from the main thread.
 

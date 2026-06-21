@@ -47,23 +47,24 @@ If `active` is above 22, schemas are overflowing. Disable MCP groups in Brain â†
 
 ## Audit logs
 
-All inference turns emit JSONL audit records to `data/leash-audit.jsonl` (path via `mycelium/spike/lib/audit-log.ts`). Each line contains:
+Audit logs are per-process in the current runtime, not one shared `data/leash-audit.jsonl`. A completion record looks like:
 
 ```json
 {
   "ts": "...",
-  "event": "prompt" | "completion" | "model_load" | "model_unload",
-  "model": "chat",
-  "tokens": { "prompt": 512, "completion": 128 },
-  "ttft_ms": 245,
-  "tok_per_sec": 18.2
+  "source": "hypha",
+  "event": "completion",
+  "modelId": "qwen3-4b",
+  "tokens": 128,
+  "ttftMs": 245,
+  "tokensPerSecond": 18.2
 }
 ```
 
 These are the hackathon verification evidence â€” keep them. Read the log for per-turn latency data:
 
 ```bash
-cat data/leash-audit.jsonl | grep '"event":"completion"' | jq '{model, tok_per_sec, ttft_ms}'
+jq 'select(.event=="completion") | {modelId, tokensPerSecond, ttftMs}' apps/hypha/logs/hypha.jsonl
 ```
 
 For the full record schema, every event type, and the JSONL log locations, see [Audit log](/reference/audit-log).
@@ -78,7 +79,7 @@ curl http://127.0.0.1:11435/v1/models
 curl http://127.0.0.1:11435/v1/models | jq '.data[].id'
 
 # Is the broker up?
-curl http://127.0.0.1:11436/v1/models
+curl http://127.0.0.1:11436/__broker/stats
 ```
 
 ## Hypha diagnostics
@@ -87,8 +88,11 @@ curl http://127.0.0.1:11436/v1/models
 # Peers connected?
 curl http://localhost:<HYPHA_PORT>/peers
 
-# Mesh membership?
-curl http://localhost:<HYPHA_PORT>/mesh
+# Mesh membership rows?
+curl http://localhost:<HYPHA_PORT>/mesh/list
+
+# Mesh members for the active mesh?
+curl http://localhost:<HYPHA_PORT>/mesh/members
 ```
 
 Check `HYPHA_DEBUG_LANPROBE=<peer-host:port>` output in the hypha process's stderr for LAN reachability.

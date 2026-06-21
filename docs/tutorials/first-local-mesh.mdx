@@ -24,8 +24,8 @@ npm install
 By the end, you will have:
 
 - a QVAC serve answering on `:11435`
-- the Leash web app open on `http://localhost:6801`
-- a cited answer grounded in `data/notes/`
+- the Leash dashboard open on `http://localhost:6801`
+- a cited answer grounded in your active notes folder
 - a second answer completed with Wi-Fi off
 
 ## 1. Start the local serve
@@ -43,7 +43,7 @@ curl -s http://127.0.0.1:11435/v1/models
 ```
 
 You should see the served aliases from `qvac.config.base.json`, including `qwen3-4b`
-and `gte-large`.
+and `embed`.
 
 ## 2. Start the web app
 
@@ -53,11 +53,17 @@ In a second terminal:
 npm run web:dev
 ```
 
-Open `http://localhost:6801`. You should land in the Leash interface.
+Open `http://localhost:6801`.
+
+`/` is the public landing page. For the assistant itself, open `http://localhost:6801/chat`.
+On a fresh install the auth gate redirects you to `/setup-password`; after you create the first
+account, the supervisor respawns the app scoped to that user and takes you to `/home`.
 
 ## 3. Create one note we can retrieve
 
-Add a markdown note under `data/notes/` with a fact the model cannot guess. For example:
+Add a markdown note under your active notes folder with a fact the model cannot guess. In the
+default headless setup this is `~/Leash/<your-user-id>/data/notes/`, where `<your-user-id>` is
+the slugged username you created during setup. For example:
 
 ```md
 # mesh-setup
@@ -65,7 +71,7 @@ Add a markdown note under `data/notes/` with a fact the model cannot guess. For 
 The workshop test phrase is: cedar lanterns at low tide.
 ```
 
-Save it as `data/notes/mesh-setup.md`.
+Save it as `~/Leash/<your-user-id>/data/notes/mesh-setup.md`.
 
 ## 4. Ask a local question
 

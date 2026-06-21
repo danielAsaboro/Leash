@@ -1,0 +1,61 @@
+---
+title: "Prior-work disclosure"
+description: "The explicit line between what was built during the judged period and what pre-existed."
+---
+
+**QVAC Hackathon I — "Unleash Edge AI" (Tether).** Build period: **June 1–21, 2026.**
+Project: **Leash** (the user-facing harness) on the **Mycelium** runtime.
+
+This page draws the line explicitly between judged work, pre-period work, and third-party
+infrastructure. The goal is simple: a judge should be able to trust exactly what is being claimed.
+
+## What counts as judged work
+
+Everything in `mycelium/` except the de-risking spike was designed and built during the judged
+period:
+
+- the engine layers (`packages/mesh`, `senses`, `mind`, `memory`, `shared`, `leash-core`, `db`)
+- every client (`apps/web`, `apps/mobile`, `apps/hypha`, `apps/newsroom`, `apps/leash-watch`,
+  `apps/desktop`, and the bridges/daemons)
+- the encrypted P2P mesh and CRDT context graph
+- the delegated-compute economy
+- the MedPsy health-record RAG workflow
+- the docs site and submission-facing runtime evidence
+
+The public commit history is the record.
+
+## Pre-period work (disclosed, not claimed as judged)
+
+- **De-risking spike (`mycelium/spike/`), dated 2026-05-31.** This ran **one day before** the
+  judged build period to prove four primitives were feasible on `@qvac/sdk`: on-device inference
+  + embeddings, on-device RAG, encrypted P2P delegated compute, and on-device LoRA via QVAC
+  Fabric.
+- Its results are summarized on [What `spike` means here](/hackathon/what-spike-means) and
+  backed by `spike/logs/*.jsonl`.
+- It is disclosed as a **feasibility gate**, not claimed as in-period product work. The product
+  itself was then built during June 1–21.
+
+## Third-party / pre-existing components
+
+Leash builds on standard open-source infrastructure. None of the following are claimed as our own
+creation:
+
+- **`@qvac/sdk`** (Tether) — the mandated on-device AI runtime
+- **Holepunch stack** — `hyperswarm`, `hyperdht`, `hypercore`, `corestore`, `autobase`
+- **Next.js / React / Expo / React Native** — dashboard and mobile surfaces
+- **Electron** — desktop launcher
+- **Prisma** — local SQLite schema
+- **anvil + x402-style settlement flow** — for the optional, off-by-default compute economy
+
+The base models are also third-party registry weights (Llama 3.2, Qwen3, GTE-large, MedGemma,
+Qwen3-VL, Parakeet, Supertonic, Stable Diffusion). The only weights this project *produces* are
+on-device LoRA adapters.
+
+## Bottom line
+
+The novelty being judged is the **system**: a private, offline, end-to-end-encrypted personal AI
+that composes on-device QVAC inference with encrypted personal-device mesh delegation, local
+perception, RAG, multimodal sensing, nightly LoRA, and an optional metered compute economy.
+
+The May-31 spike is part of the honest record, but it is not presented as judged build-period
+product work.

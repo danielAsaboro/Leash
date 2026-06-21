@@ -5,15 +5,15 @@ sidebarTitle: "MedPsy workflow"
 ---
 
 The Psy Models track asks for **strong use of a specialized health model**, not a keyword
-model-swap. MedPsy is a genuine clinical-adjacent workflow built on the **MedGemma 4B** model
-(the `medpsy` alias) — and it runs entirely on-device through `@qvac/sdk`, with **zero cloud calls**.
+model-swap. MedPsy is a genuine clinical-adjacent workflow built on the **MedPsy 4B** specialist
+(the runtime exposes it under the `health` alias) — and it runs entirely on-device through `@qvac/sdk`, with **zero cloud calls**.
 
 ## What it does
 
 A **retrieve-then-read** RAG consult specialized for personal health:
 
 1. **Ingest** your private health records — notes, lab panels, medications, allergies, visit
-   summaries — into a dedicated `health-records` RAG workspace (gte-large embeddings, on-device).
+   summaries — into a dedicated `health-records` RAG workspace (`embed` / `GTE_LARGE_FP16` embeddings, on-device).
 2. **Retrieve** the relevant records for the question (the same `search_graph` backend the Mind
    council uses). We retrieve up front rather than waiting for the model to elect a tool call —
    for a health-record domain we *always* want the records, which also makes grounding robust.
@@ -34,7 +34,7 @@ npm run medpsy:demo
 ```
 
 This ingests the synthetic health-record fixtures in `spike/fixtures/health-records/`, loads
-MedGemma + gte-large, runs a grounded consult and an emergency consult, and writes an audit log to
+MedPsy + `embed`, runs a grounded consult and an emergency consult, and writes an audit log to
 `packages/mind/logs/medpsy-demo.jsonl`. The records are synthetic fixtures; the inference,
 embeddings, RAG retrieval, and verification are all real on-device `@qvac/sdk` calls.
 

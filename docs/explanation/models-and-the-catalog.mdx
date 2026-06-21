@@ -16,7 +16,7 @@ There are two distinct layers, and keeping them apart avoids confusion:
 - **The catalog** is the full set of models the SDK knows about — hundreds of entries surfaced from
   `@qvac/ai-sdk-provider`. Most are not downloaded and not running; they are just *available*.
 - **A served alias** is a model you have configured into the local serve under a short name —
-  `qwen3-4b`, `gte-large`, `medpsy`, and so on. Leash's routes target aliases, never raw catalog
+  `qwen3-4b`, `embed`, `health`, and so on. Leash's routes target aliases, never raw catalog
   ids, so swapping the model behind an alias never touches the calling code.
 
 The Models tab is one browser over both layers, faceted by status (configured, downloaded,
@@ -64,7 +64,7 @@ a model is what makes it borrowable — the other side of
 ## A note on the specialist models
 
 The served set is chosen for a 32 GB consumer device: `qwen3-4b` for chat and tools,
-`gte-large` for embeddings, `qwen3vl` for vision, `parakeet` for speech-to-text, `supertonic`
-for text-to-speech, and `medpsy` (QVAC's MedGemma 4B) routed automatically on health intent.
+`embed` for embeddings, `qwen3vl` for vision, `parakeet` for speech-to-text, `supertonic`
+for text-to-speech, and `health` (the dedicated MedPsy specialist) routed automatically on health intent.
 That last one is why the same product can address the hackathon's Psy-Models angle without a
 separate build — the specialist is just another served alias.

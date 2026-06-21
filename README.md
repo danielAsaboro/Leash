@@ -1,12 +1,13 @@
 # Mycelium · Leash
 
-> **Leash** is a private, offline, **end-to-end-encrypted AI that lives on your own
-> devices — no cloud.** It perceives your world, reasons above its weight class by
-> splitting work across your devices, verifies before it speaks, acts on its own
-> against goals you set, and learns *you* overnight. When a turn needs more compute than
-> the device in your hand, it **borrows a stronger peer over an encrypted mesh — and pays
-> for it on-chain** when that peer isn't yours. **Mycelium** is the five-layer engine
-> underneath.
+> **Leash** is the harness for a private, offline, **end-to-end-encrypted personal AI
+> that lives on your own devices - no cloud.** It perceives your world through your notes,
+> voice, photos/screenshots, recent screen activity, and feed; it reasons above the weight
+> class of one device by routing work across your models, tools, skills, delegates, and,
+> when needed, the rest of your encrypted mesh. On your **private mesh**, your own devices
+> help each other for free. On a **public mesh**, outside providers can offer compute free
+> or paid. **Mycelium** is the connected five-layer runtime underneath - the models, memory,
+> tools, skills, and mesh that make Leash general-purpose.
 >
 > Built end-to-end on **[`@qvac/sdk`](https://www.npmjs.com/package/@qvac/sdk)** for
 > **QVAC Hackathon I — "Unleash Edge AI"** (Tether). No cloud AI is ever in the loop.
@@ -112,12 +113,13 @@ and the committed [`evidence/`](evidence/) log.
   over a Noise-encrypted Hyperswarm link. Spike round-trip **1.27 s, TTFT 257 ms, 45.4
   tok/s**; live two-Mac delegated completion measured at **TTFT 317 ms / 100.7 tok/s**;
   broker load-shed answered an overflow turn from a peer in **2.9 s at 100+ tok/s**.
-- **A working machine economy.** When the peer isn't yours, the turn is **metered and
-  settled on-chain** (x402 / Permit2, USDT0). Proven across two physical Macs: a 286-token
-  completion decoded on one Mac for another and settled in a single transaction; **per-chunk
-  metered billing** settles the exact highest authorized rung in **one** tx (O(1)
-  gas/session); a cheaper provider (`500 µ/ktok` vs `1000`) is selected by the market.
-  Wired against a **local `anvil` fork for local testing only** — no real chain is ever touched.
+- **A working machine economy.** On your **private mesh**, delegation between your own devices
+  is free. When the peer isn't yours, the same routing path can be **metered and settled
+  on-chain** (x402 / Permit2, USDT0). Proven across two physical Macs: a 286-token completion
+  decoded on one Mac for another and settled in a single transaction; **per-chunk metered
+  billing** settles the exact highest authorized rung in **one** tx (O(1) gas/session); a
+  cheaper provider (`500 µ/ktok` vs `1000`) is selected by the market. Wired against a local
+  `anvil` fork for local testing only — no real chain is ever touched.
 - **The Conductor** routes every turn — local vs. peer — by intent, sensitivity, and live
   capacity, with a **non-overridable privacy gate** (private prompts never reach a public mesh).
 - **Acts as an agent system.** Skills that auto-load from natural language and run as

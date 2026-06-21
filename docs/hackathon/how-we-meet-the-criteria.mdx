@@ -25,16 +25,16 @@ These are pass/fail prerequisites, not scored dimensions:
 
 | Criterion | What addresses it | Reference |
 |---|---|---|
-| **Innovation** | A composing exocortex: encrypted device mesh + a machine-payable agent economy + an on-device nightly LoRA loop — not a single-feature demo. | [The agent economy](/explanation/the-agent-economy), [Memory loop](/explanation/the-memory-evolution-loop) |
-| **Capabilities (multi-agent, tool calling)** | Skills-first harness with `run_skill` sub-agents, deterministic step pipelines, plan mode, tool calling with human-in-the-loop approval, MCP integrations. | [The skills harness](/explanation/the-skills-harness), [Multi-agent](/agents/multi-agent), [Orchestration](/agents/orchestration) |
+| **Innovation** | A personal AI harness over a connected runtime: local perception (notes, voice, OCR/photos, screen activity, feed), free private-mesh delegation between your own devices, optional free-or-paid public-mesh routing, and an on-device nightly LoRA loop — not a single-feature demo. | [The agent economy](/explanation/the-agent-economy), [Memory loop](/explanation/the-memory-evolution-loop) |
+| **Capabilities (multi-agent, tool calling)** | General-purpose by extension: a skills-first harness with `run_skill` sub-agents, deterministic step pipelines, plan mode, proactive feed/heartbeat behavior, human-approved tool calling, MCP integrations, and specialist delegates. | [The skills harness](/explanation/the-skills-harness), [Multi-agent](/agents/multi-agent), [Orchestration](/agents/orchestration) |
 | **Performance (P2P load distribution, constrained devices, speed)** | Broker overflow + delegated inference, KV-cache reuse across delegated turns, per-model CPU/GPU and context-size tuning to fit RAM. Spike: 70.6 tok/s on a 1B, 24.1 tok/s on the 4B chat model; P2P round-trip 1.27 s. | [How the mesh routes work](/explanation/how-the-mesh-routes-work), [Evidence](/hackathon/evidence-and-reproducibility) |
-| **Model usage & coverage** | Six+ QVAC models in daily use — `qwen3-4b`, `gte-large`, `qwen3vl`, `parakeet` (STT), `supertonic` (TTS), `medpsy`/MedGemma — plus Flux2-klein image gen and OCR. | [Models and the catalog](/explanation/models-and-the-catalog), [Models reference](/reference/models-and-aliases) |
+| **Model usage & coverage** | Six+ QVAC models in daily use — `qwen3-4b`, `embed`, `classifier`, `health` (MedPsy), `qwen3vl`, `ocr`, `parakeet` (STT), and `supertonic` (TTS). | [Models and the catalog](/explanation/models-and-the-catalog), [Models reference](/reference/models-and-aliases) |
 | **Complexity & UX** | Tabbed dashboard (chat, Brain, Models, Tasks, Economy, Feed, Services, Settings), AI Elements chat, voice call mode, a desktop app, and a broadsheet landing site. | [Leash and its surfaces](/explanation/leash-and-its-surfaces) |
-| **Artifact quality** | Consistent JSONL audit evidence, smoke tests, a commit-mapped changelog, and a full Diataxis docs site. | [Changelog](/reference/changelog), [Scripts & smoke tests](/reference/scripts-and-smoke-tests) |
+| **Evidence quality** | Consistent JSONL audit evidence, smoke tests, a commit-mapped changelog, and a full Diataxis docs site. | [Changelog](/reference/changelog), [Scripts & smoke tests](/reference/scripts-and-smoke-tests) |
 | **Social engagement (build-in-public)** | The product repo preserves the technical evidence; social posts/video links belong in the DoraHacks form and public channels, not the runtime. | Submission form |
 
 <Warning>
-A few submission-form artifacts are external to this repo by nature: the final ≤5-minute demo video URL, DoraHacks team fields, public social links, and hardware screenshots if the form asks for image uploads. The code and evidence required to audit the runtime are in-repo: `spike/logs/`, `evidence/`, and these Hackathon docs.
+A few submission-form items are external to this repo by nature: the final ≤5-minute demo video URL, DoraHacks team fields, public social links, and hardware screenshots if the form asks for image uploads. The code and evidence required to audit the runtime are in-repo: `spike/logs/`, `evidence/`, and these Hackathon docs.
 </Warning>
 
 ## Related

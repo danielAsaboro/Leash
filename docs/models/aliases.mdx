@@ -4,7 +4,7 @@ description: "The model alias system — mapping short names to SDK constants in
 sidebarTitle: "Aliases"
 ---
 
-An **alias** is a short name (`chat`, `gte-large`) that maps to an SDK catalog constant in `qvac.config.base.json`. The agent and every daemon reference aliases — never raw filenames — so you can swap the underlying model without changing a line of code.
+An **alias** is a short name (`qwen3-4b`, `embed`, `health`) that maps to an SDK catalog constant or explicit source in `qvac.config.base.json`. The agent and every daemon reference aliases — never raw filenames — so you can swap the underlying model without changing a line of code.
 
 ## Built-in alias contract
 
@@ -12,20 +12,21 @@ The runtime expects these aliases. Missing one disables the feature that depends
 
 | Alias | Feature gated on it |
 |-------|---------------------|
-| `chat` | All text turns **(required)**. |
-| `gte-large` | RAG search, heartbeat dedup, memory indexing **(required for grounded chat)**. |
+| `qwen3-4b` | Default text turns **(required unless you set another chat alias as default)**. |
+| `embed` | RAG search, heartbeat dedup, memory indexing **(required for grounded chat)**. |
+| `classifier` | Fast triage and heartbeat grading. |
 | `parakeet` | Voice-call STT. |
 | `supertonic` | Voice-call TTS (voice `F1`). |
 | `qwen3vl` | Screenshot + screen-watcher vision. |
-| `sd` | Image generation (`generate_image`). |
-| `medpsy` | Health specialist route — QVAC's **MedGemma 4B** (`MEDGEMMA_4B_IT_Q4_1`); **falls back to `chat`** if absent. |
+| `ocr` | Text extraction from screenshots, scans, and photos. |
+| `health` | Health specialist route; falls back to the selected chat alias if absent. |
 
 <Warning>
-  Chat fails without `gte-large`. The embedding model isn't optional for a grounded assistant — wire it whenever you wire `chat`.
+  Grounded chat degrades without `embed`. The embedding model isn't optional for a grounded assistant — wire it whenever you wire your main chat alias.
 </Warning>
 
 <Warning>
-  Point `chat` at the **instruct** constant `QWEN3_4B_INST_Q4_K_M`. The lookalike `QWEN3_4B_Q4_K_M` (no `INST`) is a **diffusion** model, not an LLM — aliasing `chat` to it raises `MODEL_SRC_TYPE_MISMATCH`. A chat alias also needs `tools: true` in its config or tool calls are silently never parsed; the numbers and config keys live in [Configuration](/models/config), the failure symptoms in [Troubleshooting](/help/troubleshooting).
+  Point your main text alias at an **instruct** LLM such as `QWEN3_4B_INST_Q4_K_M`. The lookalike `QWEN3_4B_Q4_K_M` (no `INST`) is a **diffusion** model, not an LLM — wiring it as chat raises `MODEL_SRC_TYPE_MISMATCH`. A chat alias also needs `tools: true` in its config or tool calls are silently never parsed; the numbers and config keys live in [Configuration](/models/config), the failure symptoms in [Troubleshooting](/help/troubleshooting).
 </Warning>
 
 ## Configuring an alias
@@ -69,15 +70,15 @@ Set `use_gpu: true` or `use_gpu: false` per alias. Leave it unset to take the SD
 
 ## Measured tok/s
 
-The Models table shows **measured tok/s** per alias — the **median of the last 10 real chat turns** for that alias, computed from chat telemetry, not a spec sheet. It's blank until an alias has actually generated a few replies, then reflects your real hardware. (For reference, `chat` on Qwen3 4B runs ~15–20 tok/s on an M1 GPU.) See [Benchmarks](/reference/benchmarks) for indicative tok/s across sizes.
+The Models table shows **measured tok/s** per alias — the **median of the last 10 real chat turns** for that alias, computed from chat telemetry, not a spec sheet. It's blank until an alias has actually generated a few replies, then reflects your real hardware. (For reference, `qwen3-4b` runs ~15–20 tok/s on an M1 GPU.) See [Benchmarks](/reference/benchmarks) for indicative tok/s across sizes.
 
 ## Multiple chat models
 
-You can configure several chat-category aliases (e.g. `chat`, `chat-small`, `chat-large`) and switch between them in the chat input's model picker. The `default: true` flag marks the one the agent uses when you haven't picked.
+You can configure several chat-category aliases (for example `qwen3-4b`, `chat-small`, `chat-large`) and switch between them in the chat input's model picker. The `default: true` flag marks the one the agent uses when you haven't picked.
 
 ## Custom models (explicit-src GGUF)
 
-For a model that isn't in the SDK catalog — a fine-tuned GGUF you built — use the explicit `src` form instead of `model` (built-in aliases like `medpsy` use catalog constants, not `src`):
+For a model that isn't in the SDK catalog — a fine-tuned GGUF you built — use the explicit `src` form instead of `model` (the built-in `health` specialist already uses this pattern):
 
 ```json
 {

@@ -22,7 +22,8 @@ The private mesh is the personal trust boundary. Public meshes are market bounda
 - Public mesh inference can be free or paid.
 - A public provider with rate `0` does not require payment authorization.
 - A public provider with a non-zero rate requires pre-authorization before streaming.
-- Settlement is based on metered usage, not just the maximum cap.
+- Paid settlement is based on metered usage, not just the maximum cap.
+- The current `/economy` ledger and replicated receipts are paid-session-first.
 
 ## Safety gates
 
@@ -38,13 +39,13 @@ Public routing should be blocked when:
 
 ## Spend controls
 
-Consumers should set explicit caps before public paid routing is enabled:
+The runtime-enforced spend controls today are:
 
-- Maximum spend per request.
-- Maximum spend per session.
-- Maximum spend per provider.
-- Optional allowlist for trusted providers.
-- Optional preference for free public routes before paid routes.
+- `HYPHA_ECONOMY_FLOAT` — reservation ceiling per session.
+- `HYPHA_ECONOMY_MAX_PER_TX` — max per settlement.
+- `HYPHA_ECONOMY_MAX_PER_HOUR` — hourly ceiling.
+- `HYPHA_ECONOMY_MAX_PER_COUNTERPARTY` — per-provider ceiling.
+- Optional `computeBudget` on a request when a caller explicitly passes one.
 
 ## Provider controls
 
@@ -53,9 +54,12 @@ Providers should be able to choose how they participate:
 - Join no public meshes and serve only private capacity.
 - Join a public mesh with a `0` rate.
 - Join a public mesh with a paid rate.
-- Advertise only specific model aliases.
-- Stop advertising when local load is too high.
+- Advertise only the aliases the local serve exposes.
+- Stop or pause Hypha / QVAC when the device should not serve.
 
 ## Current implementation note
 
-The runtime already models private zero-rate routes and public free-or-paid routes in the economy policy. Some public mesh UX surfaces are still WIP, so use the [Economy platform guide](/platforms/economy) and smoke tests when validating provider behavior.
+The runtime already models private zero-rate routes and public free-or-paid routes in the economy
+policy. The paid public-session path, settlement retries, and ledger are real. Zero-rate public
+routes exist, but the public economy UI is still paid-session-first, so use the
+[Economy platform guide](/platforms/economy) and smoke tests when validating provider behavior.
