@@ -1,4 +1,4 @@
-/** `GET /api/leash/prompts` (all three, with override state) · `PUT` (set/clear one override). */
+/** `GET /api/leash/prompts` (all editable prompts, with override state) · `PUT` (set/clear one override). */
 import { getPrompts, setPrompt, PROMPT_KEYS, type PromptKey } from "../../../../lib/leash/prompts-store.ts";
 
 export const runtime = "nodejs";

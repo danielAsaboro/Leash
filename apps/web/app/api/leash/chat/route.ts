@@ -866,9 +866,10 @@ export async function POST(req: Request): Promise<Response> {
   const lastText = lastUserText(validated);
   agentRuntimeCurrentUserTurn = lastText;
   planTask = lastText; // the overall task each approved plan step is executed against
-  const [systemPrompt, healthPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([
+  const [systemPrompt, healthPrompt, visionPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([
     getPrompt("chat", base.body),
     healthTurn ? getPrompt("health") : Promise.resolve(""),
+    imageTurn ? getPrompt("vision") : Promise.resolve(""),
     skillsSystemSection(),
     activeSkillsSection(lastText),
     preferenceTexts(),
@@ -917,6 +918,9 @@ export async function POST(req: Request): Promise<Response> {
   // Files turn: name the sandboxed retrieval tool so the model reaches for bash (grep/find/cat/jq)
   // over the user's files. It's a read-only in-memory snapshot — no approval, can't touch the disk.
   const filesNote = filesTurn ? CHAT_FILES_MODE_NOTE : "";
+  // Vision turns are single-shot and tool-free, but they still need image-specific behavior:
+  // distinguish visible facts from inference and never hallucinate illegible text or off-screen content.
+  const visionNote = visionPrompt;
   // The (possibly overridden) system prompt may still NAME disabled tools — tell the
   // model they're gone, or it text-hallucinates <tool_call> blocks for them.
   // (`off` was read above for the computer-turn routing.)
@@ -963,7 +967,7 @@ export async function POST(req: Request): Promise<Response> {
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, agentDisclosureNote, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
+  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, agentDisclosureNote, computerNote, filesNote, visionNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
     .filter(Boolean)
     .join(" ");
 

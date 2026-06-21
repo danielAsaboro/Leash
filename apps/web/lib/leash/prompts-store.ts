@@ -1,7 +1,7 @@
 /**
  * Leash prompt overrides (server-only) — `data/leash-prompts.json`.
  *
- * Stores OVERRIDES ONLY for editable capability prompts (`chat`, `voice`, `health`);
+ * Stores OVERRIDES ONLY for editable capability prompts (`chat`, `voice`, `health`, `vision`);
  * `null`/absent = use the code default from `prompt.ts`. Other runtime prompt builders
  * also live in `prompt.ts`. Reads are mtime-cached, so the chat route's per-turn
  * `getPrompt` costs a `stat` — and hand-edits to the JSON are honored without a restart.
@@ -9,17 +9,18 @@
 import "server-only";
 import { join } from "node:path";
 import { readJsonCached, writeJson, invalidateJsonCache, DATA_DIR } from "./json-store.ts";
-import { CHAT_SYSTEM_PROMPT, HEALTH_SPECIALIST_PROMPT, VOICE_RESPONSE_PROMPT } from "./prompt.ts";
+import { CHAT_SYSTEM_PROMPT, HEALTH_SPECIALIST_PROMPT, VOICE_RESPONSE_PROMPT, CHAT_VISION_MODE_NOTE } from "./prompt.ts";
 
 export const PROMPTS_FILE = process.env["LEASH_PROMPTS_FILE"] ?? join(DATA_DIR, "leash-prompts.json");
 
-export type PromptKey = "chat" | "voice" | "health";
-export const PROMPT_KEYS: readonly PromptKey[] = ["chat", "voice", "health"];
+export type PromptKey = "chat" | "voice" | "health" | "vision";
+export const PROMPT_KEYS: readonly PromptKey[] = ["chat", "voice", "health", "vision"];
 
 const DEFAULTS: Record<PromptKey, string> = {
   chat: CHAT_SYSTEM_PROMPT,
   voice: VOICE_RESPONSE_PROMPT,
   health: HEALTH_SPECIALIST_PROMPT,
+  vision: CHAT_VISION_MODE_NOTE,
 };
 
 /** Human labels + what each capability prompt does (for the editor UI). */
@@ -27,6 +28,7 @@ export const PROMPT_META: Record<PromptKey, { label: string; hint: string }> = {
   chat: { label: "Chat prompt", hint: "The assistant's base instructions on chat turns (skills, grounding, tone)." },
   voice: { label: "Voice response prompt", hint: "Appended on spoken turns only — keeps replies short and markdown-free for TTS." },
   health: { label: "Health specialist prompt", hint: "Appended on health, medical, medication, and wellbeing turns." },
+  vision: { label: "Vision prompt", hint: "Appended on image turns only — steers direct observation, OCR honesty, and visual uncertainty." },
 };
 
 type Overrides = Partial<Record<PromptKey, string>>;
@@ -57,7 +59,7 @@ export interface PromptView {
   overridden: boolean;
 }
 
-/** All three prompts with override state — the editor's read model. */
+/** All editable prompts with override state — the editor's read model. */
 export async function getPrompts(): Promise<PromptView[]> {
   const overrides = await loadOverrides();
   return PROMPT_KEYS.map((key) => {

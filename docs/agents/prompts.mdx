@@ -1,0 +1,85 @@
+---
+title: "Prompts"
+description: "How Leash assembles per-turn prompts, where overrides live, and how prompt layers interact with routes, skills, and compaction."
+sidebarTitle: "Prompts"
+---
+
+Leash does not run one static mega-prompt. Each turn compiles a prompt stack from code defaults, dashboard overrides, route notes, constitution, memory, skills, and long-thread summary.
+
+## The editable prompt layers
+
+Brain → **Prompts** edits four capability prompts, stored as overrides in `data/leash-prompts.json`:
+
+| Key | When it applies | Default source |
+| --- | --- | --- |
+| `chat` | Every normal text turn | `CHAT_SYSTEM_PROMPT` in `apps/web/lib/leash/prompt.ts` |
+| `health` | Health, medication, and wellbeing turns | `HEALTH_SPECIALIST_PROMPT` in `apps/web/lib/leash/prompt.ts` |
+| `vision` | Image turns only | `CHAT_VISION_MODE_NOTE` in `apps/web/lib/leash/prompt.ts` |
+| `voice` | Spoken turns only | `VOICE_RESPONSE_PROMPT` in `apps/web/lib/leash/prompt.ts` |
+
+Override precedence is simple: **dashboard override first, code default otherwise**. Reads are mtime-cached, so a saved edit affects the next turn without restarting the app.
+
+## How one turn is compiled
+
+The chat route builds one `system` string before the loop starts:
+
+<Steps>
+  <Step title="Base capability prompt">
+    Start from `chat`, then append `health` on health turns and `vision` on image turns.
+  </Step>
+  <Step title="Long-thread summary">
+    If the chat has been compacted, prepend the stored summary so the model keeps the older thread state without seeing the full history again. See [Compaction](/agents/compaction).
+  </Step>
+  <Step title="Constitution and durable preferences">
+    `soul.md`, `goals.md`, and preference memories are folded in so the assistant stays personal and goal-aware on every turn.
+  </Step>
+  <Step title="Active skills and route notes">
+    Any active skill body joins the prompt, along with the live skill catalog and route-specific notes such as computer mode, files mode, vision mode, approval rules, citation behavior, or plan mode.
+  </Step>
+  <Step title="Spoken-output and reasoning directives">
+    Voice turns append `voice`; fast turns may also append `/no_think` to keep latency bounded.
+  </Step>
+</Steps>
+
+## What the prompt editor does not change
+
+The prompt editor changes wording, not the runtime's hard policy:
+
+- Tool enablement and approval gates still come from the tool registry.
+- Route selection still comes from the conductor and route heuristics.
+- Specialist availability still comes from the built-in agents and active skills.
+- Tool schemas still travel as a separate bounded input alongside the prompt. See [Context](/agents/context).
+
+That split is deliberate. Prompts shape behavior, but the harness still decides what the model is actually allowed to call and how much context fits in the window.
+
+## Where the rest of the prompt logic lives
+
+Only four capability prompts are dashboard-editable. Other prompt fragments stay in code because they are structural:
+
+- specialist prompts for coder, researcher, and summarizer
+- approval, citation, and plan-mode notes
+- route notes for files and computer lanes
+- prompt builders for research planning, extraction, and final reports
+
+Vision now sits with the other editable capability prompts: image turns receive the compiled `chat`
+base plus the `vision` prompt override/default. That gives you a place to tune OCR honesty,
+visible-vs-inferred phrasing, and screenshot/layout handling without patching route code.
+
+For the optimisation story behind these choices, including the toolless-hang guard and continuation experiments, see [Context and prompts](/optimization/context-and-prompts).
+
+## Related
+
+<CardGroup cols={2}>
+  <Card title="Context assembly" icon="layer-group" href="/agents/context">
+    The full prompt-and-tool assembly path and the schema budget.
+  </Card>
+  <Card title="Brain" icon="brain" href="/agents/brain">
+    The dashboard surface where prompt overrides are edited.
+  </Card>
+  <Card title="Compaction" icon="compress" href="/agents/compaction">
+    How long chats shrink for the model without mutating the stored record.
+  </Card>
+  <Card title="Optimisation view" icon="gauge" href="/optimization/context-and-prompts">
+    Why the prompt stack is structured this way on a small local model.
+  </Card>
+</CardGroup>

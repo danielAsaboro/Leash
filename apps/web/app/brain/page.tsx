@@ -1,7 +1,7 @@
 /**
  * `/brain` — the assistant's configuration surface: Memory (notes + activity browser
  * with real forgetting), Skills (markdown instruction documents), MCP (integrations +
- * tool controls), Prompts (chat/voice/health overrides), Models (inventory + lifecycle;
+ * tool controls), Prompts (chat/voice/health/vision overrides), Models (inventory + lifecycle;
  * serve control lands with P5c).
  */
 import Link from "next/link";

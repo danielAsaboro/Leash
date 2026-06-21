@@ -14,7 +14,7 @@ sidebarTitle: "Brain"
 | **Skills** | The markdown instruction documents the agent reads before acting. View, inspect, and manage your [skills](/capabilities/skills). |
 | **Tools** | The tool registry — toggle any tool on/off (off removes its schemas from the active set) and set per-tool "ask-first" approval. Computer rows show the driving model; bash rows note the sandbox scope. |
 | **MCP** | Every tool group served by `leash-tools-mcp`, with per-group enable toggles and server status. Disable a group to free schema slots. |
-| **Prompts** | System / voice / MedPsy prompt overrides. |
+| **Prompts** | `chat` / `voice` / `health` / `vision` prompt overrides. |
 | **Models** | The model inventory and lifecycle — what's installed, the serve status, and the downloadable catalog with device-fit. |
 | **Growth** | The Understory — LoRA adapter rounds: base-vs-adapter eval deltas, per-axis scores, and the adapter manifest. *(WIP — empty until the first adapter trains.)* |
 | **Forage** | Surfaced foraging results. |
@@ -51,6 +51,9 @@ Proactive behaviour is driven by scheduled jobs — the heartbeat fires on a cro
 ## Related
 
 <CardGroup cols={2}>
+  <Card title="Prompts" icon="brackets-curly" href="/agents/prompts">
+    How prompt overrides and per-turn prompt assembly fit together.
+  </Card>
   <Card title="Models overview" icon="microchip" href="/models/overview">
     What the Models tab manages.
   </Card>

@@ -6,6 +6,10 @@ sidebarTitle: "Context & prompts"
 
 Leash follows the useful part of the Claude-Code harness pattern: keep the core loop simple, but compile the context around it deliberately. The prompt is assembled from explicit inputs, not a single static mega-prompt.
 
+<Note>
+For the canonical architecture page in the Agents tab, see [Prompts](/agents/prompts). This page focuses on the optimisation tradeoffs and experiments behind that prompt stack.
+</Note>
+
 ## Dynamic context compiler
 
 Each chat turn composes the system input from the current route and state:
@@ -50,7 +54,7 @@ The active toolset is calculated in `prepareCall`:
 
 | Route | Active tools |
 | --- | --- |
-| `vision` | No tools; the VLM is single-shot. |
+| `vision` | No tools; the VLM is single-shot, but it still receives a vision-specific route note. |
 | `files` | Sandboxed bash/read/search tools. |
 | `computer` | GUI and computer-use tools only. |
 | `health` | Health-safe tools only. |

@@ -367,6 +367,9 @@ export const CHAT_COMPUTER_MODE_NOTE =
 export const CHAT_FILES_MODE_NOTE =
   "File-retrieval mode: use sandboxed bash over a read-only in-memory snapshot for grep/find/cat/jq/ls and similar inspection commands. Prefer it for searching and reading user files. It cannot touch real disk; writes affect only the sandbox, so do not promise edits from this lane.";
 
+export const CHAT_VISION_MODE_NOTE =
+  "Vision mode: answer from what is actually visible in the image. Separate direct visual observations from inference. If text is present, quote or transcribe only what is clearly legible and say when text is too small, blurry, cropped, or obscured to read reliably. When layout matters, mention where things appear in the image or screenshot. Do not invent unreadable text, hidden UI state, or off-screen content.";
+
 export const BASH_SNAPSHOT_TOOL_PROMPT =
   "Run commands over a read-only in-memory snapshot of the user's files. Available commands: ls, cat, head, tail, grep, egrep, find, wc, sort, uniq, cut, sed, awk, tr, echo, pwd.";
 
