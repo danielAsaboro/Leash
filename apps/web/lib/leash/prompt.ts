@@ -221,6 +221,21 @@ export function resolveBuiltinAgentPrompt(slug: string, fallback: string): strin
   return BUILTIN_AGENT_PROMPTS[slug] ?? fallback;
 }
 
+export function buildAgentDelegateContextPrompt(packet?: { text?: string }): string {
+  const text = packet?.text?.trim();
+  if (!text) return "";
+  return [
+    NO_THINK_DIRECTIVE,
+    "--- Delegate context from Leash ---",
+    text,
+    "--- Delegate operating contract ---",
+    "Use this bounded packet as your working context. Do not assume access to the parent transcript beyond what is included here.",
+    "Complete only the delegated task with your available tools. Keep tool use focused and stop when the task is answered.",
+    "Return a compact result with concrete evidence, file paths, tool findings, or artifact references when relevant. Do not repeat the task or narrate your reasoning.",
+    "Leash remains responsible for final synthesis to the user, so do not write as if you are the top-level assistant.",
+  ].join("\n");
+}
+
 export const ACTION_TIER_CLASSIFIER_RUBRIC =
   [
     "Task: classify a PROPOSED proactive action by delivery tier.",
@@ -450,6 +465,18 @@ export function buildActiveSkillBody(skills: Array<{ slug: string; body: string;
 
 export const ACTIVE_SKILL_TOOL_CALL_WARNING =
   " Tool boundary: never print fake tool-call text. If a skill requires exact output, that format outranks normal style.";
+
+export function buildAgentDisclosurePrompt(agents: Array<{ name: string; slug: string; toolName: string; reason: string }>): string {
+  if (!agents.length) return "";
+  const list = agents.map((a) => `${a.toolName} (${a.name}, ${a.slug}, ${a.reason})`).join("; ");
+  return [
+    `Available delegates this turn: ${list}.`,
+    "Use these agent tools only when delegation clearly helps this turn.",
+    "After an agent returns, synthesize the result directly and compactly; do not keep deliberating or call more tools unless the agent explicitly failed.",
+    "Use run_skill only for skills, never for agents.",
+    "Never print fake tool-call text; make a structured tool call or answer normally.",
+  ].join(" ");
+}
 
 export function buildSkillsCatalogPrompt(skills: Array<{ slug: string; name: string; description: string }>): string {
   if (skills.length === 0) return "";

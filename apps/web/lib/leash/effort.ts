@@ -16,6 +16,7 @@ import { embed, embedMany } from "ai";
 import { embeddingModel } from "./provider.ts";
 import { cosine } from "./graph.ts";
 import type { EffortTier } from "./types.ts";
+import { effortFailureCooldownRemaining, recordEffortFailure } from "./effort-cooldown.ts";
 
 /* ───────────── Regex pre-filter (zero-embed shortcut → `quick`) ───────────── */
 // Re-implemented locally (NOT imported from packages/mind, which pulls @qvac/sdk and would
@@ -98,6 +99,7 @@ export async function classifyEffort(text: string): Promise<EffortTier> {
   if (!q) return "standard";
   const lower = q.toLowerCase();
   if (isInstantPrompt(lower)) return "quick";
+  if (effortFailureCooldownRemaining() > 0) return "standard";
   try {
     const prototypes = await getPrototypes();
     const { embedding } = await embed({ model: embeddingModel(), value: q });
@@ -119,7 +121,11 @@ export async function classifyEffort(text: string): Promise<EffortTier> {
     if (tier !== "standard" && best[tier] - best.standard < EFFORT_MARGIN) return "standard";
     return tier;
   } catch (err) {
-    console.error("leash: effort classification failed, defaulting to standard:", err);
+    prototypesPromise = null;
+    if (recordEffortFailure()) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.warn(`leash: effort classification unavailable; defaulting to standard for ${Math.ceil(effortFailureCooldownRemaining() / 1000)}s: ${message}`);
+    }
     return "standard";
   }
 }

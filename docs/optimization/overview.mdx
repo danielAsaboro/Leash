@@ -25,6 +25,9 @@ Leash is optimised around one constraint: the agent must feel capable while ever
   <Card title="Long chat stress" icon="chart-no-axes-combined" href="/optimization/long-chat-stress">
     The 30-50 turn chat stress suite and the latest before/after measurements.
   </Card>
+  <Card title="Multi-agent context harness" icon="network" href="/optimization/multi-agent-context-harness">
+    Progressive agent disclosure, bounded subagent packets, parent synthesis, and live chat evidence.
+  </Card>
   <Card title="Inference runtime" icon="gauge-high" href="/optimization/inference-runtime">
     Broker scheduling, cancel-on-disconnect, queue aging, schema caps, and diagnostics.
   </Card>
@@ -50,6 +53,7 @@ Leash handles those limits in the harness:
 | Too many possible skills | Select one likely skill with lexical + semantic routing. |
 | Too many tools | Gate by capability, broker many MCP actions, and keep sentinel tools inert. |
 | Long conversations | Compact only the model input; keep the full transcript intact. |
+| Multi-agent conversations | Expose one relevant worker, give it a bounded handoff, and return to Leash for synthesis. |
 | Slow or abandoned decodes | Cancel safely on disconnect and serialize through the broker. |
 | Simple or deterministic turns | Answer early or call a narrow registered tool through the chat API. |
 | Weak local hardware | Route to local, private mesh, or public mesh by capability and sensitivity. |

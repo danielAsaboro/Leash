@@ -7,6 +7,8 @@ export type ToolExposureRoute = "chat" | "health" | "computer" | "files" | "visi
 export interface ToolExposureOptions {
   route: ToolExposureRoute;
   skillTools?: string[];
+  agentTools?: string[];
+  suppressRunSkill?: boolean;
   leanTools?: boolean;
 }
 
@@ -18,6 +20,10 @@ export const SKILL_TOOLS_CAP = 18;
  * compose with another skill without pre-loading every skill body or every MCP schema.
  */
 export const SKILL_SYSTEM_NAMES = new Set(["read_skill", "read_skill_file", "run_skill_script", "run_skill"]);
+
+function isAgentToolName(name: string): boolean {
+  return name.startsWith("agent__");
+}
 
 /**
  * Select the schemas a model should see for a single turn.
@@ -39,5 +45,11 @@ export function resolveActiveToolNames(names: string[], options: ToolExposureOpt
   if (options.route === "files") return names.filter((n) => BASH_TOOL_NAMES.has(n));
   if (options.route === "computer") return names.filter((n) => COMPUTER_TOOL_NAMES.has(n));
   if (options.route === "health") return names.filter((n) => HEALTH_TOOL_NAMES.has(n));
-  return names.filter((n) => (BROKER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n)) || SKILL_SYSTEM_NAMES.has(n));
+  const selectedAgents = new Set(options.agentTools ?? []);
+  return names.filter((n) => {
+    if (BROKER_TOOL_NAMES.has(n) && !MCP_ADMIN_TOOL_NAMES.has(n)) return true;
+    if (SKILL_SYSTEM_NAMES.has(n)) return !(options.suppressRunSkill && n === "run_skill");
+    if (isAgentToolName(n)) return selectedAgents.has(n);
+    return false;
+  });
 }

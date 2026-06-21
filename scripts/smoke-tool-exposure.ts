@@ -23,6 +23,8 @@ const allNames = [
   "read_skill_file",
   "run_skill_script",
   "run_skill",
+  "agent__coder",
+  "agent__summarizer",
   "list_apps",
   "get_app_state",
   "click",
@@ -67,7 +69,38 @@ assert.deepEqual(
     "run_skill_script",
     "run_skill",
   ],
-  "default chat exposes brokers and skill-system tools, not raw grouped or external MCP tools",
+  "default chat exposes brokers and skill-system tools, not raw grouped, external MCP, or subagent tools",
+);
+
+assert.deepEqual(
+  resolveActiveToolNames(allNames, { route: "chat", agentTools: ["agent__coder"] }),
+  [
+    "files_run",
+    "memory_run",
+    "tasks_run",
+    "context_run",
+    "read_skill",
+    "read_skill_file",
+    "run_skill_script",
+    "run_skill",
+    "agent__coder",
+  ],
+  "chat exposes only the selected subagent tools for this turn",
+);
+
+assert.deepEqual(
+  resolveActiveToolNames(allNames, { route: "chat", agentTools: ["agent__coder"], suppressRunSkill: true }),
+  [
+    "files_run",
+    "memory_run",
+    "tasks_run",
+    "context_run",
+    "read_skill",
+    "read_skill_file",
+    "run_skill_script",
+    "agent__coder",
+  ],
+  "agent-delegation turns suppress run_skill so agents are not called through the skill runner",
 );
 
 assert.deepEqual(

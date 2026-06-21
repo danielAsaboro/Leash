@@ -73,7 +73,7 @@ export function fileFinderCommandForTask(task: string): string | null {
     "printf 'matching files by path:\\n'",
     `find . \\( ${PRUNE} \\) -prune -o -type f \\( ${pathPredicates} \\) -print | head -40`,
     "printf '\\nmatching lines by content:\\n'",
-    `{ grep -RInE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude-dir=dist --exclude-dir=build --exclude-dir=data --exclude-dir=logs ${quoted} . | head -80; } || true`,
+    `{ grep -RnE --exclude-dir=node_modules --exclude-dir=.git --exclude-dir=.next --exclude-dir=dist --exclude-dir=build --exclude-dir=data --exclude-dir=logs ${quoted} . | head -80; } || true`,
   ].join(" && ");
 }
 

@@ -1,0 +1,210 @@
+---
+title: "Multi-agent context harness"
+description: "The real chat-path optimisation work for progressive agent disclosure, subagent context packets, compaction, and live multi-orchestration evidence."
+sidebarTitle: "Multi-agent context harness"
+---
+
+This page records the optimisation pass that turned Leash's specialist agents from "available tools in a big prompt" into a bounded orchestration path:
+
+1. Leash remains the orchestrator.
+2. Subagents receive their own context-managed handoff.
+3. Leash synthesizes after the worker returns.
+4. The normal `/api/leash/chat` path proves the behavior over multiple turns.
+
+The important distinction: the goal was not merely to prove `agent__coder` can be called. The goal was to prove a long chat can progressively disclose tools and agents, compact parent context, hand a bounded packet to each worker, record the handoff, and still return to Leash for the final user-facing answer.
+
+## What triggered this pass
+
+The original failure mode was tool and agent exposure pressure in a long chat:
+
+| Problem | Why it mattered |
+| --- | --- |
+| All subagents could be exposed too early. | Tool schemas compete with the prompt budget and can push `qwen3-4b` into bad continuation behavior. |
+| Explicit agent requests could be swallowed by a skill lane or conductor direct answer. | Asking for Grace or Bree should expose that specific agent, not route through `run_skill` or a classifier answer. |
+| A direct subagent shortcut was wrong. | Leash is the orchestrator; workers should not bypass Leash's final synthesis. |
+| Subagents did not receive the same context discipline as parent turns. | They had their body, skills, memory, and raw task, but not a bounded parent run capsule. |
+| Live evidence was too weak. | Unit smokes can pass while the real chat API still loops, times out, or misses compaction. |
+
+## Design conclusion
+
+The harness follows an orchestrator-worker shape:
+
+| Layer | Responsibility |
+| --- | --- |
+| Leash parent turn | Route the user turn, compact the chat, select available tools and delegates, call a worker only when useful, then synthesize. |
+| Agent disclosure planner | Decide which agent tools are visible this turn. Explicit names such as Grace/Bree outrank automatic skill lanes. |
+| Subagent context packet | Give the worker a bounded task, parent run capsule, compacted summary, latest user turn, memory digest, and selected subagent tool list. |
+| Goal-run ledger | Record the parent step and each delegated agent step with `contextCapsule` and `contextTokensEstimate`. |
+| Live showcase | Drive the real `/api/leash/chat` endpoint over many turns and assert brokers, agents, compaction, and durable packets. |
+
+The direct-delegate shortcut was removed. It made the worker answer the user too directly and violated the architecture: Leash has to do the final answer.
+
+For an explicitly named single delegate, the parent loop is deterministic without bypassing Leash:
+
+1. Step 0 forces the selected `agent__*` tool through AI SDK `prepareStep`.
+2. The worker runs with its own bounded context and step budget.
+3. The next parent step keeps a non-empty schema set for QVAC dynamic-tools compatibility but sets `toolChoice: "none"`.
+4. Leash synthesizes the worker result into the final user-facing answer.
+
+Both the parent delegation turn and worker context use `/no_think`. The worker output is capped at 500 tokens, while the parent agent turn is capped at 3-4 steps and 700-900 output tokens. These controls remove unnecessary deliberation without replacing Leash's synthesis responsibility.
+
+## Code changes
+
+| Area | Files |
+| --- | --- |
+| Progressive agent disclosure | `apps/web/lib/leash/agent-disclosure.ts`, `apps/web/lib/leash/agent-keys.ts`, `apps/web/lib/leash/tool-exposure.ts`, `apps/web/app/api/leash/chat/route.ts` |
+| Subagent context packets | `apps/web/lib/leash/agent-context.ts`, `apps/web/lib/leash/prompt.ts`, `apps/web/lib/leash/agent-runner.ts` |
+| Route and ledger propagation | `apps/web/app/api/leash/chat/route.ts`, `apps/web/lib/leash/agent-runner.ts` |
+| Explicit-agent loop control | `apps/web/lib/leash/agent.ts`, `apps/web/app/api/leash/chat/route.ts` |
+| Compound route guard | `apps/web/lib/leash/compound-route.ts` |
+| Live showcase | `scripts/showcase-multiorchestration-chat.ts`, `scripts/smoke-showcase-conversation.ts` |
+| Focused smokes | `scripts/smoke-agent-disclosure.ts`, `scripts/smoke-agent-delegate-context.ts`, `scripts/smoke-compound-route.ts`, `scripts/smoke-effort-cooldown.ts` |
+| Package scripts | `package.json` |
+
+## Progressive disclosure
+
+The agent disclosure planner now decides per turn:
+
+| Turn shape | Result |
+| --- | --- |
+| `ask Grace`, `coder subagent`, coding specialist | Expose only `agent__coder`. |
+| `Bree summarize...`, summarizer subagent | Expose only `agent__summarizer`. |
+| High-confidence coding/summarization semantics | Expose one matching agent. |
+| Active skill lane without explicit agent intent | Keep the skill lane; no agent flood. |
+| Explicit agent intent while a skill is active | Explicit agent wins; `run_skill` is suppressed for that turn. |
+
+The route also checks explicit agent intent before deterministic direct answers and conductor direct-answer exits. That fixed the live failure where the Bree turn was classified as a direct/classifier answer and never exposed `agent__summarizer`.
+
+## Subagent context packet
+
+Each agent tool execution now builds a packet before the worker starts. The packet includes:
+
+| Field | Purpose |
+| --- | --- |
+| Agent identity | Which worker is being called. |
+| Delegated task | The exact self-contained subtask. |
+| Parent run capsule | A bounded `buildContextCapsule(...)` view of the current goal run. |
+| Compacted conversation summary | Parent chat summary when compaction has happened. |
+| Latest user turn | The immediate user instruction that caused delegation. |
+| Agent memory digest | Optional worker-specific memory context. |
+| Selected subagent tools | Explicit list, including `none` when no executable tools are exposed. |
+| Token estimate | Stored with the goal-run step for auditability. |
+
+The prompt wrapper says the worker should use only the bounded packet, complete only the delegated task, and return a compact result. It also states that Leash remains responsible for final synthesis.
+
+## Live harness
+
+The strict showcase script drives the normal chat API:
+
+```bash
+LEASH_SHOWCASE_FILLER_TURNS=2 \
+LEASH_SHOWCASE_EXPECT_COMPACTION=1 \
+LEASH_SHOWCASE_TURN_TIMEOUT_MS=300000 \
+npm run showcase:multiorchestration-chat
+```
+
+The run sequence covers:
+
+| Turn | Expected evidence |
+| --- | --- |
+| Opening marker | Normal chat/direct continuity marker. |
+| Context broker | `context_run`. |
+| Memory broker | `memory_run`. |
+| Tasks broker | `tasks_run`. |
+| Grace | `agent__coder` plus durable agent context packet. |
+| Bree | `agent__summarizer` plus durable agent context packet. |
+| Continuity marker turns | Small deterministic markers create context pressure without making a 4B model decode giant synthetic blocks. |
+| Final continuity check | The conversation survives compaction and reports orchestration evidence. |
+
+The harness also supports a real-path focused probe without replaying every turn:
+
+```bash
+LEASH_SHOWCASE_ONLY_SCENARIO=grace-coder-agent \
+npm run showcase:multiorchestration-chat
+```
+
+The report reads the real active-user Leash data directory, not just `mycelium/data`, because the web launcher scopes chat and goal-run records under the active user. The verified run wrote to:
+
+`/Users/cartel/Leash/codex-gauntlet-086ab14b/data/...`
+
+## Verified run
+
+Strict live pass:
+
+`logs/showcase-multiorchestration-chat-mqntgy35.json`
+
+| Metric | Result |
+| --- | --- |
+| Status | `PASS` |
+| Chat id | `codex-multiorch-showcase-mqntgy35` |
+| Tools observed | `agent__coder`, `agent__summarizer`, `context_run`, `memory_run`, `tasks_run` |
+| Agents observed | `agent__coder`, `agent__summarizer` |
+| Stored messages | 18 |
+| Compaction | `summarizedThrough: 11`, `summaryChars: 612` |
+| Grace packet | 1,464 chars, about 366 tokens; delegated task, parent capsule, latest turn, selected tools |
+| Bree packet | 1,635 chars, about 409 tokens; delegated task, parent capsule, latest turn, selected tools |
+| Grace turn | 74,750 ms, including worker execution and Leash synthesis |
+| Bree turn | 127,479 ms, including compaction, worker execution, and Leash synthesis |
+
+The report proves that both subagents had managed context and that Leash synthesized after worker output. A focused post-fix Grace probe also passed in 69,737 ms; the pre-fix failure consumed 409,159 ms and did not complete the full showcase.
+
+## Service startup notes
+
+The reliable live startup sequence was:
+
+```bash
+LEASH_CHAT_CTX=900 \
+LEASH_COMPACT_FRACTION=0.35 \
+LEASH_AGENT_CONTEXT_CHARS=4500 \
+npm run web:dev
+```
+
+Then, in a second terminal:
+
+```bash
+npx qvac serve openai \
+  --config ./qvac.config.gauntlet.mjs \
+  --port 11435 \
+  --model qwen3-4b \
+  --model embed \
+  --model classifier
+```
+
+The gauntlet config preloads only the three aliases used by this path. Verify `/v1/models` before starting the harness; a listening server with an empty model inventory is not ready. A stale Bare-worker lock was automatically removed during the verified startup before all three models loaded successfully.
+
+## Bugs found by the live path
+
+| Failure | Root cause | Fix |
+| --- | --- | --- |
+| Bree did not call `agent__summarizer`. | Explicit agent intent could be swallowed by conductor/direct-answer layers before tools were assembled. | Detect explicit agent intent early and bypass those exits. |
+| Broker turns returned broker-looking text but no tool evidence. | Late broker fast-path goal-run step kept `model: qwen3-4b`. | Update the step model to `context_run`, `memory_run`, or `tasks_run`. |
+| Showcase could not see agent context packets. | It read `mycelium/data/leash-goal-runs.json`, but the running web app wrote to active-user scoped data. | Resolve the active Leash user data dir in the showcase. |
+| Subagent packets lacked a selected-tool line when no tools were available. | Empty tool lists were omitted. | Record `Selected subagent tools: none`. |
+| Long turns could produce repeated effort-classifier stack traces if embeddings returned 500. | Optional effort classification retried and logged on every long turn. | Add an effort-classification cooldown and fallback to `standard`. |
+| Explicit agent turns took 409 seconds and could enter another tool continuation. | The 4B parent spent tokens deciding whether to call an explicitly requested worker, the worker could over-deliberate, and synthesis still allowed tools. | Force the named agent on parent step 0, run parent and worker `/no_think`, cap worker output, then set parent `toolChoice: "none"` for Leash synthesis. |
+| Giant synthetic filler blocks made compaction tests decode-bound. | The test increased model generation cost while trying to increase stored context. | Use short numbered continuity markers and a 900-token test context window. |
+
+## Regression commands
+
+Focused checks:
+
+```bash
+npx tsx scripts/smoke-agent-disclosure.ts
+npx tsx scripts/smoke-agent-delegate-context.ts
+npx tsx scripts/smoke-compound-route.ts
+npx tsx scripts/smoke-effort-cooldown.ts
+npx tsx scripts/smoke-showcase-conversation.ts
+npx tsc --noEmit -p apps/web/tsconfig.json
+git diff --check
+```
+
+Full product-path check:
+
+```bash
+LEASH_SHOWCASE_FILLER_TURNS=2 \
+LEASH_SHOWCASE_EXPECT_COMPACTION=1 \
+LEASH_SHOWCASE_TURN_TIMEOUT_MS=300000 \
+npm run showcase:multiorchestration-chat
+```
+
+The full check is intentionally slow. It is not a mock. It authenticates against the running web app, calls `/api/leash/chat`, uses QVAC models through the local OpenAI-compatible serve, stores chat records, writes goal-run records, and checks the JSON report.

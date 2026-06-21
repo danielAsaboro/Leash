@@ -54,6 +54,12 @@ export const leashCallOptionsSchema = z.object({
    * route branch. Empty = use the route default. Never applied on the tool-less vision route.
    */
   skillTools: z.array(z.string()).optional(),
+  /** Subagent tool names selected by the per-turn disclosure planner. Empty/absent = no subagents. */
+  agentTools: z.array(z.string()).optional(),
+  /** Explicitly named single delegate: force this tool on step 0, then reserve step 1 for Leash synthesis. */
+  forcedAgentTool: z.string().optional(),
+  /** Hide run_skill on agent-delegation turns so agents are called through first-class agent tools. */
+  suppressRunSkill: z.boolean().optional(),
   /** Quick/plain turns keep one sentinel schema instead of the full registry. */
   leanTools: z.boolean().optional(),
   /**
@@ -121,6 +127,7 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
   // the base or the model loses its whole prompt mid-loop). One agent per request ⇒ no cross-request bleed.
   let currentSystem = "";
   let currentRoute: LeashCallOptions["route"] = "chat";
+  let currentForcedAgentTool: string | undefined;
   return new ToolLoopAgent<LeashCallOptions, ToolSet>({
     model: chatModel(), // default; prepareCall overrides per route
     tools,
@@ -135,6 +142,7 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
       debugActiveTools(options.route, activeTools);
       currentSystem = options.system;
       currentRoute = options.route;
+      currentForcedAgentTool = options.forcedAgentTool;
       return {
         ...settings,
         // For text routes, prefer the Conductor's pre-built routedChatModel (peer directive)
@@ -155,6 +163,11 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
     // (the original system already carries the goal) and on vision (single-shot, no loop). Returning
     // `system` here OVERRIDES it for the step, so we re-include `currentSystem` + the nudge.
     prepareStep: ({ stepNumber, steps }) => {
+      if (currentForcedAgentTool) {
+        if (stepNumber === 0) return { toolChoice: { type: "tool", toolName: currentForcedAgentTool } };
+        const system = continuationOn() ? `${currentSystem} ${buildContinuationNudge(steps)}` : currentSystem;
+        return { toolChoice: "none", system };
+      }
       if (stepNumber < 1 || currentRoute === "vision" || !continuationOn()) return {};
       loopLog(`nudge-injected step=${stepNumber}`); // visible only with LEASH_DEBUG_LOOP — proves the override fired
       return { system: `${currentSystem} ${buildContinuationNudge(steps)}` };

@@ -255,6 +255,7 @@
               "optimization/deterministic-fast-paths",
               "optimization/chat-api-resilience",
               "optimization/long-chat-stress",
+              "optimization/multi-agent-context-harness",
               "optimization/inference-runtime",
               "optimization/mesh-delegation",
               "optimization/models-memory-mobile",

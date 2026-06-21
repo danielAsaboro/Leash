@@ -28,13 +28,23 @@ import type { Agent } from "./agents-store.ts";
 import { mcpToolNamesForServers, connectInline } from "./mcp.ts";
 import { grantedNames } from "./agent-grants.ts";
 import { readMemoryContext, agentMemoryTools } from "./agent-memory.ts";
-import { buildAgentFallbackInstructions } from "./prompt.ts";
+import { buildAgentDelegateContextPrompt, buildAgentFallbackInstructions } from "./prompt.ts";
+import { buildAgentDelegateContextPacket } from "./agent-context.ts";
 import { enforceToolPolicy, filterToolNamesForContext } from "@mycelium/leash-core/tool-policy";
+import { buildContextCapsule } from "@mycelium/leash-core/context-capsule";
+import { getGoalRun, recordGoalRunModelTrace, startGoalRunStep, updateGoalRunStep } from "@mycelium/leash-core/goal-runs";
+import { agentToolKey } from "./agent-keys.ts";
 
 /** Max agent tools emitted at once — each is one schema; cap keeps the active toolset under budget. */
 const AGENT_TOOLS_CAP = 8;
 /** Orchestration tools a sub-agent can never reach (no agent/skill nesting). */
 const NO_NEST = new Set(["run_skill", "submit_plan"]);
+
+export interface AgentToolRuntimeContext {
+  getGoalRunId?: () => string | undefined;
+  getCurrentUserTurn?: () => string | undefined;
+  getSummarySection?: () => string | undefined;
+}
 
 /**
  * Toolless-hang guard (mirrors the main chat route): the qvac serve runs qwen3-4b with
@@ -49,11 +59,6 @@ const KEEPALIVE_TOOLS: ToolSet = {
     execute: async ({ note }) => ({ noted: note }),
   }),
 };
-
-/** The AI-SDK-safe tool key for an agent (its `<plugin>:<name>` slug can't contain `:`). */
-export function agentToolKey(slug: string): string {
-  return `agent__${slug.replace(/:/g, "__")}`;
-}
 
 /** Resolve a sub-agent's toolset: declared tools that exist, aren't disabled / denied / approval-gated / nesting. */
 async function agentTools(agent: Agent, registry: ToolSet): Promise<{ tools: ToolSet; names: string[] }> {
@@ -99,10 +104,23 @@ function finalText(message: UIMessage | undefined): string {
   return "";
 }
 
+async function parentContextCapsule(input: { goalRunId?: string; task: string; currentUserTurn?: string; summarySection?: string; agentName: string }): Promise<{ text: string; tokenEstimate: number; truncated: boolean; includedStepIds: string[]; artifactIds: string[] }> {
+  if (!input.goalRunId) return { text: "", tokenEstimate: 0, truncated: false, includedStepIds: [], artifactIds: [] };
+  const run = await getGoalRun(input.goalRunId);
+  if (!run) return { text: "", tokenEstimate: 0, truncated: false, includedStepIds: [], artifactIds: [] };
+  return buildContextCapsule({
+    run,
+    currentStep: `Delegate a focused sub-task to ${input.agentName}; Leash will synthesize the final user answer.`,
+    relevantContext: [input.task, input.currentUserTurn, input.summarySection].filter((s): s is string => !!s),
+    maxChars: 3800,
+  });
+}
+
 /** Build one callable sub-agent tool — a streaming `ToolLoopAgent` behind a `tool()` (the AI SDK subagent pattern). */
-function buildOne(agent: Agent, registry: ToolSet): ToolSet {
+function buildOne(agent: Agent, registry: ToolSet, runtime: AgentToolRuntimeContext = {}): ToolSet {
+  const toolKey = agentToolKey(agent.slug);
   return {
-    [agentToolKey(agent.slug)]: tool({
+    [toolKey]: tool({
       description:
         `Delegate a sub-task to the "${agent.name}" agent (${agent.slug}). ${agent.description || "A focused sub-agent."} ` +
         `It runs autonomously in its own context with its own tools and returns the result. Pass a clear, self-contained task.`,
@@ -113,6 +131,10 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
       execute: async function* ({ task }) {
         const { tools, names } = await agentTools(agent, registry);
         const skillCtx = await preloadSkills(agent);
+        const goalRunId = runtime.getGoalRunId?.();
+        const startedAt = Date.now();
+        let ledgerStepId: string | undefined;
+        let lastMessage: UIMessage | undefined;
         // Initialize inline with safe defaults before the try — guaranteed close() in finally.
         let inline: { tools: ToolSet; close: () => Promise<void> } = { tools: {}, close: async () => {} };
         try {
@@ -124,24 +146,67 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
           // Merge declared tools + inline MCP tools + memory tools; apply toolless-hang guard to the merged set.
           const merged: ToolSet = enforceToolPolicy({ ...(names.length ? tools : {}), ...inline.tools, ...memTools }, { route: "agent", subagent: true });
           const runTools = Object.keys(merged).length ? merged : KEEPALIVE_TOOLS;
+          const parentCapsule = await parentContextCapsule({
+            goalRunId,
+            task,
+            currentUserTurn: runtime.getCurrentUserTurn?.(),
+            summarySection: runtime.getSummarySection?.(),
+            agentName: agent.name,
+          });
+          const packet = buildAgentDelegateContextPacket({
+            agent: { slug: agent.slug, name: agent.name, description: agent.description },
+            task,
+            parentContextCapsule: parentCapsule.text,
+            summarySection: runtime.getSummarySection?.(),
+            currentUserTurn: runtime.getCurrentUserTurn?.(),
+            selectedTools: Object.keys(merged),
+            memoryContext: memCtx,
+            maxChars: Number(process.env["LEASH_AGENT_CONTEXT_CHARS"] ?? 5000),
+          });
+          if (goalRunId) {
+            const step = await startGoalRunStep(goalRunId, {
+              title: `Delegate to ${agent.name}`,
+              route: "agent",
+              model: toolKey,
+              contextCapsule: packet.text,
+              contextTokensEstimate: packet.tokenEstimate,
+            });
+            ledgerStepId = step.id;
+          }
           loopLog(`agent ${agent.slug}: ${task.slice(0, 60)} (${Object.keys(runTools).length} tool(s), ${agent.skills.length} skill(s), ${agent.mcpServers.inline.length} inline mcp)`);
           // The subagent is a ToolLoopAgent — same primitive as the main chat agent — with an isolated context.
           // QVAC wedge rule: maxRetries 0 and NEVER an abortSignal (an aborted decode wedges the serve).
+          const delegatePrompt = buildAgentDelegateContextPrompt(packet);
           const sub = new ToolLoopAgent({
             model: chatModel(`agent:${agent.slug}`, agent.model || undefined),
-            instructions: (agent.body || buildAgentFallbackInstructions(agent.name)) + skillCtx + memCtx,
+            instructions: [(agent.body || buildAgentFallbackInstructions(agent.name)), skillCtx, delegatePrompt].filter(Boolean).join("\n\n"),
             temperature: 0.6,
             topP: 0.95,
+            maxOutputTokens: 500,
             maxRetries: 0,
             tools: runTools,
             stopWhen: stepCountIs(agent.maxTurns),
           });
           const result = await sub.stream({ prompt: task });
           for await (const message of readUIMessageStream({ stream: result.toUIMessageStream() })) {
+            lastMessage = message;
             yield message;
+          }
+          const out = finalText(lastMessage) || `(the ${agent.slug} agent returned no text)`;
+          if (goalRunId && ledgerStepId) {
+            await updateGoalRunStep(goalRunId, ledgerStepId, { status: "done", summary: out });
+            await recordGoalRunModelTrace(goalRunId, {
+              stepId: ledgerStepId,
+              model: agent.model || "qwen3-4b",
+              alias: toolKey,
+              startedAt,
+              finishedAt: Date.now(),
+              contextTokensEstimate: packet.tokenEstimate,
+            });
           }
         } catch (e) {
           // Surface a UIMessage-shaped error so the tool output stays one consistent type.
+          if (goalRunId && ledgerStepId) await updateGoalRunStep(goalRunId, ledgerStepId, { status: "failed", error: e instanceof Error ? e.message : String(e) });
           yield { id: `agent-err-${agent.slug}`, role: "assistant", parts: [{ type: "text", text: `The "${agent.slug}" agent failed: ${e instanceof Error ? e.message : String(e)}` }] } as UIMessage;
         } finally {
           // Always disconnect inline servers — even on error (scoped to this delegate, not the global registry).
@@ -158,12 +223,12 @@ function buildOne(agent: Agent, registry: ToolSet): ToolSet {
  * Build the sub-agent tools for the enabled agents (capped). Each delegates FROM the base registry
  * (no nesting on itself). Pass the result into the chat route's tool registry.
  */
-export function buildAgentTools(agents: Agent[], registry: ToolSet): ToolSet {
+export function buildAgentTools(agents: Agent[], registry: ToolSet, runtime: AgentToolRuntimeContext = {}): ToolSet {
   const capped = agents.slice(0, AGENT_TOOLS_CAP);
   if (agents.length > capped.length) {
     console.warn(`leash: ${agents.length} enabled agents (> cap ${AGENT_TOOLS_CAP}) — emitting the first ${capped.length}: dropped ${agents.slice(AGENT_TOOLS_CAP).map((a) => a.slug).join(", ")}`);
   }
   let out: ToolSet = {};
-  for (const agent of capped) out = { ...out, ...buildOne(agent, registry) };
+  for (const agent of capped) out = { ...out, ...buildOne(agent, registry, runtime) };
   return out;
 }

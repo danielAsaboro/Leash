@@ -22,12 +22,14 @@ import { COMPUTER_TOOL_NAMES, BASH_TOOL_NAMES } from "../../../../lib/leash/tool
 import { buildSkillRunner, runSkillAsPipeline } from "../../../../lib/leash/skill-runner.ts";
 import { buildAgentTools } from "../../../../lib/leash/agent-runner.ts";
 import { listAgents } from "../../../../lib/leash/agents-store.ts";
+import { planAgentDisclosure } from "../../../../lib/leash/agent-disclosure.ts";
 import { buildPlanTool, planDataSchema } from "../../../../lib/leash/plan-tools.ts";
 import { KEEPALIVE_TOOLS } from "../../../../lib/leash/keepalive-tool.ts";
 import { deriveLaneBudget } from "../../../../lib/leash/lane-budget.ts";
 import { runFileFinderFastPath, shouldRunFileFinderFastPath } from "../../../../lib/leash/file-finder-fast-path.ts";
 import { directBashCommandForSimpleTurn, runDirectBashCommand } from "../../../../lib/leash/bash-command-fast-path.ts";
 import { directBrokerCallForSimpleTurn, runDirectBrokerCall } from "../../../../lib/leash/broker-fast-path.ts";
+import { needsChatBrokerLane } from "../../../../lib/leash/compound-route.ts";
 import { directAnswerForSimpleTurn, directAnswerForSkillMetadataTurn, localInferenceUnavailableAnswer } from "../../../../lib/leash/direct-answer.ts";
 import { directHealthSafetyCallForSimpleTurn, runDirectHealthSafetyCall } from "../../../../lib/leash/health-fast-path.ts";
 import { buildCapabilityBrokers } from "../../../../lib/leash/tool-brokers.ts";
@@ -76,6 +78,7 @@ import {
   CHAT_PLAN_MODE_NOTE,
   CHAT_THINKING_NOTE,
   NO_THINK_DIRECTIVE,
+  buildAgentDisclosurePrompt,
   buildDisabledToolsNote,
   buildGoalsSection,
   buildPreferenceSection,
@@ -509,7 +512,10 @@ export async function POST(req: Request): Promise<Response> {
   const conductorText = lastUserText(messages);
   const requestedComputer = isComputerIntent(messages);
   const conductorBypass = conductorBypassReason({ messages, plan });
-  const directAnswer = !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSimpleTurn(conductorText) : null;
+  const enabledAgents = (await listAgents()).filter((a) => a.enabled);
+  const earlyAgentDisclosure = planAgentDisclosure(conductorText, enabledAgents);
+  const explicitAgentIntent = earlyAgentDisclosure.mode === "explicit";
+  const directAnswer = !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSimpleTurn(conductorText) : null;
   if (directAnswer) {
     return streamConductorAnswer({
       chatId: id,
@@ -519,7 +525,7 @@ export async function POST(req: Request): Promise<Response> {
       reason: "deterministic direct answer",
     });
   }
-  const directSkillMetadataAnswer = !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSkillMetadataTurn(conductorText) : null;
+  const directSkillMetadataAnswer = !explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer ? directAnswerForSkillMetadataTurn(conductorText) : null;
   if (directSkillMetadataAnswer) {
     return streamConductorAnswer({
       chatId: id,
@@ -529,7 +535,7 @@ export async function POST(req: Request): Promise<Response> {
       reason: "deterministic skill metadata answer",
     });
   }
-  if (!conductorBypass && !chosenModel && !requestedComputer && conductorText.trim()) {
+  if (!explicitAgentIntent && !conductorBypass && !chosenModel && !requestedComputer && conductorText.trim()) {
     const directBashCommand = directBashCommandForSimpleTurn(conductorText);
     if (directBashCommand) {
       return streamEarlyDeterministicToolTurn({
@@ -627,7 +633,7 @@ export async function POST(req: Request): Promise<Response> {
     const explicitModelOverride = isExplicitModelOverride(chosenModel, conductorResult);
     forcedModelAlias = explicitModelOverride ? chosenModel : undefined;
     if (conductorResult.decision.action === "answer") {
-      if (!explicitModelOverride && !requestedComputer) {
+      if (!explicitAgentIntent && !explicitModelOverride && !requestedComputer) {
         recordConductorTurnDecision(conductorResult, true);
         return streamConductorAnswer({
           chatId: id,
@@ -659,6 +665,8 @@ export async function POST(req: Request): Promise<Response> {
   const planStream: { writer?: { write: (part: unknown) => void } } = {};
   let planTask = "";
   let activeModelForRun = "";
+  let agentRuntimeCurrentUserTurn = "";
+  let agentRuntimeSummarySection = "";
   // The plan pipeline halts BETWEEN steps when the client stopped (`req.signal`) OR a follow-up is
   // waiting to interject — this gate decides whether the NEXT step launches. An in-flight decode is
   // now also cancelled on `req.signal` via the agent's abortSignal (safe on the current 0.13.x SDK line); interject still
@@ -675,7 +683,18 @@ export async function POST(req: Request): Promise<Response> {
   // `run_skill` delegates a sub-task to another skill as a sub-agent (multi-skill orchestration —
   // see skill-runner.ts). It delegates FROM the base registry (no nesting on itself). Plugin agents
   // each become their own callable sub-agent tool (agent-runner.ts) — enabled-plugin-only, capped.
-  const tools = { ...baseTools, ...baseBrokers, ...buildSkillRunner(baseTools), ...buildAgentTools((await listAgents()).filter((a) => a.enabled), baseTools), ...planTool, ...KEEPALIVE_TOOLS };
+  const tools = {
+    ...baseTools,
+    ...baseBrokers,
+    ...buildSkillRunner(baseTools),
+    ...buildAgentTools(enabledAgents, baseTools, {
+      getGoalRunId: () => goalRunId,
+      getCurrentUserTurn: () => agentRuntimeCurrentUserTurn,
+      getSummarySection: () => agentRuntimeSummarySection,
+    }),
+    ...planTool,
+    ...KEEPALIVE_TOOLS,
+  };
 
   // Validate stored+new messages against current tool/metadata schemas; fall back to raw on drift.
   let validated: LeashUIMessage[] = messages;
@@ -685,7 +704,7 @@ export async function POST(req: Request): Promise<Response> {
       messages,
       tools: tools as any,
       metadataSchema,
-      dataSchemas: { skill: skillDataSchema, plan: planDataSchema, conductor: conductorDataSchema, goalRun: goalRunDataSchema },
+      dataSchemas: { skill: skillDataSchema, plan: planDataSchema, conductor: conductorDataSchema, goalRun: goalRunDataSchema } as any,
     })) as LeashUIMessage[];
   } catch (err) {
     console.error("leash: UI message validation failed, using raw history:", err);
@@ -705,7 +724,7 @@ export async function POST(req: Request): Promise<Response> {
   const computerEnabled = [...COMPUTER_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
   // Files (sandboxed retrieval) takes precedence over computer for read/search intents.
   const filesEnabled = [...BASH_TOOL_NAMES].some((name) => available.has(name) && !off.has(name));
-  const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated);
+  const filesTurn = !imageTurn && filesEnabled && isFilesIntent(validated) && !needsChatBrokerLane(lastUserText(validated));
   const computerTurn = !imageTurn && !filesTurn && computerEnabled && isComputerIntent(validated);
   // The model actually driving this turn (for telemetry) — chat uses the user-chosen alias, else the
   // configured default; not a hardcoded last-resort alias.
@@ -840,11 +859,12 @@ export async function POST(req: Request): Promise<Response> {
   // Image turns are unchanged (the VLM handles one image-grounded turn, no tools/no /no_think).
   const tier = imageTurn ? null : (conductorEffortTier ?? (await classifyEffort(lastUserText(validated))));
   const cfg = tier ? effortConfig(tier, !!voice) : null;
-  const useNoThink = !!cfg?.noThink;
+  const effortNoThink = !!cfg?.noThink;
 
   // Prompts come from the store (dashboard override ?? code default; mtime-cached reads),
   // plus the skills section ("" when no skills — honest empty state).
   const lastText = lastUserText(validated);
+  agentRuntimeCurrentUserTurn = lastText;
   planTask = lastText; // the overall task each approved plan step is executed against
   const [systemPrompt, healthPrompt, skillsSection, activeSkills, prefs, constitution] = await Promise.all([
     getPrompt("chat", base.body),
@@ -867,6 +887,12 @@ export async function POST(req: Request): Promise<Response> {
   // Progressive tool disclosure: an active skill's declared `tools:` become the EXACT
   // toolset for this turn (agent.ts honors `skillTools`, overriding the route default).
   const declaredSkillTools = activeSkills?.tools ?? [];
+  const agentDisclosure = planAgentDisclosure(lastText, enabledAgents, { activeSkillTools: declaredSkillTools });
+  const selectedAgentTools = agentDisclosure.selected.map((agent) => agent.toolName);
+  const agentTurn = selectedAgentTools.length > 0;
+  const useNoThink = effortNoThink || agentTurn;
+  const agentOverridesSkillLane = agentDisclosure.mode === "explicit";
+  const effectiveDeclaredSkillTools = agentOverridesSkillLane ? [] : declaredSkillTools;
   // `preference` memories steer behavior on EVERY turn (other memory types are
   // retrieval-only via recall/search_graph). Bounded: newest 20.
   const prefSection = buildPreferenceSection(prefs);
@@ -908,6 +934,7 @@ export async function POST(req: Request): Promise<Response> {
   // Plan mode: the model's ONE job is to draft a plan via submit_plan; the user approves it and the
   // harness runs each step. After the steps run, present their combined result as your final answer.
   const planNote = planMode ? CHAT_PLAN_MODE_NOTE : "";
+  const agentDisclosureNote = buildAgentDisclosurePrompt(agentDisclosure.selected);
   // Inline citations (graceful): when grounding an answer in retrieved sources, the model MAY tag
   // facts with [1], [2], … numbered in the order it first used them — the UI turns valid markers into
   // source pills. Optional, so it never forces behavior on a turn with no sources.
@@ -932,10 +959,11 @@ export async function POST(req: Request): Promise<Response> {
     if (c.tailFrom > 0 && c.tailFrom < validated.length) modelMessages = validated.slice(c.tailFrom);
     if (c.summary) summarySection = buildSummarySection(c.summary, c.tailFrom);
   }
+  agentRuntimeSummarySection = summarySection;
 
   // On voice turns (non-image), append the spoken-output directive so the model answers in short,
   // markdown-free prose — Supertonic reads raw markdown literally. Text and image turns are unchanged.
-  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
+  const system = [baseSystem, healthPrompt, summarySection, soulSection, goalsSection, prefSection, activeSkills?.section ?? "", availableSkillsSection, agentDisclosureNote, computerNote, filesNote, disabledNote, approvalNote, thinkingNote, citeNote, planNote, voice && !imageTurn ? await getPrompt("voice") : "", useNoThink ? NO_THINK_DIRECTIVE : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -948,13 +976,14 @@ export async function POST(req: Request): Promise<Response> {
   // the 4B does one atomic sub-task per step and can't drop a dependent step (verified 2026-06-12:
   // pipeline 3/3 vs free-run ~1/3 on a dependent chain). The pipeline uses the skill's own declared
   // tools (approval-gated ones are skipped, like run_skill). Text turns only; image turns never match here.
-  const pipeline = !imageTurn && !planMode ? activeSkills?.pipeline ?? null : null;
+  const pipeline = !imageTurn && !planMode && !agentOverridesSkillLane ? activeSkills?.pipeline ?? null : null;
   const callRoute: LeashCallOptions["route"] = imageTurn ? "vision" : filesTurn ? "files" : computerTurn ? "computer" : healthTurn ? "health" : "chat";
   const runRoute: ToolRoute = pipeline ? "skill" : planMode ? "plan" : callRoute;
   const directFileFinder =
     !imageTurn &&
     !planMode &&
     !pipeline &&
+    !agentOverridesSkillLane &&
     activeSkills?.skills.some((s) => s.slug === "file-finder") === true &&
     shouldRunFileFinderFastPath(lastText) &&
     typeof (enabledTools as Record<string, unknown>)["bash"] === "object";
@@ -1094,16 +1123,20 @@ export async function POST(req: Request): Promise<Response> {
   // mid-decode cancel; the current 0.13.x SDK line cancels safely (spike/abort-safety-inproc.ts), so it
   // is now re-enabled. The partial answer still persists: `createUIMessageStream`'s
   // onFinish fires on abort with the streamed-so-far messages → `saveChat`.
-  const laneBudget = deriveLaneBudget({ imageTurn, planMode, filesTurn, computerTurn, declaredSkillTools, cfg });
+  const laneBudget = deriveLaneBudget({ imageTurn, planMode, filesTurn, computerTurn, declaredSkillTools: effectiveDeclaredSkillTools, cfg });
+  const callSteps = agentTurn && laneBudget.steps !== null ? Math.min(Math.max(laneBudget.steps, 3), 4) : laneBudget.steps;
+  const callMaxOutputTokens = agentTurn && laneBudget.maxOutputTokens !== null ? Math.min(Math.max(laneBudget.maxOutputTokens, 700), 900) : laneBudget.maxOutputTokens;
   const callOptions: LeashCallOptions = {
     route: callRoute,
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
     // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.
-    steps: laneBudget.steps,
-    maxOutputTokens: laneBudget.maxOutputTokens,
-    ...(declaredSkillTools.length ? { skillTools: declaredSkillTools } : {}),
-    ...(laneBudget.leanTools && callRoute === "chat" ? { leanTools: true } : {}),
+    steps: callSteps,
+    maxOutputTokens: callMaxOutputTokens,
+    ...(effectiveDeclaredSkillTools.length ? { skillTools: effectiveDeclaredSkillTools } : {}),
+    ...(selectedAgentTools.length ? { agentTools: selectedAgentTools, suppressRunSkill: agentDisclosure.suppressRunSkill } : {}),
+    ...(agentDisclosure.mode === "explicit" && selectedAgentTools.length === 1 ? { forcedAgentTool: selectedAgentTools[0] } : {}),
+    ...(laneBudget.leanTools && callRoute === "chat" && !agentTurn ? { leanTools: true } : {}),
     // Thinking ON ⇒ Qwen3 thinking-mode sampling; /no_think ⇒ non-thinking sampling (agent.ts).
     thinking: !imageTurn && !useNoThink,
     // Text-route model alias chosen by the conductor or explicit picker.
@@ -1150,7 +1183,7 @@ export async function POST(req: Request): Promise<Response> {
           const out = await runDirectBrokerCall(directBrokerCall, policyTools as ToolSet);
           if (out === null) throw new Error(`${directBrokerCall.broker} unavailable`);
           text = out || "(no output)";
-          await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", summary: text.slice(0, 1200) });
+          await updateGoalRunStep(goalRunId, mainStep.id, { status: "done", model: directBrokerCall.broker, summary: text.slice(0, 1200) });
           await finishGoalRun(goalRunId, "completed", text);
         } catch (e) {
           text = `The broker fast path failed: ${e instanceof Error ? e.message : String(e)}`;
