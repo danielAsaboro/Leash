@@ -89,10 +89,9 @@ import { listMemories, type Memory } from "./memories";
 import { addNotification, unreadCount } from "./notifications";
 import * as Device from "expo-device";
 import { AppState, Keyboard } from "react-native";
-import { buildDeviceTools } from "./lib/agent/tools";
 import { runNativeTurn, splitThink, partsFromText, type Part } from "./lib/agent/native-loop";
 import { logChatTurn, summarizeParts } from "./lib/agent/chat-log";
-import { activeSkillForTurn, syncSkillsFromMesh } from "./lib/agent/skills";
+import { resolveMobileCapabilityRuntimeTurn, syncCapabilitySkillsFromMesh } from "./lib/capability/runtime";
 import { MessageParts } from "./ai-elements/MessageParts";
 import { reconnect as meshReconnect } from "./meshClient";
 import { isTabletLayout } from "./layout";
@@ -242,8 +241,9 @@ export default function App(): React.JSX.Element {
   const baseSystemRef = useRef<string>(CHAT_SYSTEM_PROMPT);
   const voiceDirectiveRef = useRef<string>(VOICE_RESPONSE_PROMPT);
 
-  // Mesh offload — the phone AUTO-borrows chat compute from a provider it discovers in its joined
-  // mesh. No provider key is ever typed or stored; `offload` is the live target (null = on-device).
+  // Mesh offload — the phone discovers a provider in its joined mesh and keeps it ready as an
+  // optional forward target. Local chat remains the default host; forward offload is used for voice
+  // and as a fallback path when a local model is unavailable.
   const [offload, setOffload] = useState<MeshOffloadTarget | null>(null);
   // The dashboard shell: which screen is showing + the left nav drawer.
   const [route, setRoute] = useState<Route>("chat");
@@ -257,7 +257,7 @@ export default function App(): React.JSX.Element {
   const offloadRef = useRef<MeshOffloadTarget | null>(null);
   offloadRef.current = offload;
   const meshOnRef = useRef(false);
-  meshOnRef.current = !!delegatedId; // "borrowing" = a forward provider target is set
+  meshOnRef.current = !!delegatedId; // a forward-capable provider target is set
   const firstDevicePlanTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasContent = input.trim().length > 0 || attachments.length > 0;
@@ -339,7 +339,7 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     if (bootStage !== "ready") return;
     void initMesh()
-      .then(() => syncSkillsFromMesh()) // pull any desktop-published skills into the local selector
+      .then(() => syncCapabilitySkillsFromMesh()) // pull any desktop-published skills into the local runtime
       .catch(() => {});
   }, [bootStage]);
 
@@ -348,7 +348,7 @@ export default function App(): React.JSX.Element {
     const sub = AppState.addEventListener("change", (state) => {
       if (state === "active") {
         void meshReconnect().catch(() => {});
-        void syncSkillsFromMesh().catch(() => {});
+        void syncCapabilitySkillsFromMesh().catch(() => {});
       }
     });
     return () => sub.remove();
@@ -550,11 +550,9 @@ export default function App(): React.JSX.Element {
     void saveChat(rec);
   }, [messages, isGenerating, chatId]);
 
-  // AUTO-BORROW (forward transport). Poll the joined mesh for a live provider serving a chat model and,
-  // with this phone's STABLE mesh identity, mark it as the borrow target. Inference is NOT loaded on the
-  // phone (no SDK delegate, no on-phone weights) — runCompletion sends the request over the per-pair
-  // forward transport to the provider's RESIDENT serve model (single owner, no duplicate load, no registry
-  // contention). When no provider/identity is ready, chat runs on-device. No key is ever typed/hardcoded.
+  // FORWARD TARGET DISCOVERY. Poll the joined mesh for a live provider serving a chat model and keep
+  // it ready as the phone's forward target. The local runtime remains primary for text chat; the mesh
+  // path stays available for voice and local-model fallback. No key is ever typed or hardcoded.
   useEffect(() => {
     let cancelled = false;
     if (bootStage !== "ready") {
@@ -578,7 +576,7 @@ export default function App(): React.JSX.Element {
       const cur = offloadRef.current;
       if (!cur || cur.providerPublicKey !== target.providerPublicKey || cur.alias !== target.alias) {
         setOffload(target);
-        setDelegatedId(target.providerPublicKey); // non-null marker → meshOnRef/badges reflect "borrowing"
+        setDelegatedId(target.providerPublicKey); // non-null marker → meshOnRef/badges reflect forward availability
         console.log("[autoborrow] forward target:", target.displayName, "model=", target.alias, "consumer=", ck.slice(0, 8));
       }
     };
@@ -588,7 +586,7 @@ export default function App(): React.JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bootStage]);
 
-  // Borrow start/stop → Alerts feed (a real on-device event), only on an actual transition.
+  // Mesh-forward availability changes → Alerts feed (a real on-device event), only on transition.
   const lastBorrowingRef = useRef<boolean | null>(null);
   useEffect(() => {
     const borrowing = !!delegatedId;
@@ -599,8 +597,8 @@ export default function App(): React.JSX.Element {
     const name = offload?.displayName ? ` · ${offload.displayName}` : "";
     void addNotification(
       borrowing
-        ? { title: "Borrowing compute", body: `Chat now runs on a mesh provider${name}.`, tier: "auto" }
-        : { title: "Back on-device", body: `No mesh provider available; chat runs on this device.`, tier: "notify" },
+        ? { title: "Mesh provider ready", body: `Forward offload is available from${name}.`, tier: "auto" }
+        : { title: "Mesh provider offline", body: `Forward offload is unavailable; local runtime stays active on this device.`, tier: "notify" },
     );
   }, [delegatedId, offload]);
 
@@ -650,7 +648,8 @@ export default function App(): React.JSX.Element {
       cancelRef.current = false;
       activeRequestIdRef.current = null;
       const target = offloadRef.current;
-      const useMesh = !!target && !!consumerKeyRef.current;
+      const meshAvailable = !!target && !!consumerKeyRef.current;
+      const useMesh = voice ? meshAvailable : !modelIdRef.current && meshAvailable;
       const where: "mesh" | "local" = useMesh ? "mesh" : "local";
       if (!useMesh && !modelIdRef.current) return "";
 
@@ -725,23 +724,29 @@ export default function App(): React.JSX.Element {
           console.log(`[chat] DONE where=local(voice) device=${device ?? "?"} tokens=${tokens} tps=${Math.round(tpsRaw)} ttft=${ttftMs}ms`);
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: acc || (cancelRef.current ? "⊘ Stopped." : ""), telemetry } : m)));
         } else {
-          // CHAT AGENT LOOP — native (@qvac/sdk completion), JSC-safe. Renders a parts stream
-          // (reasoning → tool steps → answer). Local turns run on-device with tools; borrowed turns
-          // stream the peer's resident model over the forward transport (plain chat, reasoning split).
-
-          // Skill selection (lexical + on-device embeddings + RRF). When one clears the gate, inject its
-          // body into the system prompt and prepend a "Loaded skill ·" card to the rendered parts.
+          // CHAT RUNTIME — resolve skills, specialists, and tool policy locally, then run the native
+          // loop on-device by default. Borrowed mesh text remains a fallback path when the local model
+          // is unavailable.
           const lead: Part[] = [];
-          let agentSystem = baseSystemRef.current;
+          const lastUserText = history[history.length - 1]?.content ?? "";
+          const runtimeTurn = await resolveMobileCapabilityRuntimeTurn(lastUserText, baseSystemRef.current);
+          const agentSystem = runtimeTurn.turn.system;
           try {
-            const active = await activeSkillForTurn(history[history.length - 1]?.content ?? "");
-            if (active) {
-              agentSystem += active.systemAddon;
-              lead.push({ type: "data-skill", data: active.event });
+            if (runtimeTurn.turn.skill) {
+              lead.push({ type: "data-skill", data: { skills: [{ name: runtimeTurn.turn.skill.name, slug: runtimeTurn.turn.skill.slug }], mode: "auto" } });
             }
-          } catch (e) {
-            console.warn("[chat] skill selection failed:", (e as Error)?.message ?? String(e));
-          }
+            if (runtimeTurn.turn.agent) {
+              lead.push({
+                type: "data-agent",
+                data: {
+                  name: runtimeTurn.turn.agent.name,
+                  slug: runtimeTurn.turn.agent.slug,
+                  description: runtimeTurn.turn.agent.description,
+                  source: runtimeTurn.turn.agent.source,
+                },
+              });
+            }
+          } catch {}
 
           if (useMesh) {
             // BORROW: stream the peer's resident model over the forward transport (known-good text path),
@@ -770,8 +775,8 @@ export default function App(): React.JSX.Element {
               modelId: modelIdRef.current!,
               system: agentSystem,
               history,
-              tools: buildDeviceTools(),
-              maxSteps: 6,
+              tools: runtimeTurn.turn.tools,
+              maxSteps: runtimeTurn.turn.agent?.maxTurns ?? 6,
               leadingParts: lead,
               isCancelled: () => cancelRef.current,
               onUpdate: (parts) => {
@@ -804,7 +809,7 @@ export default function App(): React.JSX.Element {
       } finally {
         setIsGenerating(false);
         // Append this turn to the on-device JSONL transcript (testing evidence). Best-effort.
-        const { reasoning, tools, skill } = summarizeParts(turnParts);
+        const { reasoning, tools, skill, agent } = summarizeParts(turnParts);
         void logChatTurn({
           ts: new Date().toISOString(),
           device: SELF_DEVICE,
@@ -817,6 +822,7 @@ export default function App(): React.JSX.Element {
           answer: acc,
           ...(tools.length ? { tools } : {}),
           ...(skill ? { skill } : {}),
+          ...(agent ? { agent } : {}),
           ...(turnTelemetry ? { telemetry: { tokens: turnTelemetry.tokens, tps: turnTelemetry.tps, ttftMs: turnTelemetry.ttftMs } } : {}),
           ...(turnError ? { error: turnError } : {}),
         });

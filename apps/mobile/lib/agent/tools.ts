@@ -12,6 +12,18 @@ import { listTasks, createTask, updateTask, deleteTask, type TaskStatus } from "
 import { listNotes, loadNote, saveNote, newNoteId } from "../../notes";
 import { listMemories, addMemory } from "../../memories";
 
+export const MOBILE_TOOL_CATALOG = [
+  { name: "get_current_time", description: "Get the current date and time on this device." },
+  { name: "list_tasks", description: "List the user's tasks, optionally filtered by status." },
+  { name: "add_task", description: "Create a new task for the user." },
+  { name: "complete_task", description: "Mark a task as done by its id." },
+  { name: "delete_task", description: "Delete a task by its id." },
+  { name: "search_notes", description: "Search the user's notes by a query." },
+  { name: "create_note", description: "Save a new note with a title and body." },
+  { name: "remember", description: "Store a long-term memory about the user." },
+  { name: "list_memories", description: "List everything the assistant has remembered about the user." },
+] as const;
+
 export function buildDeviceTools(): ToolSet {
   return {
     get_current_time: tool({

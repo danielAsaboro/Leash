@@ -21,6 +21,7 @@ export type Part =
   | { type: "reasoning"; text: string; state: "streaming" | "done" }
   | { type: "text"; text: string; state: "streaming" | "done" }
   | { type: "data-skill"; data: unknown }
+  | { type: "data-agent"; data: unknown }
   | {
       type: `tool-${string}`;
       toolName: string;

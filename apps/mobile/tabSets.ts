@@ -1,4 +1,4 @@
-export type BrainTab = "memory" | "skills" | "plugins" | "agents" | "mcp" | "prompts" | "models" | "growth" | "forage" | "proactivity";
+export type BrainTab = "memory" | "skills" | "plugins" | "agents" | "tools" | "mcp" | "prompts" | "models" | "growth" | "forage" | "proactivity";
 export type SettingsTab = "account" | "storage" | "devices" | "secrets" | "permissions" | "about";
 export type ActivityTab = "mine" | "newsroom" | "runs";
 
@@ -7,6 +7,7 @@ export const BRAIN_TABS: { key: BrainTab; label: string }[] = [
   { key: "skills", label: "Skills" },
   { key: "plugins", label: "Plugins" },
   { key: "agents", label: "Agents" },
+  { key: "tools", label: "Tools" },
   { key: "mcp", label: "MCP" },
   { key: "prompts", label: "Prompts" },
   { key: "models", label: "Models" },

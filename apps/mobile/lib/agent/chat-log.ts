@@ -30,6 +30,7 @@ export type ChatLogRecord = {
   answer: string; // the final visible answer
   tools?: ChatToolLog[];
   skill?: string; // active skill name, if any
+  agent?: string; // active specialist agent, if any
   telemetry?: { tokens?: number; tps?: number; ttftMs?: number };
   error?: string; // set when the turn failed
 };
@@ -67,10 +68,11 @@ export async function dumpRecentLog(): Promise<string> {
 }
 
 /** Pull reasoning + the tool list out of a rendered parts array for logging. */
-export function summarizeParts(parts: ReadonlyArray<{ type: string; [k: string]: unknown }>): { reasoning: string; tools: ChatToolLog[]; skill?: string } {
+export function summarizeParts(parts: ReadonlyArray<{ type: string; [k: string]: unknown }>): { reasoning: string; tools: ChatToolLog[]; skill?: string; agent?: string } {
   let reasoning = "";
   const tools: ChatToolLog[] = [];
   let skill: string | undefined;
+  let agent: string | undefined;
   for (const p of parts) {
     if (p.type === "reasoning") reasoning += (p.text as string) ?? "";
     else if (typeof p.type === "string" && p.type.startsWith("tool-")) {
@@ -78,7 +80,10 @@ export function summarizeParts(parts: ReadonlyArray<{ type: string; [k: string]:
     } else if (p.type === "data-skill") {
       const ev = p.data as { skills?: { name?: string }[] } | undefined;
       skill = ev?.skills?.map((s) => s.name).filter(Boolean).join(", ") || skill;
+    } else if (p.type === "data-agent") {
+      const ev = p.data as { name?: string } | undefined;
+      agent = ev?.name?.trim() || agent;
     }
   }
-  return { reasoning, tools, ...(skill ? { skill } : {}) };
+  return { reasoning, tools, ...(skill ? { skill } : {}), ...(agent ? { agent } : {}) };
 }

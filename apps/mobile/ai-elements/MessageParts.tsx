@@ -5,6 +5,7 @@
  *   text        → <MarkdownText>   (the answer)
  *   tool-* / dynamic-tool → <Tool> (status badge + collapsible IO)
  *   data-skill  → <SkillEventCard> ("Loaded skill ·")
+ *   data-agent  → <AgentEventCard> ("Routed to agent ·")
  *   step-start  → a hairline divider between loop steps
  *
  * The parts are built natively (lib/agent/native-loop.ts) — driving the model is JSC-safe `@qvac/sdk`,
@@ -17,6 +18,7 @@ import { MarkdownText } from "../markdown";
 import { Reasoning } from "./Reasoning";
 import { Tool, type ToolView } from "./Tool";
 import { SkillEventCard, type SkillEvent } from "./SkillEventCard";
+import { AgentEventCard, type AgentEvent } from "./AgentEventCard";
 import { C, F } from "../theme";
 
 type AnyPart = { type: string; [k: string]: unknown };
@@ -51,6 +53,9 @@ export function MessageParts({ parts }: { parts: readonly unknown[] }): React.JS
         }
         if (type === "data-skill") {
           return <SkillEventCard key={key} event={part.data as SkillEvent} />;
+        }
+        if (type === "data-agent") {
+          return <AgentEventCard key={key} event={part.data as AgentEvent} />;
         }
         if (type === "step-start") {
           return i === 0 ? null : <View key={key} style={styles.stepRule} />;

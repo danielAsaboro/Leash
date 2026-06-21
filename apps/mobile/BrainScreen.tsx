@@ -10,30 +10,19 @@ import { PromptsPanel } from "./brain/PromptsPanel";
 import { ModelsPanel } from "./brain/ModelsPanel";
 import { ProactivityPanel } from "./brain/ProactivityPanel";
 import { AgentsPanel } from "./brain/AgentsPanel";
+import { SkillsPanel } from "./brain/SkillsPanel";
+import { PluginsPanel } from "./brain/PluginsPanel";
+import { ToolsPanel } from "./brain/ToolsPanel";
+import { McpPanel } from "./brain/McpPanel";
 import { BRAIN_TABS, type BrainTab } from "./tabSets";
 import { SCREEN_COPY } from "./screenCopy";
 
 /**
- * BRAIN — matches the desktop /brain tab set: Memory · Skills · Plugins · Agents · MCP · Prompts ·
- * Models · Growth · Forage · Proactivity. Memory, Prompts, Models, and Proactivity are real
- * on-device features (and Memory/Prompts/Proactivity edits feed the live chat via onChanged).
- * Agents shows the real roster read-only (Leash orchestrates on-device; the specialists' tools live
- * on a paired desktop). Skills / Plugins / MCP / Growth / Forage need a tool-execution / LoRA / MCP
- * runtime the phone doesn't have, so they show the honest DesktopNote (Rule 4).
+ * BRAIN — the phone's real local capability runtime controls. Skills, agents, tools, plugins, and
+ * mobile-safe MCP now reflect the on-device stores and runtime inventory directly. Growth and Forage
+ * remain honest desktop-only notes.
  */
 const DESKTOP_COPY: Partial<Record<BrainTab, { title: string; line: string }>> = {
-  skills: {
-    title: "Skills run on your desktop.",
-    line: "Skills are runnable procedures your desktop Leash executes with its tools. The phone has no tool-execution runtime — pair a device to browse and run them.",
-  },
-  plugins: {
-    title: "Plugins run on your desktop.",
-    line: "Plugins install desktop-side skills, tools, and integrations. This native app can use what your mesh exposes, but plugin installation lives on desktop Leash.",
-  },
-  mcp: {
-    title: "MCP runs on your desktop.",
-    line: "MCP servers are connected and brokered by your desktop Leash. The phone has no MCP host — pair a device to configure servers.",
-  },
   growth: {
     title: "Growth runs on your desktop.",
     line: "Growth — LoRA fine-tunes via QVAC Fabric — trains on your desktop Leash. Pair a device to review and apply adapters.",
@@ -55,14 +44,22 @@ export function BrainScreen({ onMenu, onChanged, onPair, selectChatModel, chatKe
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         {tab === "memory" ? (
           <MemoryPanel onChanged={onChanged} onPair={onPair} />
+        ) : tab === "skills" ? (
+          <SkillsPanel />
+        ) : tab === "plugins" ? (
+          <PluginsPanel />
+        ) : tab === "agents" ? (
+          <AgentsPanel />
+        ) : tab === "tools" ? (
+          <ToolsPanel />
+        ) : tab === "mcp" ? (
+          <McpPanel />
         ) : tab === "prompts" ? (
           <PromptsPanel onChanged={onChanged} />
         ) : tab === "models" ? (
           <ModelsPanel selectChatModel={selectChatModel} currentChatKey={chatKey} />
         ) : tab === "proactivity" ? (
           <ProactivityPanel onChanged={onChanged} onPair={onPair} />
-        ) : tab === "agents" ? (
-          <AgentsPanel onPair={onPair} />
         ) : desktop ? (
           <DesktopNote Icon={Brain} title={desktop.title} line={desktop.line} onPair={onPair} />
         ) : null}
