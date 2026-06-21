@@ -19,9 +19,9 @@
  * forward-control.ts topicForPair(). The provider's forward server only joins that topic for consumers
  * it has allow-listed (the mesh roster), so meeting on the topic IS the capability.
  */
-import Hyperswarm from "hyperswarm";
 import b4a from "b4a";
 import { createHash } from "bare-crypto";
+import { createForwardSwarm } from "./forward-swarm.mjs";
 
 const TOPIC_PREFIX = "hypha-forward-v1";
 const IPC = BareKit.IPC;
@@ -75,7 +75,7 @@ function onRequest(req) {
     return;
   }
 
-  const swarm = new Hyperswarm();
+  const swarm = createForwardSwarm();
   let finished = false;
   const finish = (o) => {
     if (finished) return;
