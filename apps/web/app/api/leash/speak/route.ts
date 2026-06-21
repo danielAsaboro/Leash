@@ -1,7 +1,7 @@
 /**
  * `POST /api/leash/speak` — on-device "read aloud" for an assistant answer.
  *
- * Relays text to the local `qvac serve openai` speech endpoint (supertonic TTS, served
+ * Relays text to the local `qvac serve openai` speech endpoint (`tts`, served
  * from `qvac.config.base.json`) and streams the WAV straight back to the browser. Pure HTTP,
  * on-device, no `@qvac/sdk` in Next — same pattern as the chat route.
  *
@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
-const TTS_MODEL = process.env["LEASH_TTS_MODEL"] ?? "supertonic";
+const TTS_MODEL = process.env["LEASH_TTS_MODEL"] ?? "tts";
 
 // Allowlists so an arbitrary client value can't be relayed to the serve. Keep in sync with
 // `lib/leash/audio.ts` VOICES (only verified Supertonic voices) — no fake voices (hard rule #4).
@@ -28,7 +28,7 @@ const json = (body: unknown, status: number): Response =>
 
 export async function POST(req: Request): Promise<Response> {
   const { text, voice, model } = (await req.json()) as { text?: string; voice?: string; model?: string };
-  // Strip markdown defensively for EVERY caller (voice queue + the read-aloud button) so Supertonic
+  // Strip markdown defensively for EVERY caller (voice queue + the read-aloud button) so TTS
   // never reads "asterisk"/backticks aloud, even if a caller forgot to clean the text upstream.
   const input = stripMarkdownForSpeech(text ?? "").trim();
   if (!input) return json({ error: "Nothing to read aloud.", code: "empty_input" }, 400);

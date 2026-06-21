@@ -19,7 +19,7 @@ export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "embed";
 /** Served image model alias. */
 export const IMAGE_MODEL = process.env["LEASH_IMAGE_MODEL"] ?? "sd";
 /** Vision-language model alias (Qwen3VL), kept for shared-core callers that need image perception. */
-export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
+export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "vision";
 
 /**
  * A fetch with NO body/headers timeout for the serve: on-device decodes/embeds can wait

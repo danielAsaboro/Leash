@@ -35,7 +35,7 @@ try {
     await g.advertise(makeCapability({
       deviceId: g.localWriterKey, displayName: "hub-mac", computeClass: "mac", ramMB: 65536,
       powerState: "plugged", availableModels: ["QWEN3_4B_INST_Q4_K_M"],
-      models: [{ alias: "qwen3-4b", modelSrc: "mradermacher/Qwen3-4B.Q4_K_M.gguf" }],
+      models: [{ alias: "chat", modelSrc: "mradermacher/Qwen3-4B.Q4_K_M.gguf" }],
       inflight: 0, consumerPublicKey: "HUBCONSUMERPUBKEY", isProvider: true,
       providerPublicKey: "HUBPROVIDERPUBKEY",
     }));
@@ -65,7 +65,7 @@ try {
     const best = reg.bestProvider();
     console.log(`edge sees ${caps.length} caps; bestProvider = ${best?.displayName} (provider=${best?.isProvider}, pubkey=${best?.providerPublicKey}, models=${best?.models?.map((m) => m.alias).join("/") ?? "—"})`);
     if (!best?.isProvider || best.providerPublicKey !== "HUBPROVIDERPUBKEY") throw new Error("bestProvider did not select the replicated hub");
-    if (!best.models?.some((m) => m.alias === "qwen3-4b" && m.modelSrc)) throw new Error("hub's models[] (alias→modelSrc) did not replicate to the edge");
+    if (!best.models?.some((m) => m.alias === "chat" && m.modelSrc)) throw new Error("hub's models[] (alias→modelSrc) did not replicate to the edge");
     if (best.consumerPublicKey !== "HUBCONSUMERPUBKEY") throw new Error("hub's consumerPublicKey did not replicate (firewall gossip broken)");
     console.log("\n✅ EDGE GO");
     await sleep(6000);

@@ -8,12 +8,15 @@
 import type { CapabilityTags } from "./types.ts";
 
 const ALIAS_TAGS: Record<string, CapabilityTags> = {
-  "qwen3-4b": { modality: "text", paramClass: "small", specialist: "general" },
-  "qwen3-1.7b": { modality: "text", paramClass: "tiny", specialist: "general" },
-  "qwen3vl": { modality: "vision", paramClass: "mid", specialist: "vision" },
+  chat: { modality: "text", paramClass: "small", specialist: "general" },
+  "chat-compact": { modality: "text", paramClass: "tiny", specialist: "general" },
+  "chat-large": { modality: "text", paramClass: "small", specialist: "general" },
+  vision: { modality: "vision", paramClass: "mid", specialist: "vision" },
   ocr: { modality: "ocr", paramClass: "tiny", specialist: "ocr" },
   health: { modality: "text", paramClass: "small", specialist: "health" },
   embed: { modality: "text", paramClass: "tiny", specialist: "general" },
+  stt: { modality: "stt", paramClass: "small", specialist: "general" },
+  tts: { modality: "tts", paramClass: "small", specialist: "general" },
 };
 
 const FALLBACK: CapabilityTags = { modality: "text", paramClass: "unknown", specialist: "general" };

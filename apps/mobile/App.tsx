@@ -68,7 +68,7 @@ import { getSelectedChatKey, setSelectedChatKey } from "./selectedModel";
 
 import { C, F, TRACKING_LABEL } from "./theme";
 import { LeashMark } from "./LeashMark";
-import { pickChatProvider, selfConsumerKey, type ChatOffloadTarget } from "./meshClient";
+import { pickChatProvider, pickVisionProvider, selfConsumerKey, type MeshOffloadTarget } from "./meshClient";
 import { NavDrawer } from "./NavDrawer";
 import { TabletRail } from "./TabletRail";
 import type { Route } from "./tabs";
@@ -244,7 +244,7 @@ export default function App(): React.JSX.Element {
 
   // Mesh offload — the phone AUTO-borrows chat compute from a provider it discovers in its joined
   // mesh. No provider key is ever typed or stored; `offload` is the live target (null = on-device).
-  const [offload, setOffload] = useState<ChatOffloadTarget | null>(null);
+  const [offload, setOffload] = useState<MeshOffloadTarget | null>(null);
   // The dashboard shell: which screen is showing + the left nav drawer.
   const [route, setRoute] = useState<Route>("chat");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -254,7 +254,7 @@ export default function App(): React.JSX.Element {
   // Full-screen live voice call (hands-free conversation).
   const [callOpen, setCallOpen] = useState(false);
   const consumerKeyRef = useRef<string>(""); // this phone's stable mesh consumerPublicKey (forward identity)
-  const offloadRef = useRef<ChatOffloadTarget | null>(null);
+  const offloadRef = useRef<MeshOffloadTarget | null>(null);
   offloadRef.current = offload;
   const meshOnRef = useRef(false);
   meshOnRef.current = !!delegatedId; // "borrowing" = a forward provider target is set
@@ -885,17 +885,19 @@ export default function App(): React.JSX.Element {
       const assistantId = makeId();
       setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
       let acc = "";
-      const target = offloadRef.current;
-      if (!target || !consumerKeyRef.current) {
+      const target = await pickVisionProvider().catch(() => null);
+      const consumerKey = target ? consumerKeyRef.current || (await selfConsumerKey().catch(() => "")) : "";
+      if (!target || !consumerKey) {
         setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, content: "⚠ Vision needs a mesh provider — join a mesh with a provider that serves a multimodal model." } : m)));
         setIsGenerating(false);
         return;
       }
+      consumerKeyRef.current = consumerKey;
       try {
-        // Same forward transport + resident multimodal model as text — it handles image content too.
+        // Same forward transport as text, but the alias must be the peer's resident multimodal model.
         const full = await meshVision(
           target.providerPublicKey,
-          consumerKeyRef.current,
+          consumerKey,
           target.alias,
           items.map((i) => i.dataUrl),
           prompt,

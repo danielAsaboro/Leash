@@ -15,7 +15,7 @@ import { kindOf, buildModelRows, modelState, type ModelCategory, type TaggedRow 
 assert.equal(kindOf("llm"), "text", "llm → text");
 assert.equal(kindOf("diffusion"), "image", "diffusion → image");
 assert.equal(kindOf("embeddings"), "embedding", "embeddings → embedding");
-assert.equal(kindOf("parakeet"), "speech", "parakeet → speech");
+assert.equal(kindOf("stt"), "speech", "stt → speech");
 assert.equal(kindOf("whisper"), "speech", "whisper → speech");
 assert.equal(kindOf("tts"), "speech", "tts → speech");
 assert.equal(kindOf("nmt"), "translation", "nmt → translation");
@@ -48,9 +48,9 @@ function invRow(p: Partial<InventoryRow> & { name: string }): InventoryRow {
 }
 
 const inv: ModelsInventory = {
-  serve: { up: true, ready: ["qwen"] },
+  serve: { up: true, ready: ["chat"] },
   configured: [
-    invRow({ name: "QWEN3_4B", alias: "qwen", addon: "llm", engine: "llamacpp-completion", params: "4B", quantization: "q4_k_m", ctxSize: 16384, useGpu: true, inConfig: true, preload: true, loaded: true, onDiskBytes: 2.4e9, cacheFile: "qwen3-4b.gguf" }),
+    invRow({ name: "QWEN3_4B", alias: "chat", addon: "llm", engine: "llamacpp-completion", params: "4B", quantization: "q4_k_m", ctxSize: 16384, useGpu: true, inConfig: true, preload: true, loaded: true, onDiskBytes: 2.4e9, cacheFile: "qwen3-4b.gguf" }),
   ],
   onDiskOnly: [
     invRow({ name: "WHISPER_BASE", addon: "whisper", onDiskBytes: 1.4e8, cacheFile: "whisper-base.gguf" }),

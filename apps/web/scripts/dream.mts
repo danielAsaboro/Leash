@@ -28,10 +28,10 @@ const ROOT = join(here, "..", "..", "..");
 const CHAT_DIR = process.env["LEASH_CHAT_DIR"] ?? join(ROOT, "data", "leash-chats");
 const TASKS_FILE = process.env["LEASH_TASKS_FILE"] ?? join(ROOT, "data", "leash-tasks.json");
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
-// Quality model by default — qwen3-4b distills well. It buffers a long <think> pass, so
-// this batch job uses a 10-min body timeout (below) rather than fighting it. `qwen3-0.6b`
+// Quality chat alias by default. It buffers a long <think> pass, so
+// this batch job uses a 10-min body timeout (below) rather than fighting it. Tiny chat models
 // is fast but too weak (parrots the schema); override via LEASH_DREAM_MODEL if desired.
-const MODEL = process.env["LEASH_DREAM_MODEL"] ?? "qwen3-4b";
+const MODEL = process.env["LEASH_DREAM_MODEL"] ?? "chat";
 const MAX_CHATS = 20;
 /** Batch dreaming can take minutes on the 4B — give the request a 10-min body timeout. */
 const BATCH_TIMEOUT_MS = Number(process.env["LEASH_DREAM_TIMEOUT_MS"] ?? "600000");
@@ -147,7 +147,7 @@ async function main(): Promise<void> {
   console.log(`💤 dreaming over ${recs.length} chat(s) on ${MODEL}…`);
   // This serve only supports streaming completions (non-stream 500s) — drain the stream.
   // One inert tool is REQUIRED: the serve hangs forever on a tool-less request to a
-  // tools-enabled model (qwen3-4b, toolsMode:dynamic — verified 2026-06-05). `/no_think`
+  // tools-enabled chat alias (toolsMode:dynamic — verified 2026-06-05). `/no_think`
   // in the prompt + stopWhen(2) keep it answering in text, not calling the tool.
   const inertTools = {
     noop: tool({ description: "Unused. Do NOT call this — answer directly in text.", inputSchema: z.object({}), execute: async () => ({ ignore: true }) }),

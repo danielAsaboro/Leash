@@ -1,5 +1,5 @@
 /**
- * JSON repair for model output — small local models (qwen3-4b, medpsy) emit JSON with
+ * JSON repair for model output — small local models (`chat`, medpsy) emit JSON with
  * trailing commas, single quotes, unquoted keys, or truncated tails. Two surfaces:
  *
  *   · `safeParseJson` — strict `JSON.parse` first, `jsonrepair` fallback, never throws.

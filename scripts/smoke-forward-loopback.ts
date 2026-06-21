@@ -39,7 +39,7 @@ async function collect(gen: AsyncGenerator<string>): Promise<string> {
 }
 
 function reqFor(id: string, endpoint: string, content: string): ForwardRequest {
-  return { id, endpoint, body: { model: "qwen3vl", messages: [{ role: "user", content }] } };
+  return { id, endpoint, body: { model: "vision", messages: [{ role: "user", content }] } };
 }
 
 async function main(): Promise<void> {

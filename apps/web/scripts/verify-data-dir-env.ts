@@ -35,6 +35,6 @@ assert.equal(env.QVAC_CONFIG_PATH, scope.configPath);
 assert.equal(env.QVAC_MODELS_DIR, scope.modelsDir);
 assert.equal(env.LEASH_MCP_REPOS_DIR, scope.mcpReposDir);
 assert.equal(seededConfig.cacheDirectory, "~/models");
-assert.equal(seededConfig.serve?.models?.["qwen3vl"]?.config?.projectionModelSrc?.startsWith("~/models/"), true);
+assert.equal(seededConfig.serve?.models?.["vision"]?.config?.projectionModelSrc?.startsWith("~/models/"), true);
 
 console.log("verify-data-dir-env: ok");

@@ -2,8 +2,8 @@
  * Promote a trained adapter onto the live web chat — Layer 4 → Layer 5.
  *
  * The web chat hits `qvac serve` via the alias in `LEASH_CHAT_MODEL` (default
- * "qwen3-4b"). To make the main surface "better at you", we add a sibling alias
- * `qwen3-4b-me` that mirrors `qwen3-4b`'s config plus `lora: <adapter>`. The base
+ * "chat"). To make the main surface "better at you", we add a sibling alias
+ * `chat-me` that mirrors `chat`'s config plus `lora: <adapter>`. The base
  * alias stays for the growth-chart A/B.
  *
  * MACHINE-NEUTRALITY: `qvac.config.base.json` is SYNCED across Macs, but each Mac
@@ -25,7 +25,7 @@ import { CONFIG_BASE } from "./paths.ts";
 
 /** Which served base alias a trained base maps to (only the chat model is served). */
 export function servedAliasForBase(baseModelName: string): { baseAlias: string; aliasName: string } | undefined {
-  if (baseModelName === "QWEN3_4B_INST_Q4_K_M") return { baseAlias: "qwen3-4b", aliasName: "qwen3-4b-me" };
+  if (baseModelName === "QWEN3_4B_INST_Q4_K_M") return { baseAlias: "chat", aliasName: "chat-me" };
   return undefined; // 600M etc. apply via the edge/council loadModel({lora}) path, not the serve
 }
 
@@ -59,7 +59,7 @@ export interface PromoteParams {
 }
 
 /**
- * Copy the adapter to the stable per-machine path and upsert the `qwen3-4b-me` alias
+ * Copy the adapter to the stable per-machine path and upsert the `chat-me` alias
  * into the serve config. Returns undefined if the base model isn't the served chat
  * model (e.g. a 600M fallback adapter, applied elsewhere).
  */
@@ -84,8 +84,8 @@ export function promoteAdapterToServe(params: PromoteParams): PromoteResult | un
   const mergedConfig: Record<string, unknown> = { ...(base?.config ?? { tools: true, toolsMode: "dynamic", ctx_size: 16384 }), lora: loraConfigValue };
   const alias: ServeAlias = {
     ...(base?.model ? { model: base.model } : { model: params.baseModelName }),
-    preload: false, // don't load two 4B models at startup; load qwen3-4b-me on demand
-    default: false, // base qwen3-4b stays the default (growth-chart A/B)
+    preload: false, // don't load two 4B models at startup; load chat-me on demand
+    default: false, // base chat stays the default (growth-chart A/B)
     config: mergedConfig,
   };
   config.serve.models[aliasName] = alias;

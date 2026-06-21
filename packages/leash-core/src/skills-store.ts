@@ -46,7 +46,7 @@ export interface Skill {
    * An ORDERED plan (frontmatter `steps:` block scalar, one sub-task per line). When present,
    * `run_skill` executes the skill as a DETERMINISTIC pipeline: the harness drives the steps in
    * order, the model does ONE sub-task per step (with earlier steps' results fed forward), and
-   * the model never decides "am I done?". This is the fix for qwen3-4b's dependent-step failure —
+   * the model never decides "am I done?". This is the fix for chat's dependent-step failure —
    * the planning burden lives with the author, not the 4B (deterministic decomposition; see
    * skill-runner.ts). Empty = single-shot skill (the model free-runs the body).
    */

@@ -35,6 +35,7 @@ const ADDON_KIND: Record<string, ModelKind> = {
   diffusion: "image",
   embeddings: "embedding",
   parakeet: "speech",
+  stt: "speech",
   whisper: "speech",
   tts: "speech",
   nmt: "translation",

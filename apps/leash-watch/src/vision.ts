@@ -1,9 +1,9 @@
 /**
- * Frame understanding — POST the captured frame to the on-device VLM (`qwen3vl` on the
+ * Frame understanding — POST the captured frame to the on-device VLM (`vision` on the
  * local `qvac serve` OpenAI endpoint) and turn the reply into a one-line summary + tags.
  *
  * 100% on-device: the image never leaves the machine (local :11435). Each call is
- * audit-logged (event "completion", model "qwen3vl", ttft/duration) into the evidence
+ * audit-logged (event "completion", model "vision", ttft/duration) into the evidence
  * bundle. Tags are derived deterministically (app slug + salient words) — no 2nd model call.
  */
 import { AuditLog, now } from "@mycelium/shared";

@@ -26,7 +26,7 @@ const created = await saveAgent({
   name: "Test Reviewer",
   description: "Reviews code for issues",
   body: "You are a careful reviewer.",
-  model: "qwen3-4b",
+  model: "chat",
   tools: ["bash"],
   disallowedTools: ["run_command"],
   skills: ["contract-review", "law-assistant:contract-review"],

@@ -146,7 +146,7 @@ export async function runPlanAsPipeline(
         await updateGoalRunStep(opts.goalRunId, ledgerStepId, { status: "done", summary: out });
         await recordGoalRunModelTrace(opts.goalRunId, {
           stepId: ledgerStepId,
-          model: opts.model ?? "qwen3-4b",
+          model: opts.model ?? "chat",
           alias: `plan:step${i + 1}`,
           startedAt,
           finishedAt: Date.now(),

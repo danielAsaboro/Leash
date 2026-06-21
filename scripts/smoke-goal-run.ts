@@ -25,11 +25,11 @@ const {
 const run = await createGoalRun({ id: "run-test", chatId: "chat-1", title: "Research, compare, and create tasks", route: "plan", sensitivity: "private" });
 assert.equal(run.status, "active");
 
-const s1 = await startGoalRunStep("run-test", { id: "s1", title: "Search private context", route: "plan", model: "qwen3-4b", contextCapsule: "Goal capsule" });
+const s1 = await startGoalRunStep("run-test", { id: "s1", title: "Search private context", route: "plan", model: "chat", contextCapsule: "Goal capsule" });
 await updateGoalRunStep("run-test", s1.id, { status: "done", summary: "Found three context snippets.", artifact: { kind: "text", title: "Context digest", summary: "3 snippets" } });
-const s2 = await startGoalRunStep("run-test", { id: "s2", title: "Create task", route: "plan", model: "qwen3-4b" });
+const s2 = await startGoalRunStep("run-test", { id: "s2", title: "Create task", route: "plan", model: "chat" });
 await updateGoalRunStep("run-test", s2.id, { status: "failed", error: "tool said token=supersecret12345678901234567890" });
-await recordGoalRunModelTrace("run-test", { stepId: s1.id, model: "qwen3-4b", tokens: 123 });
+await recordGoalRunModelTrace("run-test", { stepId: s1.id, model: "chat", tokens: 123 });
 await recordGoalRunToolTrace("run-test", { stepId: s2.id, toolName: "create_task", route: "plan", ok: false, error: "password=do-not-store" });
 await finishGoalRun("run-test", "failed", "Stopped after task creation failed.");
 

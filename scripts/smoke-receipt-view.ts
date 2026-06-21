@@ -8,22 +8,22 @@ import assert from "node:assert/strict";
 import { modalityOf, filterReceipts, groupByDay, paginateDays, peersIn, modalitiesIn, EMPTY_FILTERS } from "../apps/web/components/economy/receipt-view.ts";
 
 type R = { sessionId: string; alias: string; tokens: number; amount: number; asset: string; txHash: string; status: string; direction: "earn" | "spend" | "other"; counterparty: string; at: string };
-const r = (o: Partial<R>): R => ({ sessionId: Math.random().toString(36).slice(2), alias: "qwen3-4b", tokens: 10, amount: 10, asset: "USDT0", txHash: "0x" + "a".repeat(8), status: "settled", direction: "spend", counterparty: "Pro", at: "2026-06-11T10:00:00Z", ...o });
+const r = (o: Partial<R>): R => ({ sessionId: Math.random().toString(36).slice(2), alias: "chat", tokens: 10, amount: 10, asset: "USDT0", txHash: "0x" + "a".repeat(8), status: "settled", direction: "spend", counterparty: "Pro", at: "2026-06-11T10:00:00Z", ...o });
 
 function main(): void {
   // 1. modalityOf — known aliases on the fleet + the chat default.
-  assert.equal(modalityOf("qwen3vl"), "vision", "qwen3vl → vision");
+  assert.equal(modalityOf("vision"), "vision", "vision → vision");
   assert.equal(modalityOf("gte-large"), "embed", "gte-large → embed");
-  assert.equal(modalityOf("parakeet"), "stt", "parakeet → stt");
-  assert.equal(modalityOf("supertonic"), "tts", "supertonic → tts");
-  assert.equal(modalityOf("qwen3-4b"), "chat", "qwen3-4b → chat (default)");
+  assert.equal(modalityOf("stt"), "stt", "stt → stt");
+  assert.equal(modalityOf("tts"), "tts", "tts → tts");
+  assert.equal(modalityOf("chat"), "chat", "chat → chat");
   assert.equal(modalityOf("health"), "chat", "health → chat");
 
   // 2. filterReceipts — each facet, and AND-composition.
   const data = [
     r({ direction: "spend", status: "settled", counterparty: "Pro", alias: "gte-large", at: "2026-06-11T09:00:00Z" }),
-    r({ direction: "earn", status: "settled", counterparty: "mac3", alias: "qwen3-4b", at: "2026-06-11T11:00:00Z" }),
-    r({ direction: "spend", status: "retrying", counterparty: "Pro", alias: "qwen3vl", at: "2026-06-10T08:00:00Z" }),
+    r({ direction: "earn", status: "settled", counterparty: "mac3", alias: "chat", at: "2026-06-11T11:00:00Z" }),
+    r({ direction: "spend", status: "retrying", counterparty: "Pro", alias: "vision", at: "2026-06-10T08:00:00Z" }),
   ];
   assert.equal(filterReceipts(data, { ...EMPTY_FILTERS, flow: "spend" }).length, 2, "flow=spend → 2");
   assert.equal(filterReceipts(data, { ...EMPTY_FILTERS, status: "retrying" }).length, 1, "status=retrying → 1");

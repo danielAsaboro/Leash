@@ -73,7 +73,7 @@ async function main(): Promise<void> {
 
     // 1) chat/vision — SSE → token stream (image rides inline)
     const dataUrl = "data:image/png;base64,iVBORw0KGgo=";
-    const visionBody = { model: "qwen3vl", messages: [{ role: "user", content: [{ type: "text", text: "what is this?" }, { type: "image_url", image_url: { url: dataUrl } }] }] };
+    const visionBody = { model: "vision", messages: [{ role: "user", content: [{ type: "text", text: "what is this?" }, { type: "image_url", image_url: { url: dataUrl } }] }] };
     const caption = await collect(client.forward(providerKey, { id: "1", endpoint: "/v1/chat/completions", body: visionBody }));
     assert.equal(caption, TOKENS.join(""), `caption: "${caption}"`);
     assert.ok(serve.lastSawImage(), "image data-URL did not cross inline");
@@ -87,7 +87,7 @@ async function main(): Promise<void> {
 
     // 3) audio/speech — binary → base64 chunks reassembled
     const parts: Buffer[] = [];
-    for await (const c of client.forward(providerKey, { id: "3", endpoint: "/v1/audio/speech", body: { model: "supertonic", input: "hi" } })) parts.push(Buffer.from(c, "base64"));
+    for await (const c of client.forward(providerKey, { id: "3", endpoint: "/v1/audio/speech", body: { model: "tts", input: "hi" } })) parts.push(Buffer.from(c, "base64"));
     const audioBytes = Buffer.concat(parts);
     assert.ok(audioBytes.length === 8 && audioBytes[0] === 0x49, `TTS bytes not reassembled (got ${audioBytes.length})`);
     console.log(`✅ audio/speech — ${audioBytes.length} binary bytes reassembled from base64 frames`);

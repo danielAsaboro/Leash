@@ -109,19 +109,25 @@ export type ChatModelEntry = {
   name: string;
 };
 
-/** Curated phone-runnable chat models. Default (qwen3-1.7b) keeps today's behavior on a fresh install. */
+/** Curated phone-runnable chat models. Aliases describe capability tiers; labels describe weights. */
 export const CHAT_MODELS: ChatModelEntry[] = [
-  { chatKey: "qwen3-0.6b", alias: "qwen3-0.6b", label: "Qwen3 · 0.6B", assetSrc: QWEN3_600M_INST_Q4, name: (QWEN3_600M_INST_Q4 as any).name },
-  { chatKey: "qwen3-1.7b", alias: "qwen3-1.7b", label: "Qwen3 · 1.7B", assetSrc: QWEN3_1_7B_INST_Q4, name: (QWEN3_1_7B_INST_Q4 as any).name },
-  { chatKey: "qwen3-4b", alias: "qwen3-4b", label: "Qwen3 · 4B", assetSrc: QWEN3_4B_INST_Q4_K_M, name: (QWEN3_4B_INST_Q4_K_M as any).name },
+  { chatKey: "chat-compact", alias: "chat-compact", label: "Qwen3 · 0.6B", assetSrc: QWEN3_600M_INST_Q4, name: (QWEN3_600M_INST_Q4 as any).name },
+  { chatKey: "chat", alias: "chat", label: "Qwen3 · 1.7B", assetSrc: QWEN3_1_7B_INST_Q4, name: (QWEN3_1_7B_INST_Q4 as any).name },
+  { chatKey: "chat-large", alias: "chat-large", label: "Qwen3 · 4B", assetSrc: QWEN3_4B_INST_Q4_K_M, name: (QWEN3_4B_INST_Q4_K_M as any).name },
   { chatKey: "llama-1b", alias: "llama-3.2-1b", label: "Llama 3.2 · 1B", assetSrc: LLAMA_3_2_1B_INST_Q4_0, name: (LLAMA_3_2_1B_INST_Q4_0 as any).name },
 ];
 
-export const DEFAULT_CHAT_KEY = PHONE_CHAT.alias;
+function defaultChatEntry(): ChatModelEntry {
+  const entry = CHAT_MODELS.find((m) => m.chatKey === PHONE_CHAT.alias) ?? CHAT_MODELS.find((m) => m.chatKey === "chat") ?? CHAT_MODELS[0];
+  if (!entry) throw new Error("mobile chat inventory is empty");
+  return entry;
+}
+
+export const DEFAULT_CHAT_KEY = defaultChatEntry().chatKey;
 
 /** Resolve a chat-model entry by key, falling back to the default (never undefined). */
 export function chatEntry(key: string | null | undefined): ChatModelEntry {
-  return CHAT_MODELS.find((m) => m.chatKey === key) ?? CHAT_MODELS.find((m) => m.chatKey === DEFAULT_CHAT_KEY)!;
+  return CHAT_MODELS.find((m) => m.chatKey === key) ?? defaultChatEntry();
 }
 
 export type ChatModelStatus = ChatModelEntry & { state: ModelState; sizeBytes: number | null };

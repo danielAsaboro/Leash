@@ -22,7 +22,7 @@ const { createGoalRun, startGoalRunStep, updateGoalRunStep, finishGoalRun, getGo
 // Chained workflow durability: six steps, fail at step 3, remaining work does not launch.
 const run = await createGoalRun({ id: "gauntlet-run", title: "Research -> compare -> create tasks -> summarize", route: "plan", sensitivity: "private" });
 for (const title of ["Research", "Compare", "Create tasks"]) {
-  const step = await startGoalRunStep(run.id, { title, route: "plan", model: "qwen3-4b" });
+  const step = await startGoalRunStep(run.id, { title, route: "plan", model: "chat" });
   await updateGoalRunStep(run.id, step.id, title === "Create tasks" ? { status: "failed", error: "permission denied" } : { status: "done", summary: `${title} complete` });
   if (title === "Create tasks") break;
 }
@@ -46,7 +46,7 @@ const longRun = {
     artifacts: [],
     errors: [],
   })),
-  modelTrace: [{ id: "trace", model: "qwen3-4b", startedAt: 1, reason: "SHOULD_NOT_ENTER_CONTEXT" }],
+  modelTrace: [{ id: "trace", model: "chat", startedAt: 1, reason: "SHOULD_NOT_ENTER_CONTEXT" }],
 };
 const capsule = buildContextCapsule({ run: longRun, currentStep: "Final synthesis", relevantContext: ["retrieved context ".repeat(200)], maxChars: 6000 });
 assert.ok(capsule.text.length <= 6000, "capsule under budget");
@@ -67,15 +67,15 @@ assert.equal(approvalMatches(binding, "type_text", { app: "TextEdit", text: "mut
 
 // P2P load/sensitivity routing.
 const options: RouteOption[] = [
-  { tier: "device", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), pricePerKiloToken: 0, inflight: 6 },
-  { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-private", pricePerKiloToken: 0, inflight: 0 },
-  { tier: "public", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-public", pricePerKiloToken: 1, inflight: 0 },
+  { tier: "device", alias: "chat", tags: tagsForAlias("chat"), pricePerKiloToken: 0, inflight: 6 },
+  { tier: "private", alias: "chat", tags: tagsForAlias("chat"), peerKey: "peer-private", pricePerKiloToken: 0, inflight: 0 },
+  { tier: "public", alias: "chat", tags: tagsForAlias("chat"), peerKey: "peer-public", pricePerKiloToken: 1, inflight: 0 },
   { tier: "private", alias: "health", tags: tagsForAlias("health"), peerKey: "peer-health", pricePerKiloToken: 0, inflight: 0 },
-  { tier: "private", alias: "qwen3vl", tags: tagsForAlias("qwen3vl"), peerKey: "peer-vision", pricePerKiloToken: 0, inflight: 0 },
+  { tier: "private", alias: "vision", tags: tagsForAlias("vision"), peerKey: "peer-vision", pricePerKiloToken: 0, inflight: 0 },
 ];
 assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options })[0]!.peerKey, "peer-private");
 assert.equal(rankRoutes({ bar: { modality: "text", minParamClass: "small", specialist: "health" }, sensitivity: "private", options })[0]!.alias, "health");
-assert.equal(rankRoutes({ bar: { modality: "vision", minParamClass: "small", specialist: "vision" }, sensitivity: "private", options })[0]!.alias, "qwen3vl");
+assert.equal(rankRoutes({ bar: { modality: "vision", minParamClass: "small", specialist: "vision" }, sensitivity: "private", options })[0]!.alias, "vision");
 assert.ok(rankRoutes({ bar: { modality: "text", minParamClass: "small" }, sensitivity: "private", options }).every((r) => r.tier !== "public"));
 
 await rm(DATA, { recursive: true, force: true });

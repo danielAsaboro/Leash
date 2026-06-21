@@ -10,7 +10,7 @@
  *   · SINGLE-SHOT (no `steps:`): one `generateText` over the skill body — the model free-runs.
  *   · DETERMINISTIC PIPELINE (`steps:` declared): the harness drives the steps IN ORDER, the model
  *     does ONE sub-task per step (earlier steps' results fed forward), and never decides "am I done?".
- *     This is the fix for qwen3-4b's dependent-step / Implicit-Action failure (verified 2026-06-12:
+ *     This is the fix for chat's dependent-step / Implicit-Action failure (verified 2026-06-12:
  *     the 4B reliably does ONE sub-task and fires parallel calls, but drops the dependent NEXT call at
  *     the continuation boundary — and a scratchpad nudge, though confirmed-injected, did NOT fix it).
  *     Moving the step-ordering decision OUT of the model and INTO the harness is the deep-research-
@@ -116,7 +116,7 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
         const ledgerStep = await startGoalRunStep(goalRunId, {
           title: step,
           route: "skill" satisfies GoalRunRoute,
-          model: "qwen3-4b",
+          model: "chat",
           contextCapsule: capsule.text,
           contextTokensEstimate: capsule.tokenEstimate,
         });
@@ -131,7 +131,7 @@ async function runStepPipeline(skill: Skill, task: string, subTools: ToolSet, na
         await updateGoalRunStep(goalRunId, ledgerStepId, { status: "done", summary: out });
         await recordGoalRunModelTrace(goalRunId, {
           stepId: ledgerStepId,
-          model: "qwen3-4b",
+          model: "chat",
           alias: `run_skill:${skill.slug}:step${i + 1}`,
           startedAt,
           finishedAt: Date.now(),

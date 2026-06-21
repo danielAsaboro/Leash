@@ -53,7 +53,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     desktop: {
       device: "desktop",
       role: "chat",
-      alias: "qwen3-4b",
+      alias: "chat",
       model: "QWEN3_4B_INST_Q4_K_M",
       config: { tools: true, toolsMode: "dynamic", ctx_size: 32768 },
       bytes: 2_497_280_256,
@@ -63,7 +63,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     phone: {
       device: "phone",
       role: "chat",
-      alias: "qwen3-1.7b",
+      alias: "chat",
       model: "QWEN3_1_7B_INST_Q4",
       config: { ctx_size: 8192 },
       bytes: 1_100_000_000,
@@ -73,7 +73,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     edge: {
       device: "edge",
       role: "chat",
-      alias: "qwen3-600m",
+      alias: "chat-compact",
       model: "QWEN3_600M_INST_Q4",
       config: { ctx_size: 4096 },
       bytes: 382_156_480,
@@ -148,7 +148,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     desktop: {
       device: "desktop",
       role: "vision",
-      alias: "qwen3vl",
+      alias: "vision",
       model: "QWEN3VL_2B_MULTIMODAL_Q4_K",
       projection: "MMPROJ_QWEN3VL_2B_MULTIMODAL_Q4_K",
       config: { ctx_size: 8192 },
@@ -159,7 +159,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     phone: {
       device: "phone",
       role: "vision",
-      alias: "qwen3vl",
+      alias: "vision",
       model: "QWEN3VL_2B_MULTIMODAL_Q4_K",
       projection: "MMPROJ_QWEN3VL_2B_MULTIMODAL_Q4_K",
       config: { ctx_size: 4096 },
@@ -171,7 +171,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     edge: {
       device: "edge",
       role: "vision",
-      alias: "qwen3vl",
+      alias: "vision",
       model: "QWEN3VL_2B_MULTIMODAL_Q4_K",
       projection: "MMPROJ_QWEN3VL_2B_MULTIMODAL_Q4_K",
       config: { ctx_size: 4096 },
@@ -260,7 +260,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     desktop: {
       device: "desktop",
       role: "speech_to_text",
-      alias: "parakeet",
+      alias: "stt",
       model: "PARAKEET_TDT_0_6B_V3_Q8_0",
       bytes: 1_200_000_000,
       powers: "On-device speech transcription.",
@@ -269,7 +269,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     phone: {
       device: "phone",
       role: "speech_to_text",
-      alias: "whisper-en",
+      alias: "stt",
       model: "WHISPER_EN_SMALL_Q8_0",
       bytes: 500_000_000,
       powers: "Voice input on device.",
@@ -278,7 +278,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     edge: {
       device: "edge",
       role: "speech_to_text",
-      alias: "whisper-en",
+      alias: "stt",
       model: "WHISPER_EN_SMALL_Q8_0",
       bytes: 500_000_000,
       powers: "Voice input when the edge node has audio attached.",
@@ -290,7 +290,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     desktop: {
       device: "desktop",
       role: "text_to_speech",
-      alias: "supertonic",
+      alias: "tts",
       model: "TTS_EN_SUPERTONIC_Q8_0",
       config: { ttsEngine: "supertonic", language: "en", voice: "F1", ttsSpeed: 1.05, ttsNumInferenceSteps: 5 },
       bytes: 900_000_000,
@@ -300,7 +300,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     phone: {
       device: "phone",
       role: "text_to_speech",
-      alias: "supertonic-en",
+      alias: "tts",
       model: "TTS_EN_SUPERTONIC_Q8_0",
       bytes: 900_000_000,
       powers: "Spoken replies on device.",
@@ -309,7 +309,7 @@ export const BRAIN_MODEL_VARIANTS: Record<BrainModelCapabilityName, BrainCapabil
     edge: {
       device: "edge",
       role: "text_to_speech",
-      alias: "supertonic-en",
+      alias: "tts",
       model: "TTS_EN_SUPERTONIC_Q8_0",
       bytes: 900_000_000,
       powers: "Spoken replies when an edge node has audio attached.",

@@ -161,7 +161,7 @@ interface ChatMessage {
 
 /**
  * Flatten a chat message to text + materialize any inline `data:` images to temp files (tracked for
- * cleanup) — this is how VISION (qwen3vl) borrows over the chat path: OpenAI sends images as
+ * cleanup) — this is how `vision` borrows over the chat path: OpenAI sends images as
  * `image_url` content parts, the delegated `completion()` wants `attachments:[{path}]`. The SDK reads
  * the file on THIS (consumer) side and sends the bytes to the provider. Parsing/decoding is the pure
  * `chat-attachments` module; this only adds the temp-file write.

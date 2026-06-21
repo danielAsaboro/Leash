@@ -23,7 +23,7 @@ function pickImage(): string {
 async function main(): Promise<void> {
   const image = pickImage();
   console.log(`🖼  image: ${image}`);
-  console.log(`📦 loading qwen3vl (base + mmproj)…`);
+  console.log(`📦 loading vision base + mmproj…`);
   const modelId = await loadModel({
     modelSrc: VL_BASE,
     modelType: "llamacpp-completion",

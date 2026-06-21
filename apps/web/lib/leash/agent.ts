@@ -16,9 +16,9 @@
  *     This was previously withheld because the 0.11-era engine WEDGED on a mid-decode
  *     cancel; the current 0.13.x SDK line cancels safely (verified — see spike/abort-safety-inproc.ts), so
  *     it is now re-enabled. Drain remains the fallback only where no signal is available.
- *   · Toolless-hang guard: every text route keeps ≥1 active tool (qwen3-4b with
+ *   · Toolless-hang guard: every text route keeps ≥1 active tool (`chat` with
  *     `tools:true, toolsMode:"dynamic"` hangs at zero tokens on a toolless request).
- *     Only the `vision` route deactivates tools — qwen3vl is not tools-enabled.
+ *     Only the `vision` route deactivates tools — vision is not tools-enabled.
  *   · Focused toolset: computer turns activate ONLY the computer tools; other text turns
  *     activate everything BUT them (>22 schemas overflows the 4096-token prompt and hangs
  *     the decode — verified 2026-06-07). MCP-admin tools are SKILL-GATED (never always-on).
@@ -46,7 +46,7 @@ export const leashCallOptionsSchema = z.object({
   route: z.enum(["chat", "health", "computer", "files", "vision"]),
   /** Step budget (`stopWhen`); null on vision turns (single-shot, no tool loop). */
   steps: z.number().int().min(1).max(16).nullable(),
-  /** Token ceiling; null on vision turns (qwen3vl breaks on max_tokens — see computer-tools.ts). */
+  /** Token ceiling; null on vision turns (vision breaks on max_tokens — see computer-tools.ts). */
   maxOutputTokens: z.number().int().min(1).nullable(),
   /**
    * Tools an ACTIVE skill declared (frontmatter `tools:`). When non-empty, these become the
@@ -79,7 +79,7 @@ export const leashCallOptionsSchema = z.object({
 });
 export type LeashCallOptions = z.infer<typeof leashCallOptionsSchema>;
 
-/** Qwen3 sampling per thinking mode (Qwen3 best practices). `topK` is omitted: the qvac/qwen3-4b
+/** Qwen3 sampling per thinking mode (Qwen3 best practices). `topK` is omitted: the qvac/chat
  *  provider doesn't support it (it dropped the value and logged an AI SDK warning every turn). */
 function samplingFor(thinking: boolean | undefined): { temperature: number; topP: number } {
   return thinking ? { temperature: 0.6, topP: 0.95 } : { temperature: 0.7, topP: 0.8 };
@@ -93,7 +93,7 @@ function debugActiveTools(route: string, active: string[]): void {
 /** On-switch file flag (re-checked per call, so a running dev server can A/B without a restart). */
 const NUDGE_ON_FILE = join(DATA_DIR, ".leash-continuation");
 /**
- * Continuation re-injection — DEFAULT OFF. Tested 2026-06-12 against qwen3-4b and found to give NO
+ * Continuation re-injection — DEFAULT OFF. Tested 2026-06-12 against chat and found to give NO
  * measurable benefit on dependent-step chaining: with LEASH_DEBUG_LOOP we confirmed the nudge WAS
  * injected (`nudge-injected step=N` in the loop log) yet the model still overthought (1217 chars of
  * reasoning) and stopped with no action — ON ≈ 1/5 vs OFF ≈ 1/3 dependent-chain completions, i.e.
@@ -151,7 +151,7 @@ export function buildLeashAgent(tools: ToolSet, shouldYield?: () => boolean, ove
         instructions: options.system,
         activeTools,
         // Qwen3 sampling — NEVER greedy (the serve default temp ~0.1 causes repetition/loops). Vision
-        // (qwen3vl, single-shot) keeps its own behavior; every text/tool route gets proper sampling.
+        // (vision, single-shot) keeps its own behavior; every text/tool route gets proper sampling.
         ...(options.route !== "vision" ? samplingFor(options.thinking) : {}),
         // Stop on the step cap OR when the user has a follow-up waiting (interject): the loop ends
         // after the current step, the turn finishes cleanly, and the client sends the queued message.

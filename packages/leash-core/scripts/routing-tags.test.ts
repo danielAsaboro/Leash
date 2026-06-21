@@ -8,9 +8,9 @@ import { tagsForAlias } from "../src/routing/tags.ts";
 
 function main() {
   // 1. Known specialist alias resolves from the table.
-  assert.equal(tagsForAlias("qwen3vl").modality, "vision", "qwen3vl should be vision");
+  assert.equal(tagsForAlias("vision").modality, "vision", "vision should be vision");
   assert.equal(tagsForAlias("health").specialist, "health", "health should be health");
-  assert.equal(tagsForAlias("qwen3-4b").paramClass, "small", "qwen3-4b should be small");
+  assert.equal(tagsForAlias("chat").paramClass, "small", "chat should be small");
 
   // 2. Unknown alias with advertised tags prefers the advertised values (public-mesh seam).
   const adv = tagsForAlias("stranger-model", { modality: "vision", paramClass: "large" });

@@ -13,7 +13,7 @@ import { getEdgeParams } from "./floating.ts";
 export interface MeshWireData {
   /** active = a route is in flight; recently done; or failed. Drives color + motion. */
   state: "idle" | "active" | "done" | "failed";
-  /** Short floating label shown mid-wire while active (e.g. "qwen3-4b · 412 tok"). */
+  /** Short floating label shown mid-wire while active (e.g. "chat · 412 tok"). */
   note?: string;
   [key: string]: unknown;
 }

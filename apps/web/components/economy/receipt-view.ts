@@ -26,8 +26,8 @@ export function modalityOf(alias: string): Modality {
   const a = alias.toLowerCase();
   if (/(^|[^a-z])vl|vision|llava|qwen.*-?v|moondream/.test(a)) return "vision";
   if (/gte|embed|bge|e5|minilm|nomic/.test(a)) return "embed";
-  if (/parakeet|whisper|\bstt\b|transcrib|asr/.test(a)) return "stt";
-  if (/supertonic|\btts\b|speech|bark|piper|kokoro/.test(a)) return "tts";
+  if (/\bstt\b|transcrib|asr/.test(a)) return "stt";
+  if (/\btts\b|speech|bark|piper|kokoro/.test(a)) return "tts";
   return "chat";
 }
 

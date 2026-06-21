@@ -54,7 +54,7 @@ const isSkillPart = (p: Part): p is { type: "data-skill"; data: LeashSkillEvent 
 const isConductorPart = (p: Part): p is { type: "data-conductor"; data: ConductorDecisionEvent } => p?.type === "data-conductor";
 const isGoalRunPart = (p: Part): p is { type: "data-goalRun"; data: GoalRunEvent } => p?.type === "data-goalRun";
 
-/** "qwen3-4b · 142 tok · 18 tok/s" from message metadata, once finished. */
+/** "chat · 142 tok · 18 tok/s" from message metadata, once finished. */
 function telemetry(md: LeashMetadata | undefined): string | null {
   if (!md?.totalTokens) return null;
   const secs = md.createdAt && md.finishedAt ? (md.finishedAt - md.createdAt) / 1000 : 0;
@@ -679,7 +679,7 @@ export function LeashChat({ id, initialMessages }: { id: string; initialMessages
 
   // Context-window meter: each turn re-sends the whole thread, so the most recent assistant
   // turn's `totalTokens` (prompt history + its completion) is the best client-side proxy for
-  // how full the model's window currently is. Window = qwen3-4b's 32768 (tracks the serve's
+  // how full the model's window currently is. Window = chat's 32768 (tracks the serve's
   // ctx_size in qvac.config.base.json). No cost — it's all on-device.
   const CONTEXT_WINDOW = 32768;
   const usedTokens = (() => {

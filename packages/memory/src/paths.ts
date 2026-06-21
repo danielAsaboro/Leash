@@ -53,7 +53,7 @@ export const CHECKPOINT_DIR = join(EVOLVE_DIR, "checkpoints");
 // ── adapters (one versioned dir each) ───────────────────────────────────────────
 export const ADAPTERS_DIR = join(DATA_DIR, "adapters");
 /** The serve config Leash edits + hypha reads (wrapped by qvac.config.mjs, which
- *  expands `~/`). The `qwen3-4b-me` alias is written here when a promotable adapter
+ *  expands `~/`). The `chat-me` alias is written here when a promotable adapter
  *  lands. Lives at the repo root, alongside qvac.config.mjs. */
 export const CONFIG_BASE = join(REPO_ROOT, "qvac.config.base.json");
 export const adapterDir = (version: string): string => join(ADAPTERS_DIR, version);

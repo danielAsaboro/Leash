@@ -2,7 +2,7 @@
  * `POST /api/leash/transcribe` — on-device speech-to-text for voice input.
  *
  * Relays the uploaded audio (multipart `file`) to the local `qvac serve openai`
- * transcription endpoint (Parakeet, served from `qvac.config.base.json`) and returns the
+ * transcription endpoint (`stt`, served from `qvac.config.base.json`) and returns the
  * recognized `{ text }`. Pure HTTP, on-device, no `@qvac/sdk` in Next — same pattern
  * as the chat/speak routes.
  */
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
-const STT_MODEL = process.env["LEASH_STT_MODEL"] ?? "parakeet";
+const STT_MODEL = process.env["LEASH_STT_MODEL"] ?? "stt";
 
 export async function POST(req: Request): Promise<Response> {
   try {

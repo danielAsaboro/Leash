@@ -1,6 +1,6 @@
 /**
  * LIVE multi-agent orchestration proof (needs `qvac serve`) — the eval-critical capability
- * ("multi-agent workflows with orchestration and tool calling") on real on-device qwen3-4b, using
+ * ("multi-agent workflows with orchestration and tool calling") on real on-device chat, using
  * the EXACT AI SDK streaming-subagent pattern the production agent-runner.ts now uses.
  *
  * FIDELITY NOTE: the production runner can't be imported under tsx (web modules load as CJS;
@@ -28,7 +28,7 @@ import { createQvac } from "@qvac/ai-sdk-provider";
 const DATA = await mkdtemp(join(tmpdir(), "leash-orch-"));
 process.env["LEASH_DATA_DIR"] = DATA;
 const qvac = createQvac({ baseURL: process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1", apiKey: "qvac" });
-const CHAT = process.env["EVAL_CHAT_MODEL"] ?? "qwen3-4b"; // override to match the loaded serve model
+const CHAT = process.env["EVAL_CHAT_MODEL"] ?? "chat"; // override to match the loaded serve alias
 
 const { saveAgent, listAgents } = await import("@mycelium/leash-core/agents-store");
 const { saveSkill, getSkill } = await import("@mycelium/leash-core/skills-store");
@@ -160,5 +160,5 @@ check("main produced a final synthesis", mainText.length > 30);
 if (delegated) check("nested tool call fired via delegation (subagent→lookup_drug)", drugToolCalls > 0);
 
 await rm(DATA, { recursive: true, force: true });
-console.log(failures === 0 ? "\nORCHESTRATION PROOF PASS ✅ — AI SDK ToolLoopAgent subagent: streams to UI, calls tools, loads skills, and the main agent orchestrates it" : `\n${failures} CHECK(S) FAILED ❌ — see trace (qwen3-4b tool-calling can be flaky; the SDK wiring is exercised regardless)`);
+console.log(failures === 0 ? "\nORCHESTRATION PROOF PASS ✅ — AI SDK ToolLoopAgent subagent: streams to UI, calls tools, loads skills, and the main agent orchestrates it" : `\n${failures} CHECK(S) FAILED ❌ — see trace (chat tool-calling can be flaky; the SDK wiring is exercised regardless)`);
 process.exit(failures === 0 ? 0 : 1);

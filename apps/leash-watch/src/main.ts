@@ -6,7 +6,7 @@
  *
  * Per tick (default every 60s): skip if idle/locked → read the frontmost app + window
  * (Accessibility) → apply the allow/block privacy gate → debounce when nothing changed →
- * capture the screen → summarize with the on-device VLM (qwen3vl) → append {ts,app,window,
+ * capture the screen → summarize with the on-device VLM (`vision`) → append {ts,app,window,
  * summary,tags} to the activity trail. Frames are deleted immediately; nothing leaves the
  * device. Ctrl-C / `q` drains cleanly.
  */

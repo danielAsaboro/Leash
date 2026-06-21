@@ -30,7 +30,7 @@ async function main() {
     "valid-skill",
     manifest(
       "valid-skill",
-      "license: Apache-2.0\ncompatibility: claude-code\nmetadata: |\n  {\"builtin\":true,\"examples\":[\"do the valid thing\",\"route to valid skill\"]}\nallowed-tools: Bash(git:*) Bash(jq:*) Read run_command\nwhen_to_use: |\n  use me\nargument-hint: topic\ndisable-model-invocation: true\nuser-invocable: false\ndisallowed-tools: Bash(rm:*)\nmodel: qwen3-4b\neffort: high\ncontext: |\n  extra context\nagent: helper\npaths: references/x.md\nshell: bash\nhooks: |\n  []\narguments: |\n  {\"topic\":\"string\"}\n",
+      "license: Apache-2.0\ncompatibility: claude-code\nmetadata: |\n  {\"builtin\":true,\"examples\":[\"do the valid thing\",\"route to valid skill\"]}\nallowed-tools: Bash(git:*) Bash(jq:*) Read run_command\nwhen_to_use: |\n  use me\nargument-hint: topic\ndisable-model-invocation: true\nuser-invocable: false\ndisallowed-tools: Bash(rm:*)\nmodel: chat\neffort: high\ncontext: |\n  extra context\nagent: helper\npaths: references/x.md\nshell: bash\nhooks: |\n  []\narguments: |\n  {\"topic\":\"string\"}\n",
     ),
   );
   const valid = await getSkill("valid-skill");

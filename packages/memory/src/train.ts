@@ -28,7 +28,7 @@ export interface TrainBase {
  * LoRA base model. QVAC Fabric finetunes only F32/F16/Q4_0/Q8_0/TQ — NOT Q4_K_M, the
  * quant the 4B ships as (file_type=15: "Finetuning is not supported for this quantization
  * type"). QWEN3_600M_INST_Q4 is Q4_0 → trainable (proven by spike 04-lora). The web chat's
- * 4B (qwen3-4b) can only get a personal adapter from a TRAINABLE-quant 4B gguf (Q8_0/Q4_0/
+ * 4B (`chat`) can only get a personal adapter from a TRAINABLE-quant 4B gguf (Q8_0/Q4_0/
  * F16) supplied as a custom src — not in the QVAC catalog today. So the loop trains the
  * 600M and its "better at you" surface is the edge/council path (router.answerTrivial({lora}));
  * pass a custom `base` to runNightlyLora once you have a trainable 4B gguf.
@@ -39,7 +39,7 @@ export interface RunNightlyLoraParams {
   base?: TrainBase;
   epochs?: number;
   minPairs?: number;
-  /** Write the `qwen3-4b-me` serve alias when the adapter is promotable (default true). */
+  /** Write the `chat-me` serve alias when the adapter is promotable (default true). */
   promote?: boolean;
   /** Ignore a crashed-but-trained adapter on disk and train fresh (default false → resume it). */
   forceRetrain?: boolean;

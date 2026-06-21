@@ -185,7 +185,7 @@ export class WarmPool {
         timeout: 60_000,
         fallbackToLocal: false,
         tools: false,
-        // Vision (qwen3vl): load the provider's projection model + a roomier ctx (images cost tokens).
+        // Vision: load the provider's projection model + a roomier ctx (images cost tokens).
         ...(vision ? { ctxSize: 8192, ...(projectionModelSrc ? { projectionModelSrc } : {}) } : {}),
         audit: this.deps.audit,
       });

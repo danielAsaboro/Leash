@@ -47,7 +47,7 @@ export interface AgentToolRuntimeContext {
 }
 
 /**
- * Toolless-hang guard (mirrors the main chat route): the qvac serve runs qwen3-4b with
+ * Toolless-hang guard (mirrors the main chat route): the qvac serve runs `chat` with
  * tools:true/toolsMode:dynamic ("tools_compact"), which REJECTS a chat request that carries no tools.
  * So a pure-reasoning subagent (a drafter/reviewer with no declared tools) would hang. We hand it ONE
  * harmless keep-alive tool to satisfy the serve; the model can ignore it.
@@ -197,7 +197,7 @@ function buildOne(agent: Agent, registry: ToolSet, runtime: AgentToolRuntimeCont
             await updateGoalRunStep(goalRunId, ledgerStepId, { status: "done", summary: out });
             await recordGoalRunModelTrace(goalRunId, {
               stepId: ledgerStepId,
-              model: agent.model || "qwen3-4b",
+              model: agent.model || "chat",
               alias: toolKey,
               startedAt,
               finishedAt: Date.now(),

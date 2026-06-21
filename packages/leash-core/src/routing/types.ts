@@ -2,7 +2,7 @@
  * Routing types — the shared vocabulary for the Conductor router. One source of truth
  * imported by the MCP discovery group (leash-tools-mcp daemon) AND the web chat route.
  */
-export type Modality = "text" | "vision" | "audio" | "ocr";
+export type Modality = "text" | "vision" | "audio" | "ocr" | "stt" | "tts";
 export type ParamClass = "tiny" | "small" | "mid" | "large" | "unknown";
 export type Specialist = "general" | "health" | "vision" | "ocr" | "computer";
 /** Matches apps/hypha mesh-router: "private" = keep in-mesh (sensitive); "shareable" = public OK. */

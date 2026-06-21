@@ -15,7 +15,7 @@ const ALICE = "0xA11ce0000000000000000000000000000000Face";
 const earn = (tx: string, amt: number, tok: number, at: string): EconomyReceipt =>
   ({ sessionId: tx, alias: "health", actualTokens: tok, actualAmount: amt, asset: "USDT0", txHash: tx, status: "settled", payerAddress: ALICE, providerAddress: ME, providerId: "PSELF", settledAt: at, completedAt: at, networkId: "eip155:9746" });
 const spend = (tx: string, amt: number, tok: number, at: string): EconomyReceipt =>
-  ({ sessionId: tx, alias: "qwen3-4b", actualTokens: tok, actualAmount: amt, asset: "USDT0", txHash: tx, status: "settled", payerAddress: ME, providerAddress: MINI, providerId: "PMINI", settledAt: at, completedAt: at, networkId: "eip155:9746" });
+  ({ sessionId: tx, alias: "chat", actualTokens: tok, actualAmount: amt, asset: "USDT0", txHash: tx, status: "settled", payerAddress: ME, providerAddress: MINI, providerId: "PMINI", settledAt: at, completedAt: at, networkId: "eip155:9746" });
 
 const receipts: EconomyReceipt[] = [
   earn("0xe1", 100, 100, "2026-06-10T10:00:00Z"),

@@ -6,9 +6,9 @@ import assert from "node:assert";
 import { rankRoutes, tagsForAlias, type RouteOption } from "../packages/leash-core/src/routing/index.ts";
 
 const options: RouteOption[] = [
-  { tier: "device", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), pricePerKiloToken: 0, inflight: 4 },
-  { tier: "private", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-fast", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
-  { tier: "public", alias: "qwen3-4b", tags: tagsForAlias("qwen3-4b"), peerKey: "peer-public", meshId: "mesh-public", pricePerKiloToken: 1, inflight: 0 },
+  { tier: "device", alias: "chat", tags: tagsForAlias("chat"), pricePerKiloToken: 0, inflight: 4 },
+  { tier: "private", alias: "chat", tags: tagsForAlias("chat"), peerKey: "peer-fast", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
+  { tier: "public", alias: "chat", tags: tagsForAlias("chat"), peerKey: "peer-public", meshId: "mesh-public", pricePerKiloToken: 1, inflight: 0 },
   { tier: "private", alias: "health", tags: tagsForAlias("health"), peerKey: "peer-joy", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
   { tier: "private", alias: "ocr", tags: tagsForAlias("ocr"), peerKey: "peer-ocr", meshId: "mesh-private", pricePerKiloToken: 0, inflight: 0 },
 ];

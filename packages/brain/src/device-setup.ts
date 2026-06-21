@@ -82,7 +82,7 @@ function decideMobileSetup(facts: DeviceSetupFacts): Omit<DeviceSetupDecision, "
       profileId: "phone",
       executionTarget: "local",
       setupClass: "compact",
-      recommendedChatAlias: "qwen3-600m",
+      recommendedChatAlias: "chat-compact",
       title: "Compact local setup",
       summary: "This device should start with the lightest local chat model so setup stays reliable and fast.",
       reasons: [
@@ -97,7 +97,7 @@ function decideMobileSetup(facts: DeviceSetupFacts): Omit<DeviceSetupDecision, "
       profileId: "phone",
       executionTarget: "local",
       setupClass: "full",
-      recommendedChatAlias: "qwen3-4b",
+      recommendedChatAlias: "chat-large",
       title: "Full local setup",
       summary: "This device has enough local headroom for the stronger on-device chat model, so Leash can start with the best offline experience.",
       reasons: [
@@ -111,7 +111,7 @@ function decideMobileSetup(facts: DeviceSetupFacts): Omit<DeviceSetupDecision, "
     profileId: "phone",
     executionTarget: "local",
     setupClass: "balanced",
-    recommendedChatAlias: "qwen3-1.7b",
+    recommendedChatAlias: "chat",
     title: "Balanced local setup",
     summary: "This device should start with the balanced mobile model so chat stays local without overcommitting the first-run footprint.",
     reasons: [
@@ -128,7 +128,7 @@ export function decideDeviceSetup(facts: DeviceSetupFacts): DeviceSetupDecision 
       profileId: "desktop",
       executionTarget: "local",
       setupClass: "full",
-      recommendedChatAlias: "qwen3-4b",
+      recommendedChatAlias: "chat",
       title: "Desktop local setup",
       summary: "Desktop installs should load the full local kit so chat, tools, and heavier workloads stay on the machine.",
       reasons: [
@@ -145,7 +145,7 @@ export function decideDeviceSetup(facts: DeviceSetupFacts): DeviceSetupDecision 
       profileId: "desktop",
       executionTarget: "paired-hub",
       setupClass: "full",
-      recommendedChatAlias: "qwen3-4b",
+      recommendedChatAlias: "chat",
       title: "Paired desktop setup",
       summary: "The browser should use the full desktop kit, but the runtime belongs on the paired machine rather than inside the tab.",
       reasons: [

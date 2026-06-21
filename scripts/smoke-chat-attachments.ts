@@ -1,6 +1,6 @@
 /**
  * Pure-logic smoke for the vision-over-mesh content parser (apps/hypha/src/chat-attachments.ts).
- * The shim borrows vision (qwen3vl) over the chat path: OpenAI sends images as `image_url` content
+ * The shim borrows `vision` over the chat path: OpenAI sends images as `image_url` content
  * parts; this flattens text + collects `data:` images and decodes them to bytes (the shim writes the
  * temp file). Proves text/image splitting, bare-vs-object `image_url`, http URLs ignored, and decode.
  *   npm run smoke:chat-attachments

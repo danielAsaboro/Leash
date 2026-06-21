@@ -1,7 +1,7 @@
 /**
  * Context compaction (server-only) — keep long chats inside the model's window.
  *
- * qwen3-4b serves a 32k-token window; a long thread silently falls off the back.
+ * `chat` serves a 32k-token window; a long thread silently falls off the back.
  * Instead, when the history outgrows a budget (default 80% of the window) we summarize the OLDEST messages into a
  * running `summary` (stored on the ChatRecord) and feed the model
  * `[summary + recent tail]`. The full message array is never touched — the user still

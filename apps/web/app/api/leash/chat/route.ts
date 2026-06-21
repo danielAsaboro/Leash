@@ -928,7 +928,7 @@ export async function POST(req: Request): Promise<Response> {
   // Some tool calls pause on a human approval card. A DENIED call must not be retried —
   // acknowledge the refusal and move on (without this, small models loop the same call).
   const approvalNote = CHAT_APPROVAL_NOTE;
-  // Thinking-budget cap (SmallCode port): on reasoning-ON turns (deep text), qwen3-4b can burn its
+  // Thinking-budget cap (SmallCode port): on reasoning-ON turns (deep text), chat can burn its
   // whole token budget on <think> and emit no answer. Steer it to reason briefly so the answer fits
   // (paired with the raised deep-tier token budget in effort.ts). Only when not /no_think and not vision.
   const thinkingNote =
@@ -952,7 +952,7 @@ export async function POST(req: Request): Promise<Response> {
   // [summary + recent tail] to the model. The FULL history stays in `validated` →
   // `originalMessages` → saved/displayed; only the model's input shrinks. Image turns
   // are single-shot, so they skip this. Best-effort: failure falls back to full history.
-  // Tracks qwen3-4b's `ctx_size` in qvac.config.base.json (32768 since 2026-06-12, qwen3-4b's
+  // Tracks chat's `ctx_size` in qvac.config.base.json (32768 since 2026-06-12, chat's
   // native window — the serve's own default is a tiny 1024; agent turns carry 2-4k of tool
   // schemas + system prompt before history even starts). Keep the two in sync.
   const CTX = Number(process.env["LEASH_CHAT_CTX"] ?? 32768);
@@ -1133,7 +1133,7 @@ export async function POST(req: Request): Promise<Response> {
   const callOptions: LeashCallOptions = {
     route: callRoute,
     // Vision turns are single-shot: no tool loop, no step cap, and NO token ceiling
-    // (qwen3vl breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
+    // (vision breaks on max_tokens — see computer-tools.ts). A skill-driven toolset gets
     // the most steps; else computer/files get their raised budgets, else the effort tier's.
     steps: callSteps,
     maxOutputTokens: callMaxOutputTokens,

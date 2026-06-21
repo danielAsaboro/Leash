@@ -15,7 +15,7 @@ const smallPhone = decideDeviceSetup({
 assert.equal(smallPhone.profileId, "phone");
 assert.equal(smallPhone.executionTarget, "local");
 assert.equal(smallPhone.setupClass, "compact");
-assert.equal(smallPhone.recommendedChatAlias, "qwen3-600m");
+assert.equal(smallPhone.recommendedChatAlias, "chat-compact");
 
 const ipad = decideDeviceSetup({
   surface: "mobile",
@@ -29,7 +29,7 @@ const ipad = decideDeviceSetup({
 assert.equal(ipad.profileId, "phone");
 assert.equal(ipad.executionTarget, "local");
 assert.equal(ipad.setupClass, "full");
-assert.equal(ipad.recommendedChatAlias, "qwen3-4b");
+assert.equal(ipad.recommendedChatAlias, "chat-large");
 assert.ok(ipad.reasons.some((reason) => /tablet/i.test(reason)));
 
 const desktop = decideDeviceSetup({
@@ -43,7 +43,7 @@ const desktop = decideDeviceSetup({
 assert.equal(desktop.profileId, "desktop");
 assert.equal(desktop.executionTarget, "local");
 assert.equal(desktop.setupClass, "full");
-assert.equal(desktop.recommendedChatAlias, "qwen3-4b");
+assert.equal(desktop.recommendedChatAlias, "chat");
 
 const web = decideDeviceSetup({
   surface: "web",
@@ -55,7 +55,7 @@ const web = decideDeviceSetup({
 assert.equal(web.profileId, "desktop");
 assert.equal(web.executionTarget, "paired-hub");
 assert.equal(web.setupClass, "full");
-assert.equal(web.recommendedChatAlias, "qwen3-4b");
+assert.equal(web.recommendedChatAlias, "chat");
 assert.ok(web.reasons.some((reason) => /browser/i.test(reason)));
 
 console.log("device-setup.test.ts: ok");

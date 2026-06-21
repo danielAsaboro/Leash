@@ -37,7 +37,7 @@ const ROOT = join(here, "..", "..", "..");
 const DIR = process.env["LEASH_RESEARCH_DIR"] ?? join(ROOT, "data", "leash-research");
 const TASKS_FILE = process.env["LEASH_TASKS_FILE"] ?? join(ROOT, "data", "leash-tasks.json");
 const QVAC_OPENAI_URL = process.env["QVAC_OPENAI_URL"] ?? "http://127.0.0.1:11435/v1";
-const MODEL = process.env["LEASH_RESEARCH_MODEL"] ?? "qwen3-4b";
+const MODEL = process.env["LEASH_RESEARCH_MODEL"] ?? "chat";
 
 const MAX_ROUNDS = Number(process.env["LEASH_RESEARCH_ROUNDS"] ?? 4);
 const QUERIES_PER_ROUND = 3;

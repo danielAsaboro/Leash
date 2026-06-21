@@ -24,7 +24,7 @@ async function main(): Promise<void> {
     } as any);
     console.log(`   ✅ cached: ${label}`);
   }
-  console.log("\n🎉 qwen3vl cached");
+  console.log("\n🎉 vision assets cached");
   await close();
 }
 

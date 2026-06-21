@@ -96,7 +96,7 @@ export interface ActiveSkillsResult {
    * Set when the (first) active skill declares an ordered `steps:` plan. The chat route then runs
    * that skill as a DETERMINISTIC PIPELINE (skill-runner.ts) for this turn — the harness drives the
    * steps, the model does one atomic sub-task each — INSTEAD of a free-run agent turn. This is what
-   * makes a step-skill a reliable multi-step workflow on qwen3-4b (the 4B can't drop a chain it
+   * makes a step-skill a reliable multi-step workflow on chat (the 4B can't drop a chain it
    * doesn't own; verified 2026-06-12: pipeline 3/3 vs free-run ~1/3 on a dependent chain). Null
    * when no active skill declares steps (normal free-run turn).
    */

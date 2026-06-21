@@ -3,7 +3,7 @@ export default {
   loggerConsoleOutput: false,
   serve: {
     models: {
-      "qwen3-4b": {
+      "chat": {
         model: "QWEN3_4B_INST_Q4_K_M",
         preload: true,
         default: true,

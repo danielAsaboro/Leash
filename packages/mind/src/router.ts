@@ -43,7 +43,7 @@ export interface AnswerTrivialParams {
    * Optional path to a LoRA adapter (Layer 4). When set, the small local model is
    * loaded with `modelConfig.lora` — the "600M-me" personalized variant. This is the
    * apply surface used when the 4B serve-alias path isn't available (Phase-0 600M
-   * fallback, or an edge device that can't run the served `qwen3-4b-me`).
+   * fallback, or an edge device that can't run the served `chat-me`).
    */
   lora?: string;
 }

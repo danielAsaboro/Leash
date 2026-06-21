@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { CHAT_MODELS, DEFAULT_CHAT_KEY } from "../modelsInventory";
 import {
   buildFirstDeviceDownloadPlan,
   buildFactoryResetPlan,
@@ -11,7 +12,9 @@ function rowByKey(rows: DownloadPlanRow[], key: string): DownloadPlanRow {
   return row!;
 }
 
-const firstDevice = buildFirstDeviceDownloadPlan("qwen3-4b", { deviceLabel: "this iPad" });
+assert.ok(CHAT_MODELS.some((entry) => entry.chatKey === DEFAULT_CHAT_KEY), "default chat key should resolve to a mobile chat entry");
+
+const firstDevice = buildFirstDeviceDownloadPlan("chat-large", { deviceLabel: "this iPad" });
 assert.equal(firstDevice.defaultExpanded, false, "download disclosure should start collapsed");
 assert.equal(firstDevice.rows.length, 4, "first-device setup should disclose chat + support assets");
 assert.match(firstDevice.title, /this iPad/i);
@@ -24,6 +27,9 @@ assert.equal(rowByKey(firstDevice.rows, "tts").timing, "during-setup");
 assert.match(rowByKey(firstDevice.rows, "chat").sizeLabel, /MB|GB/);
 assert.match(rowByKey(firstDevice.rows, "chat").purpose, /chat/i);
 assert.match(rowByKey(firstDevice.rows, "chat").label, /4B/i);
+
+const unknownDefault = buildFirstDeviceDownloadPlan("unknown-chat-alias", { deviceLabel: "this iPad" });
+assert.match(rowByKey(unknownDefault.rows, "chat").label, /Qwen3/i, "unknown chat aliases should fall back to a real mobile chat model");
 
 const reset = buildFactoryResetPlan();
 assert.ok(reset.files.some((entry) => entry.key === "device-identity"), "reset should clear device identity");

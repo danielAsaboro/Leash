@@ -55,7 +55,11 @@ async function main(): Promise<void> {
   assert.ok(phone.roles.some((r) => r.delegateWhen === "unavailable-or-too-heavy"), "phone profile declares delegation fallback");
   assert.ok(edge.roles.some((r) => r.role === "chat" && r.device === "edge"), "edge profile has its own chat variant");
   assert.ok(edge.roles.some((r) => r.role === "health" && r.device === "edge" && r.delegateWhen === "unavailable-or-too-heavy"), "edge profile has delegated health fallback");
-  assert.deepEqual(Object.keys(BRAIN_MODEL_VARIANTS).sort(), ["chat", "classifier", "embed", "health", "speech_to_text", "text_to_speech", "vision"], "shared Brain owns capability variants");
+  assert.deepEqual(Object.keys(BRAIN_MODEL_VARIANTS).sort(), ["chat", "classifier", "embed", "health", "ocr", "speech_to_text", "text_to_speech", "vision"], "shared Brain owns capability variants");
+  assert.equal(BRAIN_MODEL_VARIANTS.chat.desktop.alias, "chat", "desktop chat alias is capability-based");
+  assert.equal(BRAIN_MODEL_VARIANTS.vision.desktop.alias, "vision", "desktop vision alias is capability-based");
+  assert.equal(BRAIN_MODEL_VARIANTS.speech_to_text.desktop.alias, "stt", "desktop STT alias is capability-based");
+  assert.equal(BRAIN_MODEL_VARIANTS.text_to_speech.desktop.alias, "tts", "desktop TTS alias is capability-based");
   for (const capability of Object.keys(BRAIN_MODEL_VARIANTS) as (keyof typeof BRAIN_MODEL_VARIANTS)[]) {
     const variants = modelVariantsForCapability(capability);
     assert.deepEqual(Object.keys(variants).sort(), ["desktop", "edge", "phone"], `${capability} has desktop/phone/edge variants`);

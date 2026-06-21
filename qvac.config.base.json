@@ -4,7 +4,7 @@
   "loggerConsoleOutput": false,
   "serve": {
     "models": {
-      "qwen3-4b": {
+      "chat": {
         "model": "QWEN3_4B_INST_Q4_K_M",
         "preload": true,
         "default": true,
@@ -35,7 +35,7 @@
           "ctx_size": 8192
         }
       },
-      "qwen3vl": {
+      "vision": {
         "model": "QWEN3VL_2B_MULTIMODAL_Q4_K",
         "preload": true,
         "config": {
@@ -56,11 +56,11 @@
           "recognizerBatchSize": 1
         }
       },
-      "parakeet": {
+      "stt": {
         "model": "PARAKEET_TDT_0_6B_V3_Q8_0",
         "preload": true
       },
-      "supertonic": {
+      "tts": {
         "model": "TTS_EN_SUPERTONIC_Q8_0",
         "preload": true,
         "config": {

@@ -27,7 +27,7 @@ const run: GoalRun = {
     artifacts: [],
     errors: [],
   })),
-  modelTrace: [{ id: "m1", model: "qwen3-4b", startedAt: 1, reason: "FULL TRACE SHOULD NOT APPEAR" }],
+  modelTrace: [{ id: "m1", model: "chat", startedAt: 1, reason: "FULL TRACE SHOULD NOT APPEAR" }],
   toolTrace: [{ id: "t1", toolName: "bash", route: "files", startedAt: 1, summary: "FULL TOOL TRACE SHOULD NOT APPEAR" }],
   artifacts: [{ id: "a1", kind: "text", title: "Review digest", ref: "goal://artifact/a1", summary: "Compact artifact summary.", createdAt: 2 }],
   errors: [],

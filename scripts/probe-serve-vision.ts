@@ -10,7 +10,7 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 const SERVE_URL = (process.env["SERVE_URL"] ?? "http://127.0.0.1:11435").replace(/\/+$/, "");
-const MODEL = process.env["VISION_MODEL"] ?? "qwen3vl";
+const MODEL = process.env["VISION_MODEL"] ?? "vision";
 const IMG = ["spike/fixtures/ocr-note.png", "data/photos/calibration-card.png"].map((p) => join(process.cwd(), p)).find(existsSync);
 
 async function main(): Promise<void> {

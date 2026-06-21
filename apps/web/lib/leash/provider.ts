@@ -50,10 +50,10 @@ const HYPHA_SHIM_URL = (process.env["LEASH_BROKER_HYPHA_URL"] ?? `http://127.0.0
 const QVAC_ROUTED_OPENAI_URL = process.env["LEASH_ROUTED_OPENAI_URL"] ?? `${HYPHA_SHIM_URL}/v1`;
 
 /** Served model aliases — must match keys in `qvac.config.base.json` → `serve.models`. */
-export const CHAT_MODEL = process.env["LEASH_CHAT_MODEL"] ?? "qwen3-4b";
+export const CHAT_MODEL = process.env["LEASH_CHAT_MODEL"] ?? "chat";
 export const EMBED_MODEL = process.env["LEASH_EMBED_MODEL"] ?? "embed";
 /** Vision-language model (Qwen3VL) for image turns — via the forked serve's image-content support. */
-export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "qwen3vl";
+export const VISION_MODEL = process.env["LEASH_VISION_MODEL"] ?? "vision";
 /**
  * Computer-use driver alias — DEFAULTS TO THE CHAT MODEL, so the computer-turn routing
  * is a no-op until configured. Set to a bigger served alias (e.g. `gpt-oss-20b`) for
@@ -82,7 +82,7 @@ const CFG_FILE = process.env["QVAC_CONFIG_PATH"] ? join(dirname(process.env["QVA
  * The chat alias the user ACTUALLY has configured — the model with `default: true`, else the first
  * configured model, else the built-in CHAT_MODEL. Read per call (the config is tiny) so adding a
  * model in the dashboard makes chat use it on the next turn. Without this, chat asked for a fixed
- * "qwen3-4b" and broke whenever the user loaded a differently-named model.
+ * a model-name alias and broke whenever the user loaded a differently-named model.
  */
 export function resolvedChatAlias(): string {
   if (process.env["LEASH_CHAT_MODEL"]) return process.env["LEASH_CHAT_MODEL"] as string;

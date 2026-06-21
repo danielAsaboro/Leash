@@ -8,6 +8,8 @@
  */
 import * as FileSystem from "expo-file-system/legacy";
 import * as Device from "expo-device";
+import { pickProviderFromPeers, type MeshOffloadTarget, type MeshPeer } from "./providerSelection";
+export type { MeshModel, MeshOffloadTarget, MeshPeer } from "./providerSelection";
 
 export type MeshTask = {
   id: string;
@@ -23,27 +25,6 @@ export type MeshTask = {
 };
 
 export type MeshStatus = { joined: boolean; writable: boolean; peers: number; leader: string | null; leaderName?: string; deviceId: string | null; meshLabel?: string; visibility?: "private" | "public" };
-
-/** A model a provider advertises into the mesh (alias + the delegable source). */
-export type MeshModel = { alias: string; modelSrc: string; modelType?: string; borrowable?: boolean; projectionModelSrc?: string };
-
-/** One advertised mesh member (the worklet returns the FULL capability record; provider
- *  members also carry providerPublicKey + the models they serve, so a consumer can borrow
- *  compute from them automatically — no hardcoded key). */
-export type MeshPeer = {
-  deviceId: string;
-  displayName: string;
-  computeClass: string;
-  isProvider: boolean;
-  joinedAt: number;
-  lastSeen: string;
-  providerPublicKey?: string;
-  consumerPublicKey?: string;
-  meshId?: string;
-  models?: MeshModel[];
-  availableModels?: string[];
-  inflight?: number;
-};
 
 /**
  * Collapse ghost duplicates the same way web/desktop do (packages/mesh `supersededDeviceIds`): a
@@ -70,37 +51,25 @@ export function dedupePeers(peers: MeshPeer[]): MeshPeer[] {
   return [...newestByIdentity.values(), ...passthrough];
 }
 
-/** A resolved auto-offload target: which peer to borrow chat compute from, and the model to run.
- *  `alias` is the provider's serve model id (what the forward body's `model` field must be). */
-export type ChatOffloadTarget = { providerPublicKey: string; modelSrc: string; alias: string; displayName: string; deviceId: string };
-
 /**
  * Pick a live provider in the mesh to borrow CHAT compute from — the automatic "borrow a brain".
  * Mirrors the desktop warm-pool's selection (live + borrowable + lowest inflight), purely from the
  * replicated capability roster. Returns null when no provider is advertising a borrowable chat model
  * (→ chat runs on-device). No hardcoded keys or model ids.
  */
-export async function pickChatProvider(staleMs = 45_000): Promise<ChatOffloadTarget | null> {
+export async function pickChatProvider(staleMs = 45_000): Promise<MeshOffloadTarget | null> {
   const peers = await peersList().catch(() => [] as MeshPeer[]);
-  const now = Date.now();
-  // Diagnostic: how many provider peers the phone currently holds (terse).
   console.log("[autoborrow] provider peers:", peers.filter((p) => p.isProvider).length);
-  let best: ChatOffloadTarget | null = null;
-  let bestInflight = Infinity;
-  for (const p of peers) {
-    if (!p.isProvider || !p.providerPublicKey) continue;
-    if (now - (Date.parse(p.lastSeen || "") || 0) > staleMs) continue;
-    const chat = (p.models ?? []).find(
-      (m) => m.borrowable !== false && !!m.modelSrc && (m.alias === "chat" || m.modelType === "chat"),
-    );
-    if (!chat) continue;
-    const inflight = p.inflight ?? 0;
-    if (inflight < bestInflight) {
-      bestInflight = inflight;
-      best = { providerPublicKey: p.providerPublicKey, modelSrc: chat.modelSrc, alias: chat.alias, displayName: p.displayName, deviceId: p.deviceId };
-    }
-  }
-  return best;
+  return pickProviderFromPeers(peers, "chat", staleMs);
+}
+
+/**
+ * Pick a live provider that serves a multimodal/vision alias. Image turns must not reuse the chat
+ * offload target: a text model will accept the forwarded request but never produce vision frames.
+ */
+export async function pickVisionProvider(staleMs = 45_000): Promise<MeshOffloadTarget | null> {
+  const peers = await peersList().catch(() => [] as MeshPeer[]);
+  return pickProviderFromPeers(peers, "vision", staleMs);
 }
 
 /**
